@@ -16,10 +16,10 @@ interface SidebarProps {
 
 const navItems = [
   { href: "/dashboard", icon: Home, label: "Dashboard" },
-  { href: "/sales", icon: ShoppingBag, label: "Sales" },
-  { href: "/orders", icon: ShoppingCart, label: "Orders" },
-  { href: "/products", icon: Package, label: "Products" },
-  { href: "/customers", icon: Users2, label: "Customers" },
+  { href: "/dashboard/sales", icon: ShoppingBag, label: "Sales" },
+  { href: "/dashboard/orders", icon: ShoppingCart, label: "Orders" },
+  { href: "/dashboard/products", icon: Package, label: "Products" },
+  { href: "/dashboard/customers", icon: Users2, label: "Customers" },
   { href: "/analytics", icon: LineChart, label: "Analytics" },
 ]
 
@@ -122,7 +122,6 @@ function ToggleButton({ expanded, onClick }: ToggleButtonProps) {
     <button
       onClick={onClick}
       className="absolute -right-3 bottom-24 h-6 w-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center transition-transform duration-300 hover:scale-110"
-
     >
       {expanded ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
     </button>

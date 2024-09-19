@@ -3,6 +3,8 @@ import './globals.css'
 import { Inter } from 'next/font/google'
 import { TooltipProvider } from "@/components/ui/tooltip";
 import ClientLayout from '@/components/ClientLayout';
+import { Toast } from '@/components/ui/toast';
+import { Toaster } from '@/components/ui/toaster';
 
 export const metadata = {
   metadataBase: new URL('https://postgres-prisma.vercel.app'),
@@ -35,6 +37,7 @@ export default function RootLayout({
         <TooltipProvider>
           <ClientLayout>{children}</ClientLayout>
         </TooltipProvider>
+        <Toaster />
       </body>
     </html>
   )

@@ -77,7 +77,7 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
             className="overflow-hidden rounded-full"
           >
             <Image
-              src="/images/avator.jpeg"
+              src="/placeholder-user.webp"
               width={36}
               height={36}
               alt="Avatar"
