@@ -1,4 +1,51 @@
----
+# Delivery App
+
+This is a delivery application built with Next.js 14, Prisma, Zustand, Zod, and Shadcn UI.
+
+## Table of Contents
+
+- [Installation](#installation)
+- [Usage](#usage)
+- [Folder Structure](#folder-structure)
+- [Technologies Used](#technologies-used)
+- [Contributing](#contributing)
+- [License](#license)
+
+## Installation
+
+1. Clone the repository:
+
+    ```sh
+    git clone https://github.com/yourusername/delivery-app.git
+    cd delivery-app
+    ```
+
+2. Install dependencies:
+
+    ```sh
+    npm install
+    ```
+
+3. Set up environment variables:
+
+    Create a `.env` file in the root directory and add your environment variables.
+
+    ```env
+    DATABASE_URL=your_database_url
+    ```
+
+4. Run Prisma migrations:
+
+    ```sh
+    npx prisma migrate dev
+    ```
+
+## Usage
+
+To start the development server:
+
+```sh
+npm run dev---
 name: Vercel Postgres + Prisma Next.js Starter
 slug: postgres-prisma
 description: Simple Next.js template that uses Vercel Postgres as the database and Prisma as the ORM.

@@ -17,6 +17,7 @@ type CartFooterProps = {
   onPrintPreview: () => void;
   onPrint: () => void;
   onCancel: () => void;
+  onThermalPrintPreview: () => void;
 };
 
 export const CartFooter: FC<CartFooterProps> = ({
@@ -25,6 +26,7 @@ export const CartFooter: FC<CartFooterProps> = ({
   onPrintPreview,
   onPrint,
   onCancel,
+  onThermalPrintPreview,
 }) => {
   const [coupon, setCoupon] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState("");
@@ -122,7 +124,10 @@ export const CartFooter: FC<CartFooterProps> = ({
               <Printer className="mr-2 h-4 w-4" />
               Print Preview
             </Button>
-            <Button>Checkout</Button>
+            <Button variant="outline" onClick={onThermalPrintPreview}>
+              Thermal Print
+            </Button>
+            <Button className="col-span-2">Checkout</Button>
           </>
         )}
       </div>
