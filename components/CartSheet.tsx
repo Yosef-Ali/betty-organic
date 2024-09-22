@@ -1,7 +1,5 @@
 "use client";
-
 import { FC, useState } from "react";
-import { useCartStore } from "@/store/cartStore";
 import {
   Sheet,
   SheetContent,
@@ -10,14 +8,15 @@ import {
 } from "@/components/ui/sheet";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { CartItem as CartItemComponent } from "./CartItem";
+import { useCartStore } from "@/store/cartStore";
+import { CartItems } from "./CartItems";
+import { OrderSummary } from "./OrderSummary";
 import { CartFooter } from "./CartFooter";
-import { PrintPreview } from "./PrintPreview";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { ThermalPrintComponent } from "./ThermalPrintComponent";
 import { PrintPreviewModal } from "./PrintPreviewModal";
+import { ConfirmDialog } from "./ConfirmDialog";
+import { OtpDialog } from "./OtpDialog";
 import { Button } from "@/components/ui/button";
+import { ChevronLeft } from "lucide-react";
 
 export interface CartSheetProps {
   isOpen: boolean;
@@ -25,121 +24,93 @@ export interface CartSheetProps {
 }
 
 export const CartSheet: FC<CartSheetProps> = ({ isOpen, onOpenChange }) => {
-  const { items, removeFromCart, updateGrams } = useCartStore();
-  const [isPrintPreview, setIsPrintPreview] = useState(false);
-  const [phoneNumber, setPhoneNumber] = useState("");
+  const { items, clearCart } = useCartStore();
+  const [isOrderConfirmed, setIsOrderConfirmed] = useState(false);
   const [isThermalPrintPreviewOpen, setIsThermalPrintPreviewOpen] =
     useState(false);
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<"save" | "cancel" | null>(
+    null,
+  );
+  const [isOtpDialogOpen, setIsOtpDialogOpen] = useState(false);
 
-  const getTotalAmount = () => {
-    return items.reduce(
-      (total, item) => total + (item.pricePerKg * item.grams) / 1000,
-      0,
-    );
+  const handleBackToCart = () => {
+    setIsOrderConfirmed(false);
   };
 
-  const handlePrintPreview = () => {
-    setIsPrintPreview(true);
+  const handleConfirmOrder = () => {
+    setIsOrderConfirmed(true);
   };
 
-  const handlePrint = () => {
-    window.print();
-    setIsPrintPreview(false);
+  const handleConfirmDialog = (action: "save" | "cancel") => {
+    setConfirmAction(action);
+    setIsConfirmDialogOpen(true);
   };
 
-  const handleCancelPrint = () => {
-    setIsPrintPreview(false);
-  };
-
-  const handleThermalPrintPreview = () => {
-    setIsThermalPrintPreviewOpen(true);
+  const handleConfirmAction = () => {
+    if (confirmAction === "save") {
+      // Handle save order
+    } else {
+      handleBackToCart();
+    }
+    setIsConfirmDialogOpen(false);
   };
 
   return (
     <>
       <Sheet open={isOpen} onOpenChange={onOpenChange}>
-        <SheetContent className="w-full sm:max-w-lg">
-          <div className="flex flex-col h-full">
-            <SheetHeader>
-              <SheetTitle className="text-2xl">
-                {isPrintPreview ? "Orders" : "Your Cart"}
+        <SheetContent className="w-full sm:max-w-lg flex flex-col h-full">
+          <SheetHeader className="relative flex flex-row items-center justify-start space-x-4">
+            <div className="flex items-center space-x-4">
+              {isOrderConfirmed && (
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={handleBackToCart}
+                  className="h-8 w-8 flex items-center justify-center"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  <span className="sr-only">Back</span>
+                </Button>
+              )}
+              <SheetTitle className="text-2xl m-0 flex items-center">
+                {isOrderConfirmed ? "Order Confirmed" : "Your Cart"}
               </SheetTitle>
-            </SheetHeader>
-            <Card className="flex-grow mt-4 border-0 shadow-none overflow-hidden">
-              <CardContent className="p-0 h-full flex flex-col">
-                <ScrollArea className="flex-grow px-4">
-                  <div
-                    className={`transition-all duration-300 ease-in-out ${isPrintPreview ? "h-0 opacity-0 overflow-hidden" : "h-auto opacity-100"}`}
-                  >
-                    {items.map((item, index) => (
-                      <CartItemComponent
-                        key={item.id}
-                        item={item}
-                        index={index}
-                        updateGrams={updateGrams}
-                        removeFromCart={removeFromCart}
-                        isLastItem={index === items.length - 1}
-                      />
-                    ))}
-                  </div>
-                  <div
-                    className={`transition-all duration-300 ease-in-out ${isPrintPreview ? "h-auto opacity-100" : "h-0 opacity-0 overflow-hidden"}`}
-                  >
-                    <div className="mb-4">
-                      <Label
-                        htmlFor="phone-number"
-                        className="text-sm font-medium"
-                      >
-                        Phone Number (Optional)
-                      </Label>
-                      <Input
-                        id="phone-number"
-                        type="tel"
-                        placeholder="Enter phone number"
-                        value={phoneNumber}
-                        onChange={(e) => setPhoneNumber(e.target.value)}
-                        className="mt-1"
-                      />
-                    </div>
-                    <PrintPreview
-                      items={items}
-                      totalAmount={getTotalAmount()}
-                      phoneNumber={phoneNumber}
-                    />
-                  </div>
-                </ScrollArea>
+            </div>
+          </SheetHeader>
+          <Card className="flex-grow mt-4 border-0 shadow-none overflow-hidden flex flex-col">
+            <CardContent className="p-0 flex-grow overflow-hidden flex flex-col">
+              <ScrollArea className="flex-grow px-4">
+                {!isOrderConfirmed ? (
+                  <CartItems />
+                ) : (
+                  <OrderSummary onConfirmDialog={handleConfirmDialog} />
+                )}
+              </ScrollArea>
+              {!isOrderConfirmed && items.length > 0 && (
                 <CartFooter
-                  getTotalAmount={getTotalAmount}
-                  isPrintPreview={isPrintPreview}
-                  onPrintPreview={handlePrintPreview}
-                  onPrint={handlePrint}
-                  onCancel={handleCancelPrint}
-                  onThermalPrintPreview={handleThermalPrintPreview}
+                  onConfirmOrder={handleConfirmOrder}
+                  onThermalPrintPreview={() =>
+                    setIsThermalPrintPreviewOpen(true)
+                  }
                 />
-              </CardContent>
-            </Card>
-          </div>
+              )}
+            </CardContent>
+          </Card>
         </SheetContent>
       </Sheet>
       <PrintPreviewModal
         isOpen={isThermalPrintPreviewOpen}
         onClose={() => setIsThermalPrintPreviewOpen(false)}
-        items={items.map((item) => ({
-          name: item.name,
-          quantity: item.grams / 1000,
-          price: (item.pricePerKg * item.grams) / 1000,
-        }))}
-        total={getTotalAmount()}
-        phoneNumber={phoneNumber}
+        items={items}
       />
-      <ThermalPrintComponent
-        items={items.map((item) => ({
-          name: item.name,
-          quantity: item.grams / 1000,
-          price: (item.pricePerKg * item.grams) / 1000,
-        }))}
-        total={getTotalAmount()}
+      <ConfirmDialog
+        isOpen={isConfirmDialogOpen}
+        onOpenChange={setIsConfirmDialogOpen}
+        onConfirm={handleConfirmAction}
+        action={confirmAction}
       />
+      <OtpDialog isOpen={isOtpDialogOpen} onOpenChange={setIsOtpDialogOpen} />
     </>
   );
 };

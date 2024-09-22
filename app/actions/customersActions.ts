@@ -23,7 +23,7 @@ export async function uploadImage(data: FormData) {
   }
 
   const filename = path.join(uploadDir, file.name);
-  await fs.promises.writeFile(filename, buffer);
+  await fs.promises.writeFile(filename, new Uint8Array(buffer));
   return `/uploads/${file.name}` // This should be a valid URL
 }
 
@@ -96,8 +96,6 @@ export async function deleteCustomer(id: string) {
   }
 }
 
-
-
 export async function getCustomerById(id: string): Promise<Customer | null> {
   try {
     const customer = await prisma.customer.findUnique({
@@ -107,5 +105,52 @@ export async function getCustomerById(id: string): Promise<Customer | null> {
   } catch (error) {
     console.error('Error fetching customer:', error)
     return null
+  }
+}
+
+export async function searchCustomers(query: string) {
+  console.log('Searching for customers with query:', query);
+
+  if (!query) {
+    console.log('Empty query, returning empty array');
+    return [];
+  }
+
+  try {
+    const customers = await prisma.customer.findMany({
+      where: {
+        OR: [
+          { fullName: { contains: query.toLowerCase() } },
+          { phone: { contains: query } },
+        ],
+      },
+      take: 5,
+      select: {
+        id: true,
+        fullName: true,
+        phone: true,
+        imageUrl: true,
+      },
+    });
+
+    console.log('Prisma query result:', customers);
+
+    if (!customers || !Array.isArray(customers)) {
+      console.error('Unexpected result from Prisma query:', customers);
+      return [];
+    }
+
+    const result = customers.map(customer => ({
+      ...customer,
+      fullName: customer.fullName.toLowerCase().includes(query.toLowerCase())
+        ? customer.fullName
+        : customer.fullName
+    }));
+
+    console.log('Processed result:', result);
+    return result;
+  } catch (error) {
+    console.error('Error in searchCustomers:', error);
+    return [];
   }
 }

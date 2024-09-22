@@ -3,11 +3,12 @@
 import { FC, useState, useEffect, useCallback } from "react";
 import { useCartStore } from "@/store/cartStore";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
-import { CartSheet } from "./CartSheet";
+
 import { ProductGrid } from "./ProductGrid";
 import { SalesHeader } from "./SalesHeader";
 import { Product } from "@prisma/client";
 import { getProducts } from "@/app/actions/productActions";
+import { CartSheet } from "./cart/CartSheet";
 
 export type ProductStatus = "Available" | "Out of Stock";
 export type ProductWithStatus = Product & { status: ProductStatus };

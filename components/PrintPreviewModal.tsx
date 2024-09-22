@@ -18,9 +18,11 @@ import {
 interface PrintPreviewModalProps {
   isOpen: boolean;
   onClose: () => void;
-  items: Array<{ name: string; quantity: number; price: number }>;
+  items: { name: string; quantity: number; price: number; }[];
   total: number;
-  phoneNumber: string;
+  customerInfo: string;
+  customerId?: string; // Marked as optional with ?
+  // ... other properties
 }
 
 export const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
@@ -28,7 +30,8 @@ export const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
   onClose,
   items,
   total,
-  phoneNumber,
+  customerInfo,
+  customerId,
 }) => {
   const handlePrint = () => {
     window.print();
@@ -48,8 +51,8 @@ export const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
 
     text += `\n💰 Total spent: $${total.toFixed(2)}\n\n\n#HealthyChoices\n\n`;
 
-    if (phoneNumber) {
-      text += `📞 Contact: ${phoneNumber}\n\n`;
+    if (customerInfo) {
+      text += `📞 Contact: ${customerInfo}\n\n`;
     }
 
     text += `🕒 ${new Date().toLocaleString()}\n`;
@@ -80,9 +83,10 @@ export const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
               Thank you for your purchase!
             </p>
           </div>
-          {phoneNumber && (
+          {customerInfo && (
             <div className="mb-4 text-center">
-              <p className="text-sm">Customer Phone: {phoneNumber}</p>
+              <p className="text-sm">Customer Info: {customerInfo}</p>
+              {customerId && <p className="text-sm">Customer ID: {customerId}</p>}
             </div>
           )}
           <div className="mb-4">

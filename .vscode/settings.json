@@ -2,34 +2,30 @@
   // TypeScript settings
   "typescript.tsdk": "node_modules/.pnpm/typescript@5.0.4/node_modules/typescript/lib",
   "typescript.enablePromptUseWorkspaceTsdk": true,
-
   // Font settings
   "editor.fontSize": 16,
   "debug.console.fontSize": 16,
   "terminal.integrated.fontSize": 16,
-  "chat.editor.fontSize": 16,
+  "chat.editor.fontSize": 14,
   "notebook.output.fontSize": 16,
-  "chat.editor.lineHeight": 1,
-
+  "chat.editor.lineHeight": 0,
   // Editor settings
   "editor.tabSize": 2,
   "editor.insertSpaces": true,
   "editor.formatOnSave": true,
   "editor.codeActionsOnSave": {
-    "source.fixAll.eslint": true
+    "source.fixAll.eslint": "explicit"
   },
   "editor.quickSuggestions": {
     "strings": true
   },
   "editor.suggestSelection": "first",
   "editor.snippetSuggestions": "top",
-
   // Files settings
   "files.autoSave": "onFocusChange",
   "files.eol": "\n",
   "files.trimTrailingWhitespace": true,
   "files.insertFinalNewline": true,
-
   // ESLint settings
   "eslint.validate": [
     "javascript",
@@ -37,25 +33,21 @@
     "typescript",
     "typescriptreact"
   ],
-
   // Prettier settings
   "prettier.singleQuote": true,
   "prettier.trailingComma": "all",
   "prettier.arrowParens": "avoid",
-
   // Emmet settings
   "emmet.includeLanguages": {
     "javascript": "javascriptreact",
     "typescript": "typescriptreact"
   },
-
   // IntelliSense settings
   "javascript.updateImportsOnFileMove.enabled": "always",
   "typescript.updateImportsOnFileMove.enabled": "always",
-
   // Terminal settings
   "terminal.integrated.shell.osx": "/bin/zsh",
-
   // Extensions settings
-  "extensions.ignoreRecommendations": false
+  "extensions.ignoreRecommendations": false,
+  "editor.accessibilityPageSize": 16
 }
