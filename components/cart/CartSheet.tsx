@@ -43,6 +43,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { OtpDialog } from "./OtpDialog";
 
 export interface CartSheetProps {
   isOpen: boolean;
@@ -354,29 +355,13 @@ export const CartSheet: FC<CartSheetProps> = ({ isOpen, onOpenChange }) => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <Dialog open={isOtpDialogOpen} onOpenChange={setIsOtpDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Enter OTP to Verify</DialogTitle>
-          </DialogHeader>
-          <div className="flex justify-center space-x-2 my-4">
-            {[0, 1, 2, 3].map((index) => (
-              <Input
-                key={index}
-                id={`otp-${index}`}
-                type="text"
-                maxLength={1}
-                className="w-12 text-center"
-                value={otp[index]}
-                onChange={(e) => handleOtpChange(index, e.target.value)}
-              />
-            ))}
-          </div>
-          <DialogFooter>
-            <Button onClick={handleOtpSubmit}>Verify</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog >
+      <OtpDialog
+        isOpen={isOtpDialogOpen}
+        onOpenChange={setIsOtpDialogOpen}
+        otp={otp}
+        handleOtpChange={handleOtpChange}
+        handleOtpSubmit={handleOtpSubmit}
+      />
     </>
   );
 };

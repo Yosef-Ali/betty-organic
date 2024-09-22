@@ -1,14 +1,17 @@
+import { getDashboardData } from "@/app/actions/getDashboardData";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DollarSign, Users, CreditCard, Activity } from "lucide-react";
 
-const cardData = [
-  { title: "Total Revenue", icon: DollarSign, value: "$45,231.89", change: "+20.1% from last month" },
-  { title: "Subscriptions", icon: Users, value: "+2350", change: "+180.1% from last month" },
-  { title: "Sales", icon: CreditCard, value: "+12,234", change: "+19% from last month" },
-  { title: "Active Now", icon: Activity, value: "+573", change: "+201 since last hour" },
-];
+export async function DashboardHeader() {
+  const data = await getDashboardData();
 
-export function DashboardHeader() {
+  const cardData = [
+    { title: "Total Revenue", icon: DollarSign, value: `${data.totalRevenue.toFixed(2)} Br`, change: "Calculated from all orders" },
+    { title: "Subscriptions", icon: Users, value: data.subscriptions.toString(), change: "Total number of customers" },
+    { title: "Sales", icon: CreditCard, value: data.sales.toString(), change: "Total number of orders" },
+    { title: "Active Now", icon: Activity, value: data.activeNow.toString(), change: "Users active in the last hour" },
+  ];
+
   return (
     <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
       {cardData.map((card, index) => (

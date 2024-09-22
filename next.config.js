@@ -14,8 +14,13 @@ const nextConfig = {
         port: '3000',
         pathname: '/public/uploads/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'images.ctfassets.net',
+        port: '',
+        pathname: '/**',
+      },
     ],
-    domains: ['images.ctfassets.net'],
   },
 }
 

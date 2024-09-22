@@ -1,6 +1,6 @@
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { RecentSales } from "@/components/dashboard/RecentSales";
-import { RecentTransactions } from "@/components/dashboard/RecentTransactions";
+import RecentTransactions from "@/components/dashboard/RecentTransactions";
 
 export default function DashboardPage() {
   return (
