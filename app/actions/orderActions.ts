@@ -35,9 +35,12 @@ export async function getProducts() {
 export async function createOrder(formData: FormData) {
   const customerId = DEFAULT_CUSTOMER_ID;
   const status = formData.get('status') as string;
-  const type = formData.get('type') as string;
+  const type = formData.get('type') as string; // This will be either 'store' or 'online'
   const items = JSON.parse(formData.get('items') as string);
   const customerInfo = formData.get('customerInfo') as string;
+
+  console.log(`Order type: ${type}`);
+
 
   try {
     // First, check if the customer exists
@@ -66,7 +69,7 @@ export async function createOrder(formData: FormData) {
         id: nanoid(8),
         customerId: customer ? customer.id : customerId,
         status,
-        type,
+        type, // This will be 'store' or 'online' as passed from the client
         totalAmount: items.reduce((total: number, item: any) => total + (item.price * item.quantity), 0),
         items: {
           create: items.map((item: { productId: string; quantity: number; price: number }) => ({

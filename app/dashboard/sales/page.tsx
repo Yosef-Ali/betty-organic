@@ -52,6 +52,9 @@ export default function ProductsPage() {
   return (
 
     <Suspense fallback={<div>Loading products...</div>}>
+      <div className="flex-1 space-y-4 p-8 pt-4">
+        <h2 className="text-2xl font-bold mb-4">Sales Dashboard</h2>
+      </div>
       <SalesPage />
     </Suspense>
 

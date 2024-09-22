@@ -1,7 +1,7 @@
-"use client";
-
 import { FC, useState, useEffect } from "react";
 import { useCartStore } from "@/store/cartStore";
+import { usePathname } from 'next/navigation'; // Change this import
+import { createOrder } from "@/app/actions/orderActions";
 import {
   Sheet,
   SheetContent,
@@ -10,40 +10,15 @@ import {
 } from "@/components/ui/sheet";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { CartItem } from "./CartItem";
 import { CartFooter } from "./CartFooter";
 import { PrintPreviewModal } from "../PrintPreviewModal";
-import { createOrder } from "@/app/actions/orderActions";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { ChevronLeft, Printer, Lock, Unlock } from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { ChevronLeft } from "lucide-react";
 import { OtpDialog } from "./OtpDialog";
+import ConfirmDialog from "./ConfirmDialog";
+import { CartItems } from "./CartItems";
+import { OrderSummary } from "./OrderSummary";
 
 export interface CartSheetProps {
   isOpen: boolean;
@@ -51,7 +26,7 @@ export interface CartSheetProps {
 }
 
 export const CartSheet: FC<CartSheetProps> = ({ isOpen, onOpenChange }) => {
-  const { items, removeFromCart, updateGrams, clearCart } = useCartStore();
+  const { items, clearCart } = useCartStore();
   const [customerInfo, setCustomerInfo] = useState("");
   const [orderStatus, setOrderStatus] = useState("paid");
   const [isThermalPrintPreviewOpen, setIsThermalPrintPreviewOpen] = useState(false);
@@ -63,6 +38,8 @@ export const CartSheet: FC<CartSheetProps> = ({ isOpen, onOpenChange }) => {
   const [isOtpDialogOpen, setIsOtpDialogOpen] = useState(false);
   const [otp, setOtp] = useState(["", "", "", ""]);
   const [hasToggledLock, setHasToggledLock] = useState(false);
+
+  const pathname = usePathname(); // Use pathname instead of searchParams
 
   useEffect(() => {
     if (items.length === 0) {
@@ -101,15 +78,21 @@ export const CartSheet: FC<CartSheetProps> = ({ isOpen, onOpenChange }) => {
     setIsSaving(true);
     try {
       const formData = new FormData();
-      formData.append("customerId", "DEFAULT_CUSTOMER_ID"); // We'll use the default customer ID
+      formData.append("customerId", "DEFAULT_CUSTOMER_ID");
       formData.append("status", orderStatus);
-      formData.append("type", "online");
+
+      // Determine the order type based on the current path
+      const orderType = pathname.includes('/dashboard/sales') ? 'store' : 'online';
+      console.log("Order Type:", orderType); // Console log for order type
+      console.log("Current Path:", pathname); // Console log for current path
+      formData.append("type", orderType);
+
       formData.append("items", JSON.stringify(items.map(item => ({
         productId: item.id,
         quantity: item.grams / 1000,
         price: (item.pricePerKg * item.grams) / 1000,
       }))));
-      formData.append("customerInfo", customerInfo); // Add customer info to formData
+      formData.append("customerInfo", customerInfo);
 
       const order = await createOrder(formData);
       clearCart();
@@ -141,9 +124,8 @@ export const CartSheet: FC<CartSheetProps> = ({ isOpen, onOpenChange }) => {
     if (enteredOtp === "1111") {
       setIsStatusVerified(true);
       setIsOtpDialogOpen(false);
-      setOtp(["", "", "", ""]);  // Clear OTP inputs after verification
+      setOtp(["", "", "", ""]);
     } else {
-      // Handle incorrect OTP
       alert("Incorrect OTP. Please try again.");
     }
   };
@@ -153,7 +135,6 @@ export const CartSheet: FC<CartSheetProps> = ({ isOpen, onOpenChange }) => {
     newOtp[index] = value;
     setOtp(newOtp);
 
-    // Move focus to the next input
     if (value !== "" && index < 3) {
       const nextInput = document.getElementById(`otp-${index + 1}`);
       if (nextInput) {
@@ -195,118 +176,21 @@ export const CartSheet: FC<CartSheetProps> = ({ isOpen, onOpenChange }) => {
             <CardContent className="p-0 flex-grow overflow-hidden flex flex-col">
               <ScrollArea className="flex-grow px-4">
                 <AnimatePresence mode="wait">
-                  {!isOrderConfirmed && (
-                    <motion.div
-                      key="cart-items"
-                      initial={{ opacity: 0, x: "-100%" }}
-                      animate={{ opacity: 1, x: "0%" }}
-                      exit={{ opacity: 0, x: "100%" }}
-                      transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                      className="space-y-4"
-                    >
-                      {items.map((item, index) => (
-                        <CartItem
-                          key={item.id}
-                          item={item}
-                          index={index}
-                          updateGrams={updateGrams}
-                          removeFromCart={removeFromCart}
-                          isLastItem={index === items.length - 1}
-                        />
-                      ))}
-                    </motion.div>
-                  )}
-                  {isOrderConfirmed && (
-                    <motion.div
-                      key="order-summary"
-                      initial={{ opacity: 0, x: "100%" }}
-                      animate={{ opacity: 1, x: "0%" }}
-                      exit={{ opacity: 0, x: "-100%" }}
-                      transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                      className="space-y-4"
-                    >
-                      <div className="flex justify-between items-center mb-4">
-                        <h3 className="font-semibold text-lg">Order Summary</h3>
-                        <div className="flex space-x-2">
-                          <Button variant="outline" size="sm" onClick={handlePrint}>
-                            <Printer className="h-4 w-4 mr-2" />
-                            Print
-                          </Button>
-                          <Button variant="outline" size="sm" onClick={handleThermalPrintPreview}>
-                            Thermal
-                          </Button>
-                        </div>
-                      </div>
-                      <div className="space-y-2 mb-4">
-                        {items.map((item) => (
-                          <div key={item.id} className="flex justify-between text-sm">
-                            <span>{item.name} ({item.grams}g)</span>
-                            <span>${((item.pricePerKg * item.grams) / 1000).toFixed(2)}</span>
-                          </div>
-                        ))}
-                        <div className="flex justify-between font-bold">
-                          <span>Total:</span>
-                          <span>${getTotalAmount().toFixed(2)}</span>
-                        </div>
-                      </div>
-                      <div className="space-y-4">
-                        <div>
-                          <Label htmlFor="customer-info" className="text-sm font-medium">
-                            Customer Name or Phone (Optional)
-                          </Label>
-                          <Input
-                            id="customer-info"
-                            type="text"
-                            placeholder="Enter customer name or phone"
-                            value={customerInfo}
-                            onChange={(e) => setCustomerInfo(e.target.value)}
-                            className="mt-1"
-                          />
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <div className="flex-grow">
-                            <Label htmlFor="order-status" className="text-sm font-medium">
-                              Order Status
-                            </Label>
-                            <Select
-                              value={orderStatus}
-                              onValueChange={setOrderStatus}
-                              disabled={!isStatusVerified}
-                            >
-                              <SelectTrigger id="order-status" className="mt-1">
-                                <SelectValue placeholder="Select order status" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="paid">Paid</SelectItem>
-                                <SelectItem value="pending">Pending</SelectItem>
-                                <SelectItem value="credit">Credit</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="mt-6"
-                            onClick={handleToggleLock}
-                            disabled={hasToggledLock && !isStatusVerified}
-                          >
-                            {isStatusVerified ? (
-                              <Unlock className="h-4 w-4" />
-                            ) : (
-                              <Lock className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                      <div className="flex justify-end space-x-2">
-                        <Button variant="outline" onClick={() => handleConfirmDialog("cancel")}>
-                          Cancel
-                        </Button>
-                        <Button onClick={() => handleConfirmDialog("save")} disabled={isSaving}>
-                          {isSaving ? "Saving..." : "Save Order"}
-                        </Button>
-                      </div>
-                    </motion.div>
+                  {!isOrderConfirmed ? (
+                    <CartItems items={items} />
+                  ) : (
+                    <OrderSummary
+                      items={items}
+                      totalAmount={getTotalAmount()}
+                      customerInfo={customerInfo}
+                      setCustomerInfo={setCustomerInfo}
+                      orderStatus={orderStatus}
+                      setOrderStatus={setOrderStatus}
+                      isStatusVerified={isStatusVerified}
+                      handleToggleLock={handleToggleLock}
+                      handleConfirmDialog={handleConfirmDialog}
+                      isSaving={isSaving}
+                    />
                   )}
                 </AnimatePresence>
               </ScrollArea>
@@ -337,24 +221,12 @@ export const CartSheet: FC<CartSheetProps> = ({ isOpen, onOpenChange }) => {
         total={getTotalAmount()}
         customerInfo={customerInfo}
       />
-      <AlertDialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {confirmAction === "save" ? "Confirm Save Order" : "Confirm Cancel Order"}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {confirmAction === "save"
-                ? "Are you sure you want to save this order? This action cannot be undone."
-                : "Are you sure you want to cancel this order? All changes will be lost."}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>No</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmAction}>Yes</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        isOpen={isConfirmDialogOpen}
+        onOpenChange={setIsConfirmDialogOpen}
+        confirmAction={confirmAction || "cancel"}
+        onConfirmAction={handleConfirmAction}
+      />
       <OtpDialog
         isOpen={isOtpDialogOpen}
         onOpenChange={setIsOtpDialogOpen}
