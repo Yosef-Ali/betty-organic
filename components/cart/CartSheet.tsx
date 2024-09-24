@@ -75,6 +75,8 @@ export const CartSheet: FC<CartSheetProps> = ({ isOpen, onOpenChange }) => {
   };
 
   const handleSaveOrder = async () => {
+    const totalAmount = getTotalAmount();
+    console.log(`Total amount before saving: ${totalAmount}`);
     setIsSaving(true);
     try {
       const formData = new FormData();
@@ -83,18 +85,18 @@ export const CartSheet: FC<CartSheetProps> = ({ isOpen, onOpenChange }) => {
 
       // Determine the order type based on the current path
       const orderType = pathname.includes('/dashboard/sales') ? 'store' : 'online';
-      console.log("Order Type:", orderType); // Console log for order type
-      console.log("Current Path:", pathname); // Console log for current path
+
       formData.append("type", orderType);
+      formData.append("totalAmount", totalAmount.toString()); // Add totalAmount to formData
 
       formData.append("items", JSON.stringify(items.map(item => ({
         productId: item.id,
-        quantity: item.grams / 1000,
+        quantity: item.grams,
         price: (item.pricePerKg * item.grams) / 1000,
       }))));
       formData.append("customerInfo", customerInfo);
 
-      const order = await createOrder(formData);
+      await createOrder(formData);
       clearCart();
       onOpenChange(false);
     } catch (error) {
@@ -104,7 +106,6 @@ export const CartSheet: FC<CartSheetProps> = ({ isOpen, onOpenChange }) => {
       setIsSaving(false);
     }
   };
-
   const handleConfirmDialog = (action: "save" | "cancel") => {
     setConfirmAction(action);
     setIsConfirmDialogOpen(true);

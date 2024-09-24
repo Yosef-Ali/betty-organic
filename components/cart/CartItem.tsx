@@ -1,86 +1,77 @@
-// components/cart/CartItem.tsx
-import React from 'react';
-import { Button } from "@/components/ui/button";
+import React, { FC, useEffect, useRef } from "react";
+import { Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Minus, Plus, Trash2 } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { CartItem as CartItemType } from '@/store/cartStore';
 
 interface CartItemProps {
-  item: {
-    id: string;
-    name: string;
-    grams: number;
-    pricePerKg: number;
-  };
+  item: CartItemType;
   index: number;
   updateGrams: (id: string, grams: number) => void;
   removeFromCart: (id: string) => void;
   isLastItem: boolean;
 }
 
-export const CartItem: React.FC<CartItemProps> = ({
-  item,
-  index,
-  updateGrams,
-  removeFromCart,
-  isLastItem,
-}) => {
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newGrams = parseFloat(e.target.value);
-    if (!isNaN(newGrams)) {
-      updateGrams(item.id, newGrams);
+export const CartItem: FC<CartItemProps> = ({ item, index, updateGrams, removeFromCart, isLastItem }) => {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isLastItem && inputRef.current) {
+      inputRef.current.focus();
     }
+  }, [isLastItem]);
+
+  const handleGramsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newGrams = Number(e.target.value) || 0;
+    updateGrams(item.id, newGrams);
   };
 
-  const handleIncrement = () => {
-    updateGrams(item.id, item.grams + 100);
-  };
-
-  const handleDecrement = () => {
-    if (item.grams > 100) {
-      updateGrams(item.id, item.grams - 100);
-    }
+  const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    e.target.select();
   };
 
   return (
-    <div className={`flex items-center space-x-4 py-2 ${!isLastItem ? 'border-b' : ''}`}>
-      <div className="flex-grow">
-        <h3 className="font-medium">{item.name}</h3>
-        <p className="text-sm text-gray-500">
+    <div className="mb-6 px-2">
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex items-start">
+          <img src={item.imageUrl} alt={item.name} className="w-16 h-16 rounded-md mr-4 object-cover" />
+          <div>
+            <h3 className="font-semibold text-lg">{item.name}</h3>
+            <p className="text-sm text-muted-foreground">${item.pricePerKg.toFixed(2)} per kg</p>
+          </div>
+        </div>
+        <p className="font-bold text-lg">
           ${((item.pricePerKg * item.grams) / 1000).toFixed(2)}
         </p>
       </div>
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center justify-between mt-2">
+        <div className="flex items-center flex-1 max-w-[200px]">
+          <Input
+            id={`grams-${item.id}`}
+            type="number"
+            value={item.grams}
+            onChange={handleGramsChange}
+            onFocus={handleFocus}
+            className="text-lg font-semibold w-24"
+            ref={inputRef}
+          />
+          <Label htmlFor={`grams-${item.id}`} className="text-base font-medium ml-2 whitespace-nowrap">
+            {item.grams >= 1000 ? `${(item.grams / 1000).toFixed(2)} kg` : `${item.grams} g`}
+          </Label>
+        </div>
         <Button
-          variant="outline"
-          size="icon"
-          className="h-8 w-8"
-          onClick={handleDecrement}
+          variant="ghost"
+          size="sm"
+          className="text-destructive"
+          onClick={() => removeFromCart(item.id)}
         >
-          <Minus className="h-4 w-4" />
-        </Button>
-        <Input
-          type="number"
-          value={item.grams}
-          onChange={handleInputChange}
-          className="w-20 text-center"
-        />
-        <Button
-          variant="outline"
-          size="icon"
-          className="h-8 w-8"
-          onClick={handleIncrement}
-        >
-          <Plus className="h-4 w-4" />
+          <Trash2 className="h-4 w-4 mr-1" />
+          Remove
         </Button>
       </div>
-      <Button
-        variant="outline"
-        size="icon"
-        className="h-8 w-8"
-        onClick={() => removeFromCart(item.id)}
-      >
-        <Trash2 className="h-4 w-4" />
-      </Button>
+      {!isLastItem && <Separator className="mt-4" />}
     </div>
   );
 };

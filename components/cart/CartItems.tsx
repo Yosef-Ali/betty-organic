@@ -9,6 +9,7 @@ interface CartItemsProps {
     name: string;
     grams: number;
     pricePerKg: number;
+    imageUrl: string;
   }>;
 }
 

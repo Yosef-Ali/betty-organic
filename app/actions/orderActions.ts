@@ -2,6 +2,7 @@
 
 import { PrismaClient } from '@prisma/client';
 import { nanoid } from 'nanoid';
+import { revalidatePath } from 'next/cache';
 
 const prisma = new PrismaClient();
 
@@ -31,6 +32,24 @@ export async function getProducts() {
 
 
 
+export async function getOrderDetails(orderId: string) {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: {
+      customer: true,
+      items: {
+        include: {
+          product: true,
+        },
+      },
+    },
+  });
+
+  return order;
+}
+
+
+
 
 export async function createOrder(formData: FormData) {
   const customerId = DEFAULT_CUSTOMER_ID;
@@ -38,9 +57,9 @@ export async function createOrder(formData: FormData) {
   const type = formData.get('type') as string; // This will be either 'store' or 'online'
   const items = JSON.parse(formData.get('items') as string);
   const customerInfo = formData.get('customerInfo') as string;
+  const totalAmount = parseFloat(formData.get('totalAmount') as string); // Use totalAmount from formData
 
   console.log(`Order type: ${type}`);
-
 
   try {
     // First, check if the customer exists
@@ -70,11 +89,11 @@ export async function createOrder(formData: FormData) {
         customerId: customer ? customer.id : customerId,
         status,
         type, // This will be 'store' or 'online' as passed from the client
-        totalAmount: items.reduce((total: number, item: any) => total + (item.price * item.quantity), 0),
+        totalAmount,
         items: {
           create: items.map((item: { productId: string; quantity: number; price: number }) => ({
             productId: item.productId,
-            quantity: item.quantity,
+            quantity: item.quantity, // Quantity in grams
             price: item.price,
           })),
         },
@@ -132,4 +151,27 @@ export async function updateOrder(id: string, formData: FormData) {
   });
 
   return updatedOrder;
+}
+
+
+export async function deleteOrder(orderId: string) {
+  try {
+    // Delete the order items first to avoid foreign key constraint issues
+    await prisma.orderItem.deleteMany({
+      where: { orderId },
+    });
+
+    // Delete the order
+    await prisma.order.delete({
+      where: { id: orderId },
+    });
+
+    // Revalidate the orders page to reflect the changes
+    revalidatePath('/dashboard/orders');
+
+    return { success: true, shouldRefresh: true };
+  } catch (error) {
+    console.error('Error deleting order:', error);
+    return { success: false, error: 'Failed to delete order', shouldRefresh: false };
+  }
 }

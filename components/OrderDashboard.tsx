@@ -1,3 +1,4 @@
+// OrderDashboard.tsx
 "use client"
 // Import necessary hooks and types
 import { useEffect, useState, useMemo } from 'react';
@@ -17,7 +18,7 @@ import { StatCard } from "./StatCard";
 import OrderDetails from "./OrderDetails";
 import { OrderTable } from "./OrdersTable";
 import { getOrders, getCustomers, getProducts } from '@/app/actions/orderActions';
-import { Customer, Order, Product } from "@prisma/client";
+import { Customer, Order, Product } from "@prisma/client"
 
 // Define the OrderType and ExtendedOrder types
 export const OrderType = {
@@ -35,10 +36,13 @@ type ExtendedOrder = Order & {
   type: OrderType;
 };
 
+
+
 export default function OrderDashboard() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -50,6 +54,12 @@ export default function OrderDashboard() {
       setOrders(ordersData);
       setCustomers(customersData);
       setProducts(productsData);
+
+      // Set the selectedOrderId to the ID of the first order in the sorted array
+      if (ordersData.length > 0) {
+        const sortedOrders = ordersData.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        setSelectedOrderId(sortedOrders[0].id);
+      }
     }
     fetchData()
   }, []);
@@ -63,7 +73,7 @@ export default function OrderDashboard() {
       imageUrl: customers.find(c => c.id === order.customerId)?.imageUrl ?? '',
     } : null,
     type: order.type as OrderType
-  }));
+  })).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   // Helper functions for date calculations
   function getStartOfWeek(date: Date): Date {
@@ -158,11 +168,11 @@ export default function OrderDashboard() {
         <Tabs defaultValue="week">
           {/* ... */}
           <TabsContent value="week">
-            <OrderTable orders={extendedOrders} />
+            <OrderTable orders={extendedOrders} onSelectOrder={setSelectedOrderId} />
           </TabsContent>
         </Tabs>
       </div>
-      <OrderDetails />
+      {selectedOrderId && <OrderDetails orderId={selectedOrderId} />}
     </main>
   )
 }
