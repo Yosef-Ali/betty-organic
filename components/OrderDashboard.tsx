@@ -1,7 +1,7 @@
 // OrderDashboard.tsx
 "use client"
-// Import necessary hooks and types
-import { useEffect, useState, useMemo } from 'react';
+
+import React, { useEffect, useState, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -15,18 +15,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { File, ListFilter } from "lucide-react";
 import { OrdersOverviewCard } from "./OrdersOverviewCard";
 import { StatCard } from "./StatCard";
-import OrderDetails from "./OrderDetails";
-import { OrderTable } from "./OrdersTable";
-import { getOrders, getCustomers, getProducts } from '@/app/actions/orderActions';
-import { Customer, Order, Product } from "@prisma/client"
+import OrderDetails from "./OrderDetailsCard";
 
-// Define the OrderType and ExtendedOrder types
+import { getOrders, getCustomers, getProducts, deleteOrder } from '@/app/actions/orderActions';
+import { Customer, Order, Product } from "@prisma/client";
+import { useToast } from '@/hooks/use-toast';
+import OrderTable from './OrdersTable';
+
 export const OrderType = {
   SALE: 'sale',
   REFUND: 'refund',
   CREDIT: 'credit',
 } as const;
+
 export type OrderType = typeof OrderType[keyof typeof OrderType];
+
 type ExtendedOrder = Order & {
   customer: {
     fullName: string;
@@ -36,49 +39,96 @@ type ExtendedOrder = Order & {
   type: OrderType;
 };
 
-
-
 export default function OrderDashboard() {
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [orders, setOrders] = useState<ExtendedOrder[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const { toast } = useToast();
 
   useEffect(() => {
-    const fetchData = async () => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
       const [ordersData, customersData, productsData] = await Promise.all([
         getOrders(),
         getCustomers(),
         getProducts(),
       ]);
-      setOrders(ordersData);
+
+      const extendedOrders: ExtendedOrder[] = ordersData.map(order => ({
+        ...order,
+        customer: order.customerId ? {
+          fullName: customersData.find(c => c.id === order.customerId)?.fullName ?? '',
+          email: customersData.find(c => c.id === order.customerId)?.email ?? '',
+          imageUrl: customersData.find(c => c.id === order.customerId)?.imageUrl ?? '',
+        } : null,
+        type: order.type as OrderType
+      }));
+
+      const sortedOrders = extendedOrders.sort((a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+
+      setOrders(sortedOrders);
       setCustomers(customersData);
       setProducts(productsData);
 
-      // Set the selectedOrderId to the ID of the first order in the sorted array
-      if (ordersData.length > 0) {
-        const sortedOrders = ordersData.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      if (sortedOrders.length > 0) {
         setSelectedOrderId(sortedOrders[0].id);
       }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch data. Please try again.",
+        variant: "destructive",
+      });
     }
-    fetchData()
-  }, []);
+    setIsLoading(false);
+  };
 
-  // Process orders to include customer info and ensure the type is correct
-  const extendedOrders: ExtendedOrder[] = orders.map(order => ({
-    ...order,
-    customer: order.customerId ? {
-      fullName: customers.find(c => c.id === order.customerId)?.fullName ?? '',
-      email: customers.find(c => c.id === order.customerId)?.email ?? '',
-      imageUrl: customers.find(c => c.id === order.customerId)?.imageUrl ?? '',
-    } : null,
-    type: order.type as OrderType
-  })).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const handleDelete = async (id: string) => {
+    try {
+      const result = await deleteOrder(id);
+      if (result.success) {
+        setOrders(prevOrders => prevOrders.filter(order => order.id !== id));
+        toast({
+          title: "Order deleted",
+          description: "The order has been successfully deleted.",
+        });
+        if (selectedOrderId === id) {
+          setSelectedOrderId(orders[0]?.id || null);
+        }
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error) {
+      console.error('Error deleting order:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete the order. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
-  // Helper functions for date calculations
+  const filteredOrders = useMemo(() => {
+    return orders.filter(order =>
+      order.customer?.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.id.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [orders, searchTerm]);
+
+  // Helper functions for date calculations (unchanged)
   function getStartOfWeek(date: Date): Date {
-    const day = date.getDay(); // 0 (Sun) to 6 (Sat)
-    const diff = date.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
+    const day = date.getDay();
+    const diff = date.getDate() - day + (day === 0 ? -6 : 1);
     return new Date(date.setDate(diff));
   }
 
@@ -97,7 +147,7 @@ export default function OrderDashboard() {
     return new Date(date.getFullYear(), date.getMonth() - 1, 1);
   }
 
-  // Compute totals using useMemo for performance optimization
+  // Compute totals using useMemo (unchanged)
   const {
     currentWeekTotal,
     lastWeekTotal,
@@ -106,13 +156,11 @@ export default function OrderDashboard() {
     lastMonthTotal,
     currentMonthChangePercentage
   } = useMemo(() => {
-    // Get start dates
     const startOfCurrentWeek = getStartOfWeek(new Date());
     const startOfLastWeek = getStartOfLastWeek();
     const startOfCurrentMonth = getStartOfMonth(new Date());
     const startOfLastMonth = getStartOfLastMonth();
 
-    // Helper function to compute totals
     const computeTotal = (startDate: Date, endDate: Date) => {
       return orders
         .filter(order => {
@@ -122,7 +170,6 @@ export default function OrderDashboard() {
         .reduce((sum, order) => sum + (order.totalAmount || 0), 0);
     };
 
-    // Compute totals
     const currentWeekTotal = computeTotal(startOfCurrentWeek, new Date());
     const lastWeekTotal = computeTotal(startOfLastWeek, startOfCurrentWeek);
     const currentWeekChangePercentage = lastWeekTotal
@@ -150,7 +197,6 @@ export default function OrderDashboard() {
       <div className="grid auto-rows-max items-start gap-4 md:gap-8 lg:col-span-2">
         <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
           <OrdersOverviewCard />
-          {/* Updated StatCards with dynamic data */}
           <StatCard
             title="This Week"
             value={`${currentWeekTotal.toFixed(2)} Br`}
@@ -164,15 +210,61 @@ export default function OrderDashboard() {
             changePercentage={currentMonthChangePercentage}
           />
         </div>
-        {/* Rest of your component */}
         <Tabs defaultValue="week">
-          {/* ... */}
+          <div className="flex items-center">
+            <TabsList>
+              <TabsTrigger value="week">This Week</TabsTrigger>
+              <TabsTrigger value="month">This Month</TabsTrigger>
+            </TabsList>
+            <div className="ml-auto flex items-center gap-2">
+              <input
+                type="search"
+                placeholder="Search orders..."
+                className="h-8 w-[150px] lg:w-[250px]"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 gap-1">
+                    <ListFilter className="h-3.5 w-3.5" />
+                    <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Filter</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>Filter by status</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuCheckboxItem checked>Pending</DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem checked>Processing</DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem checked>Completed</DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem checked>Cancelled</DropdownMenuCheckboxItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button variant="outline" size="sm" className="h-8 gap-1">
+                <File className="h-3.5 w-3.5" />
+                <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Export</span>
+              </Button>
+            </div>
+          </div>
           <TabsContent value="week">
-            <OrderTable orders={extendedOrders} onSelectOrder={setSelectedOrderId} />
+            <OrderTable
+              orders={filteredOrders}
+              onSelectOrder={setSelectedOrderId}
+              onDeleteOrder={handleDelete}
+              isLoading={isLoading}
+            />
+          </TabsContent>
+          <TabsContent value="month">
+            <OrderTable
+              orders={filteredOrders}
+              onSelectOrder={setSelectedOrderId}
+              onDeleteOrder={handleDelete}
+              isLoading={isLoading}
+            />
           </TabsContent>
         </Tabs>
       </div>
       {selectedOrderId && <OrderDetails orderId={selectedOrderId} />}
     </main>
-  )
+  );
 }

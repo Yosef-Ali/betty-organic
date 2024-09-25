@@ -3,11 +3,11 @@ import OrderDashboard from '@/components/OrderDashboard'
 
 import { Suspense } from 'react'
 
-export default function CustomersPage() {
+export default function OrdersDashboardPage() {
 
   return (
     <div>
-      <Suspense fallback={<div>Loading customers...</div>}>
+      <Suspense fallback={<div>Loading orders...</div>}>
         <OrderDashboard />
       </Suspense>
     </div>
