@@ -2,7 +2,8 @@
 
 import { PrismaClient } from '@prisma/client'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '../api/auth/[... nextauth]/route'
+import { authOptions } from '@/lib/auth'
+import { revalidatePath } from 'next/cache'
 
 const prisma = new PrismaClient()
 
@@ -13,16 +14,26 @@ export async function updateProfile({ name, email, image }: { name: string, emai
     throw new Error('Not authenticated')
   }
 
-  const updatedUser = await prisma.user.update({
-    where: {
-      email: session.user.email,
-    },
-    data: {
-      name,
-      email,
-      image,
-    },
-  })
+  try {
+    const updatedUser = await prisma.user.update({
+      where: {
+        email: session.user.email,
+      },
+      data: {
+        name,
+        email,
+        image,
+      },
+    })
 
-  return updatedUser
+    // Revalidate the profile page to reflect the changes
+    revalidatePath('/profile')
+
+    return { success: true, user: updatedUser }
+  } catch (error) {
+    console.error('Failed to update profile:', error)
+    return { success: false, error: 'Failed to update profile' }
+  } finally {
+    await prisma.$disconnect()
+  }
 }

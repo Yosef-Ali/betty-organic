@@ -7,7 +7,7 @@ import { Product as PrismaProduct } from '@prisma/client'
 import { useRouter } from 'next/navigation'
 
 // Extend the Prisma Product type to make totalSales optional
-type Product = Omit<PrismaProduct, 'totalSales'> & { totalSales?: number }
+type Product = Omit<PrismaProduct, 'totalSales'> & { totalSales?: number, status: string }
 
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow

@@ -39,7 +39,7 @@ import { formatDistanceToNow } from 'date-fns'
 import Image from 'next/image'
 
 // Update the CustomerWithOrders type definition
-type CustomerWithOrders = Customer & { 
+type CustomerWithOrders = Customer & {
   orders?: any[]
   imageUrl?: string // Add this line
 };
@@ -291,7 +291,7 @@ export function CustomerTable() {
           <Card>
             <CardHeader>
               <CardTitle>Customers with No Orders</CardTitle>
-              <CardDescription>View and manage customers who haven't placed any orders yet.</CardDescription>
+              <CardDescription>View and manage customers who haven&apos;t placed any orders yet.</CardDescription>
             </CardHeader>
             <CardContent>
               {renderTable(filteredCustomers.filter(customer => !customer.orders || customer.orders.length === 0))}

@@ -52,9 +52,11 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
             {isLast ? (
               <BreadcrumbPage>{label}</BreadcrumbPage>
             ) : (
-              <BreadcrumbLink as={Link} href={href}>
-                {label}
-              </BreadcrumbLink>
+              <Link href={href} passHref>
+                <BreadcrumbLink>
+                  {label}
+                </BreadcrumbLink>
+              </Link>
             )}
           </BreadcrumbItem>
           {!isLast && <BreadcrumbSeparator />}

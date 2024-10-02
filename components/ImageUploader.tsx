@@ -1,11 +1,12 @@
 'use client'
 
-import { uploadImage } from '@/app/actions/uploadImage'
+
+import { uploadImage } from '@/app/actions/productActions'
 import { useState } from 'react'
-import { useFormStatus } from 'react-dom'
+import { experimental_useFormStatus } from 'react-dom'
 
 function SubmitButton() {
-  const { pending } = useFormStatus()
+  const { pending } = experimental_useFormStatus()
 
   return (
     <button type="submit" disabled={pending} className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-blue-300">
