@@ -3,7 +3,7 @@ import './globals.css'
 import { Inter } from 'next/font/google'
 import { TooltipProvider } from "@/components/ui/tooltip";
 import ClientLayout from '@/components/ClientLayout';
-import { Toast } from '@/components/ui/toast';
+// import { Toast } from '@/components/ui/toast';
 import { Toaster } from '@/components/ui/toaster';
 
 export const metadata = {
