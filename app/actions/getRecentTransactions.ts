@@ -30,6 +30,5 @@ export function mapTransactions(transactions: any[]) {
   return transactions.map((transaction: any) => ({
     customer: transaction.customer.fullName,
     email: transaction.customer.email || '',
-    type: transaction.type,
   }));
 }
