@@ -30,8 +30,6 @@ export async function getProducts() {
   return prisma.product.findMany();
 }
 
-
-
 export async function getOrderDetails(orderId: string) {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
@@ -48,9 +46,6 @@ export async function getOrderDetails(orderId: string) {
   return order;
 }
 
-
-
-
 export async function createOrder(formData: FormData) {
   const customerId = DEFAULT_CUSTOMER_ID;
   const status = formData.get('status') as string;
@@ -59,7 +54,6 @@ export async function createOrder(formData: FormData) {
   const customerInfo = formData.get('customerInfo') as string;
   const totalAmount = parseFloat(formData.get('totalAmount') as string); // Use totalAmount from formData
 
-  console.log(`Order type: ${type}`);
 
   try {
     // First, check if the customer exists
@@ -108,6 +102,7 @@ export async function createOrder(formData: FormData) {
       },
     });
 
+    revalidatePath('/dashboard/orders');
     return order;
   } catch (error) {
     console.error('Error creating order:', error);
@@ -150,9 +145,9 @@ export async function updateOrder(id: string, formData: FormData) {
     },
   });
 
+  revalidatePath('/dashboard/orders');
   return updatedOrder;
 }
-
 
 export async function deleteOrder(orderId: string) {
   try {

@@ -17,12 +17,14 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: 'images.ctfassets.net',
-        port: '',
         pathname: '/**',
       },
     ],
   },
   output: 'standalone',
+  poweredByHeader: false,
+  reactStrictMode: true,
+  swcMinify: true,
 }
 
 module.exports = nextConfig

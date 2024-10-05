@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -13,15 +13,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
+
 import { Home, ShoppingBag, ShoppingCart, Package, Users2, LineChart } from "lucide-react";
+import Breadcrumb from "./Breadcrumb";
 
 interface HeaderProps {
   onMobileMenuToggle: () => void;
@@ -38,30 +32,18 @@ const navItems = [
 
 export default function Header({ onMobileMenuToggle }: HeaderProps) {
   const pathname = usePathname();
+  const [clientPathname, setClientPathname] = useState('');
+
+  useEffect(() => {
+    setClientPathname(pathname);
+  }, [pathname]);
 
   const generateBreadcrumbs = () => {
-    const pathSegments = pathname.split('/').filter(Boolean);
+    const pathSegments = clientPathname.split('/').filter(Boolean);
     return pathSegments.map((segment, index) => {
       const href = '/' + pathSegments.slice(0, index + 1).join('/');
       const label = navItems.find(item => item.href === href)?.label || segment;
-      const isLast = index === pathSegments.length - 1;
-
-      return (
-        <React.Fragment key={href}>
-          <BreadcrumbItem>
-            {isLast ? (
-              <BreadcrumbPage>{label}</BreadcrumbPage>
-            ) : (
-              <Link href={href} passHref>
-                <BreadcrumbLink>
-                  {label}
-                </BreadcrumbLink>
-              </Link>
-            )}
-          </BreadcrumbItem>
-          {!isLast && <BreadcrumbSeparator />}
-        </React.Fragment>
-      );
+      return label;
     });
   };
 
@@ -71,11 +53,7 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
         <PanelLeft className="h-5 w-5" />
         <span className="sr-only">Toggle Menu</span>
       </Button>
-      <Breadcrumb className="hidden lg:flex">
-        <BreadcrumbList>
-          {generateBreadcrumbs()}
-        </BreadcrumbList>
-      </Breadcrumb>
+      <Breadcrumb pathSegments={generateBreadcrumbs()} />
       <div className="relative ml-auto flex-1 md:grow-0">
         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
         <Input

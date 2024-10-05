@@ -89,6 +89,7 @@ export async function deleteCustomer(id: string) {
     await prisma.customer.delete({
       where: { id },
     })
+    revalidatePath('/dashboard/customers')
     return { success: true }
   } catch (error) {
     console.error('Failed to delete customer:', error)
@@ -109,10 +110,8 @@ export async function getCustomerById(id: string): Promise<Customer | null> {
 }
 
 export async function searchCustomers(query: string) {
-  console.log('Searching for customers with query:', query);
 
   if (!query) {
-    console.log('Empty query, returning empty array');
     return [];
   }
 
@@ -133,7 +132,6 @@ export async function searchCustomers(query: string) {
       },
     });
 
-    console.log('Prisma query result:', customers);
 
     if (!customers || !Array.isArray(customers)) {
       console.error('Unexpected result from Prisma query:', customers);

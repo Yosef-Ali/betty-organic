@@ -64,7 +64,7 @@ export function ProductForm({ initialData }: { initialData?: ProductFormValues }
     try {
       const formData = new FormData()
       Object.entries(data).forEach(([key, value]) => {
-        formData.append(key, value.toString())
+        formData.append(key, value?.toString() || '')
       })
 
       if (initialData?.id) {
@@ -82,9 +82,10 @@ export function ProductForm({ initialData }: { initialData?: ProductFormValues }
       }
       router.push('/dashboard/products')
     } catch (error) {
+      console.error('Error in onSubmit:', error)
       toast({
         title: "Error",
-        description: "Failed to save the product. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to save the product. Please try again.",
         variant: "destructive",
       })
     } finally {
@@ -92,23 +93,34 @@ export function ProductForm({ initialData }: { initialData?: ProductFormValues }
     }
   }
 
-  async function handleImageUpload(file: File) {
+  async function handleImageUpload(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    if (!file) return
+
     const formData = new FormData()
     formData.append('file', file)
 
     try {
-      const imageUrl = await uploadImage(formData)
+      setIsLoading(true)
+      const imageUrl = await uploadImage(formData, initialData?.id || '')
       form.setValue('imageUrl', imageUrl)
-      // Trigger validation after setting the value
       form.trigger('imageUrl')
+      toast({
+        title: "Image uploaded",
+        description: "The image has been successfully uploaded.",
+      })
     } catch (error) {
+      console.error('Error in handleImageUpload:', error)
       toast({
         title: "Error",
-        description: "Failed to upload image. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to upload image. Please try again.",
         variant: "destructive",
       })
+    } finally {
+      setIsLoading(false)
     }
   }
+
 
   return (
     <Form {...form}>
@@ -250,12 +262,8 @@ export function ProductForm({ initialData }: { initialData?: ProductFormValues }
                                 <Input
                                   type="file"
                                   accept="image/*"
-                                  onChange={async (e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file) {
-                                      await handleImageUpload(file);
-                                    }
-                                  }}
+                                  onChange={handleImageUpload}
+                                  disabled={isLoading}
                                 />
                               </div>
                             </FormControl>

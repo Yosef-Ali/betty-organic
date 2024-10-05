@@ -29,9 +29,8 @@ export const ProductCard: FC<ProductCardProps> = ({ product, onClick }) => (
           <span className="text-xs font-normal">per kg</span>
         </p>
         <p
-          className={`text-xs mt-1 ${
-            product.status === "Available" ? "text-green-300" : "text-red-300"
-          }`}
+          className={`text-xs mt-1 ${product.status === "Available" ? "text-green-300" : "text-red-300"
+            }`}
         >
           {product.status}
         </p>

@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "target": "es2022", // Target the latest ECMAScript features
+    "target": "es2017", // Target ECMAScript 2017
     "outDir": "dist", // Output directory for compiled files (not used in Next.js)
     "lib": [
       "dom",

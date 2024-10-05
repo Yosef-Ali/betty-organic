@@ -1,31 +1,44 @@
-'use server'
-
-
-import fs from 'fs';
+"use server";
+import { revalidatePath } from 'next/cache';
+import { PrismaClient } from '@prisma/client';
+import fs from 'fs/promises';
 import path from 'path';
 
-import { revalidatePath } from 'next/cache'
-import prisma from '@/lib/prisma'
+const prisma = new PrismaClient();
+const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads');
 
-export async function uploadImage(data: FormData) {
-  const file: File | null = data.get('file') as unknown as File
+export async function uploadImage(formData: FormData, productId: string): Promise<string> {
+  try {
+    const file = formData.get('file') as File;
+    if (!file) {
+      throw new Error('No file provided');
+    }
 
-  if (!file) {
-    throw new Error('No file uploaded')
+    // Ensure the upload directory exists
+    await fs.mkdir(UPLOAD_DIR, { recursive: true });
+
+    // Create a unique file name
+    const fileName = `${Date.now()}-${file.name}`;
+    const filePath = path.join(UPLOAD_DIR, fileName);
+
+    // Read the file data
+    const fileBuffer = Buffer.from(await file.arrayBuffer());
+
+    // Write the file to the upload directory
+    await fs.writeFile(filePath, new Uint8Array(fileBuffer));
+
+    // Save the file URL to your database using Prisma
+    const fileUrl = `/uploads/${fileName}`;
+    const product = await prisma.product.update({
+      where: { id: productId },
+      data: { imageUrl: fileUrl },
+    });
+
+    return product.imageUrl;
+  } catch (error) {
+    console.error('Error uploading image:', error);
+    throw error;
   }
-
-  const bytes = await file.arrayBuffer()
-  const buffer = Buffer.from(bytes)
-
-  // Ensure the upload directory exists
-  const uploadDir = path.join(process.cwd(), 'public', 'uploads');
-  if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
-  }
-
-  const filename = path.join(uploadDir, file.name);
-  await fs.promises.writeFile(filename, buffer);
-  return `/uploads/${file.name}` // This should be a valid URL
 }
 
 export async function createProduct(formData: FormData) {
@@ -49,6 +62,7 @@ export async function createProduct(formData: FormData) {
     },
   });
 
+  revalidatePath('/dashboard/products')
   return product;
 }
 
@@ -62,7 +76,7 @@ export async function updateProduct(id: string, data: FormData) {
   // Provide a default image URL if none is provided
   let finalImageUrl = imageUrl;
   if (data.get('file')) {
-    finalImageUrl = await uploadImage(data);
+    finalImageUrl = await uploadImage(data, id);
   }
 
   const product = await prisma.product.update({
@@ -98,17 +112,15 @@ export async function getProduct(id: string) {
   })
 }
 
-
 export async function deleteProduct(id: string) {
   try {
     await prisma.product.delete({
       where: { id },
     })
+    revalidatePath('/dashboard/products')
     return { success: true }
   } catch (error) {
     console.error('Failed to delete product:', error)
     return { success: false, error: 'Failed to delete product' }
   }
 }
-
-
