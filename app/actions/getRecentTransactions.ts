@@ -26,7 +26,7 @@ export async function getRecentTransactions() {
   }));
 }
 
-export function mapTransactions(transactions: any[]) {
+export async function mapTransactions(transactions: any[]) {
   return transactions.map((transaction: any) => ({
     customer: transaction.customer.fullName,
     email: transaction.customer.email || '',
