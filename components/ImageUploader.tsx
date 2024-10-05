@@ -1,6 +1,5 @@
 'use client'
 
-
 import { uploadImage } from '@/app/actions/productActions'
 import { useState } from 'react'
 import { experimental_useFormStatus } from 'react-dom'
@@ -19,23 +18,8 @@ export function ImageUploader() {
   const [imageUrl, setImageUrl] = useState<string | null>(null)
 
   async function handleSubmit(formData: FormData) {
-    const productId = 'some-product-id'; // Replace with actual product ID
-    const imageUrl = await uploadImage(formData, productId); // Ensure this line is correct
-    setImageUrl(imageUrl);
+    const additionalParam = 'exampleCategory' // Replace with the actual second argument
+    const imageUrl = await uploadImage(formData, additionalParam)
+    setImageUrl(imageUrl)
   }
-
-  return (
-    <div className="p-4">
-      <form action={handleSubmit} className="mb-4">
-        <input type="file" name="file" accept="image/*" className="mb-2" />
-        <SubmitButton />
-      </form>
-      {imageUrl && (
-        <div>
-          <p>Uploaded Image:</p>
-          <img src={imageUrl} alt="Uploaded" className="max-w-sm mt-2" />
-        </div>
-      )}
-    </div>
-  )
 }
