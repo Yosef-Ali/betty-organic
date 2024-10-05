@@ -29,7 +29,7 @@ model Product {
 model Customer {
   id        String   @id @default(cuid())
   fullName  String
-  email     String?  @unique
+  email     String   @unique
   phone     String?
   imageUrl  String?
   location  String?
