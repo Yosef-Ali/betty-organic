@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -51,7 +51,7 @@ export function CustomerForm({ initialData }: { initialData?: CustomerFormValues
     setIsLoading(true)
     try {
       if (initialData?.id) {
-        await updateCustomer({ ...data, id: initialData.id })
+        await updateCustomer({ ...data, id: initialData.id, email: data.email || '' })
         toast({
           title: "Customer updated",
           description: "The customer has been successfully updated.",
@@ -62,6 +62,10 @@ export function CustomerForm({ initialData }: { initialData?: CustomerFormValues
           if (value !== undefined) {
             formData.append(key, value === null ? '' : value)
           }
+        }
+        const email = formData.get('email') as string | null;
+        if (email === null) {
+          throw new Error("Email is required");
         }
         const customer = await createCustomer(formData)
         if (customer && customer.id) {
@@ -103,6 +107,8 @@ export function CustomerForm({ initialData }: { initialData?: CustomerFormValues
       })
     }
   }
+
+
 
   return (
     <Form {...form}>

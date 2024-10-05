@@ -30,9 +30,9 @@ export async function createCustomer(formData: FormData) {
   const customer = await prisma.customer.create({
     data: {
       fullName: formData.get('fullName') as string,
-      email: formData.get('email') as string || null,
-      phone: formData.get('phone') as string || null,
-      location: formData.get('location') as string || null,
+      email: (formData.get('email') as string) || '',
+      phone: (formData.get('phone') as string) || '',
+      location: (formData.get('location') as string) || '',
       status: formData.get('status') as 'active' | 'inactive',
       imageUrl: formData.get('imageUrl') as string || null,
     },
@@ -44,7 +44,7 @@ export async function createCustomer(formData: FormData) {
 export async function updateCustomer(data: {
   id: string
   fullName: string
-  email?: string | null
+  email: string
   phone?: string | null
   location?: string | null
   status: 'active' | 'inactive'

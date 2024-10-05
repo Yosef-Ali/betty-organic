@@ -73,6 +73,7 @@ export async function createOrder(formData: FormData) {
           id: nanoid(8),
           fullName: customerInfo, // Assuming customerInfo is the name, adjust as needed
           phone: customerInfo, // Assuming customerInfo is the phone, adjust as needed
+          email: `${nanoid(8)}@example.com`, // Placeholder email, adjust as needed
         },
       });
     }
