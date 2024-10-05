@@ -4,7 +4,6 @@ import fs from 'fs';
 import path from 'path';
 import { revalidatePath } from 'next/cache'
 import prisma from '@/lib/prisma'
-import { Customer } from '@prisma/client'
 
 export async function uploadImage(data: FormData) {
   const file: File | null = data.get('file') as unknown as File
@@ -97,7 +96,7 @@ export async function deleteCustomer(id: string) {
   }
 }
 
-export async function getCustomerById(id: string): Promise<Customer | null> {
+export async function getCustomerById(id: string) {
   try {
     const customer = await prisma.customer.findUnique({
       where: { id },
