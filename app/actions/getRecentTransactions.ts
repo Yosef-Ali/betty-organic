@@ -2,10 +2,23 @@
 
 import { PrismaClient } from '@prisma/client';
 
+// Define a type for the transaction
+interface Transaction {
+  customer: {
+    fullName: string;
+    email: string | null;
+  };
+  type: string;
+  status: string;
+  createdAt: Date;
+  totalAmount: number;
+}
+
 const prisma = new PrismaClient();
+
+// Update the getRecentTransactions function
 export async function getRecentTransactions() {
-  // Fetch the most recent 5 transactions
-  const transactions = await prisma.order.findMany({
+  const transactions: Transaction[] = await prisma.order.findMany({
     take: 5,
     orderBy: {
       createdAt: 'desc',
@@ -16,7 +29,7 @@ export async function getRecentTransactions() {
   });
 
   // Map the transactions to the desired format
-  return transactions.map((transaction) => ({
+  return transactions.map((transaction: Transaction) => ({
     customer: transaction.customer.fullName,
     email: transaction.customer.email || '',
     type: transaction.type,
@@ -26,8 +39,9 @@ export async function getRecentTransactions() {
   }));
 }
 
-export async function mapTransactions(transactions: any[]) {
-  return transactions.map((transaction: any) => ({
+// Update the mapTransactions function
+export async function mapTransactions(transactions: Transaction[]) {
+  return transactions.map((transaction: Transaction) => ({
     customer: transaction.customer.fullName,
     email: transaction.customer.email || '',
   }));
