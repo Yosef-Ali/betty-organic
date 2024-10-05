@@ -19,8 +19,9 @@ export function ImageUploader() {
   const [imageUrl, setImageUrl] = useState<string | null>(null)
 
   async function handleSubmit(formData: FormData) {
-    const imageUrl = await uploadImage(formData)
-    setImageUrl(imageUrl)
+    const productId = 'some-product-id'; // Replace with actual product ID
+    const imageUrl = await uploadImage(formData, productId); // Ensure this line is correct
+    setImageUrl(imageUrl);
   }
 
   return (

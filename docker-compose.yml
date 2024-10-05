@@ -1,5 +1,5 @@
 # Set the version of docker compose to use
-version: '3.9'
+version: '3.8'
 
 # The containers that compose the project
 services:
@@ -13,3 +13,20 @@ services:
       POSTGRES_USER: prisma
       POSTGRES_PASSWORD: prisma
       POSTGRES_DB: organic
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: "postgresql://prisma:prisma@db:5432/organic"
+    volumes:
+      - .:/app
+    command: [ "sh", "entrypoint.sh" ]
+
+volumes:
+  postgres_data:
