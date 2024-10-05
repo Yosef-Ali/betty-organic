@@ -14,10 +14,20 @@ interface Transaction {
   totalAmount: number;
 }
 
+// Define a type for the mapped transaction
+interface MappedTransaction {
+  customer: string;
+  email: string;
+  type: string;
+  status: string;
+  date: string;
+  amount: string;
+}
+
 const prisma = new PrismaClient();
 
 // Update the getRecentTransactions function
-export async function getRecentTransactions() {
+export async function getRecentTransactions(): Promise<MappedTransaction[]> {
   const transactions: Transaction[] = await prisma.order.findMany({
     take: 5,
     orderBy: {
@@ -29,7 +39,7 @@ export async function getRecentTransactions() {
   });
 
   // Map the transactions to the desired format
-  return transactions.map((transaction: Transaction) => ({
+  return transactions.map((transaction: Transaction): MappedTransaction => ({
     customer: transaction.customer.fullName,
     email: transaction.customer.email || '',
     type: transaction.type,
@@ -40,7 +50,7 @@ export async function getRecentTransactions() {
 }
 
 // Update the mapTransactions function
-export async function mapTransactions(transactions: Transaction[]) {
+export async function mapTransactions(transactions: Transaction[]): Promise<Pick<MappedTransaction, 'customer' | 'email'>[]> {
   return transactions.map((transaction: Transaction) => ({
     customer: transaction.customer.fullName,
     email: transaction.customer.email || '',
