@@ -34,9 +34,32 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { useToast } from '@/hooks/use-toast'
-import { Customer } from '@prisma/client'
 import { formatDistanceToNow } from 'date-fns'
 import Image from 'next/image'
+
+interface Customer {
+  id: string;
+  fullName: string;
+  email: string;
+  phone?: string;
+  imageUrl?: string;
+  location?: string;
+  status: string;
+  orders: Order[]; // Ensure the Order interface is also defined
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface Order {
+  id: string;
+  customerId: string;
+  product: string;
+  amount: number;
+  status: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 
 // Update the CustomerWithOrders type definition
 type CustomerWithOrders = Customer & {
