@@ -1,7 +1,7 @@
 // OrderDashboard.tsx
 "use client"
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useCallback, useState } from 'react';
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -39,7 +39,7 @@ type ExtendedOrder = Order & {
   type: OrderType;
 };
 
-export default function OrderDashboard() {
+const OrderDashboard: React.FC = () => {
   const [orders, setOrders] = useState<ExtendedOrder[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -48,11 +48,7 @@ export default function OrderDashboard() {
   const [searchTerm, setSearchTerm] = useState('');
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
       const [ordersData, customersData, productsData] = await Promise.all([
@@ -91,7 +87,11 @@ export default function OrderDashboard() {
       });
     }
     setIsLoading(false);
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const handleDelete = async (id: string) => {
     try {
@@ -126,26 +126,26 @@ export default function OrderDashboard() {
   }, [orders, searchTerm]);
 
   // Helper functions for date calculations (unchanged)
-  function getStartOfWeek(date: Date): Date {
+  const getStartOfWeek = useCallback((date: Date): Date => {
     const day = date.getDay();
     const diff = date.getDate() - day + (day === 0 ? -6 : 1);
     return new Date(date.setDate(diff));
-  }
+  }, []);
 
-  function getStartOfLastWeek(): Date {
+  const getStartOfLastWeek = useCallback((): Date => {
     const date = getStartOfWeek(new Date());
     date.setDate(date.getDate() - 7);
     return date;
-  }
+  }, [getStartOfWeek]);
 
-  function getStartOfMonth(date: Date): Date {
+  const getStartOfMonth = useCallback((date: Date): Date => {
     return new Date(date.getFullYear(), date.getMonth(), 1);
-  }
+  }, []);
 
-  function getStartOfLastMonth(): Date {
+  const getStartOfLastMonth = useCallback((): Date => {
     const date = new Date();
     return new Date(date.getFullYear(), date.getMonth() - 1, 1);
-  }
+  }, []);
 
   // Compute totals using useMemo (unchanged)
   const {
@@ -190,7 +190,7 @@ export default function OrderDashboard() {
       lastMonthTotal,
       currentMonthChangePercentage
     };
-  }, [orders]);
+  }, [orders, getStartOfWeek, getStartOfLastWeek, getStartOfMonth, getStartOfLastMonth]);
 
   return (
     <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8 lg:grid-cols-3 xl:grid-cols-3">
@@ -268,3 +268,5 @@ export default function OrderDashboard() {
     </main>
   );
 }
+
+export default OrderDashboard;

@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { CartItem as CartItemType } from '@/store/cartStore'
+import Image from 'next/image';
 
 interface CartItemProps {
   item: CartItemType
@@ -32,7 +33,7 @@ export const CartItem: FC<CartItemProps> = ({ item, index, updateGrams, removeFr
     <div className="mb-6 px-2">
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-start">
-          <img src={item.imageUrl} alt={item.name} className="w-16 h-16 rounded-md mr-4 object-cover" />
+          <Image src={item.imageUrl} alt={item.name} className="w-16 h-16 rounded-md mr-4 object-cover" width={64} height={64} />
           <div>
             <h3 className="font-semibold text-lg">{item.name}</h3>
             <p className="text-sm text-muted-foreground">${item.pricePerKg.toFixed(2)} per kg</p>
