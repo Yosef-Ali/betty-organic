@@ -10,6 +10,7 @@
     "start": "next start",
     "lint": "next lint",
     "postinstall": "prisma generate",
+    "vercel-build": "prisma generate && next build",
     "seed": "ts-node --esm prisma/seed.ts"
   },
   "dependencies": {
