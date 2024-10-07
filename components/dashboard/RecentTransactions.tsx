@@ -14,10 +14,29 @@ import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { getRecentTransactions } from "@/app/actions/getRecentTransactions";
 
+interface Transaction {
+  customer: string;
+  email: string;
+  type: string;
+  status: string;
+  date: string;
+  amount: string;
+}
 
 export default async function RecentTransactions() {
-  // Fetch recent transactions
-  const transactions = await getRecentTransactions();
+
+
+  let transactions: Transaction[] = [];
+  let error = null;
+
+  try {
+    transactions = await getRecentTransactions();
+  } catch (err) {
+    error = 'Failed to fetch transactions';
+  }
+
+  if (error) return <div>{error}</div>;
+  if (transactions.length === 0) return <div>No transactions found</div>;
 
   return (
     <Card className="xl:col-span-2">

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { getRecentSales } from '@/app/actions/getRecentSales';
+import { getOrders } from '@/app/actions/orderActions';
 
 interface Sale {
   id: string;
@@ -17,29 +17,28 @@ interface Sale {
 }
 
 export function RecentSales() {
-  const [sales, setSales] = useState<Sale[]>([]);
+  const [orders, setOrders] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function fetchSales() {
+    async function fetchOrders() {
       try {
-        setLoading(true);
-        const data = await getRecentSales();
-        setSales(data);
-      } catch (err) {
-        console.error('Error fetching sales:', err);
-        setError('Failed to fetch recent sales. Please try again later.');
+        const orders = await getOrders();
+        setOrders(orders);
+      } catch (error) {
+        setError('Failed to fetch orders');
       } finally {
         setLoading(false);
       }
     }
 
-    fetchSales();
+    fetchOrders();
   }, []);
 
-  if (loading) return <div>Loading recent sales...</div>;
+  if (loading) return <div>Loading...</div>;
   if (error) return <div>{error}</div>;
+  if (orders.length === 0) return <div>No orders found</div>;
 
   function getCustomerDisplay(customer: Sale['customer']) {
     // Step 1: Check if the customer info has no fullName
@@ -72,8 +71,8 @@ export function RecentSales() {
         <CardTitle>Recent Sales</CardTitle>
       </CardHeader>
       <CardContent className="grid gap-8">
-        {sales.length > 0 ? (
-          sales.map((sale) => {
+        {orders.length > 0 ? (
+          orders.map((sale) => {
             const customerDisplay = getCustomerDisplay(sale.customer);
             return (
               <div key={sale.id} className="flex items-center gap-4">
