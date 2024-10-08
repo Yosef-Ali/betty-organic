@@ -9,41 +9,61 @@ const prisma = new PrismaClient();
 const DEFAULT_CUSTOMER_ID = 'cm17ncksy0003juohiaart3s8';
 
 export async function getOrders() {
-  const orders = await prisma.order.findMany({
-    include: {
-      customer: true,
-    },
-    orderBy: {
-      createdAt: 'desc',
-    },
-    take: 8,
-  });
+  try {
+    const orders = await prisma.order.findMany({
+      include: {
+        customer: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      take: 8,
+    });
 
-  return orders;
+    return orders;
+  } catch (error) {
+    console.error('Error fetching orders:', error);
+    throw new Error('Failed to fetch orders');
+  }
 }
 
 export async function getCustomers() {
-  return prisma.customer.findMany();
+  try {
+    return await prisma.customer.findMany();
+  } catch (error) {
+    console.error('Error fetching customers:', error);
+    throw new Error('Failed to fetch customers');
+  }
 }
 
 export async function getProducts() {
-  return prisma.product.findMany();
+  try {
+    return await prisma.product.findMany();
+  } catch (error) {
+    console.error('Error fetching products:', error);
+    throw new Error('Failed to fetch products');
+  }
 }
 
 export async function getOrderDetails(orderId: string) {
-  const order = await prisma.order.findUnique({
-    where: { id: orderId },
-    include: {
-      customer: true,
-      items: {
-        include: {
-          product: true,
+  try {
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        customer: true,
+        items: {
+          include: {
+            product: true,
+          },
         },
       },
-    },
-  });
+    });
 
-  return order;
+    return order;
+  } catch (error) {
+    console.error('Error fetching order details:', error);
+    throw new Error('Failed to fetch order details');
+  }
 }
 
 export async function createOrder(formData: FormData) {
@@ -53,7 +73,6 @@ export async function createOrder(formData: FormData) {
   const items = JSON.parse(formData.get('items') as string);
   const customerInfo = formData.get('customerInfo') as string;
   const totalAmount = parseFloat(formData.get('totalAmount') as string); // Use totalAmount from formData
-
 
   try {
     // First, check if the customer exists
@@ -107,7 +126,7 @@ export async function createOrder(formData: FormData) {
     return order;
   } catch (error) {
     console.error('Error creating order:', error);
-    throw error;
+    throw new Error('Failed to create order');
   }
 }
 
@@ -116,38 +135,43 @@ export async function updateOrder(id: string, formData: FormData) {
   const status = formData.get('status') as string;
   const items = JSON.parse(formData.get('items') as string);
 
-  // Delete existing order items
-  await prisma.orderItem.deleteMany({
-    where: { orderId: id },
-  });
+  try {
+    // Delete existing order items
+    await prisma.orderItem.deleteMany({
+      where: { orderId: id },
+    });
 
-  // Update order and create new order items
-  const updatedOrder = await prisma.order.update({
-    where: { id },
-    data: {
-      customerId,
-      status,
-      totalAmount: items.reduce((total: number, item: { price: number; quantity: number }) => total + (item.price * item.quantity), 0),
-      items: {
-        create: items.map((item: { productId: string; quantity: number; price: number }) => ({
-          productId: item.productId,
-          quantity: item.quantity,
-          price: item.price,
-        })),
-      },
-    },
-    include: {
-      customer: true,
-      items: {
-        include: {
-          product: true,
+    // Update order and create new order items
+    const updatedOrder = await prisma.order.update({
+      where: { id },
+      data: {
+        customerId,
+        status,
+        totalAmount: items.reduce((total: number, item: { price: number; quantity: number }) => total + (item.price * item.quantity), 0),
+        items: {
+          create: items.map((item: { productId: string; quantity: number; price: number }) => ({
+            productId: item.productId,
+            quantity: item.quantity,
+            price: item.price,
+          })),
         },
       },
-    },
-  });
+      include: {
+        customer: true,
+        items: {
+          include: {
+            product: true,
+          },
+        },
+      },
+    });
 
-  revalidatePath('/dashboard/orders');
-  return updatedOrder;
+    revalidatePath('/dashboard/orders');
+    return updatedOrder;
+  } catch (error) {
+    console.error('Error updating order:', error);
+    throw new Error('Failed to update order');
+  }
 }
 
 export async function deleteOrder(orderId: string) {

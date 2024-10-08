@@ -2,97 +2,127 @@
 
 import fs from 'fs';
 import path from 'path';
-import { revalidatePath } from 'next/cache'
-import prisma from '@/lib/prisma'
+import { revalidatePath } from 'next/cache';
+import prisma from '@/lib/prisma';
 
 export async function uploadImage(data: FormData) {
-  const file: File | null = data.get('file') as unknown as File
+  try {
+    const file: File | null = data.get('file') as unknown as File;
 
-  if (!file) {
-    throw new Error('No file uploaded')
+    if (!file) {
+      throw new Error('No file uploaded');
+    }
+
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+
+    // Ensure the upload directory exists
+    const uploadDir = path.join(process.cwd(), 'public', 'uploads');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+
+    const filename = path.join(uploadDir, file.name);
+    await fs.promises.writeFile(filename, new Uint8Array(buffer));
+    return `/uploads/${file.name}`; // This should be a valid URL
+  } catch (error) {
+    console.error('Error uploading image:', error);
+    throw new Error('Failed to upload image');
   }
-
-  const bytes = await file.arrayBuffer()
-  const buffer = Buffer.from(bytes)
-
-  // Ensure the upload directory exists
-  const uploadDir = path.join(process.cwd(), 'public', 'uploads');
-  if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
-  }
-
-  const filename = path.join(uploadDir, file.name);
-  await fs.promises.writeFile(filename, new Uint8Array(buffer));
-  return `/uploads/${file.name}` // This should be a valid URL
 }
 
 export async function createCustomer(formData: FormData) {
-  const customer = await prisma.customer.create({
-    data: {
-      fullName: formData.get('fullName') as string,
-      email: (formData.get('email') as string) || '',
-      phone: (formData.get('phone') as string) || '',
-      location: (formData.get('location') as string) || '',
-      status: formData.get('status') as 'active' | 'inactive',
-      imageUrl: formData.get('imageUrl') as string || null,
-    },
-  })
-  revalidatePath('/dashboard/customers')
-  return customer
+  try {
+    const customer = await prisma.customer.create({
+      data: {
+        fullName: formData.get('fullName') as string,
+        email: (formData.get('email') as string) || '',
+        phone: (formData.get('phone') as string) || '',
+        location: (formData.get('location') as string) || '',
+        status: formData.get('status') as 'active' | 'inactive',
+        imageUrl: formData.get('imageUrl') as string || null,
+      },
+    });
+    revalidatePath('/dashboard/customers');
+    return customer;
+  } catch (error) {
+    console.error('Error creating customer:', error);
+    throw new Error('Failed to create customer');
+  }
 }
 
 export async function updateCustomer(data: {
-  id: string
-  fullName: string
-  email: string
-  phone?: string | null
-  location?: string | null
-  status: 'active' | 'inactive'
-  imageUrl?: string | null
+  id: string;
+  fullName: string;
+  email: string;
+  phone?: string | null;
+  location?: string | null;
+  status: 'active' | 'inactive';
+  imageUrl?: string | null;
 }) {
-  const customer = await prisma.customer.update({
-    where: { id: data.id },
-    data: {
-      fullName: data.fullName,
-      email: data.email,
-      phone: data.phone,
-      location: data.location,
-      status: data.status,
-      imageUrl: data.imageUrl,
-    },
-  })
-  revalidatePath('/dashboard/customers')
-  return customer
+  try {
+    const customer = await prisma.customer.update({
+      where: { id: data.id },
+      data: {
+        fullName: data.fullName,
+        email: data.email,
+        phone: data.phone,
+        location: data.location,
+        status: data.status,
+        imageUrl: data.imageUrl,
+      },
+    });
+    revalidatePath('/dashboard/customers');
+    return customer;
+  } catch (error) {
+    console.error('Error updating customer:', error);
+    throw new Error('Failed to update customer');
+  }
 }
 
 export async function getCustomerImage(customerId: string) {
-  const customer = await prisma.customer.findUnique({
-    where: { id: customerId },
-    select: { imageUrl: true }
-  });
-  return customer ? customer.imageUrl : null;
+  try {
+    const customer = await prisma.customer.findUnique({
+      where: { id: customerId },
+      select: { imageUrl: true },
+    });
+    return customer ? customer.imageUrl : null;
+  } catch (error) {
+    console.error('Error fetching customer image:', error);
+    throw new Error('Failed to fetch customer image');
+  }
 }
 
 export async function getCustomers() {
-  return await prisma.customer.findMany()
+  try {
+    return await prisma.customer.findMany();
+  } catch (error) {
+    console.error('Error fetching customers:', error);
+    throw new Error('Failed to fetch customers');
+  }
 }
 
 export async function getCustomer(id: string) {
-  return await prisma.customer.findUnique({
-    where: { id },
-  })
+  try {
+    return await prisma.customer.findUnique({
+      where: { id },
+    });
+  } catch (error) {
+    console.error('Error fetching customer:', error);
+    throw new Error('Failed to fetch customer');
+  }
 }
 
 export async function deleteCustomer(id: string) {
   try {
     await prisma.customer.delete({
       where: { id },
-    })
-    revalidatePath('/dashboard/customers')
-    return { success: true }
+    });
+    revalidatePath('/dashboard/customers');
+    return { success: true };
   } catch (error) {
-    console.error('Failed to delete customer:', error)
-    return { success: false, error: 'Failed to delete customer' }
+    console.error('Failed to delete customer:', error);
+    return { success: false, error: 'Failed to delete customer' };
   }
 }
 
@@ -100,16 +130,15 @@ export async function getCustomerById(id: string) {
   try {
     const customer = await prisma.customer.findUnique({
       where: { id },
-    })
-    return customer // This line is crucial
+    });
+    return customer; // This line is crucial
   } catch (error) {
-    console.error('Error fetching customer:', error)
-    return null
+    console.error('Error fetching customer:', error);
+    return null;
   }
 }
 
 export async function searchCustomers(query: string) {
-
   if (!query) {
     return [];
   }
@@ -131,7 +160,6 @@ export async function searchCustomers(query: string) {
       },
     });
 
-
     if (!customers || !Array.isArray(customers)) {
       console.error('Unexpected result from Prisma query:', customers);
       return [];
@@ -141,7 +169,7 @@ export async function searchCustomers(query: string) {
       ...customer,
       fullName: customer.fullName.toLowerCase().includes(query.toLowerCase())
         ? customer.fullName
-        : customer.fullName
+        : customer.fullName,
     }));
 
     console.log('Processed result:', result);

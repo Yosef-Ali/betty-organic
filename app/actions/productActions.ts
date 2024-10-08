@@ -37,7 +37,7 @@ export async function uploadImage(formData: FormData, productId: string): Promis
     return product.imageUrl;
   } catch (error) {
     console.error('Error uploading image:', error);
-    throw error;
+    throw new Error('Failed to upload image');
   }
 }
 
@@ -48,22 +48,27 @@ export async function createProduct(formData: FormData) {
   const stock = parseInt(formData.get('stock') as string, 10);
   const imageUrl = formData.get('imageUrl') as string;
 
-  // Provide a default image URL if none is provided
-  const finalImageUrl = imageUrl || '/placeholder.svg';
+  try {
+    // Provide a default image URL if none is provided
+    const finalImageUrl = imageUrl || '/placeholder.svg';
 
-  const product = await prisma.product.create({
-    data: {
-      name,
-      description,
-      price,
-      stock,
-      totalSales: 0,
-      imageUrl: finalImageUrl,
-    },
-  });
+    const product = await prisma.product.create({
+      data: {
+        name,
+        description,
+        price,
+        stock,
+        totalSales: 0,
+        imageUrl: finalImageUrl,
+      },
+    });
 
-  revalidatePath('/dashboard/products')
-  return product;
+    revalidatePath('/dashboard/products');
+    return product;
+  } catch (error) {
+    console.error('Error creating product:', error);
+    throw new Error('Failed to create product');
+  }
 }
 
 export async function updateProduct(id: string, data: FormData) {
@@ -73,54 +78,74 @@ export async function updateProduct(id: string, data: FormData) {
   const stock = parseInt(data.get('stock') as string, 10);
   const imageUrl = data.get('imageUrl') as string;
 
-  // Provide a default image URL if none is provided
-  let finalImageUrl = imageUrl;
-  if (data.get('file')) {
-    finalImageUrl = await uploadImage(data, id);
+  try {
+    // Provide a default image URL if none is provided
+    let finalImageUrl = imageUrl;
+    if (data.get('file')) {
+      finalImageUrl = await uploadImage(data, id);
+    }
+
+    const product = await prisma.product.update({
+      where: { id },
+      data: {
+        name,
+        description,
+        price,
+        stock,
+        imageUrl: finalImageUrl || '/placeholder.svg',
+      },
+    });
+
+    revalidatePath('/dashboard/products');
+    return product;
+  } catch (error) {
+    console.error('Error updating product:', error);
+    throw new Error('Failed to update product');
   }
-
-  const product = await prisma.product.update({
-    where: { id },
-    data: {
-      name,
-      description,
-      price,
-      stock,
-      imageUrl: finalImageUrl || '/placeholder.svg',
-    },
-  })
-
-  revalidatePath('/dashboard/products')
-  return product
 }
 
 export async function getProductImages(productId: string) {
-  const product = await prisma.product.findUnique({
-    where: { id: productId },
-    select: { imageUrl: true }
-  });
-  return product ? [product.imageUrl] : [];
+  try {
+    const product = await prisma.product.findUnique({
+      where: { id: productId },
+      select: { imageUrl: true }
+    });
+    return product ? [product.imageUrl] : [];
+  } catch (error) {
+    console.error('Error fetching product images:', error);
+    throw new Error('Failed to fetch product images');
+  }
 }
 
 export async function getProducts() {
-  return await prisma.product.findMany()
+  try {
+    return await prisma.product.findMany();
+  } catch (error) {
+    console.error('Error fetching products:', error);
+    throw new Error('Failed to fetch products');
+  }
 }
 
 export async function getProduct(id: string) {
-  return await prisma.product.findUnique({
-    where: { id },
-  })
+  try {
+    return await prisma.product.findUnique({
+      where: { id },
+    });
+  } catch (error) {
+    console.error('Error fetching product:', error);
+    throw new Error('Failed to fetch product');
+  }
 }
 
 export async function deleteProduct(id: string) {
   try {
     await prisma.product.delete({
       where: { id },
-    })
-    revalidatePath('/dashboard/products')
-    return { success: true }
+    });
+    revalidatePath('/dashboard/products');
+    return { success: true };
   } catch (error) {
-    console.error('Failed to delete product:', error)
-    return { success: false, error: 'Failed to delete product' }
+    console.error('Failed to delete product:', error);
+    return { success: false, error: 'Failed to delete product' };
   }
 }
