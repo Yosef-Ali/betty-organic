@@ -120,8 +120,6 @@ export function ProductForm({ initialData }: { initialData?: ProductFormValues }
       setIsLoading(false)
     }
   }
-
-
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)}>
@@ -276,8 +274,6 @@ export function ProductForm({ initialData }: { initialData?: ProductFormValues }
                 </Card>
               </div>
             </div>
-
-
             <div className="flex items-center justify-center gap-2 md:hidden">
               <Button variant="outline" size="sm" onClick={() => form.reset()}>
                 Discard
