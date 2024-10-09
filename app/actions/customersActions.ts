@@ -1,33 +1,28 @@
 'use server'
 
-import fs from 'fs';
-import path from 'path';
+import { UTApi } from "uploadthing/server";
 import { revalidatePath } from 'next/cache';
 import prisma from '@/lib/prisma';
 
+const utapi = new UTApi();
+
 export async function uploadImage(data: FormData) {
+  const file = data.get("file") as File;
+  if (!file) {
+    throw new Error("No file provided");
+  }
+
   try {
-    const file: File | null = data.get('file') as unknown as File;
-
-    if (!file) {
-      throw new Error('No file uploaded');
+    const response = await utapi.uploadFiles([file]);
+    if (!response.length || !response[0].data || !response[0].data.url) {
+      throw new Error("Failed to upload image");
     }
 
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-
-    // Ensure the upload directory exists
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-
-    const filename = path.join(uploadDir, file.name);
-    await fs.promises.writeFile(filename, new Uint8Array(buffer));
-    return `/uploads/${file.name}`; // This should be a valid URL
+    const fileUrl = response[0]?.data?.url;
+    return fileUrl; // Return the URL of the uploaded image
   } catch (error) {
-    console.error('Error uploading image:', error);
-    throw new Error('Failed to upload image');
+    console.error("Error uploading image:", error);
+    throw new Error("Failed to upload image");
   }
 }
 
@@ -95,7 +90,8 @@ export async function getCustomerImage(customerId: string) {
 
 export async function getCustomers() {
   try {
-    return await prisma.customer.findMany();
+    const customers = await prisma.customer.findMany();
+    return customers;
   } catch (error) {
     console.error('Error fetching customers:', error);
     throw new Error('Failed to fetch customers');

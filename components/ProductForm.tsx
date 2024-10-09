@@ -15,7 +15,8 @@ import { Badge } from "@/components/ui/badge"
 import { useToast } from '@/hooks/use-toast'
 import { ChevronLeft, Upload } from 'lucide-react'
 import Image from 'next/image'
-import { createProduct, getProductImages, updateProduct, uploadImage } from '@/app/actions/productActions'
+import { createProduct, getProductImages, updateProduct } from '@/app/actions/productActions'
+import { uploadImage } from '@/app/actions/upload-image'
 
 const formSchema = z.object({
   id: z.string().optional(),
@@ -94,32 +95,37 @@ export function ProductForm({ initialData }: { initialData?: ProductFormValues }
   }
 
   async function handleImageUpload(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0]
-    if (!file) return
+    const file = event.target.files?.[0];
+    if (!file) return;
 
-    const formData = new FormData()
-    formData.append('file', file)
+    const formData = new FormData();
+    formData.append('file', file);
 
     try {
-      setIsLoading(true)
-      const imageUrl = await uploadImage(formData, initialData?.id || '')
-      form.setValue('imageUrl', imageUrl)
-      form.trigger('imageUrl')
+      setIsLoading(true);
+      const response = await uploadImage(formData);
+      if (response.success) {
+        form.setValue('imageUrl', response.imageUrl);
+      } else {
+        throw new Error(response.error || 'Failed to upload image');
+      }
+      form.trigger('imageUrl');
       toast({
         title: "Image uploaded",
         description: "The image has been successfully uploaded.",
-      })
+      });
     } catch (error) {
-      console.error('Error in handleImageUpload:', error)
+      console.error('Error in handleImageUpload:', error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to upload image. Please try again.",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
   }
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)}>

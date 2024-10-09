@@ -22,6 +22,7 @@ export default async function EditCustomerPage({ params }: { params: { id: strin
           phone: customer.phone ?? undefined,
           location: customer.location ?? undefined,
           status: customer.status as CustomerStatus,
+          imageUrl: customer.imageUrl ?? undefined, // Ensure imageUrl is included
         }}
       />
     </div>

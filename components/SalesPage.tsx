@@ -38,7 +38,7 @@ const Sales: FC = () => {
     addItem({
       id: product.id,
       name: product.name,
-      imageUrl: product.imageUrl,
+      imageUrl: product.imageUrl, // Ensure imageUrl is used
       pricePerKg: product.price,
       grams: 100,
     });

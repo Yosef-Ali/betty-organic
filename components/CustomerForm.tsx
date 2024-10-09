@@ -32,6 +32,7 @@ type CustomerFormValues = z.infer<typeof formSchema>
 
 export function CustomerForm({ initialData }: { initialData?: CustomerFormValues }) {
   const [isLoading, setIsLoading] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
   const router = useRouter()
   const { toast } = useToast()
 
@@ -92,23 +93,28 @@ export function CustomerForm({ initialData }: { initialData?: CustomerFormValues
   }
 
   async function handleImageUpload(file: File) {
-    const formData = new FormData()
-    formData.append('file', file)
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
 
     try {
-      const imageUrl = await uploadImage(formData)
-      form.setValue('imageUrl', imageUrl)
-      form.trigger('imageUrl')
+      const imageUrl = await uploadImage(formData);
+      form.setValue('imageUrl', imageUrl);
+      form.trigger('imageUrl');
+      toast({
+        title: "Image uploaded",
+        description: "The image has been successfully uploaded.",
+      });
     } catch (error) {
       toast({
         title: "Error",
         description: "Failed to upload image. Please try again.",
         variant: "destructive",
-      })
+      });
+    } finally {
+      setIsUploading(false);
     }
   }
-
-
 
   return (
     <Form {...form}>
@@ -130,7 +136,7 @@ export function CustomerForm({ initialData }: { initialData?: CustomerFormValues
                 <Button variant="outline" size="sm" onClick={() => form.reset()}>
                   Discard
                 </Button>
-                <Button size="sm" type="submit" disabled={isLoading}>
+                <Button size="sm" type="submit" disabled={isLoading || isUploading}>
                   {isLoading ? 'Saving...' : initialData ? 'Update Customer' : 'Save Customer'}
                 </Button>
               </div>
@@ -192,7 +198,7 @@ export function CustomerForm({ initialData }: { initialData?: CustomerFormValues
                           <FormItem>
                             <FormLabel>Location</FormLabel>
                             <FormControl>
-                              <Input placeholder="City, Country" {...field} />
+                              <Input placeholder="City, Country" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -241,7 +247,7 @@ export function CustomerForm({ initialData }: { initialData?: CustomerFormValues
                                 alt="Customer image"
                                 className="aspect-square w-full rounded-md object-cover"
                                 height="300"
-                                src={field.value || "/uploads/placeholder.svg"}
+                                src={field.value || initialData?.imageUrl || "/uploads/placeholder.svg"}
                                 width="300"
                               />
                               <Input
@@ -269,7 +275,7 @@ export function CustomerForm({ initialData }: { initialData?: CustomerFormValues
               <Button variant="outline" size="sm" onClick={() => form.reset()}>
                 Discard
               </Button>
-              <Button size="sm" type="submit" disabled={isLoading}>
+              <Button size="sm" type="submit" disabled={isLoading || isUploading}>
                 {isLoading ? 'Saving...' : initialData ? 'Update Customer' : 'Save Customer'}
               </Button>
             </div>

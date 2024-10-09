@@ -74,7 +74,7 @@ const ProductTableContent = ({ products, isLoading, onDelete }: {
           alt="Product image"
           className="aspect-square rounded-md object-cover"
           height={64}
-          src={product.imageUrl.startsWith('/') ? product.imageUrl : `/${product.imageUrl}`}
+          src={product.imageUrl}
           width={64}
         />
       </TableCell>
