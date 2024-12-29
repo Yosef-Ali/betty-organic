@@ -1,22 +1,11 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
-// local prostgres db for docker
-// datasource db {
-//   provider = "postgresql"
-//   url      = env("DATABASE_URL")
-// }
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Product {
@@ -40,50 +29,48 @@ model Customer {
   imageUrl  String?
   location  String?
   status    String   @default("active")
-  orders    Order[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  orders    Order[]
 }
 
 model Order {
   id          String      @id @default(cuid())
   customerId  String
-  customer    Customer    @relation(fields: [customerId], references: [id])
-  items       OrderItem[]
   totalAmount Float
   status      String
-  type        String // New field for order type
+  type        String
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
+  customer    Customer    @relation(fields: [customerId], references: [id])
+  items       OrderItem[]
 
-  @@map("orders")
+  @@map("Order")
 }
 
 model OrderItem {
   id        String   @id @default(cuid())
   orderId   String
-  order     Order    @relation(fields: [orderId], references: [id])
   productId String
-  product   Product  @relation(fields: [productId], references: [id])
   quantity  Int
   price     Float
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  order     Order    @relation(fields: [orderId], references: [id])
+  product   Product  @relation(fields: [productId], references: [id])
 }
 
 model User {
-  id           String    @id @default(cuid())
-  name         String
-  email        String    @unique
-  passwordHash String
-  role         String    @default("user")
-  isVerified   Boolean   @default(false)
-  image        String?
-  lastLoginAt  DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-
-  // NextAuth.js fields
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  passwordHash  String
+  role          String    @default("user")
+  isVerified    Boolean   @default(false)
+  image         String?
+  lastLoginAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
   emailVerified DateTime?
   accounts      Account[]
   sessions      Session[]
@@ -91,7 +78,6 @@ model User {
   @@map("users")
 }
 
-// NextAuth.js models
 model Account {
   id                String  @id @default(cuid())
   userId            String
@@ -105,8 +91,7 @@ model Account {
   scope             String?
   id_token          String?
   session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
 }

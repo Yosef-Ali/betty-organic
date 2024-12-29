@@ -2,133 +2,190 @@ import { PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
+const products = [
+  {
+    name: "Fresh Strawberries",
+    description: "Sweet and juicy strawberries, perfect for desserts",
+    price: 4.99,
+    stock: 100,
+    imageUrl: "/uploads/strawberry.jpg",
+    totalSales: 50
+  },
+  {
+    name: "Organic Bananas",
+    description: "Naturally ripened organic bananas",
+    price: 2.99,
+    stock: 150,
+    imageUrl: "/uploads/banana.jpg",
+    totalSales: 75
+  },
+  {
+    name: "Red Apples",
+    description: "Crisp and sweet red apples",
+    price: 3.49,
+    stock: 200,
+    imageUrl: "/uploads/apple.jpg",
+    totalSales: 120
+  },
+  {
+    name: "Ripe Mangoes",
+    description: "Sweet and aromatic mangoes",
+    price: 5.99,
+    stock: 80,
+    imageUrl: "/uploads/mango.jpg",
+    totalSales: 40
+  },
+  {
+    name: "Fresh Oranges",
+    description: "Juicy and vitamin-rich oranges",
+    price: 4.49,
+    stock: 120,
+    imageUrl: "/uploads/orange.jpg",
+    totalSales: 90
+  },
+  {
+    name: "Dragon Fruit",
+    description: "Exotic dragon fruit with sweet flesh",
+    price: 7.99,
+    stock: 50,
+    imageUrl: "/uploads/dragonfruit.jpg",
+    totalSales: 25
+  },
+  {
+    name: "Green Kiwi",
+    description: "Tangy and nutritious kiwi fruit",
+    price: 3.99,
+    stock: 90,
+    imageUrl: "/uploads/kiwi.jpg",
+    totalSales: 60
+  },
+  {
+    name: "Fresh Pineapple",
+    description: "Sweet and tropical pineapple",
+    price: 5.49,
+    stock: 70,
+    imageUrl: "/uploads/pineapple.jpg",
+    totalSales: 45
+  },
+  {
+    name: "Purple Grapes",
+    description: "Sweet seedless purple grapes",
+    price: 4.99,
+    stock: 110,
+    imageUrl: "/uploads/grape.jpg",
+    totalSales: 85
+  },
+  {
+    name: "Fresh Watermelon",
+    description: "Sweet and refreshing watermelon",
+    price: 6.99,
+    stock: 60,
+    imageUrl: "/uploads/watermelon.jpg",
+    totalSales: 30
+  }
+]
+
+const customers = [
+  {
+    fullName: "John Doe",
+    email: "john@example.com",
+    phone: "+1234567890",
+    imageUrl: "/uploads/avatars/john.jpg",
+    location: "New York",
+    status: "active"
+  },
+  {
+    fullName: "Jane Smith",
+    email: "jane@example.com",
+    phone: "+1234567891",
+    imageUrl: "/uploads/avatars/jane.jpg",
+    location: "Los Angeles",
+    status: "active"
+  },
+  {
+    fullName: "Bob Johnson",
+    email: "bob@example.com",
+    phone: "+1234567892",
+    imageUrl: "/uploads/avatars/bob.jpg",
+    location: "Chicago",
+    status: "active"
+  }
+]
+
 async function main() {
-  // Create or update 5 products (fruits)
-  const fruits = [
-    { name: 'Apple', price: 1.99, image: 'apple.jpg' },
-    { name: 'Banana', price: 0.99, image: 'banana.jpg' },
-    { name: 'Orange', price: 1.49, image: 'orange.jpg' },
-    { name: 'Mango', price: 2.49, image: 'mango.jpg' },
-    { name: 'Strawberry', price: 3.99, image: 'strawberry.jpg' },
-  ]
+  console.log('Start seeding...')
 
-  for (const fruit of fruits) {
-    const existingProduct = await prisma.product.findFirst({
-      where: { name: fruit.name }
+  // Create products
+  console.log('Seeding products...')
+  const createdProducts = []
+  for (const product of products) {
+    const result = await prisma.product.create({
+      data: product
     })
-
-    if (existingProduct) {
-      await prisma.product.update({
-        where: { id: existingProduct.id },
-        data: {
-          price: fruit.price,
-          imageUrl: `/uploads/${fruit.image}`,
-        },
-      })
-    } else {
-      await prisma.product.create({
-        data: {
-          name: fruit.name,
-          description: `Fresh ${fruit.name.toLowerCase()}`,
-          price: fruit.price,
-          stock: Math.floor(Math.random() * 100) + 50,
-          imageUrl: `/uploads/${fruit.image}`,
-        },
-      })
-    }
+    createdProducts.push(result)
+    console.log(`Created product with id: ${result.id}`)
   }
 
-  // Create or update 5 customers
-  const customers = [
-    { name: 'John Doe', email: 'john@example.com', image: 'john.jpg' },
-    { name: 'Jane Smith', email: 'jane@example.com', image: 'jane.jpg' },
-    { name: 'Alice Johnson', email: 'alice@example.com', image: 'alice.jpg' },
-    { name: 'Bob Brown', email: 'bob@example.com', image: 'bob.jpg' },
-    { name: 'Eva Williams', email: 'eva@example.com', image: 'eva.jpg' },
-  ]
-
+  // Create customers
+  console.log('Seeding customers...')
+  const createdCustomers = []
   for (const customer of customers) {
-    await prisma.customer.upsert({
-      where: { email: customer.email },
-      update: {
-        fullName: customer.name,
-        imageUrl: `/uploads/${customer.image}`,
-      },
-      create: {
-        fullName: customer.name,
-        email: customer.email,
-        phone: String(Math.floor(Math.random() * 9000000000) + 1000000000),
-        location: ['New York', 'Los Angeles', 'Chicago', 'Houston', 'Miami'][Math.floor(Math.random() * 5)],
-        imageUrl: `/uploads/${customer.image}`,
-      },
+    const result = await prisma.customer.create({
+      data: customer
     })
+    createdCustomers.push(result)
+    console.log(`Created customer with id: ${result.id}`)
   }
 
-  // Create 5 orders
-  const createdCustomers = await prisma.customer.findMany()
-  const createdProducts = await prisma.product.findMany()
+  // Create orders and order items
+  console.log('Seeding orders...')
+  for (const customer of createdCustomers) {
+    // Create 2 orders per customer
+    for (let i = 0; i < 2; i++) {
+      // Randomly select 1-3 products for each order
+      const orderProducts = createdProducts
+        .sort(() => Math.random() - 0.5)
+        .slice(0, Math.floor(Math.random() * 3) + 1)
 
-  for (let i = 0; i < 5; i++) {
-    const customer = createdCustomers[Math.floor(Math.random() * createdCustomers.length)]
-    const numItems = Math.floor(Math.random() * 3) + 1
-    const orderItems = []
-    let totalAmount = 0
-
-    for (let j = 0; j < numItems; j++) {
-      const product = createdProducts[Math.floor(Math.random() * createdProducts.length)]
-      const quantity = Math.floor(Math.random() * 5) + 1
-      const price = product.price * quantity
-      totalAmount += price
-
-      orderItems.push({
+      const orderItems = orderProducts.map(product => ({
         productId: product.id,
-        quantity: quantity,
-        price: price,
+        quantity: Math.floor(Math.random() * 5) + 1,
+        price: product.price
+      }))
+
+      const totalAmount = orderItems.reduce(
+        (sum, item) => sum + item.price * item.quantity,
+        0
+      )
+
+      const order = await prisma.order.create({
+        data: {
+          customerId: customer.id,
+          totalAmount,
+          status: "completed",
+          type: "standard",
+          items: {
+            create: orderItems
+          }
+        }
       })
+      console.log(`Created order with id: ${order.id}`)
     }
-
-    await prisma.order.create({
-      data: {
-        customerId: customer.id,
-        totalAmount: parseFloat(totalAmount.toFixed(2)),
-        status: ['pending', 'processing', 'completed'][Math.floor(Math.random() * 3)],
-        type: ['online', 'in-store'][Math.floor(Math.random() * 2)],
-        items: {
-          create: orderItems,
-        },
-      },
-    })
   }
 
-  // Create or update 5 users
-  const users = [
-    { name: 'Admin User', email: 'admin@example.com', role: 'admin', image: 'admin.jpg' },
-    { name: 'Manager User', email: 'manager@example.com', role: 'manager', image: 'manager.jpg' },
-    { name: 'Staff User 1', email: 'staff1@example.com', role: 'staff', image: 'staff1.jpg' },
-    { name: 'Staff User 2', email: 'staff2@example.com', role: 'staff', image: 'staff2.jpg' },
-    { name: 'Regular User', email: 'user@example.com', role: 'user', image: 'user.jpg' },
-  ]
+  // Create a test user
+  await prisma.user.create({
+    data: {
+      name: "Test User",
+      email: "test@example.com",
+      passwordHash: "$2b$10$8OuDs7svYg8fvM5VGDsZpenR1S1LnwzyXIbx9nDmHD8g8N.ZFBrTq", // password: test123
+      role: "admin",
+      isVerified: true,
+      emailVerified: new Date()
+    }
+  })
 
-  for (const user of users) {
-    await prisma.user.upsert({
-      where: { email: user.email },
-      update: {
-        name: user.name,
-        role: user.role,
-        image: `/uploads/${user.image}`,
-      },
-      create: {
-        name: user.name,
-        email: user.email,
-        passwordHash: 'hashed_password_here', // In a real scenario, you'd use a proper hashing function
-        role: user.role,
-        isVerified: true,
-        image: `/uploads/${user.image}`,
-      },
-    })
-  }
-
-  console.log('Seed data created or updated successfully')
+  console.log('Seeding finished.')
 }
 
 main()
