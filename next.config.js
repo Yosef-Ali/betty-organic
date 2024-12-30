@@ -29,6 +29,11 @@ const nextConfig = {
         hostname: 'xmumlfgzvrliepxcjqil.supabase.co',
         pathname: '/storage/v1/object/public/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'planiwegceqjbjwibvyfd.supabase.co',
+        pathname: '/storage/v1/object/public/**',
+      },
     ],
   },
   output: 'standalone',
@@ -37,4 +42,4 @@ const nextConfig = {
   swcMinify: true,
 }
 
-module.exports = nextConfig
+export default nextConfig

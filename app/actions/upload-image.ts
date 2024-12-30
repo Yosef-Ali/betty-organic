@@ -2,7 +2,7 @@
 
 import { UTApi } from "uploadthing/server";
 import { revalidatePath } from "next/cache";
-import { supabase } from '@/lib/supabase'; // Adjust this import based on your Supabase client location
+import { supabase } from "@/lib/supabase";  // Fix import path
 
 const utapi = new UTApi();
 
@@ -13,9 +13,13 @@ export async function uploadImage(formData: FormData) {
   }
 
   try {
+    const productId = formData.get("productId") as string;
+    // Remove subfolder, just use timestamp-filename
+    const uniqueFileName = `${Date.now()}-${file.name}`;
+
     const { data, error: uploadError } = await supabase.storage
       .from('product-images')
-      .upload(file.name, file, {
+      .upload(uniqueFileName, file, {
         cacheControl: '3600',
         upsert: false,
       });
@@ -25,13 +29,12 @@ export async function uploadImage(formData: FormData) {
       throw new Error("Failed to upload image to Supabase storage");
     }
 
-    const fileUrl = `https://planiwegceqjbjwibvyfd.supabase.co/storage/v1/object/public/product-images/${data?.path}`;
-    const productId = formData.get("productId") as string;
+    const fileUrl = `https://xmumlfgzvrliepxcjqil.supabase.co/storage/v1/object/public/product-images/${data?.path}`;
 
     // Update the existing product with the new image URL
     const { data: product, error } = await supabase
       .from('products')
-      .update({ image_url: fileUrl })
+      .update({ imageUrl: fileUrl })  // Changed from image_url to imageUrl
       .eq('id', productId)
       .select()
       .single();

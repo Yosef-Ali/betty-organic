@@ -9,9 +9,12 @@ export async function uploadImage(formData: FormData, productId: string): Promis
       throw new Error('No file provided');
     }
 
+    // Remove productId from path
+    const uniqueFileName = `${Date.now()}-${file.name}`; // Ensure unique file name
+
     const { data, error } = await supabase.storage
       .from('product-images')
-      .upload(`${productId}/${Date.now()}-${file.name}`, file, {
+      .upload(uniqueFileName, file, {
         cacheControl: '3600',
         upsert: false,
       });
@@ -26,7 +29,7 @@ export async function uploadImage(formData: FormData, productId: string): Promis
     // Update the product with the new image URL
     const { data: product, error: dbError } = await supabase
       .from('products')
-      .update({ image_url: fileUrl })
+      .update({ imageUrl: fileUrl })  // Changed from image_url to imageUrl
       .eq('id', productId)
       .select()
       .single();
@@ -62,7 +65,7 @@ export async function createProduct(formData: FormData) {
         price,
         stock,
         total_sales: 0,
-        image_url: finalImageUrl,
+        imageUrl: finalImageUrl,  // Changed from image_url to imageUrl
       })
       .select()
       .single();
@@ -100,7 +103,7 @@ export async function updateProduct(id: string, data: FormData) {
         description,
         price,
         stock,
-        image_url: finalImageUrl || '/placeholder.svg',
+        imageUrl: finalImageUrl || '/placeholder.svg',  // Changed from image_url to imageUrl
       })
       .eq('id', id)
       .select()
@@ -123,17 +126,23 @@ export async function getProductImages(productId: string) {
     console.log(`Fetching images for product ID: ${productId}`);
     const { data: product, error } = await supabase
       .from('products')
-      .select('image_url')
+      .select('imageUrl')  // Changed from image_url to imageUrl
       .eq('id', productId)
       .single();
 
     if (error) {
       console.error('Error fetching product images:', error);
+      console.error('Supabase error details:', error.message, error.details);
       throw new Error('Failed to fetch product images');
     }
 
+    if (!product) {
+      console.error('No product found for the given ID:', productId);
+      return [];
+    }
+
     console.log('Fetched product images:', product);
-    return product ? [product.image_url] : [];
+    return product?.imageUrl ? [product.imageUrl] : [];
   } catch (error) {
     console.error('Error fetching product images:', error);
     throw new Error('Failed to fetch product images');
@@ -142,14 +151,18 @@ export async function getProductImages(productId: string) {
 
 export async function getProducts() {
   try {
+    console.log('Fetching products from Supabase');
     const { data: products, error } = await supabase
       .from('products')
       .select();
 
     if (error) {
+      console.error('Error fetching products:', error);
+      console.error('Supabase error details:', error.message, error.details);
       throw new Error('Failed to fetch products');
     }
 
+    console.log('Fetched products:', products);
     return products;
   } catch (error) {
     console.error('Error fetching products:', error);
