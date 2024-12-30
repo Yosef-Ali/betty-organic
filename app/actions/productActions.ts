@@ -1,7 +1,10 @@
 "use server";
 import { revalidatePath } from 'next/cache';
 import { supabase } from '@/lib/supabase';
+import { uploadImage } from './upload-image'; // Import uploadImage from upload-image.ts
 
+// Remove the following redundant uploadImage function
+/*
 export async function uploadImage(formData: FormData, productId: string): Promise<string> {
   try {
     const file = formData.get('file') as File;
@@ -29,24 +32,28 @@ export async function uploadImage(formData: FormData, productId: string): Promis
     // Update the product with the new image URL
     const { data: product, error: dbError } = await supabase
       .from('products')
-      .update({ imageUrl: fileUrl })  // Changed from image_url to imageUrl
+      .update({
+        imageUrl: fileUrl,
+      })
       .eq('id', productId)
       .select()
       .single();
 
     if (dbError) {
-      console.error('Error updating product image URL:', dbError);
-      throw new Error('Failed to update product image URL');
+      console.error('Error updating product with image URL:', dbError);
+      throw new Error('Failed to update product with image URL');
     }
 
+    revalidatePath('/dashboard/products');
     return fileUrl;
   } catch (error: any) {
     console.error('Error uploading image:', error);
     throw new Error('Failed to upload image');
   }
 }
+*/
 
-export async function createProduct(formData: FormData) {
+export const createProduct = async (formData: FormData) => {
   const name = formData.get('name') as string;
   const description = formData.get('description') as string;
   const price = parseFloat(formData.get('price') as string);
@@ -57,6 +64,7 @@ export async function createProduct(formData: FormData) {
     // Provide a default image URL if none is provided
     const finalImageUrl = imageUrl || '/placeholder.svg';
 
+    console.log('Inserting product into Supabase...', { name, description, price, stock, imageUrl: finalImageUrl });
     const { data: product, error } = await supabase
       .from('products')
       .insert({
@@ -71,45 +79,48 @@ export async function createProduct(formData: FormData) {
       .single();
 
     if (error) {
+      console.error('Supabase insert error:', error);
       throw new Error('Failed to create product');
     }
 
+    console.log('Product inserted successfully:', product);
+
     revalidatePath('/dashboard/products');
-    return product;
+
+    // Return a plain object with necessary fields
+    return {
+      id: product.id,
+      name: product.name,
+      description: product.description,
+      price: product.price,
+      stock: product.stock,
+      imageUrl: product.imageUrl,
+      total_sales: product.total_sales,
+    };
   } catch (error) {
     console.error('Error creating product:', error);
     throw new Error('Failed to create product');
   }
-}
+};
 
 export async function updateProduct(id: string, data: FormData) {
-  const name = data.get('name') as string;
-  const description = data.get('description') as string;
-  const price = parseFloat(data.get('price') as string);
-  const stock = parseInt(data.get('stock') as string, 10);
-  const imageUrl = data.get('imageUrl') as string;
-
   try {
-    // Provide a default image URL if none is provided
-    let finalImageUrl = imageUrl;
-    if (data.get('file')) {
-      finalImageUrl = await uploadImage(data, id);
+    const updates: Record<string, any> = {};
+
+    // Only include fields that are present in the FormData
+    for (const [key, value] of data.entries()) {
+      updates[key] = value;
     }
 
     const { data: product, error } = await supabase
       .from('products')
-      .update({
-        name,
-        description,
-        price,
-        stock,
-        imageUrl: finalImageUrl || '/placeholder.svg',  // Changed from image_url to imageUrl
-      })
+      .update(updates)
       .eq('id', id)
       .select()
       .single();
 
     if (error) {
+      console.error('Supabase update error:', error);
       throw new Error('Failed to update product');
     }
 
