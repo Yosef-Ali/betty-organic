@@ -2,7 +2,7 @@
 
 import { UTApi } from "uploadthing/server";
 import { revalidatePath } from "next/cache";
-import { supabase } from "@/lib/supabase"; // Adjust this import based on your Supabase client location
+import { supabase } from '@/lib/supabase'; // Adjust this import based on your Supabase client location
 
 const utapi = new UTApi();
 
@@ -13,30 +13,35 @@ export async function uploadImage(formData: FormData) {
   }
 
   try {
-    const response = await utapi.uploadFiles(file);
-    if (!response.data?.url) {
-      throw new Error("Failed to upload image");
+    const { data, error: uploadError } = await supabase.storage
+      .from('product-images')
+      .upload(file.name, file, {
+        cacheControl: '3600',
+        upsert: false,
+      });
+
+    if (uploadError) {
+      console.error("Supabase upload error:", uploadError);
+      throw new Error("Failed to upload image to Supabase storage");
     }
 
-    const fileUrl = response.data.url;
+    const fileUrl = `https://planiwegceqjbjwibvyfd.supabase.co/storage/v1/object/public/product-images/${data?.path}`;
+    const productId = formData.get("productId") as string;
 
-    // Save the file URL to your database using Supabase
+    // Update the existing product with the new image URL
     const { data: product, error } = await supabase
       .from('products')
-      .insert({
-        image_url: fileUrl,
-        name: "Default Name", // Replace with actual name
-        price: 0, // Replace with actual price
-        stock: 0, // Replace with actual stock
-      })
+      .update({ image_url: fileUrl })
+      .eq('id', productId)
       .select()
       .single();
 
     if (error) {
-      throw new Error("Failed to save product");
+      console.error("Supabase update error:", error);
+      throw new Error("Failed to update product image");
     }
 
-    revalidatePath("/products"); // Adjust this path as needed
+    revalidatePath(`/dashboard/products/${productId}/edit`);
     return { success: true, productId: product.id, imageUrl: fileUrl };
   } catch (error) {
     console.error("Error uploading image:", error);

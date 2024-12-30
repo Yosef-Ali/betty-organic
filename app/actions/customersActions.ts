@@ -3,6 +3,7 @@
 import { UTApi } from "uploadthing/server";
 import { revalidatePath } from 'next/cache';
 import { supabase } from '@/lib/supabase';
+import { Customer } from '../../types';
 
 const utapi = new UTApi();
 
@@ -13,13 +14,20 @@ export async function uploadImage(data: FormData) {
   }
 
   try {
-    const response = await utapi.uploadFiles([file]);
-    if (!response.length || !response[0].data || !response[0].data.url) {
-      throw new Error("Failed to upload image");
+    const { data: uploadData, error } = await supabase.storage
+      .from('product-images')
+      .upload(`${Date.now()}-${file.name}`, file, {
+        cacheControl: '3600',
+        upsert: false,
+      });
+
+    if (error) {
+      console.error("Error uploading image to Supabase:", error);
+      throw new Error("Failed to upload image to Supabase");
     }
 
-    const fileUrl = response[0]?.data?.url;
-    return fileUrl; // Return the URL of the uploaded image
+    const fileUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/product-images/${uploadData.path}`;
+    return fileUrl;
   } catch (error) {
     console.error("Error uploading image:", error);
     throw new Error("Failed to upload image");
@@ -28,6 +36,7 @@ export async function uploadImage(data: FormData) {
 
 export async function createCustomer(formData: FormData) {
   try {
+    const imageUrl = formData.get('imageUrl') as string | null;
     const { data: customer, error } = await supabase
       .from('customers')
       .insert({
@@ -36,7 +45,7 @@ export async function createCustomer(formData: FormData) {
         phone: (formData.get('phone') as string) || '',
         location: (formData.get('location') as string) || '',
         status: formData.get('status') as 'active' | 'inactive',
-        image_url: formData.get('imageUrl') as string || null,
+        image_url: imageUrl,
       })
       .select()
       .single();
@@ -53,25 +62,17 @@ export async function createCustomer(formData: FormData) {
   }
 }
 
-export async function updateCustomer(data: {
-  id: string;
-  fullName: string;
-  email: string;
-  phone?: string | null;
-  location?: string | null;
-  status: 'active' | 'inactive';
-  imageUrl?: string | null;
-}) {
+export async function updateCustomer(data: Customer) {
   try {
     const { data: customer, error } = await supabase
       .from('customers')
       .update({
-        full_name: data.fullName,
+        full_name: data.full_name,
         email: data.email,
         phone: data.phone,
         location: data.location,
         status: data.status,
-        image_url: data.imageUrl,
+        image_url: data.image_url,
       })
       .eq('id', data.id)
       .select()
@@ -173,16 +174,10 @@ export async function getCustomerById(id: string) {
       .select()
       .eq('id', id)
       .single();
-
-    if (error) {
-      console.error('Error fetching customer:', error);
-      throw new Error('Failed to fetch customer');
-    }
-
-    return customer;
+    return customer; // This line is crucial
   } catch (error) {
     console.error('Error fetching customer:', error);
-    throw new Error('Failed to fetch customer');
+    return null;
   }
 }
 

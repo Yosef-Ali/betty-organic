@@ -100,6 +100,9 @@ export function ProductForm({ initialData }: { initialData?: ProductFormValues }
 
     const formData = new FormData();
     formData.append('file', file);
+    if (initialData?.id) {
+      formData.append('productId', initialData.id);
+    }
 
     try {
       setIsLoading(true);

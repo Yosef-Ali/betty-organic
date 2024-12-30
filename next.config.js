@@ -24,6 +24,11 @@ const nextConfig = {
         hostname: 'utfs.io',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'xmumlfgzvrliepxcjqil.supabase.co',
+        pathname: '/storage/v1/object/public/**',
+      },
     ],
   },
   output: 'standalone',

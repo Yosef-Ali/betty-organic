@@ -1,10 +1,6 @@
 "use server";
 import { revalidatePath } from 'next/cache';
-import fs from 'fs/promises';
-import path from 'path';
 import { supabase } from '@/lib/supabase';
-
-const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads');
 
 export async function uploadImage(formData: FormData, productId: string): Promise<string> {
   try {
@@ -13,34 +9,35 @@ export async function uploadImage(formData: FormData, productId: string): Promis
       throw new Error('No file provided');
     }
 
-    // Ensure the upload directory exists
-    await fs.mkdir(UPLOAD_DIR, { recursive: true });
+    const { data, error } = await supabase.storage
+      .from('product-images')
+      .upload(`${productId}/${Date.now()}-${file.name}`, file, {
+        cacheControl: '3600',
+        upsert: false,
+      });
 
-    // Create a unique file name
-    const fileName = `${Date.now()}-${file.name}`;
-    const filePath = path.join(UPLOAD_DIR, fileName);
+    if (error) {
+      console.error('Error uploading to Supabase storage:', error);
+      throw new Error('Failed to upload image to storage');
+    }
 
-    // Read the file data
-    const fileBuffer = Buffer.from(await file.arrayBuffer());
+    const fileUrl = `https://xmumlfgzvrliepxcjqil.supabase.co/storage/v1/object/public/product-images/${data?.path}`;
 
-    // Write the file to the upload directory
-    await fs.writeFile(filePath, new Uint8Array(fileBuffer));
-
-    // Save the file URL to your database using Supabase
-    const fileUrl = `/uploads/${fileName}`;
-    const { data: product, error } = await supabase
+    // Update the product with the new image URL
+    const { data: product, error: dbError } = await supabase
       .from('products')
       .update({ image_url: fileUrl })
       .eq('id', productId)
       .select()
       .single();
 
-    if (error) {
-      throw new Error('Failed to update product');
+    if (dbError) {
+      console.error('Error updating product image URL:', dbError);
+      throw new Error('Failed to update product image URL');
     }
 
-    return product.image_url;
-  } catch (error) {
+    return fileUrl;
+  } catch (error: any) {
     console.error('Error uploading image:', error);
     throw new Error('Failed to upload image');
   }
@@ -123,6 +120,7 @@ export async function updateProduct(id: string, data: FormData) {
 
 export async function getProductImages(productId: string) {
   try {
+    console.log(`Fetching images for product ID: ${productId}`);
     const { data: product, error } = await supabase
       .from('products')
       .select('image_url')
@@ -130,9 +128,11 @@ export async function getProductImages(productId: string) {
       .single();
 
     if (error) {
+      console.error('Error fetching product images:', error);
       throw new Error('Failed to fetch product images');
     }
 
+    console.log('Fetched product images:', product);
     return product ? [product.image_url] : [];
   } catch (error) {
     console.error('Error fetching product images:', error);
