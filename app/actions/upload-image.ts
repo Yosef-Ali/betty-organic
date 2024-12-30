@@ -2,7 +2,7 @@
 
 import { UTApi } from "uploadthing/server";
 import { revalidatePath } from "next/cache";
-import prisma from "@/lib/prisma"; // Adjust this import based on your Prisma client location
+import { supabase } from "@/lib/supabase"; // Adjust this import based on your Supabase client location
 
 const utapi = new UTApi();
 
@@ -20,15 +20,21 @@ export async function uploadImage(formData: FormData) {
 
     const fileUrl = response.data.url;
 
-    // Save the file URL to your database using Prisma
-    const product = await prisma.product.create({
-      data: {
-        imageUrl: fileUrl,
+    // Save the file URL to your database using Supabase
+    const { data: product, error } = await supabase
+      .from('products')
+      .insert({
+        image_url: fileUrl,
         name: "Default Name", // Replace with actual name
         price: 0, // Replace with actual price
         stock: 0, // Replace with actual stock
-      },
-    });
+      })
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error("Failed to save product");
+    }
 
     revalidatePath("/products"); // Adjust this path as needed
     return { success: true, productId: product.id, imageUrl: fileUrl };

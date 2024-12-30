@@ -2,7 +2,7 @@
 
 import { UTApi } from "uploadthing/server";
 import { revalidatePath } from 'next/cache';
-import prisma from '@/lib/prisma';
+import { supabase } from '@/lib/supabase';
 
 const utapi = new UTApi();
 
@@ -28,16 +28,23 @@ export async function uploadImage(data: FormData) {
 
 export async function createCustomer(formData: FormData) {
   try {
-    const customer = await prisma.customer.create({
-      data: {
-        fullName: formData.get('fullName') as string,
+    const { data: customer, error } = await supabase
+      .from('customers')
+      .insert({
+        full_name: formData.get('fullName') as string,
         email: (formData.get('email') as string) || '',
         phone: (formData.get('phone') as string) || '',
         location: (formData.get('location') as string) || '',
         status: formData.get('status') as 'active' | 'inactive',
-        imageUrl: formData.get('imageUrl') as string || null,
-      },
-    });
+        image_url: formData.get('imageUrl') as string || null,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating customer:', error);
+      throw new Error('Failed to create customer');
+    }
     revalidatePath('/dashboard/customers');
     return customer;
   } catch (error) {
@@ -56,17 +63,24 @@ export async function updateCustomer(data: {
   imageUrl?: string | null;
 }) {
   try {
-    const customer = await prisma.customer.update({
-      where: { id: data.id },
-      data: {
-        fullName: data.fullName,
+    const { data: customer, error } = await supabase
+      .from('customers')
+      .update({
+        full_name: data.fullName,
         email: data.email,
         phone: data.phone,
         location: data.location,
         status: data.status,
-        imageUrl: data.imageUrl,
-      },
-    });
+        image_url: data.imageUrl,
+      })
+      .eq('id', data.id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating customer:', error);
+      throw new Error('Failed to update customer');
+    }
     revalidatePath('/dashboard/customers');
     return customer;
   } catch (error) {
@@ -77,11 +91,18 @@ export async function updateCustomer(data: {
 
 export async function getCustomerImage(customerId: string) {
   try {
-    const customer = await prisma.customer.findUnique({
-      where: { id: customerId },
-      select: { imageUrl: true },
-    });
-    return customer ? customer.imageUrl : null;
+    const { data, error } = await supabase
+      .from('customers')
+      .select('image_url')
+      .eq('id', customerId)
+      .single();
+
+    if (error) {
+      console.error('Error fetching customer image:', error);
+      throw new Error('Failed to fetch customer image');
+    }
+
+    return data ? data.image_url : null;
   } catch (error) {
     console.error('Error fetching customer image:', error);
     throw new Error('Failed to fetch customer image');
@@ -90,7 +111,15 @@ export async function getCustomerImage(customerId: string) {
 
 export async function getCustomers() {
   try {
-    const customers = await prisma.customer.findMany();
+    const { data: customers, error } = await supabase
+      .from('customers')
+      .select();
+
+    if (error) {
+      console.error('Error fetching customers:', error);
+      throw new Error('Failed to fetch customers');
+    }
+
     return customers;
   } catch (error) {
     console.error('Error fetching customers:', error);
@@ -100,9 +129,18 @@ export async function getCustomers() {
 
 export async function getCustomer(id: string) {
   try {
-    return await prisma.customer.findUnique({
-      where: { id },
-    });
+    const { data: customer, error } = await supabase
+      .from('customers')
+      .select()
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      console.error('Error fetching customer:', error);
+      throw new Error('Failed to fetch customer');
+    }
+
+    return customer;
   } catch (error) {
     console.error('Error fetching customer:', error);
     throw new Error('Failed to fetch customer');
@@ -111,9 +149,15 @@ export async function getCustomer(id: string) {
 
 export async function deleteCustomer(id: string) {
   try {
-    await prisma.customer.delete({
-      where: { id },
-    });
+    const { error } = await supabase
+      .from('customers')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Failed to delete customer:', error);
+      return { success: false, error: 'Failed to delete customer' };
+    }
     revalidatePath('/dashboard/customers');
     return { success: true };
   } catch (error) {
@@ -124,13 +168,21 @@ export async function deleteCustomer(id: string) {
 
 export async function getCustomerById(id: string) {
   try {
-    const customer = await prisma.customer.findUnique({
-      where: { id },
-    });
-    return customer; // This line is crucial
+    const { data: customer, error } = await supabase
+      .from('customers')
+      .select()
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      console.error('Error fetching customer:', error);
+      throw new Error('Failed to fetch customer');
+    }
+
+    return customer;
   } catch (error) {
     console.error('Error fetching customer:', error);
-    return null;
+    throw new Error('Failed to fetch customer');
   }
 }
 
@@ -140,32 +192,27 @@ export async function searchCustomers(query: string) {
   }
 
   try {
-    const customers = await prisma.customer.findMany({
-      where: {
-        OR: [
-          { fullName: { contains: query.toLowerCase() } },
-          { phone: { contains: query } },
-        ],
-      },
-      take: 5,
-      select: {
-        id: true,
-        fullName: true,
-        phone: true,
-        imageUrl: true,
-      },
-    });
+    const { data: customers, error } = await supabase
+      .from('customers')
+      .select('id, full_name, phone, image_url')
+      .or(`full_name.ilike.%${query}%,phone.ilike.%${query}%`)
+      .limit(5);
+
+    if (error) {
+      console.error('Error in searchCustomers:', error);
+      return [];
+    }
 
     if (!customers || !Array.isArray(customers)) {
-      console.error('Unexpected result from Prisma query:', customers);
+      console.error('Unexpected result from Supabase query:', customers);
       return [];
     }
 
     const result = customers.map(customer => ({
       ...customer,
-      fullName: customer.fullName.toLowerCase().includes(query.toLowerCase())
-        ? customer.fullName
-        : customer.fullName,
+      fullName: customer.full_name.toLowerCase().includes(query.toLowerCase())
+        ? customer.full_name
+        : customer.full_name,
     }));
 
     console.log('Processed result:', result);

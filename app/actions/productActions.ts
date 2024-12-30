@@ -1,10 +1,9 @@
 "use server";
 import { revalidatePath } from 'next/cache';
-import { PrismaClient } from '@prisma/client';
 import fs from 'fs/promises';
 import path from 'path';
+import { supabase } from '@/lib/supabase';
 
-const prisma = new PrismaClient();
 const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads');
 
 export async function uploadImage(formData: FormData, productId: string): Promise<string> {
@@ -27,14 +26,20 @@ export async function uploadImage(formData: FormData, productId: string): Promis
     // Write the file to the upload directory
     await fs.writeFile(filePath, new Uint8Array(fileBuffer));
 
-    // Save the file URL to your database using Prisma
+    // Save the file URL to your database using Supabase
     const fileUrl = `/uploads/${fileName}`;
-    const product = await prisma.product.update({
-      where: { id: productId },
-      data: { imageUrl: fileUrl },
-    });
+    const { data: product, error } = await supabase
+      .from('products')
+      .update({ image_url: fileUrl })
+      .eq('id', productId)
+      .select()
+      .single();
 
-    return product.imageUrl;
+    if (error) {
+      throw new Error('Failed to update product');
+    }
+
+    return product.image_url;
   } catch (error) {
     console.error('Error uploading image:', error);
     throw new Error('Failed to upload image');
@@ -52,16 +57,22 @@ export async function createProduct(formData: FormData) {
     // Provide a default image URL if none is provided
     const finalImageUrl = imageUrl || '/placeholder.svg';
 
-    const product = await prisma.product.create({
-      data: {
+    const { data: product, error } = await supabase
+      .from('products')
+      .insert({
         name,
         description,
         price,
         stock,
-        totalSales: 0,
-        imageUrl: finalImageUrl,
-      },
-    });
+        total_sales: 0,
+        image_url: finalImageUrl,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error('Failed to create product');
+    }
 
     revalidatePath('/dashboard/products');
     return product;
@@ -85,16 +96,22 @@ export async function updateProduct(id: string, data: FormData) {
       finalImageUrl = await uploadImage(data, id);
     }
 
-    const product = await prisma.product.update({
-      where: { id },
-      data: {
+    const { data: product, error } = await supabase
+      .from('products')
+      .update({
         name,
         description,
         price,
         stock,
-        imageUrl: finalImageUrl || '/placeholder.svg',
-      },
-    });
+        image_url: finalImageUrl || '/placeholder.svg',
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error('Failed to update product');
+    }
 
     revalidatePath('/dashboard/products');
     return product;
@@ -106,11 +123,17 @@ export async function updateProduct(id: string, data: FormData) {
 
 export async function getProductImages(productId: string) {
   try {
-    const product = await prisma.product.findUnique({
-      where: { id: productId },
-      select: { imageUrl: true }
-    });
-    return product ? [product.imageUrl] : [];
+    const { data: product, error } = await supabase
+      .from('products')
+      .select('image_url')
+      .eq('id', productId)
+      .single();
+
+    if (error) {
+      throw new Error('Failed to fetch product images');
+    }
+
+    return product ? [product.image_url] : [];
   } catch (error) {
     console.error('Error fetching product images:', error);
     throw new Error('Failed to fetch product images');
@@ -119,7 +142,15 @@ export async function getProductImages(productId: string) {
 
 export async function getProducts() {
   try {
-    return await prisma.product.findMany();
+    const { data: products, error } = await supabase
+      .from('products')
+      .select();
+
+    if (error) {
+      throw new Error('Failed to fetch products');
+    }
+
+    return products;
   } catch (error) {
     console.error('Error fetching products:', error);
     throw new Error('Failed to fetch products');
@@ -128,9 +159,17 @@ export async function getProducts() {
 
 export async function getProduct(id: string) {
   try {
-    return await prisma.product.findUnique({
-      where: { id },
-    });
+    const { data: product, error } = await supabase
+      .from('products')
+      .select()
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      throw new Error('Failed to fetch product');
+    }
+
+    return product;
   } catch (error) {
     console.error('Error fetching product:', error);
     throw new Error('Failed to fetch product');
@@ -139,9 +178,15 @@ export async function getProduct(id: string) {
 
 export async function deleteProduct(id: string) {
   try {
-    await prisma.product.delete({
-      where: { id },
-    });
+    const { error } = await supabase
+      .from('products')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      throw new Error('Failed to delete product');
+    }
+
     revalidatePath('/dashboard/products');
     return { success: true };
   } catch (error) {

@@ -1,23 +1,19 @@
 'use server';
 
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { supabase } from '@/lib/supabase';
 
 export async function getRecentSales() {
   try {
-    const recentSales = await prisma.order.findMany({
-      where: {
-        status: 'paid',
-      },
-      include: {
-        customer: true,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-      take: 5,
-    });
+    const { data: recentSales, error } = await supabase
+      .from('orders')
+      .select('*, customer:full_name')
+      .eq('status', 'paid')
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    if (error) {
+      throw new Error('Failed to fetch recent sales');
+    }
 
     return recentSales;
   } catch (error) {
