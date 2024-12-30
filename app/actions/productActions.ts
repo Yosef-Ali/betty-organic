@@ -2,104 +2,59 @@
 import { revalidatePath } from 'next/cache';
 import { supabase } from '@/lib/supabase';
 import { uploadImage } from './upload-image'; // Import uploadImage from upload-image.ts
-
-// Remove the following redundant uploadImage function
-/*
-export async function uploadImage(formData: FormData, productId: string): Promise<string> {
-  try {
-    const file = formData.get('file') as File;
-    if (!file) {
-      throw new Error('No file provided');
-    }
-
-    // Remove productId from path
-    const uniqueFileName = `${Date.now()}-${file.name}`; // Ensure unique file name
-
-    const { data, error } = await supabase.storage
-      .from('product-images')
-      .upload(uniqueFileName, file, {
-        cacheControl: '3600',
-        upsert: false,
-      });
-
-    if (error) {
-      console.error('Error uploading to Supabase storage:', error);
-      throw new Error('Failed to upload image to storage');
-    }
-
-    const fileUrl = `https://xmumlfgzvrliepxcjqil.supabase.co/storage/v1/object/public/product-images/${data?.path}`;
-
-    // Update the product with the new image URL
-    const { data: product, error: dbError } = await supabase
-      .from('products')
-      .update({
-        imageUrl: fileUrl,
-      })
-      .eq('id', productId)
-      .select()
-      .single();
-
-    if (dbError) {
-      console.error('Error updating product with image URL:', dbError);
-      throw new Error('Failed to update product with image URL');
-    }
-
-    revalidatePath('/dashboard/products');
-    return fileUrl;
-  } catch (error: any) {
-    console.error('Error uploading image:', error);
-    throw new Error('Failed to upload image');
-  }
-}
-*/
+import { v4 as uuidv4 } from 'uuid';
 
 export const createProduct = async (formData: FormData) => {
-  const name = formData.get('name') as string;
-  const description = formData.get('description') as string;
-  const price = parseFloat(formData.get('price') as string);
-  const stock = parseInt(formData.get('stock') as string, 10);
-  const imageUrl = formData.get('imageUrl') as string;
-
   try {
-    // Provide a default image URL if none is provided
-    const finalImageUrl = imageUrl || '/placeholder.svg';
+    // Input validation
+    const name = formData.get('name');
+    const description = formData.get('description');
+    const priceStr = formData.get('price');
+    const stockStr = formData.get('stock');
 
-    console.log('Inserting product into Supabase...', { name, description, price, stock, imageUrl: finalImageUrl });
+    if (!name || typeof name !== 'string') {
+      throw new Error('Name is required');
+    }
+
+    const price = priceStr ? parseFloat(priceStr.toString()) : 0;
+    const stock = stockStr ? parseInt(stockStr.toString(), 10) : 0;
+
+    if (isNaN(price) || isNaN(stock)) {
+      throw new Error('Invalid price or stock value');
+    }
+
+    const productId = uuidv4(); // Generate UUID here
+
+    const now = new Date().toISOString();
     const { data: product, error } = await supabase
       .from('products')
       .insert({
+        id: productId, // Include the generated UUID
         name,
-        description,
+        description: description || '',
         price,
         stock,
-        total_sales: 0,
-        imageUrl: finalImageUrl,  // Changed from image_url to imageUrl
+        imageUrl: '/placeholder.svg',
+        createdAt: now,
+        updatedAt: now
       })
       .select()
       .single();
 
     if (error) {
       console.error('Supabase insert error:', error);
-      throw new Error('Failed to create product');
+      throw new Error(`Database error: ${error.message}`);
     }
 
-    console.log('Product inserted successfully:', product);
+    if (!product) {
+      throw new Error('No product data returned after creation');
+    }
 
     revalidatePath('/dashboard/products');
-
-    // Return a plain object with necessary fields
-    return {
-      id: product.id,
-      name: product.name,
-      description: product.description,
-      price: product.price,
-      stock: product.stock,
-      imageUrl: product.imageUrl,
-      total_sales: product.total_sales,
-    };
-  } catch (error) {
+    return product;
+  } catch (error: any) {
     console.error('Error creating product:', error);
-    throw new Error('Failed to create product');
+    throw new Error('Failed to create product: ' + (error.message || 'Unknown error'));
   }
 };
 

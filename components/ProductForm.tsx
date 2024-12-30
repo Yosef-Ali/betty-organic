@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { useForm } from 'react-hook-form'
+import { useForm, UseFormReturn } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { Button } from "@/components/ui/button"
@@ -36,11 +36,13 @@ const formSchema = z.object({
 
 type ProductFormValues = z.infer<typeof formSchema>
 
-export function ProductForm({ initialData }: { initialData?: ProductFormValues }) {
-  const [isLoading, setIsLoading] = useState(false)
-  const [productImages, setProductImages] = useState<string[]>([])
-  const router = useRouter()
-  const { toast } = useToast()
+export function ProductForm({ initialData }: { initialData?: ProductFormValues & { id: string } }) {
+  const [isLoading, setIsLoading] = useState(false);
+  const [productImages, setProductImages] = useState<string[]>([]);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string>('');
+  const router = useRouter();
+  const { toast } = useToast();
 
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(formSchema),
@@ -52,82 +54,119 @@ export function ProductForm({ initialData }: { initialData?: ProductFormValues }
       imageUrl: '',
       status: 'active',
     },
-  })
+  });
 
   useEffect(() => {
     if (initialData?.id) {
-      getProductImages(initialData.id).then(setProductImages)
+      getProductImages(initialData.id).then(setProductImages);
     }
-  }, [initialData?.id])
+  }, [initialData]);
+
+  // Clean up the preview URL when component unmounts
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
 
   async function onSubmit(data: ProductFormValues) {
-    setIsLoading(true)
+    setIsLoading(true);
     try {
-      const formData = new FormData()
+      const formData = new FormData();
       Object.entries(data).forEach(([key, value]) => {
-        formData.append(key, value?.toString() || '')
-      })
+        if (key !== 'imageUrl') {
+          formData.append(key, value?.toString() || '');
+        }
+      });
 
+      let productId;
       if (initialData?.id) {
-        await updateProduct(initialData.id, formData)
-        toast({
-          title: "Product updated",
-          description: "The product has been successfully updated.",
-        })
+        await updateProduct(initialData.id, formData);
+        productId = initialData.id;
       } else {
-        await createProduct(formData)
-        toast({
-          title: "Product created",
-          description: "The new product has been successfully created.",
-        })
+        const newProduct = await createProduct(formData);
+        productId = newProduct.id;
+
+        // Handle the stored file upload after product creation
+        if (selectedFile && productId) {
+          const imageFormData = new FormData();
+          imageFormData.append('file', selectedFile);
+          imageFormData.append('productId', productId);
+
+          const uploadResponse = await uploadImage(imageFormData);
+          if (!uploadResponse.success) {
+            throw new Error(uploadResponse.error || 'Failed to upload image');
+          }
+        }
       }
-      router.push('/dashboard/products')
+
+      toast({
+        title: initialData ? "Product updated" : "Product created",
+        description: `The product has been successfully ${initialData ? 'updated' : 'created'}.`,
+      });
+      router.push('/dashboard/products');
     } catch (error) {
-      console.error('Error in onSubmit:', error)
+      console.error('Error in onSubmit:', error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to save the product. Please try again.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  async function handleImageUpload(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const formData = new FormData();
-    formData.append('file', file);
-    if (initialData?.id) {
-      formData.append('productId', initialData.id);
-    }
-
-    try {
-      setIsLoading(true);
-      const response = await uploadImage(formData);
-      if (response.success) {
-        form.setValue('imageUrl', response.imageUrl);
-      } else {
-        throw new Error(response.error || 'Failed to upload image');
-      }
-      form.trigger('imageUrl');
-      toast({
-        title: "Image uploaded",
-        description: "The image has been successfully uploaded.",
-      });
-    } catch (error) {
-      console.error('Error in handleImageUpload:', error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to upload image. Please try again.",
         variant: "destructive",
       });
     } finally {
       setIsLoading(false);
     }
   }
+
+  const handleImageUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Create preview immediately
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    const newPreviewUrl = URL.createObjectURL(file);
+    setPreviewUrl(newPreviewUrl);
+    form.setValue('imageUrl', newPreviewUrl); // Update form value for immediate display
+
+    setSelectedFile(file);
+
+    if (initialData?.id) {
+      // Handle immediate upload for existing products
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('productId', initialData.id);
+
+      try {
+        setIsLoading(true);
+        const uploadResponse = await uploadImage(formData);
+        if (uploadResponse.success) {
+          form.setValue('imageUrl', uploadResponse.imageUrl);
+          setPreviewUrl(''); // Clear preview URL after successful upload
+          form.trigger('imageUrl');
+          toast({
+            title: "Image uploaded",
+            description: "The image has been successfully uploaded.",
+          });
+        } else {
+          throw new Error(uploadResponse.error || 'Failed to upload image');
+        }
+      } catch (error) {
+        console.error('Error in handleImageUpload:', error);
+        toast({
+          title: "Error",
+          description: error instanceof Error ? error.message : "Failed to upload image. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
 
   return (
     <Form {...form}>
@@ -263,7 +302,7 @@ export function ProductForm({ initialData }: { initialData?: ProductFormValues }
                                   alt="Product image"
                                   className="aspect-square w-full rounded-md object-cover"
                                   height="300"
-                                  src={field.value || "/uploads/placeholder.svg"}
+                                  src={previewUrl || field.value || "/uploads/placeholder.svg"}
                                   width="300"
                                 />
                                 <Input

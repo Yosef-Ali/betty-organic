@@ -7,6 +7,15 @@ export async function uploadImage(formData: FormData) {
   const file = formData.get("file");
   const productId = formData.get("productId") as string;
 
+  if (!productId) {
+    console.error("No product ID provided");
+    return {
+      success: false,
+      error: "Product ID is required",
+      details: { type: 'validation', field: 'productId' }
+    };
+  }
+
   if (!file || !(file instanceof Blob)) {
     console.error("Invalid file:", file);
     return {
