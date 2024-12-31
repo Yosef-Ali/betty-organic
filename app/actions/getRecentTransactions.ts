@@ -14,7 +14,7 @@ interface Transaction {
   total_amount: number;
 }
 
-// Export the MappedTransaction interface
+// **Export the MappedTransaction interface**
 export interface MappedTransaction {
   customer: string;
   email: string;

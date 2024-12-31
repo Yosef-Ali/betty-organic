@@ -15,25 +15,8 @@ interface RecentTransactionsProps {
   data: MappedTransaction[]; // Update the prop type
 }
 
-export default function RecentTransactions({ data }: RecentTransactionsProps) {
-  const [transactions, setTransactions] = useState<MappedTransaction[]>(data || []);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    async function fetchTransactions() {
-      try {
-        const transactionsData = await getRecentTransactions();
-        setTransactions(transactionsData);
-      } catch (err) {
-        setError('Failed to fetch transactions');
-      }
-    }
-
-    fetchTransactions();
-  }, []);
-
-  if (error) return <div>{error}</div>;
-  if (transactions.length === 0) return <div>No transactions found</div>;
+export function RecentTransactions({ data }: RecentTransactionsProps) {
+  if (!data) return <div>No transactions available</div>;
 
   return (
     <Card className="xl:col-span-2">
@@ -42,7 +25,7 @@ export default function RecentTransactions({ data }: RecentTransactionsProps) {
           <CardTitle>Transactions</CardTitle>
           <CardDescription>Recent transactions from your store.</CardDescription>
         </div>
-        <Button size="sm" className="ml-auto gap-1" asChild>
+        <Button asChild size="sm" className="ml-auto gap-1">
           <Link href="#">
             View All
             <ArrowUpRight className="h-4 w-4" />
@@ -61,7 +44,7 @@ export default function RecentTransactions({ data }: RecentTransactionsProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {transactions.map((transaction, index) => (
+            {data.map((transaction, index) => (
               <TableRow key={index}>
                 <TableCell>
                   <div className="font-medium">{transaction.customer}</div>

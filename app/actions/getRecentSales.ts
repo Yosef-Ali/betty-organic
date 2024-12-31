@@ -1,8 +1,25 @@
 'use server';
 
-import { supabase } from "@/lib/supabase"; // Corrected import path
+import { supabase } from '@/lib/supabase';
 
-export async function getRecentSales() {
+export interface SalesData {
+  recentSales: {
+    id: string;
+    created_at: string;
+    status: string; // Keep as string to avoid strict enum typing issues
+    customer: { full_name: string };
+    items: {
+      id: string;
+      quantity: number;
+      price: number;
+      product: { name: string; images: { url: string }[] };
+    }[];
+    totalAmount: number;
+  }[];
+  totalSales: number;
+}
+
+export async function getRecentSales(): Promise<SalesData> {
   try {
     console.log('Fetching recent sales...');
     const { data: recentSales, error } = await supabase

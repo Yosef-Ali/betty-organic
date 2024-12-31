@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { PlusCircle, MoreHorizontal, ListFilter, File } from 'lucide-react'
-import { getCustomers, deleteCustomer } from '@/app/actions/customersActions'
+import { formatDistanceToNow } from 'date-fns'
+import { getUsers, deleteUser } from '@/app/actions/userActions'
 import {
   Card,
   CardContent,
@@ -14,6 +15,7 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -31,45 +33,30 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { useToast } from '@/hooks/use-toast'
-import { formatDistanceToNow } from 'date-fns'
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import Image from 'next/image'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog'
 
-interface Customer {
+interface User {
   id: string;
-  fullName?: string;
+  name?: string;
   full_name?: string;
   email: string;
-  phone?: string;
+  role?: string;
   imageUrl?: string;
-  location?: string;
   status: string;
-  orders: Order[]; // Ensure the Order interface is also defined
+  lastActive?: string;
   createdAt: Date;
   updatedAt: Date;
 }
 
-interface Order {
-  id: string;
-  customerId: string;
-  product: string;
-  amount: number;
-  status: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-
-// Update the CustomerWithOrders type definition
-type CustomerWithOrders = Customer & {
-  orders?: any[]
-  imageUrl?: string // Add this line
+type UserWithDetails = User & {
+  imageUrl?: string
 };
 
-const CustomerTableContent = ({ customers, isLoading, onDelete }: {
-  customers: CustomerWithOrders[]
+const UserTableContent = ({ users, isLoading, onDelete }: {
+  users: UserWithDetails[]
   isLoading: boolean
   onDelete: (id: string) => Promise<void>
 }) => {
@@ -86,26 +73,26 @@ const CustomerTableContent = ({ customers, isLoading, onDelete }: {
     )
   }
 
-  if (customers.length === 0) {
+  if (users.length === 0) {
     return (
       <TableRow>
         <TableCell colSpan={7} className="h-24 text-center">
-          No customers found.
+          No users found.
         </TableCell>
       </TableRow>
     )
   }
 
-  return customers.map((customer: CustomerWithOrders) => (
-    <TableRow key={customer.id}>
+  return users.map((user: UserWithDetails) => (
+    <TableRow key={user.id}>
       <TableCell className="hidden sm:table-cell">
         <div className="relative h-12 w-12">
           <Image
-            alt="Customer avatar"
+            alt="User avatar"
             className="rounded-full object-cover"
             fill
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            src={customer.imageUrl || customer.imageUrl || '/uploads/placeholder.svg'}
+            src={user.imageUrl || '/uploads/placeholder.svg'}
             onError={(e) => {
               const target = e.target as HTMLImageElement;
               target.src = '/uploads/placeholder.svg';
@@ -113,13 +100,13 @@ const CustomerTableContent = ({ customers, isLoading, onDelete }: {
           />
         </div>
       </TableCell>
-      <TableCell className="font-medium">{customer.full_name || customer.fullName}</TableCell>
-      <TableCell>{customer.email || 'N/A'}</TableCell>
-      <TableCell>{customer.phone || 'N/A'}</TableCell>
-      <TableCell>{customer.location || 'N/A'}</TableCell>
-      <TableCell>{customer.orders?.length ?? 0}</TableCell>
+      <TableCell className="font-medium">{user.full_name || user.name}</TableCell>
+      <TableCell>{user.email || 'N/A'}</TableCell>
+      <TableCell>{user.role || 'N/A'}</TableCell>
+      <TableCell>{user.status}</TableCell>
+      <TableCell>{user.lastActive || 'N/A'}</TableCell>
       <TableCell>
-        {customer.createdAt ? formatDistanceToNow(new Date(customer.createdAt), { addSuffix: true }) : 'N/A'}
+        {user.createdAt ? formatDistanceToNow(new Date(user.createdAt), { addSuffix: true }) : 'N/A'}
       </TableCell>
       <TableCell>
         <DropdownMenu>
@@ -131,11 +118,8 @@ const CustomerTableContent = ({ customers, isLoading, onDelete }: {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem onSelect={() => router.push(`/dashboard/customers/${customer.id}/edit`)}>
+            <DropdownMenuItem onSelect={() => router.push(`/dashboard/users/${user.id}/edit`)}>
               Edit
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => router.push(`/dashboard/customers/${customer.id}/orders`)}>
-              View Orders
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={(event) => event.preventDefault()}>
               <AlertDialog>
@@ -146,20 +130,20 @@ const CustomerTableContent = ({ customers, isLoading, onDelete }: {
                   <AlertDialogHeader>
                     <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This action cannot be undone. This will permanently delete the customer.
+                      This action cannot be undone. This will permanently delete the user.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
                     <AlertDialogAction
                       onClick={async () => {
-                        setDeletingId(customer.id);
-                        await onDelete(customer.id);
+                        setDeletingId(user.id);
+                        await onDelete(user.id);
                         setDeletingId(null);
                       }}
-                      disabled={deletingId === customer.id}
+                      disabled={deletingId === user.id}
                     >
-                      {deletingId === customer.id ? 'Deleting...' : 'Delete'}
+                      {deletingId === user.id ? 'Deleting...' : 'Delete'}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -172,87 +156,46 @@ const CustomerTableContent = ({ customers, isLoading, onDelete }: {
   ))
 }
 
-export function CustomerTable() {
-  const [customers, setCustomers] = useState<CustomerWithOrders[]>([]);
-  const [filteredCustomers, setFilteredCustomers] = useState<CustomerWithOrders[]>([]);
+interface UserTableProps {
+  initialUsers: UserWithDetails[];
+}
+
+export function UserTable({ initialUsers }: UserTableProps) {
+  const [users, setUsers] = useState<UserWithDetails[]>(initialUsers);
+  const [filteredUsers, setFilteredUsers] = useState<UserWithDetails[]>(initialUsers);
   const [searchTerm, setSearchTerm] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
 
-  useEffect(() => {
-    const fetchCustomers = async () => {
-      setIsLoading(true);
-      try {
-        const fetchedCustomers = await getCustomers() as CustomerWithOrders[];
-        const sortedCustomers = fetchedCustomers.sort(
-          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
-        setCustomers(sortedCustomers);
-        setFilteredCustomers(sortedCustomers);
-      } catch (error) {
-        toast({
-          title: 'Error',
-          description: 'Failed to fetch customers',
-          variant: 'destructive',
-        });
-      }
-      setIsLoading(false);
-    };
-
-    fetchCustomers();
-  }, []);
-
-  useEffect(() => {
-    const filtered = customers.filter(customer =>
-      customer.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (customer.email && customer.email?.toLowerCase().includes(searchTerm.toLowerCase()))
-    )
-    setFilteredCustomers(filtered)
-  }, [searchTerm, customers])
-
-  async function fetchCustomers() {
-    setIsLoading(true)
-    try {
-      const fetchedCustomers = await getCustomers() as CustomerWithOrders[]
-      const sortedCustomers = fetchedCustomers.sort((a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )
-      setCustomers(sortedCustomers)
-      setFilteredCustomers(sortedCustomers)
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to fetch customers",
-        variant: "destructive",
-      })
-    }
-    setIsLoading(false)
-  }
-
   const handleDelete = async (id: string) => {
     try {
-      const result = await deleteCustomer(id)
-      if (result.success) {
-        setCustomers(prevCustomers => prevCustomers.filter(customer => customer.id !== id))
-        toast({
-          title: "Customer deleted",
-          description: "The customer has been successfully deleted.",
-        })
-      } else {
-        throw new Error(result.error)
-      }
-    } catch (error) {
-      console.error('Error deleting customer:', error)
+      await deleteUser(id);
+      setUsers(prevUsers => prevUsers.filter(user => user.id !== id));
+      setFilteredUsers(prevUsers => prevUsers.filter(user => user.id !== id));
       toast({
-        title: "Error",
-        description: "Failed to delete the customer. Please try again.",
-        variant: "destructive",
-      })
+        title: 'User deleted',
+        description: 'The user has been successfully deleted.',
+      });
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete user. Please try again.',
+        variant: 'destructive'
+      });
     }
-  }
+  };
 
-  const renderTable = (customers: CustomerWithOrders[]) => (
+  useEffect(() => {
+    const filtered = users.filter(user =>
+      user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    setFilteredUsers(filtered);
+  }, [searchTerm, users]);
+
+  const renderTable = (users: UserWithDetails[]) => (
     <Table>
       <TableHeader>
         <TableRow>
@@ -261,16 +204,16 @@ export function CustomerTable() {
           </TableHead>
           <TableHead>Full Name</TableHead>
           <TableHead>Email</TableHead>
-          <TableHead>Phone</TableHead>
-          <TableHead>Location</TableHead>
-          <TableHead>Number of Orders</TableHead>
+          <TableHead>Role</TableHead>
+          <TableHead>Status</TableHead>
+          <TableHead>Last Active</TableHead>
           <TableHead>Created at</TableHead>
           <TableHead><span className="sr-only">Actions</span></TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
-        <CustomerTableContent
-          customers={customers}
+        <UserTableContent
+          users={users}
           isLoading={isLoading}
           onDelete={handleDelete}
         />
@@ -283,13 +226,13 @@ export function CustomerTable() {
       <Tabs defaultValue="all">
         <div className="flex items-center">
           <TabsList>
-            <TabsTrigger value="all">All Customers</TabsTrigger>
-            <TabsTrigger value="no-orders">No Orders</TabsTrigger>
+            <TabsTrigger value="all">All Users</TabsTrigger>
+            <TabsTrigger value="inactive">Inactive Users</TabsTrigger>
           </TabsList>
           <div className="ml-auto flex items-center gap-2">
             <Input
               type="search"
-              placeholder="Search customers..."
+              placeholder="Search users..."
               className="h-8 w-[150px] lg:w-[250px]"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -306,44 +249,44 @@ export function CustomerTable() {
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>Filter by</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuCheckboxItem checked>With Orders</DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem>No Orders</DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem checked>Active</DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem>Inactive</DropdownMenuCheckboxItem>
               </DropdownMenuContent>
             </DropdownMenu>
             <Button size="sm" variant="outline" className="h-8 gap-1">
               <File className="h-3.5 w-3.5" />
               <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Export</span>
             </Button>
-            <Button size="sm" className="h-8 gap-1" onClick={() => router.push('/dashboard/customers/new')}>
+            <Button size="sm" className="h-8 gap-1" onClick={() => router.push('/dashboard/users/new')}>
               <PlusCircle className="h-3.5 w-3.5" />
-              <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Add Customer</span>
+              <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Add User</span>
             </Button>
           </div>
         </div>
         <TabsContent value="all">
           <Card>
             <CardHeader>
-              <CardTitle>Customers</CardTitle>
-              <CardDescription>Manage your customers and view their order history.</CardDescription>
+              <CardTitle>Users</CardTitle>
+              <CardDescription>Manage your system users and their permissions.</CardDescription>
             </CardHeader>
             <CardContent>
-              {renderTable(filteredCustomers)}
+              {renderTable(filteredUsers)}
             </CardContent>
             <CardFooter>
               <div className="text-xs text-muted-foreground">
-                Showing <strong>1-{filteredCustomers.length}</strong> of <strong>{customers.length}</strong> customers
+                Showing <strong>1-{filteredUsers.length}</strong> of <strong>{users.length}</strong> users
               </div>
             </CardFooter>
           </Card>
         </TabsContent>
-        <TabsContent value="no-orders">
+        <TabsContent value="inactive">
           <Card>
             <CardHeader>
-              <CardTitle>Customers with No Orders</CardTitle>
-              <CardDescription>View and manage customers who haven&apos;t placed any orders yet.</CardDescription>
+              <CardTitle>Inactive Users</CardTitle>
+              <CardDescription>View and manage inactive system users.</CardDescription>
             </CardHeader>
             <CardContent>
-              {renderTable(filteredCustomers.filter(customer => !customer.orders || customer.orders.length === 0))}
+              {renderTable(filteredUsers.filter(user => user.status === 'inactive'))}
             </CardContent>
           </Card>
         </TabsContent>
