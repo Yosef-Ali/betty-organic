@@ -2,39 +2,44 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { useForm } from 'react-hook-form'
+import { useForm, ControllerRenderProps } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
-import { Button } from "@/components/ui/button"
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
+import { Button } from '@/components/ui/button'
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { createCustomer, updateCustomer, uploadImage } from '@/app/actions/customersActions'
 import { useToast } from '@/hooks/use-toast'
 import { ChevronLeft } from 'lucide-react'
-import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Badge } from '@/components/ui/badge'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import Image from 'next/image'
+import { v4 as uuidv4 } from 'uuid';
 
 const formSchema = z.object({
   id: z.string().optional(),
   fullName: z.string().min(2, {
     message: "Full name must be at least 2 characters.",
   }),
-  email: z.string().email().optional().or(z.literal('')),
+  email: z.string().email({
+    message: "Please enter a valid email address.",
+  }),
   phone: z.string().optional(),
   location: z.string().optional(),
   status: z.enum(['active', 'inactive']),
   imageUrl: z.string().nullable().optional(),
 })
 
-type CustomerFormValues = z.infer<typeof formSchema>
+type CustomerFormValues = z.infer<typeof formSchema>;
 
-export function CustomerForm({ initialData }: { initialData?: CustomerFormValues }) {
-  const [isLoading, setIsLoading] = useState(false)
-  const [isUploading, setIsUploading] = useState(false)
-  const router = useRouter()
-  const { toast } = useToast()
+export function CustomerForm({ initialData }: {
+  initialData?: CustomerFormValues;
+}) {
+  const [isLoading, setIsLoading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const router = useRouter();
+  const { toast } = useToast();
 
   const form = useForm<CustomerFormValues>({
     resolver: zodResolver(formSchema),
@@ -51,31 +56,35 @@ export function CustomerForm({ initialData }: { initialData?: CustomerFormValues
   async function onSubmit(data: CustomerFormValues) {
     setIsLoading(true)
     try {
+      const customerData = { ...data };
+      if (!initialData?.id) {
+        customerData.id = uuidv4();
+      }
       if (initialData?.id) {
-        await updateCustomer({ ...data, id: initialData.id, email: data.email || '' })
+        await updateCustomer({ ...customerData, id: initialData.id, email: data.email || '', full_name: data.fullName })
         toast({
           title: "Customer updated",
           description: "The customer has been successfully updated.",
-        })
+        });
       } else {
-        const formData = new FormData()
-        for (const [key, value] of Object.entries(data)) {
+        const formData = new FormData();
+        for (const [key, value] of Object.entries(customerData)) {
           if (value !== undefined) {
-            formData.append(key, value === null ? '' : value)
+            formData.append(key, value === null ? '' : value);
           }
         }
         const email = formData.get('email') as string | null;
         if (email === null) {
           throw new Error("Email is required");
         }
-        const customer = await createCustomer(formData)
+        const customer = await createCustomer(formData);
         if (customer && customer.id) {
           toast({
             title: "Customer created",
             description: "The new customer has been successfully created.",
-          })
+          });
         } else {
-          throw new Error("Failed to create customer")
+          throw new Error("Failed to create customer");
         }
       }
       router.push('/dashboard/customers')
@@ -155,7 +164,7 @@ export function CustomerForm({ initialData }: { initialData?: CustomerFormValues
                       <FormField
                         control={form.control}
                         name="fullName"
-                        render={({ field }) => (
+                        render={({ field }: { field: ControllerRenderProps<CustomerFormValues, 'fullName'> }) => (
                           <FormItem>
                             <FormLabel>Full Name</FormLabel>
                             <FormControl>
@@ -168,7 +177,7 @@ export function CustomerForm({ initialData }: { initialData?: CustomerFormValues
                       <FormField
                         control={form.control}
                         name="email"
-                        render={({ field }) => (
+                        render={({ field }: { field: ControllerRenderProps<CustomerFormValues, 'email'> }) => (
                           <FormItem>
                             <FormLabel>Email</FormLabel>
                             <FormControl>
@@ -181,7 +190,7 @@ export function CustomerForm({ initialData }: { initialData?: CustomerFormValues
                       <FormField
                         control={form.control}
                         name="phone"
-                        render={({ field }) => (
+                        render={({ field }: { field: ControllerRenderProps<CustomerFormValues, 'phone'> }) => (
                           <FormItem>
                             <FormLabel>Phone</FormLabel>
                             <FormControl>
@@ -194,11 +203,11 @@ export function CustomerForm({ initialData }: { initialData?: CustomerFormValues
                       <FormField
                         control={form.control}
                         name="location"
-                        render={({ field }) => (
+                        render={({ field }: { field: ControllerRenderProps<CustomerFormValues, 'location'> }) => (
                           <FormItem>
                             <FormLabel>Location</FormLabel>
                             <FormControl>
-                              <Input placeholder="City, Country" />
+                              <Input placeholder="City, Country" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -217,7 +226,7 @@ export function CustomerForm({ initialData }: { initialData?: CustomerFormValues
                     <FormField
                       control={form.control}
                       name="status"
-                      render={({ field }) => (
+                      render={({ field }: { field: ControllerRenderProps<CustomerFormValues, 'status'> }) => (
                         <FormItem>
                           <FormLabel>Status</FormLabel>
                           <Select onValueChange={field.onChange} defaultValue={field.value}>
@@ -238,7 +247,7 @@ export function CustomerForm({ initialData }: { initialData?: CustomerFormValues
                     <FormField
                       control={form.control}
                       name="imageUrl"
-                      render={({ field }) => (
+                      render={({ field }: { field: ControllerRenderProps<CustomerFormValues, 'imageUrl'> }) => (
                         <FormItem>
                           <FormLabel>Customer Image</FormLabel>
                           <FormControl>

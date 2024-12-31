@@ -16,8 +16,32 @@ interface Sale {
   createdAt: Date;
 }
 
-export function RecentSales() {
-  const [orders, setOrders] = useState<Sale[]>([]);
+interface RecentSalesProps {
+  data: {
+    recentSales: any[];
+    totalSales: number;
+  };
+}
+
+function transformOrderToSale(order: any) {
+  return {
+    id: order.id,
+    customer: {
+      fullName: order.customer?.full_name || 'Anonymous',
+      email: order.customer?.email || null,
+      phone: order.customer?.phone || null,
+    },
+    totalAmount: order.totalAmount,
+    createdAt: new Date(order.createdAt),
+  };
+}
+
+export function RecentSales({ data }: RecentSalesProps) {
+  console.log('RecentSales data:', data);
+  const [orders, setOrders] = useState<Sale[]>(data.recentSales || []);
+  const [totalSales, setTotalSales] = useState<number>(data.totalSales || 0);
+  console.log('Orders:', orders);
+  console.log('Total sales:', totalSales);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -25,7 +49,8 @@ export function RecentSales() {
     async function fetchOrders() {
       try {
         const orders = await getOrders();
-        setOrders(orders);
+        const mappedSales = orders.map(transformOrderToSale);
+        setOrders(mappedSales);
       } catch (error) {
         setError('Failed to fetch orders');
       } finally {
@@ -69,6 +94,9 @@ export function RecentSales() {
     <Card>
       <CardHeader>
         <CardTitle>Recent Sales</CardTitle>
+        <div className="text-sm text-muted-foreground">
+          Total Sales: <span className="font-medium">{totalSales.toFixed(2)} Br</span>
+        </div>
       </CardHeader>
       <CardContent className="grid gap-8">
         {orders.length > 0 ? (

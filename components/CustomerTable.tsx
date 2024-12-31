@@ -112,7 +112,7 @@ const CustomerTableContent = ({ customers, isLoading, onDelete }: {
       <TableCell>{customer.location || 'N/A'}</TableCell>
       <TableCell>{customer.orders?.length ?? 0}</TableCell>
       <TableCell>
-        {formatDistanceToNow(new Date(customer.createdAt), { addSuffix: true })}
+        {customer.createdAt ? formatDistanceToNow(new Date(customer.createdAt), { addSuffix: true }) : 'N/A'}
       </TableCell>
       <TableCell>
         <DropdownMenu>
@@ -166,21 +166,40 @@ const CustomerTableContent = ({ customers, isLoading, onDelete }: {
 }
 
 export function CustomerTable() {
-  const [customers, setCustomers] = useState<CustomerWithOrders[]>([])
-  const [filteredCustomers, setFilteredCustomers] = useState<CustomerWithOrders[]>([])
-  const [searchTerm, setSearchTerm] = useState('')
-  const [isLoading, setIsLoading] = useState(true)
-  const router = useRouter()
-  const { toast } = useToast()
+  const [customers, setCustomers] = useState<CustomerWithOrders[]>([]);
+  const [filteredCustomers, setFilteredCustomers] = useState<CustomerWithOrders[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
+  const { toast } = useToast();
 
   useEffect(() => {
-    fetchCustomers()
-  }, [])
+    const fetchCustomers = async () => {
+      setIsLoading(true);
+      try {
+        const fetchedCustomers = await getCustomers() as CustomerWithOrders[];
+        const sortedCustomers = fetchedCustomers.sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+        setCustomers(sortedCustomers);
+        setFilteredCustomers(sortedCustomers);
+      } catch (error) {
+        toast({
+          title: 'Error',
+          description: 'Failed to fetch customers',
+          variant: 'destructive',
+        });
+      }
+      setIsLoading(false);
+    };
+
+    fetchCustomers();
+  }, []);
 
   useEffect(() => {
     const filtered = customers.filter(customer =>
-      customer.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (customer.email && customer.email.toLowerCase().includes(searchTerm.toLowerCase()))
+      customer.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (customer.email && customer.email?.toLowerCase().includes(searchTerm.toLowerCase()))
     )
     setFilteredCustomers(filtered)
   }, [searchTerm, customers])

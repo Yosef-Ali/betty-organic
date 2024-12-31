@@ -4,6 +4,7 @@ import { UTApi } from "uploadthing/server";
 import { revalidatePath } from 'next/cache';
 import { supabase } from '@/lib/supabase';
 import { Customer } from '../../types';
+import { v4 as uuidv4 } from 'uuid'; // Add this import
 
 const utapi = new UTApi();
 
@@ -36,34 +37,50 @@ export async function uploadImage(data: FormData) {
 
 export async function createCustomer(formData: FormData) {
   try {
-    const imageUrl = formData.get('imageUrl') as string | null;
+    // Extract and validate form data
+    const fullName = formData.get('fullName');
+    const email = formData.get('email');
+    const phone = formData.get('phone');
+    const location = formData.get('location');
+    const status = formData.get('status');
+    const imageUrl = formData.get('imageUrl');
+
+    const customerId = uuidv4(); // Generate UUID
+
     const { data: customer, error } = await supabase
       .from('customers')
       .insert({
-        full_name: formData.get('fullName') as string,
-        email: (formData.get('email') as string) || '',
-        phone: (formData.get('phone') as string) || '',
-        location: (formData.get('location') as string) || '',
-        status: formData.get('status') as 'active' | 'inactive',
-        image_url: imageUrl,
+        id: customerId,
+        full_name: fullName,
+        email: email || '',
+        phone: phone || null,
+        location: location || null,
+        status: status || 'active',
+        image_url: imageUrl || null
       })
       .select()
       .single();
 
     if (error) {
-      console.error('Error creating customer:', error);
-      throw new Error('Failed to create customer');
+      console.error('Supabase error details:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint
+      });
+      throw new Error(`Database error: ${error.message}`);
     }
+
     revalidatePath('/dashboard/customers');
     return customer;
   } catch (error) {
     console.error('Error creating customer:', error);
-    throw new Error('Failed to create customer');
+    throw error; // Throw the original error to preserve the stack trace
   }
 }
 
 export async function updateCustomer(data: Customer) {
   try {
+    console.log('Updating customer with data:', data); // Add logging
     const { data: customer, error } = await supabase
       .from('customers')
       .update({
@@ -72,21 +89,22 @@ export async function updateCustomer(data: Customer) {
         phone: data.phone,
         location: data.location,
         status: data.status,
-        image_url: data.image_url,
+        image_url: data.imageUrl, // Changed from imageUrl to image_url to match DB schema
       })
       .eq('id', data.id)
       .select()
       .single();
 
     if (error) {
-      console.error('Error updating customer:', error);
-      throw new Error('Failed to update customer');
+      console.error('Supabase error details:', error);
+      throw new Error(`Database error: ${error.message}`);
     }
+
     revalidatePath('/dashboard/customers');
     return customer;
   } catch (error) {
     console.error('Error updating customer:', error);
-    throw new Error('Failed to update customer');
+    throw error; // Throw the original error for better debugging
   }
 }
 

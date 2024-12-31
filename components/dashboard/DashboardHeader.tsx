@@ -1,15 +1,15 @@
-import { getDashboardData } from "@/app/actions/getDashboardData";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DollarSign, Users, CreditCard, Activity } from "lucide-react";
+import { getRecentSales } from '../../app/actions/getRecentSales';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { DollarSign, Users, CreditCard, Activity } from 'lucide-react';
 
 export async function DashboardHeader() {
-  const data = await getDashboardData();
+  const { recentSales, totalSales } = await getRecentSales();
 
   const cardData = [
-    { title: "Total Revenue", icon: DollarSign, value: `${data.totalRevenue.toFixed(2)} Br`, change: "Calculated from all orders" },
-    { title: "Subscriptions", icon: Users, value: data.subscriptions.toString(), change: "Total number of customers" },
-    { title: "Sales", icon: CreditCard, value: data.sales.toString(), change: "Total number of orders" },
-    { title: "Active Now", icon: Activity, value: data.activeNow.toString(), change: "Users active in the last hour" },
+    { title: 'Total Revenue', icon: DollarSign, value: `${totalSales.toFixed(2)} Br`, change: 'Calculated from all orders' },
+    { title: 'Subscriptions', icon: Users, value: '0', change: 'Total number of customers' },
+    { title: 'Sales', icon: CreditCard, value: recentSales.length.toString(), change: 'Total number of orders' },
+    { title: 'Active Now', icon: Activity, value: '0', change: 'Users active in the last hour' },
   ];
 
   return (

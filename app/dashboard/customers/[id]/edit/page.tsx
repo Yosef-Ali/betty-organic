@@ -1,23 +1,23 @@
-import { getCustomerById } from '@/app/actions/customersActions'
-import { CustomerForm } from '@/components/CustomerForm'
-import { notFound } from 'next/navigation'
+import { getCustomerById } from '@/app/actions/customersActions';
+import { notFound } from 'next/navigation';
+import { EditCustomerForm } from '@/components/EditCustomerForm';
 
-type CustomerStatus = 'active' | 'inactive'
+type CustomerStatus = 'active' | 'inactive';
 
 export default async function EditCustomerPage({ params }: { params: { id: string } }) {
-  const customer = await getCustomerById(params.id)
+  const customer = await getCustomerById(params.id);
 
   if (!customer) {
-    notFound()
+    notFound();
   }
 
   return (
     <div className="container mx-auto px-4 py-8">
       <h2 className="text-2xl font-bold mb-4">Edit Customer</h2>
-      <CustomerForm
+      <EditCustomerForm
         initialData={{
           id: customer.id,
-          fullName: customer.fullName,
+          fullName: customer.full_name,
           email: customer.email ?? undefined,
           phone: customer.phone ?? undefined,
           location: customer.location ?? undefined,
@@ -26,5 +26,5 @@ export default async function EditCustomerPage({ params }: { params: { id: strin
         }}
       />
     </div>
-  )
+  );
 }

@@ -1,39 +1,36 @@
-// app/components/RecentTransactions.tsx
+'use client'
+
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
-import { getRecentTransactions } from "@/app/actions/getRecentTransactions";
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { getRecentTransactions } from '@/app/actions/getRecentTransactions';
+import { MappedTransaction } from '@/app/actions/getRecentTransactions'; // Import the interface
 
-interface Transaction {
-  customer: string;
-  email: string;
-  type: string;
-  status: string;
-  date: string;
-  amount: string;
+interface RecentTransactionsProps {
+  data: MappedTransaction[]; // Update the prop type
 }
 
-export default async function RecentTransactions() {
+export default function RecentTransactions({ data }: RecentTransactionsProps) {
+  const [transactions, setTransactions] = useState<MappedTransaction[]>(data || []);
+  const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    async function fetchTransactions() {
+      try {
+        const transactionsData = await getRecentTransactions();
+        setTransactions(transactionsData);
+      } catch (err) {
+        setError('Failed to fetch transactions');
+      }
+    }
 
-  let transactions: Transaction[] = [];
-  let error = null;
-
-  try {
-    transactions = await getRecentTransactions();
-  } catch (err) {
-    error = 'Failed to fetch transactions';
-  }
+    fetchTransactions();
+  }, []);
 
   if (error) return <div>{error}</div>;
   if (transactions.length === 0) return <div>No transactions found</div>;
@@ -45,7 +42,7 @@ export default async function RecentTransactions() {
           <CardTitle>Transactions</CardTitle>
           <CardDescription>Recent transactions from your store.</CardDescription>
         </div>
-        <Button asChild size="sm" className="ml-auto gap-1">
+        <Button size="sm" className="ml-auto gap-1" asChild>
           <Link href="#">
             View All
             <ArrowUpRight className="h-4 w-4" />
