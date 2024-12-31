@@ -39,10 +39,30 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
   }, [pathname]);
 
   const generateBreadcrumbs = () => {
-    const pathSegments = clientPathname.split('/').filter(Boolean);
+    if (!clientPathname || typeof clientPathname !== 'string') {
+      return ['Dashboard'];
+    }
+
+    const rawSegments = clientPathname.split('/').filter(Boolean);
+    const pathSegments = rawSegments.map(segment => segment.replace(/-/g, ' '));
+
+    if (pathSegments.length === 0) {
+      return ['Dashboard'];
+    }
+
     return pathSegments.map((segment, index) => {
-      const href = '/' + pathSegments.slice(0, index + 1).join('/');
-      const label = navItems.find(item => item.href === href)?.label || segment;
+      // Ensure the first segment (dashboard) is always lowercase in href
+      const hrefSegments = rawSegments.slice(0, index + 1);
+      if (index === 0 && hrefSegments[0].toLowerCase() === 'dashboard') {
+        hrefSegments[0] = 'dashboard';
+      }
+      const href = '/' + hrefSegments.join('/');
+
+      const label = navItems.find(item => item.href === href)?.label ||
+        segment
+          .split(' ')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(' ');
       return label;
     });
   };

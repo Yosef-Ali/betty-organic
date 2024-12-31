@@ -16,7 +16,7 @@ export const ProductCard: FC<ProductCardProps> = ({ product, onClick }) => (
   >
     <div className="relative aspect-square w-full">
       <Image
-        src={product.imageUrl}
+        src={product.imageUrl || '/placeholder-product.png'} // Provide fallback
         alt={product.name}
         layout="fill"
         objectFit="cover"
@@ -25,7 +25,7 @@ export const ProductCard: FC<ProductCardProps> = ({ product, onClick }) => (
       <div className="absolute inset-0 bg-black bg-opacity-60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
         <h3 className="text-sm font-semibold text-white">{product.name}</h3>
         <p className="text-base font-bold text-white mt-1">
-          ${product.price.toFixed(2)}{" "}
+          Br {product.price.toFixed(2)}{" "}
           <span className="text-xs font-normal">per kg</span>
         </p>
         <p

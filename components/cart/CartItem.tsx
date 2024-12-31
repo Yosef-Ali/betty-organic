@@ -39,11 +39,11 @@ export const CartItem: FC<CartItemProps> = ({ item, index, updateGrams, removeFr
           <img src={item.imageUrl} alt={item.name} className="w-16 h-16 rounded-md mr-4 object-cover" />
           <div>
             <h3 className="font-semibold text-lg">{item.name}</h3>
-            <p className="text-sm text-muted-foreground">${item.pricePerKg.toFixed(2)} per kg</p>
+            <p className="text-sm text-muted-foreground">Br {item.pricePerKg.toFixed(2)} per kg</p>
           </div>
         </div>
         <p className="font-bold text-lg">
-          ${((item.pricePerKg * item.grams) / 1000).toFixed(2)}
+          Br {((item.pricePerKg * item.grams) / 1000).toFixed(2)}
         </p>
       </div>
       <div className="flex items-center justify-between mt-2">

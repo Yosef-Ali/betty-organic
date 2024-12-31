@@ -1,6 +1,6 @@
 'use server';
 
-import { supabase } from '@/lib/supabase';
+import { supabase } from "@/lib/supabase"; // Corrected import path
 
 export async function getRecentSales() {
   try {

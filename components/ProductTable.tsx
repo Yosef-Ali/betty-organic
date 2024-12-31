@@ -36,7 +36,8 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { useToast } from '@/hooks/use-toast'
-import { Product } from '@prisma/client'
+import { Product } from '@/types'; // Import Product type
+
 import { formatDistanceToNow } from 'date-fns'
 
 const ProductTableContent = ({ products, isLoading, onDelete }: {
@@ -71,10 +72,10 @@ const ProductTableContent = ({ products, isLoading, onDelete }: {
     <TableRow key={product.id}>
       <TableCell className="hidden sm:table-cell">
         <Image
-          alt="Product image"
+          alt={`${product.name} image`}
           className="aspect-square rounded-md object-cover"
           height={64}
-          src={product.imageUrl}
+          src={product.imageUrl || '/placeholder-product.png'}
           width={64}
         />
       </TableCell>
@@ -85,10 +86,10 @@ const ProductTableContent = ({ products, isLoading, onDelete }: {
         </Badge>
       </TableCell>
       <TableCell className="hidden md:table-cell">
-        ${product.price.toFixed(2)}
+        Br {product.price.toFixed(2)}
       </TableCell>
       <TableCell className="hidden md:table-cell">
-        {product.totalSales}
+        {product.totalSales} {/* Display totalSales */}
       </TableCell>
       <TableCell className="hidden md:table-cell">
         {formatDistanceToNow(new Date(product.createdAt), { addSuffix: true })}

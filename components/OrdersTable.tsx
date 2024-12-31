@@ -1,67 +1,107 @@
-// OrdersTable.tsx
-import React, { Dispatch, SetStateAction } from 'react';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Order } from "@prisma/client";
-import { OrderType } from "./OrderDashboard";
-import { OrderRow } from './OrderRow';
+'use client';
+
+import React from 'react';
+import { Table, TableBody, TableCell, TableHead, TableRow } from './ui/table';
+import { Badge } from './ui/badge';
 import { Button } from './ui/button';
-import Link from 'next/link';
-import { ArrowUpRight } from 'lucide-react';
+import { MoreHorizontal } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
+import { useRouter } from 'next/navigation'; // Updated import source
+import { ExtendedOrder } from '@/types'; // Import ExtendedOrder type from types folder
 
-export interface ExtendedOrder extends Order {
-  customer: {
-    fullName: string;
-    email: string;
-    imageUrl: string;
-  } | null;
-  type: OrderType;
-}
-
-interface OrderProps {
-  orders: ExtendedOrder[];
-  onSelectOrder: Dispatch<SetStateAction<string | null>>;
+type OrdersTableProps = {
+  orders: ExtendedOrder[]; // Use the imported ExtendedOrder type
+  onSelectOrder: (id: string) => void;
   onDeleteOrder: (id: string) => Promise<void>;
   isLoading: boolean;
-}
+};
 
-const OrderTable: React.FC<OrderProps> = ({ orders, onSelectOrder, onDeleteOrder, isLoading }) => {
-  // Use the onDeleteOrder prop as needed within the component
+const OrdersTable: React.FC<OrdersTableProps> = ({ orders, onSelectOrder, onDeleteOrder, isLoading }) => {
+  const router = useRouter();
+
+  if (isLoading) {
+    return (
+      <Table>
+        <TableBody>
+          <TableRow>
+            <TableCell colSpan={6} className="text-center">
+              Loading...
+            </TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
+    );
+  }
+
+  if (orders.length === 0) {
+    return (
+      <Table>
+        <TableBody>
+          <TableRow>
+            <TableCell colSpan={6} className="text-center">
+              No orders found.
+            </TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
+    );
+  }
+
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center">
-        <div className="grid gap-2">
-          <CardTitle>Orders</CardTitle>
-          <CardDescription>Click on a row to see the details</CardDescription>
-        </div>
-        <Button asChild size="sm" className="ml-auto gap-1">
-          <Link href="/dashboard/orders/details">
-            View All
-            <ArrowUpRight className="h-4 w-4" />
-          </Link>
-        </Button>
-      </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Customer</TableHead>
-              <TableHead>Order ID</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead>Amount</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {orders.map((order) => (
-              <OrderRow key={order.id} order={order} onSelectOrder={onSelectOrder} />
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+    <Table>
+      <TableHead>
+        <TableRow>
+          <TableCell>Order ID</TableCell>
+          <TableCell>Customer</TableCell>
+          <TableCell>Status</TableCell>
+          <TableCell>Total Amount</TableCell>
+          <TableCell>Created At</TableCell>
+          <TableCell>Actions</TableCell>
+        </TableRow>
+      </TableHead>
+      <TableBody>
+        {orders.map(order => (
+          <TableRow key={order.id}>
+            <TableCell onClick={() => onSelectOrder(order.id)} className="cursor-pointer">
+              {order.id}
+            </TableCell>
+            <TableCell>
+              {order.customer ? (
+                <>
+                  <div>{order.customer.full_name}</div>
+                  <div className="text-muted-foreground text-sm">{order.customer.email}</div>
+                </>
+              ) : (
+                'N/A'
+              )}
+            </TableCell>
+            <TableCell>
+              <Badge variant="outline">{order.status}</Badge>
+            </TableCell>
+            <TableCell>Br {order.totalAmount.toFixed(2)}</TableCell>
+            <TableCell>{new Date(order.createdAt).toLocaleDateString()}</TableCell>
+            <TableCell>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm">
+                    <MoreHorizontal />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem onSelect={() => router.push(`/dashboard/orders/${order.id}`)}>
+                    View
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => onDeleteOrder(order.id)}>
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
   );
-}
+};
 
-export default OrderTable;
+export default OrdersTable;

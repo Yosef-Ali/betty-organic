@@ -26,13 +26,17 @@ export default function Breadcrumb({ pathSegments }: { pathSegments: string[] })
     <nav aria-label="breadcrumb">
       <ol className="flex items-center space-x-1">
         {pathSegments.map((segment, index) => {
-          const href = '/' + pathSegments.slice(0, index + 1).join('/');
+          // Ensure dashboard path is always lowercase
+          let href = '/' + pathSegments.slice(0, index + 1).join('/');
+          if (index === 0 && segment.toLowerCase() === 'dashboard') {
+            href = '/dashboard';
+          }
           const isLast = index === pathSegments.length - 1;
 
           return (
             <React.Fragment key={href}>
               <li>
-                <BreadcrumbItem href={href} isLast={isLast}>
+                <BreadcrumbItem href={href.toLowerCase()} isLast={isLast}>
                   {segment}
                 </BreadcrumbItem>
               </li>

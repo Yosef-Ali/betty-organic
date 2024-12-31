@@ -218,7 +218,9 @@ export default function OrderDetails({ orderId }: { orderId: string }) {
       </CardContent>
       <CardFooter className="flex flex-row items-center border-t bg-muted/50 px-6 py-3">
         <div className="text-xs text-muted-foreground">
-          Updated <time dateTime={new Date(order.updatedAt).toISOString()}>{new Date(order.updatedAt).toLocaleDateString()}</time>
+          Updated <time dateTime={order.updatedAt ? new Date(order.updatedAt).toISOString() : new Date().toISOString()}>
+            {order.updatedAt ? new Date(order.updatedAt).toLocaleDateString() : 'Just now'}
+          </time>
         </div>
         <Pagination className="ml-auto mr-0 w-auto">
           <PaginationContent>

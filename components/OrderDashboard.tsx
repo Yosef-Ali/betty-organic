@@ -2,7 +2,7 @@
 "use client"
 
 import React, { useEffect, useMemo, useCallback, useState } from 'react';
-import { Button } from "@/components/ui/button";
+import { Button } from './ui/button';
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -10,17 +10,19 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger
-} from "@/components/ui/dropdown-menu";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+} from './ui/dropdown-menu';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { File, ListFilter } from "lucide-react";
 import { OrdersOverviewCard } from "./OrdersOverviewCard";
 import { StatCard } from "./StatCard";
 import OrderDetails from "./OrderDetailsCard";
 
-import { getOrders, getCustomers, getProducts, deleteOrder } from '@/app/actions/orderActions';
-import { Customer, Order, Product } from "@prisma/client";
-import { useToast } from '@/hooks/use-toast';
+import { getOrders, deleteOrder } from '../app/actions/orderActions';
+import { getCustomers } from '../app/actions/customersActions';
+import { getProducts } from '../app/actions/productActions';
+import { useToast } from '../hooks/use-toast';
 import OrderTable from './OrdersTable';
+import { Customer, Order, Product, ExtendedOrder } from '../types';
 
 export const OrderType = {
   SALE: 'sale',
@@ -29,15 +31,6 @@ export const OrderType = {
 } as const;
 
 export type OrderType = typeof OrderType[keyof typeof OrderType];
-
-type ExtendedOrder = Order & {
-  customer: {
-    fullName: string;
-    email: string;
-    imageUrl: string;
-  } | null;
-  type: OrderType;
-};
 
 const OrderDashboard: React.FC = () => {
   const [orders, setOrders] = useState<ExtendedOrder[]>([]);
@@ -57,15 +50,22 @@ const OrderDashboard: React.FC = () => {
         getProducts(),
       ]);
 
-      const extendedOrders: ExtendedOrder[] = ordersData.map(order => ({
-        ...order,
-        customer: order.customerId ? {
-          fullName: customersData.find(c => c.id === order.customerId)?.fullName ?? '',
-          email: customersData.find(c => c.id === order.customerId)?.email ?? '',
-          imageUrl: customersData.find(c => c.id === order.customerId)?.imageUrl ?? '',
-        } : null,
-        type: order.type as OrderType
-      }));
+      const extendedOrders: ExtendedOrder[] = ordersData.map(order => {
+        const customer = order.customerId ? customersData.find(c => c.id === order.customerId) : null;
+        return {
+          ...order,
+          customer: customer ? {
+            id: customer.id,
+            full_name: customer.full_name,
+            email: customer.email,
+            phone: customer.phone || null,
+            location: customer.location || null,
+            status: customer.status,
+            imageUrl: customer.imageUrl || null
+          } : null,
+          type: order.type as OrderType
+        };
+      });
 
       const sortedOrders = extendedOrders.sort((a, b) =>
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
@@ -120,8 +120,8 @@ const OrderDashboard: React.FC = () => {
 
   const filteredOrders = useMemo(() => {
     return orders.filter(order =>
-      order.customer?.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.id.toLowerCase().includes(searchTerm.toLowerCase())
+      order.customer?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.id?.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [orders, searchTerm]);
 
@@ -199,13 +199,13 @@ const OrderDashboard: React.FC = () => {
           <OrdersOverviewCard />
           <StatCard
             title="This Week"
-            value={`${currentWeekTotal.toFixed(2)} Br`}
+            value={`Br ${currentWeekTotal.toFixed(2)}`}
             change={`${currentWeekChangePercentage >= 0 ? '+' : ''}${currentWeekChangePercentage.toFixed(2)}% from last week`}
             changePercentage={currentWeekChangePercentage}
           />
           <StatCard
             title="This Month"
-            value={`${currentMonthTotal.toFixed(2)} Br`}
+            value={`Br ${currentMonthTotal.toFixed(2)}`}
             change={`${currentMonthChangePercentage >= 0 ? '+' : ''}${currentMonthChangePercentage.toFixed(2)}% from last month`}
             changePercentage={currentMonthChangePercentage}
           />

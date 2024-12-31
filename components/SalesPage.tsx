@@ -6,7 +6,7 @@ import { Tabs, TabsContent } from "@/components/ui/tabs";
 
 import { ProductGrid } from "./ProductGrid";
 import { SalesHeader } from "./SalesHeader";
-import { Product } from "@prisma/client";
+
 import { getProducts } from "@/app/actions/productActions";
 import { CartSheet } from "./cart/CartSheet";
 
@@ -23,13 +23,17 @@ const Sales: FC = () => {
 
   useEffect(() => {
     async function fetchProducts() {
-      const allProducts = await getProducts();
-      const productsWithStatus = allProducts.map((p: Product) => ({
-        ...p,
-        status: p.stock > 0 ? "Available" : ("Out of Stock" as ProductStatus),
-      }));
+      try {
+        const allProducts = await getProducts();
+        const productsWithStatus = allProducts.map((p: Product) => ({
+          ...p,
+          status: p.stock > 0 ? "Available" : ("Out of Stock" as ProductStatus),
+        }));
 
-      setProducts(productsWithStatus.filter((p) => p.status === "Available"));
+        setProducts(productsWithStatus.filter((p) => p.status === "Available"));
+      } catch (error) {
+        console.error("Error fetching products:", error);
+      }
     }
     fetchProducts();
   }, []);
@@ -38,7 +42,7 @@ const Sales: FC = () => {
     addItem({
       id: product.id,
       name: product.name,
-      imageUrl: product.imageUrl, // Ensure imageUrl is used
+      imageUrl: product.imageUrl || "", // Provide a default value for imageUrl
       pricePerKg: product.price,
       grams: 100,
     });

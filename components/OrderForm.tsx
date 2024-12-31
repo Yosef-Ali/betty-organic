@@ -6,37 +6,7 @@ import { Select } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { createOrder, updateOrder } from '@/app/actions/orderActions';
-
-interface Customer {
-  id: string;
-  fullName: string;
-}
-
-interface Product {
-  id: string;
-  name: string;
-  price: number;
-}
-
-interface OrderItem {
-  id: string;
-  orderId: string;
-  productId: string;
-  quantity: number;
-  price: number;
-  product: Product;
-}
-
-interface Order {
-  id: string;
-  customerId: string;
-  totalAmount: number;
-  status: string;
-  createdAt: Date;
-  updatedAt: Date;
-  customer: Customer;
-  items: OrderItem[];
-}
+import { Customer, Product, Order, OrderItem } from '@/types'; // Import types from types folder
 
 interface OrderFormProps {
   customers: Customer[];
@@ -46,11 +16,11 @@ interface OrderFormProps {
 
 export function OrderForm({ customers, products, initialData }: OrderFormProps) {
   const [orderItems, setOrderItems] = useState<Omit<OrderItem, 'id' | 'orderId' | 'product'>[]>(
-    initialData?.items.map(item => ({
+    initialData?.items?.map(item => ({
       productId: item.productId,
       quantity: item.quantity,
       price: item.price
-    })) || [{ productId: '', quantity: 1, price: 0 }]
+    })) || [{ productId: '', quantity: 1, price: 0 }] // Provide default order item if items are undefined
   );
   const router = useRouter();
 
@@ -103,7 +73,7 @@ export function OrderForm({ customers, products, initialData }: OrderFormProps) 
         <label htmlFor="customerId" className="block text-sm font-medium text-gray-700">Customer</label>
         <Select name="customerId" defaultValue={initialData?.customerId || ''}>
           {customers.map((customer) => (
-            <option key={customer.id} value={customer.id}>{customer.fullName}</option>
+            <option key={customer.id} value={customer.id}>{customer.full_name}</option>
           ))}
         </Select>
       </div>
