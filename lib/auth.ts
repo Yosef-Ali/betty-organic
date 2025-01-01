@@ -1,79 +1,39 @@
-import { PrismaAdapter } from "@auth/prisma-adapter"
-import { PrismaClient } from "@prisma/client"
-import { NextAuthOptions } from "next-auth"
-import CredentialsProvider from "next-auth/providers/credentials"
-import bcrypt from 'bcrypt'
+import { createClient } from '@supabase/supabase-js'
 
-const prisma = new PrismaClient()
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma) as any, // Type assertion to avoid the mismatch error
-  providers: [
-    CredentialsProvider({
-      name: "Credentials",
-      credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" }
-      },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          return null
-        }
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error('Missing Supabase environment variables')
+}
 
-        const user = await prisma.user.findUnique({
-          where: {
-            email: credentials.email
-          }
-        })
+export const supabase = createClient(supabaseUrl, supabaseKey)
 
-        if (!user || !user.passwordHash) {
-          return null
-        }
+export async function getSession() {
+  const { data: { session } } = await supabase.auth.getSession()
+  return session
+}
 
-        const isPasswordValid = await bcrypt.compare(credentials.password, user.passwordHash)
-
-        if (!isPasswordValid) {
-          return null
-        }
-
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { lastLoginAt: new Date() }
-        })
-
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          isVerified: user.isVerified,
-          image: user.image,
-        }
+export async function signIn(provider: 'email' | 'google', credentials?: { email: string; password: string }) {
+  if (provider === 'email' && credentials) {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: credentials.email,
+      password: credentials.password
+    })
+    return { data, error }
+  } else if (provider === 'google') {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`
       }
     })
-  ],
-  callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.role = user.role
-        token.isVerified = user.isVerified
-      }
-      return token
-    },
-    async session({ session, token }) {
-      if (session?.user) {
-        session.user.role = token.role as string
-        session.user.isVerified = token.isVerified as boolean
-      }
-      return session
-    }
-  },
-  pages: {
-    signIn: '/auth/signin',
-    signOut: '/auth/signout',
-  },
-  session: {
-    strategy: "jwt",
-  },
-  secret: process.env.NEXTAUTH_SECRET,
+    return { data, error }
+  }
+  return { data: null, error: new Error('Invalid provider') }
+}
+
+export async function signOut() {
+  const { error } = await supabase.auth.signOut()
+  return { error }
 }

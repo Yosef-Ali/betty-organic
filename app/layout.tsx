@@ -1,20 +1,16 @@
+import type { Metadata } from 'next'
 import { cn } from '@/lib/utils'
 import './globals.css'
 import { Inter } from 'next/font/google'
-import { TooltipProvider } from "@/components/ui/tooltip";
-import ClientLayout from '@/components/ClientLayout';
-// import { Toast } from '@/components/ui/toast';
-import { Toaster } from '@/components/ui/toaster';
+import { TooltipProvider } from "@/components/ui/tooltip"
+import { Toaster } from "@/components/ui/toaster"
 
-export const metadata = {
-  metadataBase: new URL('https://postgres-prisma.vercel.app'),
-  title: 'Betty Organic vegetable delivery app',
-  description:
-    'Organic vegetable delivery app ',
+export const metadata: Metadata = {
+  title: 'Betty Organic',
+  description: 'Organic products and delivery services',
 }
 
 const inter = Inter({
-  variable: '--font-inter',
   subsets: ['latin'],
   display: 'swap',
 })
@@ -24,18 +20,11 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-
   return (
-    <html lang="en" className={inter.variable}>
-      <body
-        className={cn
-          (
-            "min-h-screen bg-background font-sans antialiased",
-            inter.variable
-          )}
-      >
+    <html lang="en">
+      <body className={cn("min-h-screen bg-background font-sans antialiased", inter.className)}>
         <TooltipProvider>
-          <ClientLayout>{children}</ClientLayout>
+          {children}
         </TooltipProvider>
         <Toaster />
       </body>
