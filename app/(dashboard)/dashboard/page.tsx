@@ -36,10 +36,10 @@ export default async function DashboardPage() {
         {/* Main dashboard grid */}
         <div className="grid gap-4">
           {/* Header cards */}
-          {/* <DashboardHeader user={user!} /> */}
+          <DashboardHeader user={user!} />
 
           {/* Orders summary section */}
-          <OrdersSummary />
+          {/* <OrdersSummary /> */}
 
           {/* Main content grid */}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
