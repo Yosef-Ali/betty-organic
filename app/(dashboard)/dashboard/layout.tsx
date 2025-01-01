@@ -1,6 +1,6 @@
 import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
-import DashboardLayoutClient from '@/components/dashboard/DashboardLayoutClient';
+import DashboardLayoutClient from 'components/dashboard/DashboardLayoutClient';
 import { redirect } from 'next/navigation';
 
 export const revalidate = 0;
