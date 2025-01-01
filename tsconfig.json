@@ -19,16 +19,20 @@
     "isolatedModules": true, // Ensure each file can be transpiled independently
     "jsx": "preserve", // Preserve JSX for Next.js to handle
     "incremental": true, // Enable incremental compilation for faster builds
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "./*"
+      ],
+      "@/src/*": [
+        "./src/*"
+      ]
+    },
     "plugins": [
       {
         "name": "next" // Enable Next.js specific TypeScript plugin
       }
     ],
-    "paths": {
-      "@/*": [
-        "./*"
-      ]
-    },
     "types": [
       "node"
     ]

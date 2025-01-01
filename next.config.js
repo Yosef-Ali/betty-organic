@@ -40,6 +40,7 @@ const nextConfig = {
         pathname: '/**',
       },
     ],
+    domains: ['your-image-domain.com'], // Add your image domain here
   },
   output: 'standalone',
   poweredByHeader: false,

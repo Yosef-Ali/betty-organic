@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { Search } from "lucide-react";
 import { supabase } from "@/lib/supabase/supabaseClient";
 import { Product } from "@/types";
+import { CartSheet } from "./marcking-cart/CartSheet";
 
 export function ProductSection() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -61,8 +62,8 @@ export function ProductSection() {
             </div>
 
             {/* Search Input */}
-            <div className="max-w-md mx-auto mb-8">
-              <div className="relative">
+            <div className="max-w-md mx-auto mb-8 flex items-center gap-4">
+              <div className="relative flex-1">
                 <input
                   type="text"
                   placeholder="Search fruits..."
@@ -72,6 +73,7 @@ export function ProductSection() {
                 />
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               </div>
+              <CartSheet />
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4 max-w-[1920px] mx-auto mb-16">
