@@ -7,8 +7,9 @@ import { Hero } from "@/components/Hero";
 
 import { Navigation } from "@/components/Navigation";
 import { ProductSection } from "@/components/products/product-section";
+import { TestimonialSection } from "@/components/testimonials/testimonial-section";
 
-import TestimonialSection from "@/components/TestimonialSection";
+
 import Image from "next/image";
 
 export default function Home() {
