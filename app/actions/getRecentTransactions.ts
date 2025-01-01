@@ -1,6 +1,6 @@
 "use server";
 
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase/server';
 
 // Define a type for the transaction
 interface Transaction {

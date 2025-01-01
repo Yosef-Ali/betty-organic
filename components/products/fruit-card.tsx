@@ -11,16 +11,23 @@ interface FruitCardProps {
   name: string;
   price: number;
   image: string;
-  description: string;
+  description?: string | null;  // Make description optional
   unit: string;
 }
 
-export function FruitCard({ id, name, price, image, description, unit }: FruitCardProps) {
+export function FruitCard({
+  id,
+  name,
+  price,
+  image,
+  description = '', // Add default value
+  unit = 'piece'
+}: FruitCardProps) {
   const [imageError, setImageError] = useState(false);
   const hasValidImage = image && image.trim().length > 0 && !imageError;
 
   // Convert unit to kg if it's lb
-  const displayUnit = unit.toLowerCase() === 'lb' ? 'kg' : unit;
+  const displayUnit = unit && unit.toLowerCase() === 'lb' ? 'kg' : unit || 'piece';
 
   return (
     <div className="group relative overflow-hidden rounded-lg bg-white shadow-md hover:shadow-lg transition-all duration-300">
@@ -49,7 +56,9 @@ export function FruitCard({ id, name, price, image, description, unit }: FruitCa
       </div>
       <div className="p-4">
         <h3 className="font-semibold text-lg mb-1 text-gray-800">{name}</h3>
-        <p className="text-sm text-gray-600 mb-2 line-clamp-2">{description}</p>
+        <p className="text-sm text-gray-600 mb-2 line-clamp-2">
+          {description || 'No description available'}
+        </p>
         <div className="flex items-center justify-between">
           <span className="text-lg font-bold text-gray-900">ETB {price.toLocaleString()}</span>
           <span className="text-sm text-gray-500">per {displayUnit}</span>

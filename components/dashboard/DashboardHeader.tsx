@@ -1,8 +1,13 @@
 import { getRecentSales } from '../../app/actions/getRecentSales';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { DollarSign, Users, CreditCard, Activity } from 'lucide-react';
+import { User } from '@supabase/supabase-js'
 
-export async function DashboardHeader() {
+interface DashboardHeaderProps {
+  user: User
+}
+
+export async function DashboardHeader({ user }: DashboardHeaderProps) {
   const { recentSales, totalSales } = await getRecentSales();
 
   const cardData = [

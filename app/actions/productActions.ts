@@ -1,11 +1,12 @@
 "use server";
 import { revalidatePath } from 'next/cache';
-import { supabase } from '@/lib/supabase';
 import { uploadImage } from './upload-image'; // Import uploadImage from upload-image.ts
 import { v4 as uuidv4 } from 'uuid';
+import { createServerSupabaseClient } from '../supabase-server';
 
 export const createProduct = async (formData: FormData) => {
   try {
+    const supabase = createServerSupabaseClient();
     // Input validation
     const name = formData.get('name');
     const description = formData.get('description');
@@ -60,6 +61,7 @@ export const createProduct = async (formData: FormData) => {
 
 export async function updateProduct(id: string, data: FormData) {
   try {
+    const supabase = createServerSupabaseClient();
     const updates: Record<string, any> = {};
 
     // Only include fields that are present in the FormData
@@ -89,6 +91,7 @@ export async function updateProduct(id: string, data: FormData) {
 
 export async function getProductImages(productId: string) {
   try {
+    const supabase = createServerSupabaseClient();
     console.log(`Fetching images for product ID: ${productId}`);
     const { data: product, error } = await supabase
       .from('products')
@@ -117,6 +120,7 @@ export async function getProductImages(productId: string) {
 
 export async function getProducts() {
   try {
+    const supabase = createServerSupabaseClient();
     console.log('Fetching products from Supabase');
     const { data: products, error } = await supabase
       .from('products')
@@ -138,6 +142,7 @@ export async function getProducts() {
 
 export async function getProduct(id: string) {
   try {
+    const supabase = createServerSupabaseClient();
     const { data: product, error } = await supabase
       .from('products')
       .select()
@@ -157,6 +162,7 @@ export async function getProduct(id: string) {
 
 export async function deleteProduct(id: string) {
   try {
+    const supabase = createServerSupabaseClient();
     const { error } = await supabase
       .from('products')
       .delete()

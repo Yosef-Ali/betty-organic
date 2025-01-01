@@ -2,7 +2,7 @@
 
 import { UTApi } from "uploadthing/server";
 import { revalidatePath } from 'next/cache';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase/server';
 import { Customer } from '../../types';
 import { v4 as uuidv4 } from 'uuid'; // Add this import
 

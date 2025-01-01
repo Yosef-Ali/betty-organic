@@ -10,16 +10,18 @@ export type Customer = {
   imageUrl?: string | null;  // Changed from image_url to imageUrl
 };
 
-export type Product = {
+export interface Product {
   id: string;
   name: string;
   price: number;
-  imageUrl?: string | null; // Updated to allow undefined or null
+  imageUrl: string;  // Changed from image_url to imageUrl
+  description: string | null;
   stock: number;
-  totalSales: number; // Added totalSales property
+  unit: string;
   createdAt: string;
-  // Add other relevant fields if necessary
-};
+  updatedAt: string;
+  totalSales: number;
+}
 
 export type OrderType = 'sale' | 'refund' | 'credit'; // Define OrderType
 

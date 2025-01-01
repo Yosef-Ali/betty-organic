@@ -12,18 +12,18 @@ export function SignIn() {
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
+  const [error, setError] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError('')
+    setError(null)
 
-    const { data, error } = await signIn('email', { email, password })
+    const { data, error: authError } = await signIn('email', { email, password })
 
-    if (error) {
-      setError(error.message)
+    if (authError) {
+      setError(authError instanceof Error ? authError.message : 'Authentication failed')
     } else {
-      router.push('/')
+      router.push('/dashboard')
     }
   }
 

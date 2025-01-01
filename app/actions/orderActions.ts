@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase/server';
 import { v4 as uuidv4 } from 'uuid';
 import { Order, OrderItem, Customer } from '@/types';
 
