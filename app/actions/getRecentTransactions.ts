@@ -1,6 +1,6 @@
 "use server";
 
-import { supabase } from '@/lib/supabase/server';
+import { supabase } from '@/lib/supabase/supabaseClient';
 
 // Define a type for the transaction
 interface Transaction {
@@ -10,7 +10,7 @@ interface Transaction {
   };
   type: string;
   status: string;
-  created_at: Date;
+  created_at: string | null;
   total_amount: number;
 }
 
@@ -53,7 +53,7 @@ export async function getRecentTransactions(): Promise<MappedTransaction[]> {
     email: transaction.customer.email || '',
     type: transaction.type,
     status: transaction.status,
-    date: new Date(transaction.created_at).toISOString().split('T')[0],
+    date: transaction.created_at ? new Date(transaction.created_at).toISOString().split('T')[0] : '',
     amount: `$${transaction.total_amount.toFixed(2)}`,
   }));
 }

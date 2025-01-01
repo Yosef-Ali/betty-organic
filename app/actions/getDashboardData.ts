@@ -1,3 +1,5 @@
+import { supabase } from '@/lib/supabase/supabaseClient';
+
 export async function getDashboardData() {
   return {
     totalRevenue: 0,

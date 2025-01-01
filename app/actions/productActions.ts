@@ -1,11 +1,10 @@
 'use server';
 
-import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { supabase } from '@/lib/supabase/supabaseClient';
 import { revalidatePath } from 'next/cache';
 import { v4 as uuidv4 } from 'uuid';
 
 export const createProduct = async (formData: FormData) => {
-  const supabase = createServerSupabaseClient();
   try {
     // Input validation
     const name = formData.get('name');
@@ -60,7 +59,6 @@ export const createProduct = async (formData: FormData) => {
 };
 
 export async function updateProduct(id: string, data: FormData) {
-  const supabase = createServerSupabaseClient();
   try {
     const updates: Record<string, any> = {};
 
@@ -90,7 +88,6 @@ export async function updateProduct(id: string, data: FormData) {
 }
 
 export async function getProductImages(productId: string) {
-  const supabase = createServerSupabaseClient();
   try {
     console.log(`Fetching images for product ID: ${productId}`);
     const { data: product, error } = await supabase
@@ -119,7 +116,6 @@ export async function getProductImages(productId: string) {
 }
 
 export async function getProducts() {
-  const supabase = createServerSupabaseClient();
   try {
     console.log('Fetching products from Supabase');
     const { data: products, error } = await supabase
@@ -141,7 +137,6 @@ export async function getProducts() {
 }
 
 export async function getProduct(id: string) {
-  const supabase = createServerSupabaseClient();
   try {
     const { data: product, error } = await supabase
       .from('products')
@@ -161,7 +156,6 @@ export async function getProduct(id: string) {
 }
 
 export async function deleteProduct(id: string) {
-  const supabase = createServerSupabaseClient();
   try {
     const { error } = await supabase
       .from('products')

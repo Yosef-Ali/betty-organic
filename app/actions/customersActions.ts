@@ -2,9 +2,9 @@
 
 import { UTApi } from "uploadthing/server";
 import { revalidatePath } from 'next/cache';
-import { supabase } from '@/lib/supabase/server';
+import { supabase } from '@/lib/supabase/supabaseClient';
 import { Customer } from '../../types';
-import { v4 as uuidv4 } from 'uuid'; // Add this import
+import { v4 as uuidv4 } from 'uuid';
 
 const utapi = new UTApi();
 
@@ -74,13 +74,13 @@ export async function createCustomer(formData: FormData) {
     return customer;
   } catch (error) {
     console.error('Error creating customer:', error);
-    throw error; // Throw the original error to preserve the stack trace
+    throw error;
   }
 }
 
 export async function updateCustomer(data: Customer) {
   try {
-    console.log('Updating customer with data:', data); // Add logging
+    console.log('Updating customer with data:', data);
     const { data: customer, error } = await supabase
       .from('customers')
       .update({
@@ -89,7 +89,7 @@ export async function updateCustomer(data: Customer) {
         phone: data.phone,
         location: data.location,
         status: data.status,
-        image_url: data.imageUrl, // Changed from imageUrl to image_url to match DB schema
+        image_url: data.imageUrl
       })
       .eq('id', data.id)
       .select()
@@ -104,7 +104,7 @@ export async function updateCustomer(data: Customer) {
     return customer;
   } catch (error) {
     console.error('Error updating customer:', error);
-    throw error; // Throw the original error for better debugging
+    throw error;
   }
 }
 
@@ -192,7 +192,7 @@ export async function getCustomerById(id: string) {
       .select()
       .eq('id', id)
       .single();
-    return customer; // This line is crucial
+    return customer;
   } catch (error) {
     console.error('Error fetching customer:', error);
     return null;

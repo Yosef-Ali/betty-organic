@@ -4,12 +4,38 @@ import Link from "next/link";
 import { Button } from "./ui/button";
 import { ShoppingCart, LayoutDashboard } from "lucide-react";
 import Image from 'next/image';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import type { Session } from '@supabase/auth-helpers-nextjs';
 
 interface NavigationProps {
   isAdmin: boolean;
 }
 
 export function Navigation({ isAdmin }: NavigationProps) {
+  const supabase = createClientComponentClient();
+  const router = useRouter();
+  const [session, setSession] = useState<Session | null>(null);
+
+  useEffect(() => {
+    const getSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setSession(session);
+    };
+
+    getSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, [supabase]);
+
+  const handleSignIn = () => {
+    router.push('/auth/signin');
+  };
 
   return (
     <nav className="fixed top-0 z-50 w-full bg-[#ffc600]/80 backdrop-blur-md">
@@ -49,13 +75,17 @@ export function Navigation({ isAdmin }: NavigationProps) {
             <div className="absolute -bottom-1 left-0 w-full h-0.5 bg-black opacity-0 group-hover:opacity-100 transition-opacity" />
           </Link>
 
-          {isAdmin && (
+          {session ? (
             <Link href="/dashboard" className="text-lg font-medium relative group">
               <Button variant="ghost" className="gap-2">
                 <LayoutDashboard className="h-5 w-5" />
                 Dashboard
               </Button>
             </Link>
+          ) : (
+            <Button variant="ghost" onClick={handleSignIn}>
+              Sign In
+            </Button>
           )}
 
           <Button size="icon" variant="ghost">

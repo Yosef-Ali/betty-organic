@@ -1,12 +1,12 @@
 'use server';
 
-import { supabase } from '@/lib/supabase/server';
+import { supabase } from '@/lib/supabase/supabaseClient';
 
 export interface SalesData {
   recentSales: {
     id: string;
-    created_at: string;
-    status: string; // Keep as string to avoid strict enum typing issues
+    created_at: string | null;
+    status: string;
     customer: { full_name: string };
     items: {
       id: string;
@@ -32,7 +32,6 @@ export async function getRecentSales(): Promise<SalesData> {
           product:products(*)
         )
       `)
-      // .eq('status', 'completed')
       .order('created_at', { ascending: false })
       .limit(5);
 

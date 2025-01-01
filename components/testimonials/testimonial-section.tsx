@@ -86,7 +86,7 @@ export function TestimonialSection() {
         >
           <h2 className="mb-4 text-4xl font-bold">What Our Customers Say</h2>
           <p className="mx-auto max-w-2xl text-lg text-gray-700">
-            Don't just take our word for it - hear from our satisfied customers about their experience with FruitMart.
+            Don&apos;t just take our word for it - hear from our satisfied customers about their experience with FruitMart.
           </p>
         </motion.div>
 
