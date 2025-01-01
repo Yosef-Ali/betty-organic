@@ -64,14 +64,14 @@ export async function middleware(request: NextRequest) {
   // Protected routes logic
 
   // Handle dashboard routes protection
-  if (request.nextUrl.pathname.startsWith('/dashboard') && !session) {
-    return NextResponse.redirect(new URL('/auth/signin', request.url))
-  }
+  // if (request.nextUrl.pathname.startsWith('/dashboard') && !session) {
+  //   return NextResponse.redirect(new URL('/auth/signin', request.url))
+  // }
 
   // Redirect authenticated users away from auth pages
-  if (session && request.nextUrl.pathname.startsWith('/auth')) {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
-  }
+  // if (session && request.nextUrl.pathname.startsWith('/auth')) {
+  //   return NextResponse.redirect(new URL('/dashboard', request.url))
+  // }
 
   return response
 }
@@ -79,8 +79,6 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     '/auth/callback',
-    '/dashboard/:path*',
-    '/auth/:path*',
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
