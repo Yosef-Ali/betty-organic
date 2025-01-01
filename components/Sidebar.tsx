@@ -4,8 +4,8 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { Home, ShoppingBag, ShoppingCart, Package, Users2, Users, LineChart, Settings, ChevronLeft, ChevronRight, X } from "lucide-react"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Button } from "@/components/ui/button"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip'
+import { Button } from './ui/button'
 
 interface SidebarProps {
   expanded: boolean

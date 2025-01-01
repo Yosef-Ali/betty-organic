@@ -1,10 +1,20 @@
-// app/products/ProductList.tsx
+// components/dashboard/ProductList.tsx
 
 'use client'
 
 import { useState } from 'react'
-import { Product as PrismaProduct } from '@prisma/client'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
+
+// Define the base Product type
+interface PrismaProduct {
+  id: string
+  name: string
+  price: number
+  stock: number
+  imageUrl: string | null
+  createdAt: Date
+}
 
 // Extend the Prisma Product type to make totalSales optional
 type Product = Omit<PrismaProduct, 'totalSales'> & { totalSales?: number, status: string }
@@ -63,18 +73,18 @@ export default function ProductList({ initialProducts }: ProductListProps) {
             {products.map((product) => (
               <TableRow key={product.id}>
                 <TableCell className="hidden sm:table-cell">
-                  <img
+                  <Image
                     alt="Product image"
                     className="aspect-square rounded-md object-cover"
-                    height="64"
+                    height={64}
                     src={product.imageUrl ?? ''}
-                    width="64"
+                    width={64}
                   />
                 </TableCell>
                 <TableCell>{product.name}</TableCell>
                 <TableCell>
-                  <Badge variant={product.status.toLowerCase() === 'active' ? 'default' : 'secondary'}>
-                    {product.status}
+                  <Badge variant={(product.status?.toLowerCase() || 'inactive') === 'active' ? 'default' : 'secondary'}>
+                    {product.status || 'Inactive'}
                   </Badge>
                 </TableCell>
                 <TableCell>${product.price.toFixed(2)}</TableCell>
@@ -108,7 +118,7 @@ export default function ProductList({ initialProducts }: ProductListProps) {
             ))}
           </TableBody>
         </Table>
-      </CardContent>
-    </Card>
+      </CardContent >
+    </Card >
   )
 }
