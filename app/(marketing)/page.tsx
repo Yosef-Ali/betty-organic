@@ -4,17 +4,15 @@ import { DeliveryServices } from "@/components/delivery-services";
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
 import { Hero } from "@/components/Hero";
-
 import { Navigation } from "@/components/Navigation";
 import { ProductSection } from "@/components/products/product-section";
 import { TestimonialSection } from "@/components/testimonials/testimonial-section";
-
-
+import ChatWidget from "@/components/ChatWidget";
 import Image from "next/image";
 
 export default function Home() {
   return (
-    <main className="flex flex-col items-center bg-[#ffc600]">
+    <main className="flex flex-col items-center bg-[#ffc600] relative">
       <Navigation isAdmin={false} />
       <Hero />
       <div className="w-full max-w-[1440px] px-4 sm:px-6 lg:px-8">
@@ -35,6 +33,7 @@ export default function Home() {
           <TestimonialSection />
         </div>
       </div>
+      <ChatWidget />
       <Footer />
     </main>
   );

@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Printer, Lock, Unlock, Share2 } from "lucide-react";
-import { WhatsappIcon } from "lucide-react"; // Add WhatsappIcon
 import {
   Select,
   SelectContent,

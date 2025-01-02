@@ -1,8 +1,6 @@
-// app/components/marketing/MarketingLayout.tsx
-
-import Footer from "@/components/Footer"
-import Header from "@/components/Header"
-
+import Footer from 'components/Footer';
+import Header from 'components/Header';
+import ChatWidget from './ChatWidget';
 
 export default function MarketingLayout({
   children
@@ -14,10 +12,13 @@ export default function MarketingLayout({
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col relative">
       <Header onMobileMenuToggle={handleMobileMenuToggle} />
-      <main className="flex-grow">{children}</main>
+      <main className="flex-grow">
+        {children}
+        <ChatWidget />
+      </main>
       <Footer />
     </div>
-  )
+  );
 }

@@ -60,7 +60,7 @@ export const CartFooter: FC<CartFooterProps> = ({
   };
 
   return (
-    <CardFooter className="flex-col items-stretch gap-6 pt-4">
+    <CardFooter className="flex-col items-stretch gap-6 pt-4 print:hidden">
       <Separator />
       <div className="flex justify-between items-center">
         <span className="font-semibold text-lg">Total:</span>

@@ -18,11 +18,10 @@ import {
 interface PrintPreviewModalProps {
   isOpen: boolean;
   onClose: () => void;
-  items: { name: string; quantity: number; price: number; }[];
+  items: { name: string; quantity: number; price: number }[];
   total: number;
   customerInfo: string;
-  customerId?: string; // Marked as optional with ?
-  // ... other properties
+  customerId?: string;
 }
 
 export const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
@@ -38,26 +37,21 @@ export const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
   };
 
   const generateShareText = () => {
-    const storeName = "Betty Organics"; // Replace with your actual store name
-    const orderNumber = Date.now().toString().slice(-6); // Last 6 digits of timestamp
+    const storeName = "Betty Organics";
+    const orderNumber = Date.now().toString().slice(-6);
 
     let text = `🛍️ Just shopped at ${storeName}!\n`;
     text += `🧾 Order #${orderNumber}\n\n`;
-
     text += "🛒 My haul:\n";
     items.forEach((item, index) => {
       text += `${index + 1}. ${item.name} (${item.quantity.toFixed(3)}kg) - $${item.price.toFixed(2)}\n`;
     });
-
     text += `\n💰 Total spent: $${total.toFixed(2)}\n\n\n#HealthyChoices\n\n`;
-
     if (customerInfo) {
       text += `📞 Contact: ${customerInfo}\n\n`;
     }
-
     text += `🕒 ${new Date().toLocaleString()}\n`;
     text += `🔗 Check them out: ${window.location.origin}`;
-
     return encodeURIComponent(text);
   };
 
@@ -71,72 +65,103 @@ export const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>Thermal Print Preview</DialogTitle>
-        </DialogHeader>
-        <div className="border p-4 rounded bg-white">
-          <div className="text-center mb-4">
-            <h2 className="text-xl font-bold">Receipt</h2>
-            <p className="text-sm text-gray-500">
-              Thank you for your purchase!
-            </p>
-          </div>
-          {customerInfo && (
-            <div className="mb-4 text-center">
-              <p className="text-sm">Customer Info: {customerInfo}</p>
-              {customerId && <p className="text-sm">Customer ID: {customerId}</p>}
+    <>
+      {/* Print-only styles */}
+      <style>
+        {`
+          @media print {
+            body * {
+              visibility: hidden;
+            }
+            .print-content, .print-content * {
+              visibility: visible;
+            }
+            .print-content {
+              position: absolute;
+              left: 0;
+              top: 0;
+              width: 100%;
+            }
+            .no-print {
+              display: none !important;
+            }
+          }
+        `}
+      </style>
+
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader className="no-print">
+            <DialogTitle>Thermal Print Preview</DialogTitle>
+          </DialogHeader>
+
+          {/* Printable content */}
+          <div className="print-content border p-4 rounded bg-white">
+            <div className="text-center mb-4">
+              <h2 className="text-xl font-bold">Receipt</h2>
+              <p className="text-sm text-gray-500">
+                Thank you for your purchase!
+              </p>
             </div>
-          )}
-          <div className="mb-4">
-            <h3 className="font-semibold mb-2">Items:</h3>
-            <ul className="space-y-1">
-              {items.map((item, index) => (
-                <li key={index} className="flex justify-between text-sm">
-                  <span>
-                    {item.name} x{item.quantity.toFixed(3)}kg
-                  </span>
-                  <span>${item.price.toFixed(2)}</span>
-                </li>
-              ))}
-            </ul>
+            {customerInfo && (
+              <div className="mb-4 text-center">
+                <p className="text-sm">Customer Info: {customerInfo}</p>
+                {customerId && <p className="text-sm">Customer ID: {customerId}</p>}
+              </div>
+            )}
+            <div className="mb-4">
+              <h3 className="font-semibold mb-2">Items:</h3>
+              <ul className="space-y-1">
+                {items.map((item, index) => (
+                  <li key={index} className="flex justify-between text-sm">
+                    <span>
+                      {item.name} x{item.quantity.toFixed(3)}kg
+                    </span>
+                    <span>${item.price.toFixed(2)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="flex justify-between font-bold mb-4">
+              <span>Total:</span>
+              <span>${total.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-center mb-4">
+              <Barcode value={`ORDER-${Date.now()}`} width={1.5} height={50} />
+            </div>
+            <div className="text-center text-xs text-gray-500">
+              <p>Order ID: {Date.now()}</p>
+              <p>{new Date().toLocaleString()}</p>
+            </div>
           </div>
-          <div className="flex justify-between font-bold mb-4">
-            <span>Total:</span>
-            <span>${total.toFixed(2)}</span>
+
+          {/* Non-printable controls */}
+          <div className="flex justify-end mt-4 space-x-2 no-print">
+            <Button onClick={handlePrint}>
+              <Printer className="mr-2 h-4 w-4" />
+              Print
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">
+                  <Share2 className="mr-2 h-4 w-4" />
+                  Share
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onClick={() => handleShare("telegram")}>
+                  Share on Telegram
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleShare("whatsapp")}>
+                  Share on WhatsApp
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-          <div className="flex justify-center mb-4">
-            <Barcode value={`ORDER-${Date.now()}`} width={1.5} height={50} />
-          </div>
-          <div className="text-center text-xs text-gray-500">
-            <p>Order ID: {Date.now()}</p>
-            <p>{new Date().toLocaleString()}</p>
-          </div>
-        </div>
-        <div className="flex justify-end mt-4 space-x-2">
-          <Button onClick={handlePrint}>
-            <Printer className="mr-2 h-4 w-4" />
-            Print
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline">
-                <Share2 className="mr-2 h-4 w-4" />
-                Share
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem onClick={() => handleShare("telegram")}>
-                Share on Telegram
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleShare("whatsapp")}>
-                Share on WhatsApp
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
+
+export default PrintPreviewModal;
