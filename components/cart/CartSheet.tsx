@@ -39,6 +39,7 @@ export const CartSheet: FC<CartSheetProps> = ({ isOpen, onOpenChange }) => {
   const [otp, setOtp] = useState(["", "", "", ""]);
   const [hasToggledLock, setHasToggledLock] = useState(false);
   const [isOrderSaved, setIsOrderSaved] = useState(false); // NEW STATE
+  const [orderNumber, setOrderNumber] = useState<string>(""); // NEW STATE
 
   const pathname = usePathname(); // Use pathname instead of searchParams
 
@@ -122,9 +123,11 @@ export const CartSheet: FC<CartSheetProps> = ({ isOpen, onOpenChange }) => {
       }))));
       formData.append("customerInfo", customerInfo);
 
+      const uniqueOrderNumber = "ORDER-" + Date.now();
+      formData.append("orderNumber", uniqueOrderNumber);
+      setOrderNumber(uniqueOrderNumber);
+
       await createOrder(formData);
-      clearCart();
-      onOpenChange(false);
 
       setIsOrderSaved(true); // SET ORDER AS SAVED
     } catch (error) {
@@ -134,6 +137,12 @@ export const CartSheet: FC<CartSheetProps> = ({ isOpen, onOpenChange }) => {
       setIsSaving(false);
     }
   };
+
+  const handleCloseCart = () => {
+    clearCart(); // Only clear and close now if user chooses
+    onOpenChange(false);
+  };
+
   const handleConfirmDialog = (action: "save" | "cancel") => {
     setConfirmAction(action);
     setIsConfirmDialogOpen(true);
@@ -162,7 +171,6 @@ export const CartSheet: FC<CartSheetProps> = ({ isOpen, onOpenChange }) => {
   const handleOtpChange = (index: number, value: string) => {
     const newOtp = [...otp];
     newOtp[index] = value;
-    setOtp(newOtp);
 
     if (value !== "" && index < 3) {
       const nextInput = document.getElementById(`otp-${index + 1}`);
@@ -217,6 +225,7 @@ export const CartSheet: FC<CartSheetProps> = ({ isOpen, onOpenChange }) => {
                       isSaving={isSaving}
                       onPrintPreview={handleThermalPrintPreview} // PASS THE NEW PROP HERE
                       isOrderSaved={isOrderSaved} // NEW PROP
+                      orderNumber={orderNumber} // PASS NEW PROP
                     />
                   )}
                 </AnimatePresence>
@@ -234,6 +243,11 @@ export const CartSheet: FC<CartSheetProps> = ({ isOpen, onOpenChange }) => {
               )}
             </CardContent>
           </Card>
+          {isOrderConfirmed && (
+            <Button variant="outline" onClick={handleCloseCart}>
+              Done
+            </Button>
+          )}
         </SheetContent>
       </Sheet>
       <PrintPreviewModal

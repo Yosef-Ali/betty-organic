@@ -37,6 +37,7 @@ interface OrderSummaryProps {
   isSaving: boolean;
   onPrintPreview: () => void; // NEW PROP
   isOrderSaved: boolean; // NEW PROP
+  orderNumber?: string; // NEW PROP
 }
 
 export const OrderSummary: FC<OrderSummaryProps> = ({
@@ -52,6 +53,7 @@ export const OrderSummary: FC<OrderSummaryProps> = ({
   isSaving,
   onPrintPreview, // NEW PROP
   isOrderSaved, // NEW PROP
+  orderNumber, // NEW PROP
 }) => {
   const WHATSAPP_NUMBER = '251947385509'; // Group leader's number
   const WHATSAPP_GROUP_LINK = 'https://chat.whatsapp.com/your-group-invite-link'; // Replace with actual group invite link
@@ -150,6 +152,11 @@ ${storeInfo}`;
           </DropdownMenu>
         </div>
       </div>
+      {orderNumber && (
+        <p className="text-sm text-muted-foreground">
+          Order #: {orderNumber}
+        </p>
+      )}
       <div className="space-y-2 mb-4">
         {items.map((item) => (
           <div key={item.id} className="flex justify-between text-sm">
