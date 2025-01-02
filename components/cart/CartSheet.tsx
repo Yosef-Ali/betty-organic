@@ -38,6 +38,7 @@ export const CartSheet: FC<CartSheetProps> = ({ isOpen, onOpenChange }) => {
   const [isOtpDialogOpen, setIsOtpDialogOpen] = useState(false);
   const [otp, setOtp] = useState(["", "", "", ""]);
   const [hasToggledLock, setHasToggledLock] = useState(false);
+  const [isOrderSaved, setIsOrderSaved] = useState(false); // NEW STATE
 
   const pathname = usePathname(); // Use pathname instead of searchParams
 
@@ -57,7 +58,7 @@ export const CartSheet: FC<CartSheetProps> = ({ isOpen, onOpenChange }) => {
   };
 
   const handleThermalPrintPreview = () => {
-    setIsThermalPrintPreviewOpen(true);
+    setIsThermalPrintPreviewOpen(true); // opens the PrintPreviewModal
   };
 
   const handlePrint = () => {
@@ -124,6 +125,8 @@ export const CartSheet: FC<CartSheetProps> = ({ isOpen, onOpenChange }) => {
       await createOrder(formData);
       clearCart();
       onOpenChange(false);
+
+      setIsOrderSaved(true); // SET ORDER AS SAVED
     } catch (error) {
       console.error("Failed to save order:", error);
       // Handle error (e.g., show error message to user)
@@ -212,6 +215,8 @@ export const CartSheet: FC<CartSheetProps> = ({ isOpen, onOpenChange }) => {
                       handleToggleLock={handleToggleLock}
                       handleConfirmDialog={handleConfirmDialog}
                       isSaving={isSaving}
+                      onPrintPreview={handleThermalPrintPreview} // PASS THE NEW PROP HERE
+                      isOrderSaved={isOrderSaved} // NEW PROP
                     />
                   )}
                 </AnimatePresence>

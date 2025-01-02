@@ -35,6 +35,8 @@ interface OrderSummaryProps {
   handleToggleLock: () => void;
   handleConfirmDialog: (action: "save" | "cancel") => void;
   isSaving: boolean;
+  onPrintPreview: () => void; // NEW PROP
+  isOrderSaved: boolean; // NEW PROP
 }
 
 export const OrderSummary: FC<OrderSummaryProps> = ({
@@ -48,6 +50,8 @@ export const OrderSummary: FC<OrderSummaryProps> = ({
   handleToggleLock,
   handleConfirmDialog,
   isSaving,
+  onPrintPreview, // NEW PROP
+  isOrderSaved, // NEW PROP
 }) => {
   const WHATSAPP_NUMBER = '251947385509'; // Group leader's number
   const WHATSAPP_GROUP_LINK = 'https://chat.whatsapp.com/your-group-invite-link'; // Replace with actual group invite link
@@ -118,7 +122,7 @@ ${storeInfo}`;
       <div className="flex justify-between items-center mb-4">
         <h3 className="font-semibold text-lg">Order Summary</h3>
         <div className="flex space-x-2">
-          <Button variant="outline" size="sm" onClick={() => window.print()}>
+          <Button variant="outline" size="sm" onClick={onPrintPreview} disabled={!isOrderSaved}>
             <Printer className="h-4 w-4 mr-2" />
             Print
           </Button>
