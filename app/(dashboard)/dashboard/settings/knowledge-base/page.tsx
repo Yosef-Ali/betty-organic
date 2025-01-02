@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { browserClient as supabase } from '@/lib/supabase/client';
+import { browserClient as supabase, getAuthenticatedClient } from '@/lib/supabase/client';
 import {
   KnowledgeBaseEntry,
   NewKnowledgeBaseEntry,
@@ -24,9 +24,7 @@ export default function KnowledgeBasePage() {
   useEffect(() => {
     const loadEntries = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error('Not authenticated');
-
+        await getAuthenticatedClient(); // Verify authentication first
         const data = await fetchKnowledgeBaseEntries();
         setEntries(data);
       } catch (err) {
@@ -42,6 +40,11 @@ export default function KnowledgeBasePage() {
 
   const handleAddEntry = async () => {
     try {
+      // Only call getUser() right before performing the secured action
+      const client = await getAuthenticatedClient();
+      const { data: { user }, error } = await client.auth.getUser();
+      if (error || !user) throw new Error('Not authenticated');
+
       await addKnowledgeBaseEntry(newEntry);
       const data = await fetchKnowledgeBaseEntries();
       setEntries(data);
@@ -58,6 +61,10 @@ export default function KnowledgeBasePage() {
 
   const handleDeleteEntry = async (id: number) => {
     try {
+      const client = await getAuthenticatedClient();
+      const { data: { user }, error } = await client.auth.getUser();
+      if (error || !user) throw new Error('Not authenticated');
+
       await deleteKnowledgeBaseEntry(id);
       const data = await fetchKnowledgeBaseEntries();
       setEntries(data);
