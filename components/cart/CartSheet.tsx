@@ -14,7 +14,7 @@ import { CartFooter } from "./CartFooter";
 import { PrintPreviewModal } from "../PrintPreviewModal";
 import { AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeftIcon, X, Share2 } from "lucide-react"; // Update import to use just ChevronLeftIcon and add Share2 icon import
 import { OtpDialog } from "./OtpDialog";
 import ConfirmDialog from "./ConfirmDialog";
 import { CartItems } from "./CartItems";
@@ -62,6 +62,31 @@ export const CartSheet: FC<CartSheetProps> = ({ isOpen, onOpenChange }) => {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleShare = async () => {
+    try {
+      const orderDetails = items.map(item =>
+        `${item.name} (${item.grams}g): Br ${((item.pricePerKg * item.grams) / 1000).toFixed(2)}`
+      ).join('\n');
+
+      const shareText = `*Betty Organic Order*\n\n${orderDetails}\n\n*Total: Br ${getTotalAmount().toFixed(2)}*`;
+
+      // Try Web Share API first
+      if (navigator.share) {
+        await navigator.share({
+          title: 'Betty Organic Order',
+          text: shareText,
+          url: window.location.href,
+        });
+      } else {
+        // WhatsApp fallback
+        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+        window.open(whatsappUrl, '_blank');
+      }
+    } catch (error) {
+      console.error('Error sharing:', error);
+    }
   };
 
   const handleConfirmOrder = async () => {
@@ -155,22 +180,18 @@ export const CartSheet: FC<CartSheetProps> = ({ isOpen, onOpenChange }) => {
     <>
       <Sheet open={isOpen} onOpenChange={onOpenChange}>
         <SheetContent className="w-full sm:max-w-lg flex flex-col h-full">
-          <SheetHeader className="relative flex flex-row items-center justify-start space-x-4">
-            <div className="flex items-center space-x-4">
-              {isOrderConfirmed && (
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={handleBackToCart}
-                  className="h-8 w-8 flex items-center justify-center"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                  <span className="sr-only">Back</span>
-                </Button>
-              )}
-              <SheetTitle className="text-2xl m-0 flex items-center">
-                {isOrderConfirmed ? "Order Confirmed" : "Your Cart"}
-              </SheetTitle>
+          <SheetHeader className="space-y-0 pb-4">
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => isOrderConfirmed ? handleBackToCart() : onOpenChange(false)}
+                className="h-8 w-8 p-0 flex items-center justify-center"
+              >
+                <ChevronLeftIcon className="h-4 w-4" />
+                <span className="sr-only">Back</span>
+              </Button>
+              <SheetTitle>{isOrderConfirmed ? 'Order Summary' : 'Your Cart'}</SheetTitle>
             </div>
           </SheetHeader>
           <Card className="flex-grow mt-4 border-0 shadow-none overflow-hidden flex flex-col">
@@ -201,8 +222,7 @@ export const CartSheet: FC<CartSheetProps> = ({ isOpen, onOpenChange }) => {
                   isPrintPreview={false}
                   onPrintPreview={handlePrint}
                   onPrint={handlePrint}
-                  onCancel={() => { }}
-                  onThermalPrintPreview={handleThermalPrintPreview}
+                  onShare={handleShare}
                   onConfirmOrder={handleConfirmOrder}
                   isOrderConfirmed={isOrderConfirmed}
                 />

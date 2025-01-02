@@ -1,5 +1,5 @@
 import { FC, useState } from "react";
-import { Printer, Tag, ArrowRight, X, Loader2 } from "lucide-react";
+import { Printer, Tag, ArrowRight, X, Loader2, Share2 } from "lucide-react";
 import { CardFooter } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
@@ -17,8 +17,8 @@ export interface CartFooterProps {
   isPrintPreview: boolean;
   onPrintPreview: () => void;
   onPrint: () => void;
-  onCancel: () => void;
-  onThermalPrintPreview: () => void;
+  onCancel?: () => void; // Make onCancel optional
+  onShare: () => void;
   onConfirmOrder: () => Promise<void>;
   isOrderConfirmed: boolean;
 }
@@ -26,9 +26,10 @@ export interface CartFooterProps {
 export const CartFooter: FC<CartFooterProps> = ({
   getTotalAmount,
   onPrintPreview,
-  onThermalPrintPreview,
+  onShare,
   onConfirmOrder,
   isOrderConfirmed,
+  onCancel, // Add to destructuring
 }) => {
   const [coupon, setCoupon] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState("");
@@ -154,8 +155,9 @@ export const CartFooter: FC<CartFooterProps> = ({
               <Printer className="mr-2 h-4 w-4" />
               Print
             </Button>
-            <Button variant="outline" onClick={onThermalPrintPreview}>
-              Thermal Print
+            <Button variant="outline" onClick={onShare}>
+              <Share2 className="mr-2 h-4 w-4" />
+              Share
             </Button>
           </motion.div>
         )}
