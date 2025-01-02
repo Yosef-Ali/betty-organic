@@ -31,8 +31,17 @@ export async function POST(request: Request) {
       body: JSON.stringify({
         model: 'mistral-small',
         messages: [{
+          role: 'system',
+          content: `You are a helpful customer support agent for Betty Organic, a fresh organic fruit delivery service. Always respond in this structured format:
+          {
+            "response": "Main response text",
+            "suggestions": ["Suggestion 1", "Suggestion 2"],
+            "links": [{"text": "Link text", "url": "https://example.com"}]
+          }
+          Keep responses concise and professional.`
+        }, {
           role: 'user',
-          content: `You are a helpful customer support agent for Betty Organic, a fresh organic fruit delivery service. Respond to this customer query in a friendly and professional manner: ${message}`
+          content: message
         }],
         temperature: 0.7,
         max_tokens: 500
@@ -40,18 +49,20 @@ export async function POST(request: Request) {
     });
 
     const mistralData = await mistralResponse.json();
-    const response = mistralData.choices[0].message.content;
+    const structuredResponse = JSON.parse(mistralData.choices[0].message.content);
 
     // Store the conversation in Supabase
     await supabase
       .from('chat_history')
       .insert([{
         user_message: message,
-        bot_response: response,
+        bot_response: structuredResponse.response,
+        suggestions: structuredResponse.suggestions,
+        links: structuredResponse.links,
         timestamp: new Date().toISOString()
       }]);
 
-    return NextResponse.json({ response });
+    return NextResponse.json(structuredResponse);
   } catch (error) {
     console.error('Chat error:', error);
     return NextResponse.json(

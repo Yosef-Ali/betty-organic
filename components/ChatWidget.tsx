@@ -26,7 +26,12 @@ const ChatWidget: React.FC = () => {
     });
 
     const data = await res.json();
-    setMessages(prev => [...prev, { text: data.response, sender: 'bot' }]);
+    setMessages(prev => [
+      ...prev,
+      { text: data.response, sender: 'bot' },
+      ...(data.suggestions?.map((suggestion: string) => ({ text: `💡 ${suggestion}`, sender: 'bot' })) || []),
+      ...(data.links?.map((link: { text: string, url: string }) => ({ text: `🔗 ${link.text}: ${link.url}`, sender: 'bot' })) || [])
+    ]);
 
     setInputText('');
   };

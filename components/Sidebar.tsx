@@ -64,7 +64,7 @@ export default function Sidebar({ expanded, onToggle, mobileMenuOpen, onMobileMe
         ))}
       </nav>
       <div className="px-2 py-5">
-        <SidebarLink href="/settings" icon={Settings} label="Settings" expanded={expanded || isMobile} onClick={isMobile ? onMobileMenuClose : undefined} />
+        <SidebarLink href="/dashboard/settings" icon={Settings} label="Settings" expanded={expanded || isMobile} onClick={isMobile ? onMobileMenuClose : undefined} />
       </div>
       {!isMobile && <ToggleButton expanded={expanded} onClick={toggleSidebar} />}
     </>
