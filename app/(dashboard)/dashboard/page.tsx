@@ -42,14 +42,14 @@ export default async function DashboardPage() {
           {/* <OrdersSummary /> */}
 
           {/* Main content grid */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-            {/* Recent sales card - spans 3 columns */}
-            <div className="col-span-4">
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-7">
+            {/* Recent sales card - full width on mobile, spans 4 columns on larger screens */}
+            <div className="col-span-1 md:col-span-1 lg:col-span-4">
               <RecentSales data={salesData} />
             </div>
 
-            {/* Recent transactions card - spans 3 columns */}
-            <div className="col-span-3">
+            {/* Recent transactions card - full width on mobile, spans 3 columns on larger screens */}
+            <div className="col-span-1 md:col-span-1 lg:col-span-3">
               <RecentTransactions data={transactions} />
             </div>
           </div>

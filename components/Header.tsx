@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Search, PanelLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,12 +13,20 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'; // Import Supabase client
 import { Home, ShoppingBag, ShoppingCart, Package, Users2, LineChart } from "lucide-react";
 import Breadcrumb from "./Breadcrumb";
+import { User as SupabaseUser } from '@supabase/supabase-js'; // Import Supabase User type
 
 interface HeaderProps {
   onMobileMenuToggle: () => void;
+}
+
+// Extend the Supabase User type to include avatar_url in user_metadata
+interface User extends SupabaseUser {
+  user_metadata: {
+    avatar_url: string;
+  };
 }
 
 const navItems = [
@@ -32,11 +40,28 @@ const navItems = [
 
 export default function Header({ onMobileMenuToggle }: HeaderProps) {
   const pathname = usePathname();
+  const router = useRouter();
+  const supabase = createClientComponentClient();
   const [clientPathname, setClientPathname] = useState('');
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
     setClientPathname(pathname);
   }, [pathname]);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user as User); // Cast the user to the extended User type
+    };
+
+    fetchUser();
+  }, [supabase]);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    router.push('/auth/signin');
+  };
 
   const generateBreadcrumbs = () => {
     if (!clientPathname || typeof clientPathname !== 'string') {
@@ -68,7 +93,7 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
   };
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:p-6">
+    <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background/80 px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:p-6"> {/* Added /80 for opacity */}
       <Button size="icon" variant="outline" className="sm:hidden" onClick={onMobileMenuToggle}>
         <PanelLeft className="h-5 w-5" />
         <span className="sr-only">Toggle Menu</span>
@@ -89,13 +114,23 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
             size="icon"
             className="overflow-hidden rounded-full"
           >
-            <Image
-              src="/placeholder-user.webp"
-              width={36}
-              height={36}
-              alt="Avatar"
-              className="overflow-hidden rounded-full"
-            />
+            {user ? (
+              <Image
+                src={user.user_metadata.avatar_url || "/placeholder-user.webp"}
+                width={36}
+                height={36}
+                alt="Avatar"
+                className="overflow-hidden rounded-full"
+              />
+            ) : (
+              <Image
+                src="/placeholder-user.webp"
+                width={36}
+                height={36}
+                alt="Avatar"
+                className="overflow-hidden rounded-full"
+              />
+            )}
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
@@ -104,7 +139,7 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
           <DropdownMenuItem>Settings</DropdownMenuItem>
           <DropdownMenuItem>Support</DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem>Logout</DropdownMenuItem>
+          <DropdownMenuItem onClick={handleSignOut}>Logout</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </header>
