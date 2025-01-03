@@ -1,9 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { getOrders } from '@/app/actions/orderActions';
+import { Card, CardContent, CardHeader, CardTitle } from 'components/ui/card';
+import { Avatar, AvatarFallback, AvatarImage } from 'components/ui/avatar';
+import { getOrders } from 'app/actions/orderActions';
 
 interface Sale {
   id: string;
@@ -66,23 +66,19 @@ export function RecentSales({ data }: RecentSalesProps) {
   if (orders.length === 0) return <div>No orders found</div>;
 
   function getCustomerDisplay(customer: Sale['customer']) {
-    // Step 1: Check if the customer info has no fullName
     if (!customer.fullName) {
-      // Step 2: If no fullName, check phone number
       if (customer.phone) {
         return {
           primaryInfo: customer.phone,
           secondaryInfo: null
         };
       } else {
-        // If no phone either, leave empty
         return {
           primaryInfo: 'Anonymous',
           secondaryInfo: null
         };
       }
     } else {
-      // If there is a fullName
       return {
         primaryInfo: customer.fullName,
         secondaryInfo: customer.email || (customer.phone !== customer.fullName ? customer.phone : null)
@@ -116,7 +112,7 @@ export function RecentSales({ data }: RecentSalesProps) {
                     <p className="text-sm text-muted-foreground">{customerDisplay.secondaryInfo}</p>
                   )}
                 </div>
-                <div className="ml-auto font-medium">{sale.totalAmount.toFixed(2)} Br</div> {/* Updated to one decimal place */}
+                <div className="ml-auto font-medium">{sale.totalAmount.toFixed(2)} Br</div>
               </div>
             );
           })

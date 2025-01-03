@@ -1,29 +1,22 @@
 'use server';
 
+import {
+  Product,
+  DbProductInsert as ProductInsert,
+  DbProductUpdate as ProductUpdate
+} from '@/lib/supabase/db.types';
 import { supabase } from '@/lib/supabase/supabaseClient';
 import { revalidatePath } from 'next/cache';
 import { v4 as uuidv4 } from 'uuid';
+import { createClient } from 'lib/supabase/client';
 
-// Add Product type export
-export interface Product {
-  id: string;
-  name: string;
-  price: number;
-  stock: number;
-  imageUrl: string;
-  createdAt: Date;
-  status: string;  // Added status field
-  totalSales?: number;  // Added optional totalSales field
-  // Add other properties as needed
-}
-
-export const createProduct = async (formData: FormData) => {
+export const createProduct = async (formData: FormData): Promise<Product> => {
   try {
     // Input validation
-    const name = formData.get('name');
-    const description = formData.get('description');
-    const priceStr = formData.get('price');
-    const stockStr = formData.get('stock');
+    const name = formData.get('name') as string;
+    const description = formData.get('description') as string | null;
+    const priceStr = formData.get('price') as string;
+    const stockStr = formData.get('stock') as string;
 
     if (!name || typeof name !== 'string') {
       throw new Error('Name is required');
@@ -39,18 +32,20 @@ export const createProduct = async (formData: FormData) => {
     const productId = uuidv4(); // Generate UUID here
 
     const now = new Date().toISOString();
+    const productData: ProductInsert = {
+      id: productId,
+      name,
+      description: description || '',
+      price,
+      stock,
+      imageUrl: '/placeholder.svg',
+      createdAt: now,
+      updatedAt: now
+    };
+
     const { data: product, error } = await supabase
       .from('products')
-      .insert({
-        id: productId, // Include the generated UUID
-        name,
-        description: description || '',
-        price,
-        stock,
-        imageUrl: '/placeholder.svg',
-        createdAt: now,
-        updatedAt: now
-      })
+      .insert(productData)
       .select()
       .single();
 
@@ -73,11 +68,18 @@ export const createProduct = async (formData: FormData) => {
 
 export async function updateProduct(id: string, data: FormData) {
   try {
-    const updates: Record<string, any> = {};
+    const updates: ProductUpdate = {};
 
-    // Only include fields that are present in the FormData
+    // Properly type and handle FormData values
     for (const [key, value] of data.entries()) {
-      updates[key] = value;
+      if (value instanceof File) continue; // Skip file inputs
+      if (key === 'price') {
+        updates.price = parseFloat(value.toString());
+      } else if (key === 'stock') {
+        updates.stock = parseInt(value.toString(), 10);
+      } else if (key in updates) {
+        (updates as any)[key] = value.toString();
+      }
     }
 
     const { data: product, error } = await supabase
@@ -129,35 +131,20 @@ export async function getProductImages(productId: string) {
 }
 
 export async function getProducts(): Promise<Product[]> {
+  const supabase = createClient();
   try {
-    console.log('Fetching products from Supabase');
-    const { data: products, error } = await supabase
+    const { data, error } = await supabase
       .from('products')
-      .select(`
-        *,
-        order_item(quantity)
-      `);
+      .select('*')
+      .order('createdAt', { ascending: false });
 
-    if (error) {
-      console.error('Error fetching products:', error);
-      throw new Error('Failed to fetch products');
-    }
-
-    const mappedProducts: Product[] = products.map(product => ({
-      id: product.id,
-      name: product.name,
-      price: product.price,
-      stock: product.stock,
-      imageUrl: product.imageUrl,
-      createdAt: new Date(product.createdAt),
-      status: product.status || 'active', // Default status
-      totalSales: product.order_item?.reduce((sum: number, item: any) => sum + item.quantity, 0) || 0
+    if (error) throw error;
+    return (data || []).map(product => ({
+      ...product,
+      totalSales: product.totalSales || 0
     }));
-
-    console.log('Fetched products:', mappedProducts);
-    return mappedProducts;
   } catch (error) {
-    console.error('Error fetching products:', error);
+    console.error('Error in getProducts:', error);
     throw new Error('Failed to fetch products');
   }
 }

@@ -3,7 +3,8 @@
 import { UTApi } from "uploadthing/server";
 import { revalidatePath } from 'next/cache';
 import { supabase } from '@/lib/supabase/supabaseClient';
-import { Customer } from '../../types';
+import { Database } from '@/lib/supabase/database.types';
+type Customer = Database['public']['Tables']['customers']['Row'];
 import { v4 as uuidv4 } from 'uuid';
 
 const utapi = new UTApi();
@@ -78,7 +79,7 @@ export async function createCustomer(formData: FormData) {
   }
 }
 
-export async function updateCustomer(data: Customer) {
+export async function updateCustomer(data: Database['public']['Tables']['customers']['Update']) {
   try {
     console.log('Updating customer with data:', data);
     const { data: customer, error } = await supabase
@@ -89,7 +90,7 @@ export async function updateCustomer(data: Customer) {
         phone: data.phone,
         location: data.location,
         status: data.status,
-        image_url: data.imageUrl
+        image_url: data.image_url
       })
       .eq('id', data.id)
       .select()

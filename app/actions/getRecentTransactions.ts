@@ -3,23 +3,18 @@
 import { supabase } from '@/lib/supabase/supabaseClient';
 
 // Define a type for the transaction
-interface Transaction {
-  customer: {
-    full_name: string;
-    email: string | null;
-  };
-  type: string;
-  status: string;
-  created_at: string | null;
-  total_amount: number;
-}
+import { Database } from '@/lib/supabase/database.types';
+
+type Transaction = Database['public']['Tables']['orders']['Row'] & {
+  customer: Database['public']['Tables']['customers']['Row'];
+};
 
 // **Export the MappedTransaction interface**
 export interface MappedTransaction {
   customer: string;
   email: string;
-  type: string;
-  status: string;
+  type: Database['public']['Tables']['orders']['Row']['type'];
+  status: Database['public']['Tables']['orders']['Row']['status'];
   date: string;
   amount: string;
 }
@@ -59,7 +54,11 @@ export async function getRecentTransactions(): Promise<MappedTransaction[]> {
 }
 
 // Update the mapTransactions function
-export async function mapTransactions(transactions: Transaction[]): Promise<Pick<MappedTransaction, 'customer' | 'email'>[]> {
+export async function mapTransactions(
+  transactions: (Database['public']['Tables']['orders']['Row'] & {
+    customer: Database['public']['Tables']['customers']['Row'];
+  })[]
+): Promise<Pick<MappedTransaction, 'customer' | 'email'>[]> {
   if (!transactions) {
     throw new Error('No transactions provided to map');
   }

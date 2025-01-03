@@ -1,72 +1,61 @@
-export type ProductStatus = 'ACTIVE' | 'INACTIVE';
+import type {
+  DbProduct,
+  DbOrder,
+  DbOrderItem,
+  DbCustomer,
+  OrderType,
+  OrderStatus,
+  CustomerStatus
+} from '@/lib/supabase/db.types'
 
-export type Customer = {
-  id: string;
-  full_name: string;
-  email: string;
-  phone?: string | null;
-  location?: string | null;
-  status: 'active' | 'inactive';
-  imageUrl?: string | null;  // Changed from image_url to imageUrl
-};
-
-export interface Product {
-  id: string;
-  name: string;
-  price: number;
-  imageUrl: string;  // Changed from image_url to imageUrl
-  description: string | null;
-  stock: number;
-  unit: string;
-  createdAt: string;
-  updatedAt: string;
-  totalSales: number;
+// Application Product type that extends database type
+export interface Product extends DbProduct {
+  totalSales: number  // Make totalSales required
 }
 
-export type OrderType = 'sale' | 'refund' | 'credit'; // Define OrderType
-
-export type Order = {
-  id: string;
+// Application Order type
+export interface Order extends Omit<DbOrder, 'customer_id' | 'total_amount'> {
   customerId: string;
-  status: string;
-  type: OrderType;
   totalAmount: number;
-  createdAt: string;
-  customer?: Customer | null; // Optional customer information
-  items?: OrderItem[]; // Optional order items
-};
+  customer: Customer | null;
+  items: OrderItem[];
+}
 
-export type OrderItem = {
-  id: string;
+// Application OrderItem type
+export interface OrderItem extends Omit<DbOrderItem, 'order_id' | 'product_id'> {
   orderId: string;
   productId: string;
-  quantity: number;
-  price: number;
-  product?: Product | null; // Optional product information
-};
+  product?: Product | null;
+}
 
-export type ExtendedOrder = Order & {
-  customer: Customer | null;
-};
+// Application Customer type
+export interface Customer extends Omit<DbCustomer, 'image_url'> {
+  imageUrl: string | null;
+}
 
-export interface SalesData {
+// Dashboard specific types
+export interface SalesReport {
   recentSales: {
     id: string;
-    created_at: string;
+    date: string;
     status: string;
-    customer: {
-      full_name: string;
-    };
-    items: {
-      id: string;
-      quantity: number;
-      price: number;
-      product: {
-        name: string;
-        images: { url: string }[];
-      };
-    }[];
-    totalAmount: number;
+    items: number;
+    total: number;
   }[];
-  totalSales: number;
+  totalAmount: number;
+  totalOrders: number;
+}
+
+export interface MappedTransaction {
+  id: string;
+  amount: number;
+  status: string;
+  email: string;
+}
+
+// Re-export shared types
+export type {
+  OrderType,
+  OrderStatus,
+  CustomerStatus
 }

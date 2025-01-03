@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase/supabaseClient';
+import { supabase } from 'lib/supabase/supabaseClient'
 
 export async function getDashboardData() {
   return {
