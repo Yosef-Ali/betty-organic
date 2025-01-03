@@ -4,6 +4,19 @@ import { supabase } from '@/lib/supabase/supabaseClient';
 import { revalidatePath } from 'next/cache';
 import { v4 as uuidv4 } from 'uuid';
 
+// Add Product type export
+export interface Product {
+  id: string;
+  name: string;
+  price: number;
+  stock: number;
+  imageUrl: string;
+  createdAt: Date;
+  status: string;  // Added status field
+  totalSales?: number;  // Added optional totalSales field
+  // Add other properties as needed
+}
+
 export const createProduct = async (formData: FormData) => {
   try {
     // Input validation
@@ -115,21 +128,34 @@ export async function getProductImages(productId: string) {
   }
 }
 
-export async function getProducts() {
+export async function getProducts(): Promise<Product[]> {
   try {
     console.log('Fetching products from Supabase');
     const { data: products, error } = await supabase
       .from('products')
-      .select();
+      .select(`
+        *,
+        order_item(quantity)
+      `);
 
     if (error) {
       console.error('Error fetching products:', error);
-      console.error('Supabase error details:', error.message, error.details);
       throw new Error('Failed to fetch products');
     }
 
-    console.log('Fetched products:', products);
-    return products;
+    const mappedProducts: Product[] = products.map(product => ({
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      stock: product.stock,
+      imageUrl: product.imageUrl,
+      createdAt: new Date(product.createdAt),
+      status: product.status || 'active', // Default status
+      totalSales: product.order_item?.reduce((sum: number, item: any) => sum + item.quantity, 0) || 0
+    }));
+
+    console.log('Fetched products:', mappedProducts);
+    return mappedProducts;
   } catch (error) {
     console.error('Error fetching products:', error);
     throw new Error('Failed to fetch products');
