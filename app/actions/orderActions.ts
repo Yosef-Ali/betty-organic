@@ -30,7 +30,9 @@ const transformDatabaseOrder = (dbOrder: OrderWithRelations): Order => ({
     phone: dbOrder.customer.phone,
     location: dbOrder.customer.location,
     status: dbOrder.customer.status as CustomerStatus,
-    imageUrl: dbOrder.customer.image_url
+    imageUrl: dbOrder.customer.image_url,
+    createdAt: dbOrder.customer.created_at,
+    updatedAt: dbOrder.customer.updated_at
   } : null,
   items: dbOrder.items?.map(item => ({
     id: item.id,

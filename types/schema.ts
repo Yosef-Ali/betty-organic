@@ -28,6 +28,8 @@ export type OrderItem = Omit<DbOrderItem, 'order_id' | 'product_id'> & {
 
 export type Customer = Omit<DbCustomer, 'image_url'> & {
   imageUrl: string | null
+  createdAt: string | null
+  updatedAt: string | null
 }
 
 // Re-export shared types

@@ -1,11 +1,29 @@
 'use client';
 
-import { Suspense } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { SettingsGeneral } from '@/components/settings/SettingsGeneral';
 import { SettingsKnowledgeBase } from '@/components/settings/SettingsKnowledgeBase';
+import { getKnowledgeBaseEntries, deleteKnowledgeBaseEntry } from '@/app/actions/knowledge-base-actions';
+import { Database } from '@/lib/supabase';
+
+type KnowledgeBaseEntryType = Database['public']['Tables']['knowledge_base']['Row']
+
 
 export default function SettingsPage() {
+  // const [entries, setEntries] = useState<KnowledgeBaseEntryType[]>([])
+
+  // useEffect(() => {
+  //   fetchEntries()
+  // }, [])
+
+  // async function fetchEntries() {
+  //   const fetchedEntries = await getKnowledgeBaseEntries()
+  //   setEntries(fetchedEntries)
+  // }
+
+  // console.log('Entries:', entries)
+
   return (
     <Suspense fallback={<div>Loading settings...</div>}>
       <div className="flex-1 space-y-4 px-8">

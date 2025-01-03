@@ -1,6 +1,7 @@
 import Image from 'next/image'
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Database } from '@/lib/supabase'
 
 type Product = Database['public']['Tables']['products']['Row']
 

@@ -5,66 +5,48 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { useKnowledgeBase, KnowledgeBaseEntry, NewKnowledgeBaseEntry } from '@/app/actions/useKnowledgeBase';
+import { Trash2 } from 'lucide-react'; // Import Lucide React icon
+import { getKnowledgeBaseEntries, deleteKnowledgeBaseEntry } from '@/app/actions/knowledge-base-actions';
+import { Database } from '@/lib/supabase';
+
+type KnowledgeBaseEntryType = Database['public']['Tables']['knowledge_base']['Row']
 
 export function SettingsKnowledgeBase() {
-  const [entries, setEntries] = useState<KnowledgeBaseEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [newEntry, setNewEntry] = useState<NewKnowledgeBaseEntry>({
-    question: '',
-    response: '',
-    suggestions: [],
-    links: []
-  });
-
-  const knowledgeBase = useKnowledgeBase();
-
-  const loadEntries = useCallback(async () => {
-    if (loading) return; // Prevent multiple simultaneous loads
-
-    setLoading(true);
-    try {
-      const data = await knowledgeBase.fetchEntries();
-      console.log('Received data in component:', data);
-      setEntries(data);
-      setError(null);
-    } catch (err) {
-      console.error('Error in loadEntries:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load entries');
-    } finally {
-      setLoading(false);
-    }
-  }, [knowledgeBase, loading]);
+  const [entries, setEntries] = useState<KnowledgeBaseEntryType[]>([])
+  const [error, setError] = useState<string | null>(null)
+  const [newEntry, setNewEntry] = useState({ question: '', response: '' })
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    loadEntries();
-    // No cleanup needed since we're preventing multiple loads
-  }, []);  // Remove loadEntries from dependencies
+    fetchEntries().catch(err => setError(err instanceof Error ? err.message : 'Failed to fetch entries'))
+  }, [])
+
+  async function fetchEntries() {
+    setLoading(true)
+    try {
+      const fetchedEntries = await getKnowledgeBaseEntries()
+      setEntries(fetchedEntries)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch entries')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  console.log('Entries:', entries)
 
   const handleAddEntry = async () => {
-    try {
-      await knowledgeBase.addEntry(newEntry);
-      await loadEntries();
-      setNewEntry({
-        question: '',
-        response: '',
-        suggestions: [],
-        links: []
-      });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add entry');
-    }
-  };
+    // Logic to add a new entry
+  }
 
   const handleDeleteEntry = async (id: number) => {
     try {
-      await knowledgeBase.deleteEntry(id);
-      await loadEntries();
+      await deleteKnowledgeBaseEntry(id)
+      fetchEntries()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete entry');
+      setError(err instanceof Error ? err.message : 'Failed to delete entry')
     }
-  };
+  }
 
   return (
     <div className="space-y-6">
@@ -115,10 +97,12 @@ export function SettingsKnowledgeBase() {
                       <p className="text-gray-600">{entry.response}</p>
                     </div>
                     <Button
-                      variant="destructive"
+                      variant="outline"
                       onClick={() => handleDeleteEntry(entry.id)}
                       size="sm"
+                      className="flex items-center text-red-500" // Change text color to a lighter red
                     >
+                      <Trash2 className="h-5 w-5 mr-1 text-red-500" /> {/* Change icon color to a lighter red */}
                       Delete
                     </Button>
                   </div>
