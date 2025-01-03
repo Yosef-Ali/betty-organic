@@ -48,3 +48,25 @@ export type OrderItem = {
 export type ExtendedOrder = Order & {
   customer: Customer | null;
 };
+
+export interface SalesData {
+  recentSales: {
+    id: string;
+    created_at: string;
+    status: string;
+    customer: {
+      full_name: string;
+    };
+    items: {
+      id: string;
+      quantity: number;
+      price: number;
+      product: {
+        name: string;
+        images: { url: string }[];
+      };
+    }[];
+    totalAmount: number;
+  }[];
+  totalSales: number;
+}

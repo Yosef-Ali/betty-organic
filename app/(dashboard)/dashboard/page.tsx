@@ -49,6 +49,10 @@ export default async function DashboardPage() {
 
     try {
       salesData = await getRecentSales();
+      // Limit to 5 records right after fetching
+      if (salesData) {
+        salesData.recentSales = salesData.recentSales.slice(0, 5);
+      }
       console.log('Sales data loaded:', salesData?.recentSales?.length || 0);
     } catch (error) {
       console.error('Failed to load sales:', error);
@@ -76,7 +80,10 @@ export default async function DashboardPage() {
               {/* Recent sales card */}
               <div className="col-span-1 md:col-span-1 lg:col-span-4">
                 {salesData ? (
-                  <RecentSales data={salesData} />
+                  <RecentSales data={{
+                    ...salesData,
+                    recentSales: salesData.recentSales.slice(0, 5)
+                  }} />
                 ) : (
                   <div>Loading sales data...</div>
                 )}

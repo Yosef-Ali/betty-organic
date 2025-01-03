@@ -1,7 +1,4 @@
-'use server';
-
 import { createClient } from 'lib/supabase/client';
-import type { Database } from 'lib/supabase/database.types';
 
 export interface SalesData {
   recentSales: {
@@ -15,7 +12,7 @@ export interface SalesData {
       price: number;
       product: {
         name: string;
-        images: { url: string }[]
+        images: { url: string }[];
       };
     }[];
     totalAmount: number;
@@ -27,21 +24,64 @@ export async function getRecentSales(): Promise<SalesData> {
   const supabase = createClient();
 
   try {
-    console.log('Fetching recent sales...');
-    console.log('Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
+    // Test database connection
+    const { data: testOrder, error: testError } = await supabase
+      .from('orders')
+      .select('id')
+      .limit(1);
 
+    if (testError) {
+      console.error('Database connection test failed:', testError);
+      throw testError;
+    }
+
+    console.log('Database connection test successful:', testOrder);
+
+    // First check if we have data in each table
+    const { data: ordersCheck, count: ordersCount } = await supabase
+      .from('orders')
+      .select('*', { count: 'exact', head: true });
+
+    const { data: customersCheck, count: customersCount } = await supabase
+      .from('customers')
+      .select('*', { count: 'exact', head: true });
+
+    const { data: orderItemsCheck, count: orderItemsCount } = await supabase
+      .from('order_item')
+      .select('*', { count: 'exact', head: true });
+
+    const { data: productsCheck, count: productsCount } = await supabase
+      .from('products')
+      .select('*', { count: 'exact', head: true });
+
+    console.log('Table row counts:', {
+      orders: ordersCount || 0,
+      customers: customersCount || 0,
+      orderItems: orderItemsCount || 0,
+      products: productsCount || 0
+    });
+
+    // If no orders exist, return empty data
+    if (!ordersCount) {
+      console.log('No orders found in database');
+      return { recentSales: [], totalSales: 0 };
+    }
+
+    // Then try to fetch the actual sales data with explicit relationship
     const { data: recentSales, error } = await supabase
       .from('orders')
       .select(`
         id,
         created_at,
         status,
-        customer:customers(full_name),
+        customer:customers!fk_customer(
+          full_name
+        ),
         items:order_item(
           id,
           quantity,
           price,
-          product:products(
+          product:products!order_item_product_id_fkey(
             name,
             imageUrl
           )
@@ -51,71 +91,64 @@ export async function getRecentSales(): Promise<SalesData> {
       .limit(5);
 
     if (error) {
-      console.error('Supabase error details:', {
-        message: error.message,
-        code: error.code,
-        details: error.details,
-        hint: error.hint
-      });
-      throw new Error(`Failed to fetch recent sales: ${error.message}`);
+      console.error('Query error:', error);
+      throw error;
     }
 
-    console.log('Raw query results:', recentSales);
+    console.log('Recent sales data:', recentSales);
 
-    if (!recentSales || recentSales.length === 0) {
-      console.warn('No recent sales found');
+    if (!recentSales?.length) {
+      console.log('No sales data found');
       return { recentSales: [], totalSales: 0 };
     }
 
-    console.log('Successfully fetched', recentSales.length, 'recent sales');
+    const mappedSales = recentSales.map(order => {
+      // Ensure items is always an array
+      const orderItems = Array.isArray(order.items) ? order.items :
+        order.items ? [order.items] : [];
 
-    const mappedSales = recentSales.map((order: any) => {
-      // Handle customer data explicitly
-      const customerData = order.customer as { full_name: string } | { full_name: string }[];
-      const customerName = Array.isArray(customerData)
-        ? customerData[0]?.full_name || ''
-        : (customerData as { full_name: string })?.full_name || '';
+      // Handle customer data
+      const customerName = Array.isArray(order.customer)
+        ? order.customer[0]?.full_name || ''
+        : order.customer?.full_name || '';
 
       return {
         id: String(order.id),
-        created_at: order.created_at as string | null,
+        created_at: order.created_at,
         status: String(order.status),
-        customer: { full_name: String(customerName) },
-        items: (order.items || []).map((item: any) => ({
+        customer: {
+          full_name: String(customerName)
+        },
+        items: orderItems.map(item => ({
           id: String(item.id),
           quantity: Number(item.quantity),
           price: Number(item.price),
           product: {
-            name: String(item.product?.[0]?.name || ''),
-            images: [{ url: String(item.product?.[0]?.imageUrl || '') }] // Convert imageUrl to images array
+            name: String(item.product?.name || ''),
+            images: [{ url: String(item.product?.imageUrl || '') }]
           }
         })),
-        totalAmount: 0  // Will be calculated below
+        totalAmount: orderItems.reduce((sum, item) =>
+          sum + (Number(item.price) * Number(item.quantity)), 0)
       };
-    }).map((order: any) => ({
-      ...order,
-      totalAmount: order.items.reduce((sum: number, item: any) =>
-        sum + (item.price * item.quantity), 0
-      )
-    }));
+    });
 
-    const totalSales = mappedSales.reduce((total: number, order: any) => {
-      return total + order.totalAmount;
-    }, 0);
+    const totalSales = mappedSales.reduce((total, order) =>
+      total + order.totalAmount, 0);
+
+    console.log('Mapped sales:', {
+      count: mappedSales.length,
+      totalSales,
+      firstItem: mappedSales[0]
+    });
 
     return {
       recentSales: mappedSales,
       totalSales
     };
+
   } catch (error) {
-    console.error('Failed to fetch recent sales:', {
-      error,
-      timestamp: new Date().toISOString(),
-      environment: {
-        supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
-        nodeEnv: process.env.NODE_ENV
-      }
-    });
+    console.error('Failed to fetch recent sales:', error);
     throw error;
   }
 }
