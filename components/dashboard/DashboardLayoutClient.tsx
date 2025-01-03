@@ -1,21 +1,40 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { Session } from '@supabase/supabase-js'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { useRouter } from 'next/navigation'
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader'
 import Sidebar from '@/components/Sidebar'
-import { Session } from '@supabase/auth-helpers-nextjs'
 import Header from '@/components/Header'
 
 interface DashboardLayoutClientProps {
-  children: React.ReactNode;
-  session: Session | null;
+  children: React.ReactNode
+  session: Session
 }
 
-export default function DashboardLayoutClient({ children, session }: DashboardLayoutClientProps) {
+export default function DashboardLayoutClient({
+  children,
+  session
+}: DashboardLayoutClientProps) {
+  const router = useRouter()
+  const supabase = createClientComponentClient()
   const [sidebarExpanded, setSidebarExpanded] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
-  if (!session) return null;
+  useEffect(() => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') {
+        router.push('/auth/signin')
+      }
+    })
+
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [router])
 
   return (
     <div className="flex min-h-screen w-full bg-muted/40">

@@ -39,8 +39,17 @@ const nextConfig = {
         hostname: 'i.pravatar.cc',
         pathname: '/**',
       },
-    ],
-    domains: ['your-image-domain.com', 'lh3.googleusercontent.com'], // Add your image domain here
+      {
+        protocol: 'https',
+        hostname: 'example.com',
+        pathname: '/**'
+      },
+      {
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com',
+        pathname: '/**'
+      }
+    ]
   },
   output: 'standalone',
   poweredByHeader: false,
@@ -48,4 +57,4 @@ const nextConfig = {
   swcMinify: true,
 }
 
-export default nextConfig
+export default nextConfig;

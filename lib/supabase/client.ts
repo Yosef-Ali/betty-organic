@@ -1,37 +1,36 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { Database } from '@/lib/supabase/database.types'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error('Missing Supabase environment variables')
+export const createClient = () => {
+  return createClientComponentClient<Database>({
+    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  })
 }
-
-export const supabase = createClient(supabaseUrl, supabaseKey)
-export const browserClient = supabase
 
 export async function getAuthenticatedClient() {
-  const { data: { user }, error } = await supabase.auth.getUser()
+  const supabase = createClient()
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-  if (error || !user) {
-    throw new Error('Not authenticated')
+  if (!supabaseUrl || !supabaseKey) {
+    console.error('Supabase URL or Key is missing')
+    throw new Error('Supabase URL or Key is missing')
   }
 
-  return supabase
-}
-
-export async function fetchKnowledgeBase() {
-  const client = await getAuthenticatedClient()
-
-  const { data, error } = await client
-    .from('knowledge_base')
-    .select('*')
-    .order('id', { ascending: true })
-
-  if (error) {
-    console.error('Error fetching knowledge base:', error)
-    throw error
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser()
+    if (error) {
+      console.error('Error getting user:', error)
+      throw error
+    }
+    if (!user) {
+      console.error('No user found')
+      throw new Error('Not authenticated')
+    }
+    return supabase
+  } catch (err) {
+    console.error('Error in getAuthenticatedClient:', err)
+    throw err
   }
-
-  return data
 }

@@ -1,10 +1,4 @@
-export type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json | undefined }
-  | Json[]
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
 export type Database = {
   public: {
@@ -158,28 +152,33 @@ export type Database = {
       knowledge_base: {
         Row: {
           id: number
+          created_at: string | null
+          updated_at: string | null
           question: string
           response: string
           suggestions: string[]
-          links: { text: string; url: string }[]
-          created_at: string
-          updated_at: string
+          links: Json
+          user_id: string | null
         }
         Insert: {
+          id?: number
+          created_at?: string | null
+          updated_at?: string | null
           question: string
           response: string
           suggestions: string[]
-          links: { text: string; url: string }[]
-          created_at?: string
-          updated_at?: string
+          links: Json
+          user_id?: string | null
         }
         Update: {
+          id?: number
+          created_at?: string | null
+          updated_at?: string | null
           question?: string
           response?: string
           suggestions?: string[]
-          links?: { text: string; url: string }[]
-          created_at?: string
-          updated_at?: string
+          links?: Json
+          user_id?: string | null
         }
         Relationships: []
       }

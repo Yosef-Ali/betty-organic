@@ -1,16 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { browserClient as supabase, getAuthenticatedClient } from '@/lib/supabase/client';
 import {
+  useKnowledgeBase,
   KnowledgeBaseEntry,
-  NewKnowledgeBaseEntry,
-  fetchKnowledgeBaseEntries,
-  addKnowledgeBaseEntry,
-  deleteKnowledgeBaseEntry
-} from '@/app/actions/knowledge-base';
+  NewKnowledgeBaseEntry
+} from '@/app/actions/useKnowledgeBase';
+import { useState, useEffect, useCallback } from 'react';
 
-export default function KnowledgeBasePage() {
+export default function SettingsKnowledgeBase() {
   const [entries, setEntries] = useState<KnowledgeBaseEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -20,34 +17,28 @@ export default function KnowledgeBasePage() {
     suggestions: [],
     links: []
   });
+  const knowledgeBase = useKnowledgeBase();
+
+  const fetchEntries = useCallback(async () => {
+    try {
+      const data = await knowledgeBase.fetchEntries();
+      setEntries(data as KnowledgeBaseEntry[]);
+    } catch (err) {
+      console.error('Error:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load entries');
+    } finally {
+      setLoading(false);
+    }
+  }, [knowledgeBase]);
 
   useEffect(() => {
-    const loadEntries = async () => {
-      try {
-        await getAuthenticatedClient(); // Verify authentication first
-        const data = await fetchKnowledgeBaseEntries();
-        setEntries(data);
-      } catch (err) {
-        console.error('Error:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load entries');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadEntries();
-  }, []);
+    fetchEntries();
+  }, [fetchEntries]);
 
   const handleAddEntry = async () => {
     try {
-      // Only call getUser() right before performing the secured action
-      const client = await getAuthenticatedClient();
-      const { data: { user }, error } = await client.auth.getUser();
-      if (error || !user) throw new Error('Not authenticated');
-
-      await addKnowledgeBaseEntry(newEntry);
-      const data = await fetchKnowledgeBaseEntries();
-      setEntries(data);
+      await knowledgeBase.addEntry(newEntry);
+      await fetchEntries();
       setNewEntry({
         question: '',
         response: '',
@@ -61,13 +52,8 @@ export default function KnowledgeBasePage() {
 
   const handleDeleteEntry = async (id: number) => {
     try {
-      const client = await getAuthenticatedClient();
-      const { data: { user }, error } = await client.auth.getUser();
-      if (error || !user) throw new Error('Not authenticated');
-
-      await deleteKnowledgeBaseEntry(id);
-      const data = await fetchKnowledgeBaseEntries();
-      setEntries(data);
+      await knowledgeBase.deleteEntry(id);
+      await fetchEntries();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete entry');
     }
