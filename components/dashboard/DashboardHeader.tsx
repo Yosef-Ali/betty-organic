@@ -8,6 +8,7 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
 import { DashboardCard } from '@/types/dashboard'
 import { Button } from '../../components/ui/button'; // Import the Button component
+import { useDashboard } from '@/providers/ContextProvider';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,6 +18,7 @@ interface DashboardHeaderProps {
 }
 
 export function DashboardHeader({ user }: DashboardHeaderProps) {
+  const { sales } = useDashboard();
   const router = useRouter()
   const supabase = createClientComponentClient()
   const [cardData, setCardData] = useState<DashboardCard[]>([])
