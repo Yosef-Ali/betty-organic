@@ -22,7 +22,22 @@ import { getCustomers } from '../app/actions/customersActions';
 import { getProducts } from '../app/actions/productActions';
 import { useToast } from '../hooks/use-toast';
 import OrderTable from './OrdersTable';
-import { Customer, Order, Product, ExtendedOrder } from '../types';
+import { Customer, Order, Product } from '../types';
+
+type ExtendedOrder = Order & {
+  customer: {
+    id: string;
+    full_name: string;
+    email: string;
+    phone: string | null;
+    location: string | null;
+    status: string;
+    imageUrl: string | null;
+    created_at: string | null;
+    updated_at: string | null;
+  } | null;
+  type: OrderType;
+};
 
 export const OrderType = {
   SALE: 'sale',
@@ -61,14 +76,16 @@ const OrderDashboard: React.FC = () => {
             phone: customer.phone || null,
             location: customer.location || null,
             status: customer.status,
-            imageUrl: customer.imageUrl || null
+            imageUrl: customer.imageUrl || null,
+            created_at: customer.created_at || null,
+            updated_at: customer.updated_at || null
           } : null,
           type: order.type as OrderType
         };
       });
 
       const sortedOrders = extendedOrders.sort((a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime()
       );
 
       setOrders(sortedOrders);
@@ -106,7 +123,7 @@ const OrderDashboard: React.FC = () => {
           setSelectedOrderId(orders[0]?.id || null);
         }
       } else {
-        throw new Error(result.error);
+        throw new Error("Failed to delete order");
       }
     } catch (error) {
       console.error('Error deleting order:', error);
@@ -164,7 +181,7 @@ const OrderDashboard: React.FC = () => {
     const computeTotal = (startDate: Date, endDate: Date) => {
       return orders
         .filter(order => {
-          const orderDate = new Date(order.createdAt);
+          const orderDate = new Date(order.created_at ?? 0);
           return orderDate >= startDate && orderDate < endDate;
         })
         .reduce((sum, order) => sum + (order.totalAmount || 0), 0);

@@ -59,3 +59,14 @@ export type {
   OrderStatus,
   CustomerStatus
 }
+
+export interface Customer {
+  id: string;
+  full_name: string;
+  email: string;
+  phone: string;
+  location: string;
+  status: CustomerStatus;
+  imageUrl: string | null;
+}
+
