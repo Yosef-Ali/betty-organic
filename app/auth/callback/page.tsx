@@ -11,19 +11,20 @@ export default function AuthCallbackPage() {
   useEffect(() => {
     const handleAuth = async () => {
       try {
-        // Extract token from URL hash
-        const hash = window.location.hash.substring(1)
-        const params = new URLSearchParams(hash)
-        
-        // Store tokens in localStorage
-        localStorage.setItem('supabase.auth.token', JSON.stringify({
-          access_token: params.get('access_token'),
-          refresh_token: params.get('refresh_token'),
-          expires_at: params.get('expires_at')
-        }))
-
-        // Get the session
+        // Get the session from the OAuth callback
         const { data: { session }, error } = await supabase.auth.getSession()
+        
+        // If there's a hash, parse it and update the session
+        if (window.location.hash) {
+          const hash = window.location.hash.substring(1)
+          const params = new URLSearchParams(hash)
+          
+          // Update the session with the new tokens
+          await supabase.auth.setSession({
+            access_token: params.get('access_token') || '',
+            refresh_token: params.get('refresh_token') || ''
+          })
+        }
         
         if (error) {
           console.error('Error getting session:', error)
