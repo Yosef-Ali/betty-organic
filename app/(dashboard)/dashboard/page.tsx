@@ -18,19 +18,33 @@ export default function DashboardPage() {
   const [totalCustomers, setTotalCustomers] = useState(0)
   const [totalProducts, setTotalProducts] = useState(0)
   const [totalOrders, setTotalOrders] = useState(0)
-  const [entries, setEntries] = useState([]);
+  const [entries, setEntries] = useState([])
+  const [recentSales, setRecentSales] = useState([])
+  const [recentOrders, setRecentOrders] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
   useEffect(() => {
     async function fetchDashboardData() {
-      const revenue = await getTotalRevenue()
-      const customers = await getTotalCustomers()
-      const products = await getTotalProducts()
-      const orders = await getTotalOrders()
+      try {
+        setLoading(true)
+        const [revenue, customers, products, orders] = await Promise.all([
+          getTotalRevenue(),
+          getTotalCustomers(),
+          getTotalProducts(),
+          getTotalOrders()
+        ])
 
-      setTotalRevenue(revenue)
-      setTotalCustomers(customers ?? 0)
-      setTotalProducts(products ?? 0)
-      setTotalOrders(orders ?? 0)
+        setTotalRevenue(revenue ?? 0)
+        setTotalCustomers(customers ?? 0)
+        setTotalProducts(products ?? 0)
+        setTotalOrders(orders ?? 0)
+      } catch (err) {
+        console.error('Error fetching dashboard data:', err)
+        setError(err.message)
+      } finally {
+        setLoading(false)
+      }
     }
     fetchDashboardData()
   }, [])
@@ -86,7 +100,17 @@ export default function DashboardPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <RecentSales />
+                  {loading ? (
+                    <div className="flex items-center justify-center h-32">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+                    </div>
+                  ) : error ? (
+                    <div className="text-red-600 bg-red-100 p-2 rounded">
+                      Error loading data: {error}
+                    </div>
+                  ) : (
+                    <RecentSales data={recentSales} />
+                  )}
                 </CardContent>
               </Card>
               <Card className="col-span-3">
@@ -97,7 +121,17 @@ export default function DashboardPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <RecentOrders />
+                  {loading ? (
+                    <div className="flex items-center justify-center h-32">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+                    </div>
+                  ) : error ? (
+                    <div className="text-red-600 bg-red-100 p-2 rounded">
+                      Error loading data: {error}
+                    </div>
+                  ) : (
+                    <RecentOrders data={recentOrders} />
+                  )}
                 </CardContent>
               </Card>
             </div>
