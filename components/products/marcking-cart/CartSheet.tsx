@@ -39,7 +39,7 @@ export function CartSheet() {
             )}
           </Button>
         </SheetTrigger>
-        <SheetContent className="flex w-full flex-col pr-0 sm:max-w-lg">
+        <SheetContent className="flex w-full flex-col pr-0 sm:max-w-lg z-50">
           <SheetHeader>
             <SheetTitle>Shopping Cart ({items.length})</SheetTitle>
           </SheetHeader>

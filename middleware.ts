@@ -6,35 +6,53 @@ export async function middleware(req: NextRequest) {
   const res = NextResponse.next()
   const supabase = createMiddlewareClient({ req, res })
 
-  try {
-    // Refresh the session
-    const { data: { session }, error } = await supabase.auth.getSession()
+  // Set security headers
+  res.headers.set('X-Frame-Options', 'DENY')
+  res.headers.set('X-Content-Type-Options', 'nosniff')
+  res.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
 
-    // If there's an error or no session, and we're not on an auth page
-    if ((!session || error) && !req.nextUrl.pathname.startsWith('/auth')) {
+  try {
+    // Refresh session if needed
+    await supabase.auth.getSession()
+
+    const { data: { session } } = await supabase.auth.getSession()
+    const path = req.nextUrl.pathname
+
+    // Only protect dashboard and admin routes
+    const protectedRoutes = ['/dashboard', '/admin']
+    const isProtectedRoute = protectedRoutes.some(route => path.startsWith(route))
+
+    if (isProtectedRoute && !session) {
       const redirectUrl = new URL('/auth/login', req.url)
-      // Preserve the original URL to redirect back after login
-      redirectUrl.searchParams.set('redirectTo', req.nextUrl.pathname)
+      redirectUrl.searchParams.set('returnTo', path)
       return NextResponse.redirect(redirectUrl)
     }
 
-    // If we have a session and we're on an auth page, redirect to dashboard
-    if (session && req.nextUrl.pathname.startsWith('/auth')) {
+    // Stop auth pages access if logged in
+    if (session && path.startsWith('/auth')) {
       return NextResponse.redirect(new URL('/dashboard', req.url))
     }
+
+    // Set secure cookie attributes
+    res.cookies.set('sb-auth-token', session?.access_token || '', {
+      path: '/',
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 7 // 1 week
+    })
 
     return res
   } catch (error) {
     console.error('Middleware error:', error)
-    // On error, we should probably redirect to login as well
-    const redirectUrl = new URL('/auth/login', req.url)
-    return NextResponse.redirect(redirectUrl)
+    return res
   }
 }
 
 export const config = {
   matcher: [
     '/dashboard/:path*',
-    '/auth/:path*'  // Add auth paths to handle redirects when already logged in
+    '/admin/:path*',
+    '/auth/:path*'
   ]
 }

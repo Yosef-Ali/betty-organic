@@ -17,24 +17,41 @@ export function Navigation({ isAdmin }: NavigationProps) {
   const supabase = createClientComponentClient();
   const router = useRouter();
   const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
+    const fetchSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        setSession(session);
+      } catch (error) {
+        console.error('Session fetch error:', error);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    getSession();
+    fetchSession();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, [supabase]);
 
-  const handleSignIn = () => {
-    router.push('/auth/signin');
+  const handleSignIn = () => router.push('/auth/login');
+
+  const handleSignOut = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      router.refresh();
+    } catch (error) {
+      console.error('Sign out error:', error);
+    }
   };
 
   return (
@@ -75,13 +92,22 @@ export function Navigation({ isAdmin }: NavigationProps) {
             <div className="absolute -bottom-1 left-0 w-full h-0.5 bg-black opacity-0 group-hover:opacity-100 transition-opacity" />
           </Link>
 
-          {session ? (
-            <Link href="/dashboard" className="text-lg font-medium relative group">
-              <Button variant="ghost" className="gap-2">
-                <LayoutDashboard className="h-5 w-5" />
-                Dashboard
+          {loading ? (
+            <Button variant="ghost" disabled>
+              Loading...
+            </Button>
+          ) : session ? (
+            <div className="flex items-center gap-2">
+              <Link href="/dashboard" className="text-lg font-medium relative group">
+                <Button variant="ghost" className="gap-2">
+                  <LayoutDashboard className="h-5 w-5" />
+                  Dashboard
+                </Button>
+              </Link>
+              <Button variant="ghost" onClick={handleSignOut}>
+                Sign Out
               </Button>
-            </Link>
+            </div>
           ) : (
             <Button variant="ghost" onClick={handleSignIn}>
               Sign In

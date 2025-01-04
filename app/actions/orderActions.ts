@@ -1,12 +1,10 @@
 'use server';
 
-import supabase from '@/lib/supabase/client';
-import { Order } from '@/types';
+import supabase from 'lib/supabase/client';
+import { Order } from 'types';
 import { createClient } from '@supabase/supabase-js';
 import { revalidatePath } from 'next/cache';
 import { v4 as uuidv4 } from 'uuid';
-
-
 
 
 // Utility functions for key transformation
@@ -139,8 +137,19 @@ export async function createOrder(formData: FormData): Promise<Order> {
     revalidatePath('/dashboard/orders');
     return transformDatabaseOrder(order);
   } catch (error) {
-    console.error('Error creating order:', error);
-    throw new Error('Failed to create order');
+    const err = error as Error;
+    console.error('Error creating order:', {
+      message: err.message,
+      stack: err.stack,
+      inputData: {
+        customerId: formData.get('customerId'),
+        status: formData.get('status'),
+        type: formData.get('type'),
+        totalAmount: formData.get('totalAmount'),
+        items: formData.get('items')
+      }
+    });
+    throw new Error(`Failed to create order: ${err.message}`);
   }
 }
 

@@ -41,16 +41,18 @@ export default function Sidebar({ expanded, onToggle, mobileMenuOpen, onMobileMe
   const sidebarContent = (
     <>
       <div className="flex items-center h-16 px-2">
-        <Image
-          src="/logo.jpeg"
-          alt="Betty Organic Logo"
-          width={40}
-          height={40}
-          className="w-10 h-10 object-cover"
-        />
-        {(expanded || isMobile) && (
-          <span className="ml-3 text-lg font-bold whitespace-nowrap overflow-hidden transition-all duration-300">Betty Organic</span>
-        )}
+        <Link href="/" className="flex items-center">
+          <Image
+            src="/logo.jpeg"
+            alt="Betty Organic Logo"
+            width={40}
+            height={40}
+            className="w-10 h-10 object-cover cursor-pointer"
+          />
+          {(expanded || isMobile) && (
+            <span className="ml-3 text-lg font-bold whitespace-nowrap overflow-hidden transition-all duration-300">Betty Organic</span>
+          )}
+        </Link>
         {isMobile && (
           <Button size="icon" variant="ghost" className="ml-auto" onClick={onMobileMenuClose}>
             <X className="h-5 w-5" />

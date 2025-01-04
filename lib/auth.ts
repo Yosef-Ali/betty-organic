@@ -7,7 +7,13 @@ if (!supabaseUrl || !supabaseKey) {
   throw new Error('Missing Supabase environment variables')
 }
 
-export const supabase = createClient(supabaseUrl, supabaseKey)
+export const supabase = createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true
+  }
+})
 
 export async function getSession() {
   const { data: { session } } = await supabase.auth.getSession()
@@ -25,7 +31,7 @@ export async function signIn(provider: 'email' | 'google', credentials?: { email
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: 'http://localhost:3000/auth/callback'
+        redirectTo: 'http://localhost:3000/auth/login'
       }
     })
     return { data, error }
