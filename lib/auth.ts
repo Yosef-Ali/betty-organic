@@ -20,8 +20,8 @@ export async function getSession() {
   return session
 }
 
-export async function signIn(provider: 'email' | 'google', credentials?: { email: string; password: string }) {
-  if (provider === 'email' && credentials) {
+export async function signIn(provider: 'email' | 'google' | 'magiclink', credentials?: { email: string; password?: string }) {
+  if (provider === 'email' && credentials?.password) {
     const { data, error } = await supabase.auth.signInWithPassword({
       email: credentials.email,
       password: credentials.password
@@ -31,12 +31,23 @@ export async function signIn(provider: 'email' | 'google', credentials?: { email
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: 'http://localhost:3000/auth/login'
+        redirectTo: 'http://localhost:3000/auth/callback'
+      }
+    })
+    return { data, error }
+  } else if (provider === 'magiclink' && credentials?.email) {
+    const { data, error } = await supabase.auth.signInWithOtp({
+      email: credentials.email,
+      options: {
+        emailRedirectTo: 'http://localhost:3000/auth/callback'
       }
     })
     return { data, error }
   }
-  return { data: null, error: new Error('Invalid provider') }
+  if (provider === 'magiclink') {
+    return { data: null, error: new Error('Email is required for magic link authentication') }
+  }
+  return { data: null, error: new Error('Invalid provider or missing credentials') }
 }
 
 export async function signOut() {

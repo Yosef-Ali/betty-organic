@@ -13,17 +13,30 @@ export function SignIn() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [isMagicLink, setIsMagicLink] = useState(false)
+  const [magicLinkSent, setMagicLinkSent] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+    setMagicLinkSent(false)
 
-    const { data, error: authError } = await signIn('email', { email, password })
+    if (isMagicLink) {
+      const { error: authError } = await signIn('email', { email })
 
-    if (authError) {
-      setError(authError instanceof Error ? authError.message : 'Authentication failed')
+      if (authError) {
+        setError(authError instanceof Error ? authError.message : 'Failed to send magic link')
+      } else {
+        setMagicLinkSent(true)
+      }
     } else {
-      router.push('/dashboard')
+      const { data, error: authError } = await signIn('email', { email, password })
+
+      if (authError) {
+        setError(authError instanceof Error ? authError.message : 'Authentication failed')
+      } else {
+        router.push('/dashboard')
+      }
     }
   }
 
@@ -40,20 +53,35 @@ export function SignIn() {
             required
           />
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="password">Password</Label>
-          <Input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-        </div>
+        {!isMagicLink && (
+          <div className="space-y-2">
+            <Label htmlFor="password">Password</Label>
+            <Input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
+        )}
         {error && <p className="text-sm text-red-500">{error}</p>}
+        {magicLinkSent && (
+          <p className="text-sm text-green-500">
+            Magic link sent! Check your email to sign in.
+          </p>
+        )}
         <div className="space-y-4">
           <Button type="submit" className="w-full">
-            Sign In
+            {isMagicLink ? 'Send Magic Link' : 'Sign In'}
+          </Button>
+          <Button
+            variant="link"
+            type="button"
+            className="w-full text-sm"
+            onClick={() => setIsMagicLink(!isMagicLink)}
+          >
+            {isMagicLink ? 'Use password instead' : 'Use magic link instead'}
           </Button>
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
