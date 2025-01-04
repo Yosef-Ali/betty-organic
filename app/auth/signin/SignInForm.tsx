@@ -59,22 +59,22 @@ export default function SignInForm({ error: initialError }: SignInFormProps) {
       console.log('Initiating Google OAuth...')
       console.log('Redirect URL:', `${location.origin}/auth/callback`)
 
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${location.origin}/auth/callback`,
+          redirectTo: `${window.location.origin}/auth/callback`,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent'
-          },
-          skipBrowserRedirect: true // We'll handle the redirect manually
+          }
         }
       })
 
-      // Manually redirect to the OAuth URL
-      const { data } = await supabase.auth.getSession()
-      if (data.session) {
-        window.location.href = `${location.origin}/dashboard`
+      if (error) throw error
+      
+      // Handle the redirect URL from the response
+      if (data?.url) {
+        window.location.href = data.url
       }
 
       if (error) {

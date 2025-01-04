@@ -11,11 +11,12 @@ export default function AuthCallbackPage() {
   useEffect(() => {
     const handleAuth = async () => {
       try {
+        // Get the session from the OAuth callback
         const { data: { session }, error } = await supabase.auth.getSession()
         
         if (error) {
           console.error('Error getting session:', error)
-          router.push('/auth/signin?error=authentication_failed')
+          router.push('/auth/signin?error=' + encodeURIComponent(error.message))
           return
         }
 
@@ -25,8 +26,12 @@ export default function AuthCallbackPage() {
           return
         }
 
+        // Check if we have a returnTo URL
+        const returnTo = sessionStorage.getItem('returnTo') || '/dashboard'
+        sessionStorage.removeItem('returnTo')
+        
         // Successful authentication
-        router.push('/dashboard')
+        router.push(returnTo)
       } catch (err) {
         console.error('Auth callback error:', err)
         router.push('/auth/signin?error=unexpected_error')

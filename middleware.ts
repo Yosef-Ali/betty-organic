@@ -33,6 +33,7 @@ export async function middleware(req: NextRequest) {
     // Redirect to login if not authenticated and trying to access protected routes
     if (!session && isProtectedRoute) {
       const redirectUrl = new URL('/auth/signin', req.url)
+      // Store the returnTo URL in sessionStorage
       redirectUrl.searchParams.set('returnTo', path)
       return NextResponse.redirect(redirectUrl)
     }
