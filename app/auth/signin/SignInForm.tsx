@@ -46,8 +46,6 @@ export default function SignInForm({ error: initialError }: SignInFormProps) {
   }, [])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(initialError || null)
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
   const supabase = createClientComponentClient()
 
   const handleGoogleSignIn = async () => {
@@ -92,29 +90,6 @@ export default function SignInForm({ error: initialError }: SignInFormProps) {
     }
   }
 
-  const handleEmailSignIn = async (e: React.FormEvent) => {
-    e.preventDefault()
-    try {
-      setLoading(true)
-      setError(null)
-
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
-
-      if (error) {
-        console.error('Email sign-in error:', error)
-        throw error
-      }
-
-      console.log('Email sign-in successful:', data)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'An error occurred')
-    } finally {
-      setLoading(false)
-    }
-  }
 
   return (
     <Card className="w-full max-w-md bg-white/95 backdrop-blur-sm"> {/* Increased opacity from bg-white/90 to bg-white/95 */}
@@ -125,39 +100,7 @@ export default function SignInForm({ error: initialError }: SignInFormProps) {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <form onSubmit={handleEmailSignIn} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="name@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
-          <Button
-            type="submit"
-            className="w-full"
-            disabled={loading}
-          >
-            {loading ? 'Loading...' : 'Sign in with Email'}
-          </Button>
-        </form>
-
-        <div className="relative">
+        <div className="relative mt-4">
           <div className="absolute inset-0 flex items-center">
             <span className="w-full border-t" />
           </div>
