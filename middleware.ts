@@ -10,42 +10,50 @@ export async function middleware(req: NextRequest) {
   res.headers.set('X-Frame-Options', 'DENY')
   res.headers.set('X-Content-Type-Options', 'nosniff')
   res.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+  res.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
 
   try {
-    // Refresh session if needed
-    await supabase.auth.getSession()
-
+    // Refresh session if needed - this will automatically set cookies
     const { data: { session } } = await supabase.auth.getSession()
     const path = req.nextUrl.pathname
 
-    // Only protect dashboard and admin routes
+    // Protected routes
     const protectedRoutes = ['/dashboard', '/admin']
     const isProtectedRoute = protectedRoutes.some(route => path.startsWith(route))
 
-    if (isProtectedRoute && !session) {
-      const redirectUrl = new URL('/auth/login', req.url)
+    // Auth routes
+    const authRoutes = ['/auth/signin', '/auth/signup', '/auth/callback']
+    const isAuthRoute = authRoutes.includes(path)
+
+    // Redirect to dashboard if authenticated and trying to access auth routes
+    if (session && isAuthRoute) {
+      return NextResponse.redirect(new URL('/dashboard', req.url))
+    }
+
+    // Redirect to login if not authenticated and trying to access protected routes
+    if (!session && isProtectedRoute) {
+      const redirectUrl = new URL('/auth/signin', req.url)
       redirectUrl.searchParams.set('returnTo', path)
       return NextResponse.redirect(redirectUrl)
     }
 
-    // Stop auth pages access if logged in
-    if (session && path.startsWith('/auth')) {
-      return NextResponse.redirect(new URL('/dashboard', req.url))
-    }
-
     // Set secure cookie attributes
-    res.cookies.set('sb-auth-token', session?.access_token || '', {
-      path: '/',
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7 // 1 week
-    })
+    if (session) {
+      res.cookies.set('sb-auth-token', session.access_token, {
+        path: '/',
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 7 // 1 week
+      })
+    }
 
     return res
   } catch (error) {
     console.error('Middleware error:', error)
-    return res
+    // If there's an error, clear the auth token
+    res.cookies.delete('sb-auth-token')
+    return NextResponse.redirect(new URL('/auth/signin', req.url))
   }
 }
 
