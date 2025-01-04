@@ -11,7 +11,18 @@ export default function AuthCallbackPage() {
   useEffect(() => {
     const handleAuth = async () => {
       try {
-        // Get the session from the OAuth callback
+        // Extract token from URL hash
+        const hash = window.location.hash.substring(1)
+        const params = new URLSearchParams(hash)
+        
+        // Store tokens in localStorage
+        localStorage.setItem('supabase.auth.token', JSON.stringify({
+          access_token: params.get('access_token'),
+          refresh_token: params.get('refresh_token'),
+          expires_at: params.get('expires_at')
+        }))
+
+        // Get the session
         const { data: { session }, error } = await supabase.auth.getSession()
         
         if (error) {
@@ -26,11 +37,12 @@ export default function AuthCallbackPage() {
           return
         }
 
-        // Check if we have a returnTo URL
+        // Clear the hash from URL
+        window.history.replaceState({}, document.title, window.location.pathname)
+
+        // Redirect to dashboard or stored returnTo URL
         const returnTo = sessionStorage.getItem('returnTo') || '/dashboard'
         sessionStorage.removeItem('returnTo')
-        
-        // Successful authentication
         router.push(returnTo)
       } catch (err) {
         console.error('Auth callback error:', err)
