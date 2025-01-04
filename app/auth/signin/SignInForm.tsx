@@ -34,6 +34,16 @@ const GoogleIcon = () => (
 )
 
 export default function SignInForm({ error: initialError }: SignInFormProps) {
+  useEffect(() => {
+    // Check for OAuth error in URL
+    const urlParams = new URLSearchParams(window.location.search)
+    const error = urlParams.get('error_description')
+    if (error) {
+      setError(error)
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname)
+    }
+  }, [])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(initialError || null)
   const [email, setEmail] = useState('')
@@ -44,17 +54,32 @@ export default function SignInForm({ error: initialError }: SignInFormProps) {
     try {
       setLoading(true)
       setError(null)
+      
+      // Add debug logging
+      console.log('Initiating Google OAuth...')
+      console.log('Redirect URL:', `${location.origin}/auth/callback`)
 
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${location.origin}/auth/callback`
+          redirectTo: `${location.origin}/auth/callback`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent'
+          }
         }
       })
 
-      if (error) throw error
+      if (error) {
+        console.error('Google OAuth error:', error)
+        throw error
+      }
+
+      console.log('Google OAuth response:', data)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'An error occurred')
+      const errorMessage = e instanceof Error ? e.message : 'An error occurred'
+      console.error('Authentication error:', errorMessage)
+      setError(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -66,12 +91,17 @@ export default function SignInForm({ error: initialError }: SignInFormProps) {
       setLoading(true)
       setError(null)
 
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
 
-      if (error) throw error
+      if (error) {
+        console.error('Email sign-in error:', error)
+        throw error
+      }
+
+      console.log('Email sign-in successful:', data)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'An error occurred')
     } finally {
