@@ -23,7 +23,7 @@ export async function middleware(req: NextRequest) {
     
     // Public routes that should never require auth
     const publicRoutes = ['/', '/products', '/about', '/contact']
-    const isPublicRoute = publicRoutes.includes(path)
+    const isPublicRoute = publicRoutes.some(route => path.startsWith(route))
 
     // Auth routes
     const authRoutes = ['/auth/signin', '/auth/signup', '/auth/callback', '/auth/magic-link']
@@ -83,8 +83,11 @@ export async function middleware(req: NextRequest) {
       }
     }
 
-    // For public routes, just continue
+    // For public routes, just continue without any session checks
     if (isPublicRoute) {
+      // Clear any existing auth cookies if present
+      res.cookies.delete('sb-auth-token')
+      res.cookies.delete('sb-refresh-token')
       return res
     }
 
