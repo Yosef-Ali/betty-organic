@@ -38,6 +38,11 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
       setSession(session)
       if (event === 'SIGNED_OUT') {
         router.push('/auth/signin')
+      } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        // Handle both regular sign-in and magic link sign-in
+        const returnTo = sessionStorage.getItem('returnTo') || '/dashboard'
+        sessionStorage.removeItem('returnTo')
+        router.push(returnTo)
       }
     })
 

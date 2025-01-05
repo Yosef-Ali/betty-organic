@@ -22,7 +22,7 @@ export async function middleware(req: NextRequest) {
     const isProtectedRoute = protectedRoutes.some(route => path.startsWith(route))
 
     // Auth routes
-    const authRoutes = ['/auth/signin', '/auth/signup', '/auth/callback']
+    const authRoutes = ['/auth/signin', '/auth/signup', '/auth/callback', '/auth/magic-link']
     const isAuthRoute = authRoutes.includes(path)
 
     // Redirect to dashboard if authenticated and trying to access auth routes

@@ -14,16 +14,27 @@ export default function AuthCallbackPage() {
         // Get the session from the OAuth callback
         const { data: { session }, error } = await supabase.auth.getSession()
         
-        // If there's a hash, parse it and update the session
+        // Handle both OAuth and magic link callbacks
         if (window.location.hash) {
           const hash = window.location.hash.substring(1)
           const params = new URLSearchParams(hash)
           
-          // Update the session with the new tokens
-          await supabase.auth.setSession({
-            access_token: params.get('access_token') || '',
-            refresh_token: params.get('refresh_token') || ''
-          })
+          if (params.get('type') === 'magiclink') {
+            // Handle magic link authentication
+            const { error } = await supabase.auth.verifyOtp({
+              type: 'magiclink',
+              token_hash: params.get('token_hash') || '',
+              email: params.get('email') || ''
+            })
+            
+            if (error) throw error
+          } else {
+            // Handle OAuth authentication
+            await supabase.auth.setSession({
+              access_token: params.get('access_token') || '',
+              refresh_token: params.get('refresh_token') || ''
+            })
+          }
         }
         
         if (error) {

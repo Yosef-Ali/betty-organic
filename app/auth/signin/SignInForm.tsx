@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 
 interface SignInFormProps {
   error?: string;
+  showMagicLink?: boolean;
 }
 
 const GoogleIcon = () => (
@@ -33,7 +34,7 @@ const GoogleIcon = () => (
   </svg>
 )
 
-export default function SignInForm({ error: initialError }: SignInFormProps) {
+export default function SignInForm({ error: initialError, showMagicLink = true }: SignInFormProps) {
   useEffect(() => {
     // Check for OAuth error in URL
     const urlParams = new URLSearchParams(window.location.search)
@@ -45,8 +46,34 @@ export default function SignInForm({ error: initialError }: SignInFormProps) {
     }
   }, [])
   const [loading, setLoading] = useState(false)
+  const [email, setEmail] = useState('')
+  const [magicLinkSent, setMagicLinkSent] = useState(false)
   const [error, setError] = useState<string | null>(initialError || null)
   const supabase = createClientComponentClient()
+
+  const handleMagicLinkLogin = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        }
+      })
+
+      if (error) throw error
+      
+      setMagicLinkSent(true)
+    } catch (e) {
+      const errorMessage = e instanceof Error ? e.message : 'An error occurred'
+      console.error('Magic link error:', errorMessage)
+      setError(errorMessage)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleGoogleSignIn = async () => {
     try {
@@ -100,6 +127,49 @@ export default function SignInForm({ error: initialError }: SignInFormProps) {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {showMagicLink && (
+          <>
+            {magicLinkSent ? (
+              <div className="text-center space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  We've sent a magic link to <span className="font-medium">{email}</span>
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Check your inbox and click the link to sign in.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="Enter your email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={loading}
+                />
+                <Button
+                  onClick={handleMagicLinkLogin}
+                  disabled={loading || !email}
+                  className="w-full"
+                >
+                  {loading ? 'Sending...' : 'Send Magic Link'}
+                </Button>
+              </div>
+            )}
+            <div className="relative mt-4">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">
+                  Or continue with
+                </span>
+              </div>
+            </div>
+          </>
+        )}
         <div className="relative mt-4">
           <div className="absolute inset-0 flex items-center">
             <span className="w-full border-t" />
