@@ -34,53 +34,58 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(new URL('/dashboard', req.url))
     }
 
-    // Only check auth for protected routes, allow public routes to pass through
-    if (!session && isProtectedRoute && !isPublicRoute) {
-      // Check if we have valid cookies but no session
-      const authToken = req.cookies.get('sb-auth-token')?.value
-      const refreshToken = req.cookies.get('sb-refresh-token')?.value
-      
-      if (authToken && refreshToken) {
-        // Try to refresh the session
-        const { data: refreshedSession, error } = await supabase.auth.setSession({
-          access_token: authToken,
-          refresh_token: refreshToken
-        })
+    // Handle session state for protected routes
+    if (isProtectedRoute) {
+      // If no session but we have tokens, try to refresh
+      if (!session) {
+        const authToken = req.cookies.get('sb-auth-token')?.value
+        const refreshToken = req.cookies.get('sb-refresh-token')?.value
         
-        if (refreshedSession) {
-          // If refresh succeeded, continue with the request
-          return res
+        if (authToken && refreshToken) {
+          const { data: refreshedSession } = await supabase.auth.setSession({
+            access_token: authToken,
+            refresh_token: refreshToken
+          })
+          
+          if (refreshedSession) {
+            // If refresh succeeded, continue with the request
+            return res
+          }
         }
+        
+        // If no valid session or refresh failed, redirect to login
+        const redirectUrl = new URL('/auth/signin', req.url)
+        redirectUrl.searchParams.set('returnTo', path)
+        return NextResponse.redirect(redirectUrl)
       }
       
-      // If no valid session or refresh failed, redirect to login
-      const redirectUrl = new URL('/auth/signin', req.url)
-      redirectUrl.searchParams.set('returnTo', path)
-      return NextResponse.redirect(redirectUrl)
+      // If we have a session, ensure cookies are set
+      if (session) {
+        const expiresAt = new Date(session.expires_at * 1000)
+        const maxAge = Math.floor((expiresAt.getTime() - Date.now()) / 1000)
+        
+        res.cookies.set('sb-auth-token', session.access_token, {
+          path: '/',
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          maxAge: maxAge,
+          expires: expiresAt
+        })
+        res.cookies.set('sb-refresh-token', session.refresh_token, {
+          path: '/',
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          maxAge: maxAge,
+          expires: expiresAt
+        })
+      }
     }
 
-    // Set secure cookie attributes
-    if (session) {
-      // Set cookies with proper expiration based on session expiry
-      const expiresAt = new Date(session.expires_at * 1000)
-      const maxAge = Math.floor((expiresAt.getTime() - Date.now()) / 1000)
-      
-      res.cookies.set('sb-auth-token', session.access_token, {
-        path: '/',
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: maxAge,
-        expires: expiresAt
-      })
-      res.cookies.set('sb-refresh-token', session.refresh_token, {
-        path: '/',
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: maxAge,
-        expires: expiresAt
-      })
+    // For public routes, just continue
+    if (isPublicRoute) {
+      return res
     }
 
     return res
