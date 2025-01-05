@@ -45,7 +45,14 @@ export async function middleware(req: NextRequest) {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 7 // 1 week
+        maxAge: 60 * 60 * 24 * 14 // 2 weeks
+      })
+      res.cookies.set('sb-refresh-token', session.refresh_token, {
+        path: '/',
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 14 // 2 weeks
       })
     }
 
@@ -59,9 +66,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    '/dashboard/:path*',
-    '/admin/:path*',
-    '/auth/:path*'
-  ]
+  matcher: ['/(.*)']
 }
