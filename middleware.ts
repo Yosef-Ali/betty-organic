@@ -17,9 +17,13 @@ export async function middleware(req: NextRequest) {
     const { data: { session } } = await supabase.auth.getSession()
     const path = req.nextUrl.pathname
 
-    // Protected routes
+    // Protected routes - only these require authentication
     const protectedRoutes = ['/dashboard', '/admin']
     const isProtectedRoute = protectedRoutes.some(route => path.startsWith(route))
+    
+    // Public routes that should never require auth
+    const publicRoutes = ['/', '/products', '/about', '/contact']
+    const isPublicRoute = publicRoutes.includes(path)
 
     // Auth routes
     const authRoutes = ['/auth/signin', '/auth/signup', '/auth/callback', '/auth/magic-link']
@@ -30,8 +34,8 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(new URL('/dashboard', req.url))
     }
 
-    // Redirect to login if not authenticated and trying to access protected routes
-    if (!session && isProtectedRoute) {
+    // Only check auth for protected routes, allow public routes to pass through
+    if (!session && isProtectedRoute && !isPublicRoute) {
       // Check if we have valid cookies but no session
       const authToken = req.cookies.get('sb-auth-token')?.value
       const refreshToken = req.cookies.get('sb-refresh-token')?.value
@@ -89,5 +93,16 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/(.*)']
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - auth (auth routes)
+     * - public (public assets)
+     */
+    '/((?!api|_next/static|_next/image|favicon.ico|auth|public).*)',
+  ],
 }
