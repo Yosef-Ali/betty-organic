@@ -32,27 +32,50 @@ export async function middleware(req: NextRequest) {
 
     // Redirect to login if not authenticated and trying to access protected routes
     if (!session && isProtectedRoute) {
+      // Check if we have valid cookies but no session
+      const authToken = req.cookies.get('sb-auth-token')?.value
+      const refreshToken = req.cookies.get('sb-refresh-token')?.value
+      
+      if (authToken && refreshToken) {
+        // Try to refresh the session
+        const { data: refreshedSession, error } = await supabase.auth.setSession({
+          access_token: authToken,
+          refresh_token: refreshToken
+        })
+        
+        if (refreshedSession) {
+          // If refresh succeeded, continue with the request
+          return res
+        }
+      }
+      
+      // If no valid session or refresh failed, redirect to login
       const redirectUrl = new URL('/auth/signin', req.url)
-      // Store the returnTo URL in sessionStorage
       redirectUrl.searchParams.set('returnTo', path)
       return NextResponse.redirect(redirectUrl)
     }
 
     // Set secure cookie attributes
     if (session) {
+      // Set cookies with proper expiration based on session expiry
+      const expiresAt = new Date(session.expires_at * 1000)
+      const maxAge = Math.floor((expiresAt.getTime() - Date.now()) / 1000)
+      
       res.cookies.set('sb-auth-token', session.access_token, {
         path: '/',
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 14 // 2 weeks
+        maxAge: maxAge,
+        expires: expiresAt
       })
       res.cookies.set('sb-refresh-token', session.refresh_token, {
         path: '/',
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 14 // 2 weeks
+        maxAge: maxAge,
+        expires: expiresAt
       })
     }
 
