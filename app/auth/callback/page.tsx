@@ -15,26 +15,31 @@ export default function AuthCallbackPage() {
         const { data: { session }, error } = await supabase.auth.getSession()
         
         // Handle both OAuth and magic link callbacks
-        if (window.location.hash) {
-          const hash = window.location.hash.substring(1)
-          const params = new URLSearchParams(hash)
+        // Handle both URL hash and query parameters
+        const params = new URLSearchParams(
+          window.location.hash.substring(1) || window.location.search.substring(1)
+        )
+
+        if (params.get('type') === 'magiclink') {
+          // Get email from sessionStorage if not in params
+          const email = params.get('email') || sessionStorage.getItem('magicLinkEmail') || ''
           
-          if (params.get('type') === 'magiclink') {
-            // Handle magic link authentication
-            const { error } = await supabase.auth.verifyOtp({
-              type: 'magiclink',
-              token_hash: params.get('token_hash') || '',
-              email: params.get('email') || ''
-            })
-            
-            if (error) throw error
-          } else {
-            // Handle OAuth authentication
-            await supabase.auth.setSession({
-              access_token: params.get('access_token') || '',
-              refresh_token: params.get('refresh_token') || ''
-            })
-          }
+          const { error } = await supabase.auth.verifyOtp({
+            type: 'magiclink',
+            token_hash: params.get('token_hash') || '',
+            email
+          })
+          
+          if (error) throw error
+          
+          // Clear stored email
+          sessionStorage.removeItem('magicLinkEmail')
+        } else if (params.get('access_token')) {
+          // Handle OAuth authentication
+          await supabase.auth.setSession({
+            access_token: params.get('access_token') || '',
+            refresh_token: params.get('refresh_token') || ''
+          })
         }
         
         if (error) {

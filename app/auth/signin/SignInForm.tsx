@@ -56,16 +56,25 @@ export default function SignInForm({ error: initialError, showMagicLink = true }
       setLoading(true)
       setError(null)
       
-      const { error } = await supabase.auth.signInWithOtp({
+      const { data, error } = await supabase.auth.signInWithOtp({
         email,
         options: {
           emailRedirectTo: `${window.location.origin}/auth/callback`,
+          shouldCreateUser: true // Allow new users to sign up via magic link
         }
       })
 
-      if (error) throw error
+      if (error) {
+        // Handle specific error cases
+        if (error.message.includes('email rate limit exceeded')) {
+          throw new Error('Too many attempts. Please try again later.')
+        }
+        throw error
+      }
       
       setMagicLinkSent(true)
+      // Store email in sessionStorage for callback page
+      sessionStorage.setItem('magicLinkEmail', email)
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : 'An error occurred'
       console.error('Magic link error:', errorMessage)
