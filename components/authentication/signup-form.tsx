@@ -2,9 +2,7 @@
 
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useActionState } from "react"
-import { SignUpFormType, signUpSchema } from "@/lib/definitions"
-import { signup } from "@/lib/actions"
+
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -15,21 +13,23 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form"
+import { SignUpFormType, signUpSchema } from "@/lib/definitions"
+import { signup } from "@/app/actions/authActions"
 
 export function SignUpForm() {
-  const [state, action] = useActionState(signup)
   const form = useForm<SignUpFormType>({
     resolver: zodResolver(signUpSchema),
     defaultValues: {
       name: "",
       email: "",
       password: "",
+      confirmPassword: "",
     },
   })
 
   return (
     <Form {...form}>
-      <form action={action} className="flex flex-col gap-6">
+      <form onSubmit={form.handleSubmit((data) => signup(data))} className="flex flex-col gap-6">
         <div className="flex flex-col items-center gap-2 text-center">
           <h1 className="text-2xl font-bold">Create an account</h1>
           <p className="text-balance text-sm text-muted-foreground">
@@ -76,16 +76,26 @@ export function SignUpForm() {
               </FormItem>
             )}
           />
-          {state?.error && (
-            <p className="text-sm text-destructive">{state.error}</p>
-          )}
+          <FormField
+            control={form.control}
+            name="confirmPassword"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Confirm Password</FormLabel>
+                <FormControl>
+                  <Input type="password" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
           <Button type="submit" className="w-full">
             Sign Up
           </Button>
         </div>
         <div className="text-center text-sm">
           Already have an account?{" "}
-          <a href="/login" className="underline underline-offset-4">
+          <a href="/auth/login" className="underline underline-offset-4">
             Login
           </a>
         </div>
