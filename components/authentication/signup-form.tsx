@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/form"
 import { SignUpFormType, signUpSchema } from "@/lib/definitions"
 import { signup } from "@/app/actions/authActions"
+import { Loader2 } from "lucide-react"
 
 export function SignUpForm() {
   const form = useForm<SignUpFormType>({
@@ -29,7 +30,16 @@ export function SignUpForm() {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit((data) => signup(data))} className="flex flex-col gap-6">
+      <form onSubmit={form.handleSubmit(async (data) => {
+        const result = await signup(data);
+        if (result?.error) {
+          form.setError("email", { message: result.error });
+        } else if (result?.success) {
+          // Redirect to verify page with success message
+          window.location.href = '/auth/verify';
+        }
+        // If no result returned, the action handled the redirect
+      })} className="flex flex-col gap-6">
         <div className="flex flex-col items-center gap-2 text-center">
           <h1 className="text-2xl font-bold">Create an account</h1>
           <p className="text-balance text-sm text-muted-foreground">
@@ -89,8 +99,12 @@ export function SignUpForm() {
               </FormItem>
             )}
           />
-          <Button type="submit" className="w-full">
-            Sign Up
+          <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
+            {form.formState.isSubmitting ? (
+              <Loader2 className="animate-spin h-5 w-5 mr-3" />
+            ) : (
+              "Sign Up"
+            )}
           </Button>
         </div>
         <div className="text-center text-sm">

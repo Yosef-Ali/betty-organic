@@ -1,9 +1,9 @@
-
 'use client'
 
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { resetSchema, ResetFormType } from "@/lib/definitions"
+import { resetPassword } from "@/app/actions/authActions"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -25,7 +25,10 @@ export function ResetForm() {
     <Form {...form}>
       <form
         onSubmit={form.handleSubmit(async (data) => {
-          // ...perform reset logic...
+          const result = await resetPassword(data);
+          if (result?.error) {
+            form.setError("email", { message: result.error });
+          }
         })}
         className="flex flex-col gap-6"
       >

@@ -28,7 +28,12 @@ export function LoginForm() {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit((data) => login(data))} className="flex flex-col gap-6">
+      <form onSubmit={form.handleSubmit(async (data) => {
+        const result = await login(data);
+        if (result?.error) {
+          form.setError("email", { message: result.error });
+        }
+      })} className="flex flex-col gap-6">
         <div className="flex flex-col items-center gap-2 text-center">
           <h1 className="text-2xl font-bold">Login</h1>
           <p className="text-sm text-muted-foreground">Enter your email and password</p>

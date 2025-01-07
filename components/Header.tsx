@@ -3,8 +3,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Search, PanelLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button, buttonVariants } from "components/ui/button";
+import { Input } from "components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,7 +12,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "components/ui/dropdown-menu";
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'; // Import Supabase client
 import { Home, ShoppingBag, ShoppingCart, Package, Users2, LineChart } from "lucide-react";
 import Breadcrumb from "./Breadcrumb";
@@ -60,7 +60,7 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    router.push('/auth/signin');
+    router.push('/auth/login');
   };
 
   const generateBreadcrumbs = () => {
@@ -107,6 +107,11 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
           className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[336px]"
         />
       </div>
+      {user && (
+        <Link href="/dashboard" className={buttonVariants()}>
+          Dashboard
+        </Link>
+      )}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
