@@ -31,14 +31,20 @@ export function SignUpForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(async (data) => {
-        const result = await signup(data);
+        const formData = new FormData();
+        formData.append('email', data.email);
+        formData.append('password', data.password);
+        formData.append('full_name', data.name);
+        const result = await signup(formData);
         if (result?.error) {
           form.setError("email", { message: result.error });
-        } else if (result?.success) {
+        } else if (result?.success && result?.message) {
           // Redirect to verify page with success message
           window.location.href = '/auth/verify';
+        } else if (result?.success) {
+          // Redirect to dashboard
+          window.location.href = '/dashboard';
         }
-        // If no result returned, the action handled the redirect
       })} className="flex flex-col gap-6">
         <div className="flex flex-col items-center gap-2 text-center">
           <h1 className="text-2xl font-bold">Create an account</h1>

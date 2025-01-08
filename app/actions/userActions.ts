@@ -1,10 +1,11 @@
 'use server'
 
-import { supabase } from '@/lib/supabase/server';
+import { createClient } from 'lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 
 export async function getUsers() {
   try {
+    const supabase = await createClient();
     const { data: users, error } = await supabase
       .from('users')
       .select();
@@ -23,6 +24,7 @@ export async function getUsers() {
 
 export async function deleteUser(id: string) {
   try {
+    const supabase = await createClient();
     const { error } = await supabase
       .from('users')
       .delete()
@@ -42,6 +44,7 @@ export async function deleteUser(id: string) {
 
 export async function getUserById(id: string) {
   try {
+    const supabase = await createClient();
     const { data, error } = await supabase
       .from('users')
       .select('*')

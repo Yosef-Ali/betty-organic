@@ -1,67 +1,86 @@
-'use server'
+'use server';
 
-import { createClient } from "@/lib/supabase/server"
-import { SignUpFormType, LoginFormType, ResetFormType } from "@/lib/definitions"
-import { redirect } from "next/navigation"
+import { LoginFormType, ResetFormType } from 'lib/definitions';
+import { redirect } from 'next/navigation';
+import { createClient } from '@/lib/supabase/server';
+import { cookies } from 'next/headers';
 
-export async function signup(formData: SignUpFormType) {
-  const supabase = await createClient()
+interface AuthResponse {
+  error: null | string;
+  success: boolean;
+  data: unknown | null;
+  message?: string;  // Add optional message property
+}
 
-  const { data, error } = await supabase.auth.signUp({
-    email: formData.email,
-    password: formData.password,
+export async function signup(formData: FormData): Promise<AuthResponse> {
+  const supabase = await createClient();
+  const data = {
+    email: formData.get('email') as string,
+    password: formData.get('password') as string,
     options: {
       data: {
-        name: formData.name,
+        full_name: formData.get('full_name') as string,
       },
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
     },
-  })
+  };
+  const { data: signupData, error } = await supabase.auth.signUp(data);
 
   if (error) {
-    return { error: error.message }
+    return {
+      error: error.message,
+      success: false,
+      data: null
+    };
   }
 
   // Check if email verification is required
-  if (data?.user?.identities?.length === 0) {
-    return { success: true, message: 'Please check your email to verify your account.' }
+  if (signupData?.user?.identities?.length === 0) {
+    return {
+      error: null,
+      success: true,
+      data: signupData,
+      message: 'Please check your email to verify your account.'
+    };
   }
 
-  // If no verification required, redirect to home
-  redirect('/')
+  return {
+    error: null,
+    success: true,
+    data: signupData
+  };
 }
 
 export async function login(formData: LoginFormType) {
-  const supabase = await createClient()
+  const supabase = await createClient();
 
   const { error } = await supabase.auth.signInWithPassword({
     email: formData.email,
     password: formData.password,
-  })
+  });
 
   if (error) {
-    return { error: error.message }
+    return { error: error.message };
   }
 
-  redirect('/')
+  redirect('/');
 }
 
 export async function resetPassword(formData: ResetFormType) {
-  const supabase = await createClient()
+  const supabase = await createClient();
 
   const { error } = await supabase.auth.resetPasswordForEmail(formData.email, {
-    redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
-  })
+    redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback?returnTo=/auth/login`,
+  });
 
   if (error) {
-    return { error: error.message }
+    return { error: error.message };
   }
 
-  return { success: true }
+  return { success: true };
 }
 
 export async function signOut() {
-  const supabase = await createClient()
-  await supabase.auth.signOut()
-  redirect('/auth/login')
+  const supabase = await createClient();
+  await supabase.auth.signOut();
+  redirect('/auth/login');
 }

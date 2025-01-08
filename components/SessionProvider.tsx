@@ -36,15 +36,15 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session)
-      
+
       switch (event) {
         case 'SIGNED_OUT':
           // Clear all auth-related storage
           sessionStorage.removeItem('returnTo')
           sessionStorage.removeItem('magicLinkEmail')
-          router.push('/auth/signin')
+          router.push('/auth/login')
           break
-          
+
         case 'SIGNED_IN':
         case 'TOKEN_REFRESHED':
           // Handle both regular sign-in and magic link sign-in
@@ -52,7 +52,7 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
           sessionStorage.removeItem('returnTo')
           router.push(returnTo)
           break
-          
+
         case 'PASSWORD_RECOVERY':
           // Handle password recovery if needed
           router.push('/auth/reset-password')
