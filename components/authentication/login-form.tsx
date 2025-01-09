@@ -32,6 +32,8 @@ export function LoginForm() {
         const result = await login(data);
         if (result?.error) {
           form.setError("email", { message: result.error });
+        } else if (result?.redirectTo) {
+          window.location.href = result.redirectTo;
         }
       })} className="flex flex-col gap-6">
         <div className="flex flex-col items-center gap-2 text-center">
