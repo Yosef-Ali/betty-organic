@@ -1,26 +1,28 @@
 'use client'
 
-import { useSession } from './SessionProvider'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useEffect } from 'react'
+import supabase from '@/lib/supabase/client'
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { session, isLoading } = useSession()
+  const [loading, setLoading] = useState(true)
+  const [session, setSession] = useState<any>(null)
   const router = useRouter()
 
   useEffect(() => {
-    if (!isLoading && !session) {
-      router.push('/auth/login')
+    async function checkSession() {
+      const { data } = await supabase.auth.getSession()
+      if (!data.session) {
+        router.replace('/auth/login')
+      } else {
+        setSession(data.session)
+      }
+      setLoading(false)
     }
-  }, [session, isLoading, router])
+    checkSession()
+  }, [router])
 
-  if (isLoading || !session) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
-      </div>
-    )
-  }
+  if (loading) return <p>Loading...</p>
 
   return <>{children}</>
 }

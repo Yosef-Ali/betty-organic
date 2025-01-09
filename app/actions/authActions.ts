@@ -94,7 +94,7 @@ export async function login(formData: LoginFormType): Promise<AuthResponse> {
       error: null,
       success: true,
       data,
-      redirectTo: '/',
+      redirectTo: '/dashboard',
     };
   } catch (error) {
     console.error('Unexpected login error:', error);
