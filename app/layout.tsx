@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip"
 import { Toaster } from "@/components/ui/toaster"
 import Providers from './providers'
 import { SessionProvider } from '@/components/SessionProvider'
+import { AuthProvider } from '@/lib/contexts/auth-context'
 
 export const metadata: Metadata = {
   title: 'Betty Organic',
@@ -27,10 +28,12 @@ export default function RootLayout({
       <body className={cn("min-h-screen bg-background font-sans antialiased", inter.className)}>
         <Providers>
           <SessionProvider>
-            <TooltipProvider>
-              {children}
-            </TooltipProvider>
-            <Toaster />
+            <AuthProvider>
+              <TooltipProvider>
+                {children}
+              </TooltipProvider>
+              <Toaster />
+            </AuthProvider>
           </SessionProvider>
         </Providers>
       </body>

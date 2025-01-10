@@ -1,8 +1,8 @@
 'use client'
 
+import React from 'react'
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -17,7 +17,11 @@ import {
 import { LoginFormType, loginSchema } from "@/lib/definitions"
 import { login } from "@/app/actions/authActions"
 
-export function LoginForm() {
+interface LoginFormProps {
+  onSubmit: (formData: FormData) => Promise<void>
+}
+
+export const LoginForm: React.FC<LoginFormProps> = ({ onSubmit }) => {
   const form = useForm<LoginFormType>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -26,16 +30,15 @@ export function LoginForm() {
     },
   })
 
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const formData = new FormData(event.currentTarget)
+    await onSubmit(formData)
+  }
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(async (data) => {
-        const result = await login(data);
-        if (result?.error) {
-          form.setError("email", { message: result.error });
-        } else if (result?.redirectTo) {
-          window.location.href = result.redirectTo;
-        }
-      })} className="flex flex-col gap-6">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-6">
         <div className="flex flex-col items-center gap-2 text-center">
           <h1 className="text-2xl font-bold">Login</h1>
           <p className="text-sm text-muted-foreground">Enter your email and password</p>

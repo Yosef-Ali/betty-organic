@@ -1,34 +1,46 @@
 'use server';
 
 import { LoginFormType, ResetFormType } from 'lib/definitions';
-import { redirect } from 'next/navigation';
-import { createClient } from 'lib/supabase/server';
+import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { redirect } from 'next/navigation';
 
-interface AuthResponse {
-  error: null | string;
+// Improved type definitions
+interface AuthResponse<T = unknown> {
+  error: string | null;
   success: boolean;
-  data: unknown | null;
-  message?: string;  // Add optional message property
+  data: T | null;
+  message?: string;
   redirectTo?: string;
 }
 
-export async function signup(formData: FormData): Promise<AuthResponse> {
-  const supabase = await createClient();
-  const data = {
-    email: formData.get('email') as string,
-    password: formData.get('password') as string,
-    options: {
-      data: {
-        full_name: formData.get('full_name') as string,
-      },
-    },
+interface SignupData {
+  email: string;
+  password: string;
+  options: {
+    data: {
+      full_name: string;
+    };
   };
+}
+
+export async function signup(formData: FormData): Promise<AuthResponse> {
+  const supabase = createClient();
+
   try {
-    const { data: signupData, error } = await supabase.auth.signUp(data);
+    const { data: signupData, error } = await supabase.auth.signUp({
+      email: formData.get('email') as string,
+      password: formData.get('password') as string,
+      options: {
+        data: {
+          full_name: formData.get('full_name') as string,
+          role: 'customer' // Set default role
+        }
+      }
+    });
 
     if (error) {
-      console.error('Supabase signup error:', error);
       return {
         error: error.message,
         success: false,
@@ -36,25 +48,31 @@ export async function signup(formData: FormData): Promise<AuthResponse> {
       };
     }
 
-    console.log('Signup successful:', signupData);
+    if (signupData?.user) {
+      // Create profile with default role
+      await supabase.from('profiles').upsert({
+        id: signupData.user.id,
+        role: 'customer',
+        updated_at: new Date().toISOString()
+      });
 
-    // Check if email verification is required
-    if (signupData?.user?.identities?.length === 0) {
       return {
-        error: null,
         success: true,
+        error: null,
         data: signupData,
-        message: 'Please check your email to verify your account.'
+        redirectTo: '/' // Redirect to homepage
       };
     }
 
     return {
-      error: null,
       success: true,
-      data: signupData
+      error: null,
+      data: signupData,
+      message: 'Please check your email to verify your account.'
     };
+
   } catch (error) {
-    console.error('Unexpected signup error:', error);
+    console.error('Signup error:', error);
     return {
       error: 'An unexpected error occurred',
       success: false,
@@ -63,43 +81,79 @@ export async function signup(formData: FormData): Promise<AuthResponse> {
   }
 }
 
-export async function login(formData: LoginFormType): Promise<AuthResponse> {
-  const supabase = await createClient();
+interface LoginResponse extends AuthResponse {
+  role?: 'admin' | 'customer' | 'sales';
+}
 
+export async function login(formData: LoginFormType): Promise<LoginResponse> {
   try {
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const cookieStore = cookies();
+    const supabase = createServerComponentClient({
+      cookies: () => Promise.resolve(cookieStore)
+    });
+
+    // Attempt login
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
       email: formData.email,
       password: formData.password,
     });
 
-    if (error) {
-      console.error('Login error:', error);
+    if (authError) {
       return {
-        error: error.message,
+        error: authError.message,
         success: false,
         data: null
       };
     }
 
-    if (!data.session?.user?.email_confirmed_at) {
+    if (!authData?.user) {
       return {
-        error: 'Please verify your email before logging in.',
+        error: 'Authentication failed',
         success: false,
-        data: null,
+        data: null
       };
     }
 
-    console.log('Login successful:', data);
+    // Fetch or create profile
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', authData.user.id)
+      .single();
+
+    if (profileError && profileError.code !== 'PGRST116') { // Not found error
+      return {
+        error: 'Failed to fetch profile',
+        success: false,
+        data: null
+      };
+    }
+
+    const userRole = profile?.role || 'customer';
+
+    // Create profile if it doesn't exist
+    if (!profile) {
+      await supabase
+        .from('profiles')
+        .upsert({
+          id: authData.user.id,
+          role: userRole,
+          updated_at: new Date().toISOString()
+        });
+    }
+
     return {
-      error: null,
       success: true,
-      data,
-      redirectTo: '/dashboard',
+      error: null,
+      data: authData,
+      role: userRole,
+      redirectTo: userRole === 'admin' ? '/dashboard' : '/'
     };
+
   } catch (error) {
-    console.error('Unexpected login error:', error);
+    console.error('Login error:', error);
     return {
-      error: `An unexpected error occurred: ${error}`,
+      error: 'An unexpected error occurred',
       success: false,
       data: null
     };
@@ -107,7 +161,7 @@ export async function login(formData: LoginFormType): Promise<AuthResponse> {
 }
 
 export async function resetPassword(formData: ResetFormType): Promise<AuthResponse> {
-  const supabase = await createClient();
+  const supabase = createClient();
 
   try {
     const { data, error } = await supabase.auth.resetPasswordForEmail(formData.email, {
@@ -116,11 +170,7 @@ export async function resetPassword(formData: ResetFormType): Promise<AuthRespon
 
     if (error) {
       console.error('Password reset error:', error);
-      return {
-        error: error.message,
-        success: false,
-        data: null
-      };
+      throw new Error(`Password reset failed: ${error.message}`);
     }
 
     console.log('Password reset email sent successfully');
@@ -139,8 +189,19 @@ export async function resetPassword(formData: ResetFormType): Promise<AuthRespon
   }
 }
 
-export async function signOut() {
-  const supabase = await createClient();
+export async function signOut(): Promise<void> {
+  const cookieStore = cookies();
+  const supabase = createServerComponentClient({
+    cookies: () => Promise.resolve(cookieStore)
+  });
+
   await supabase.auth.signOut();
   redirect('/auth/login');
+}
+
+function createClient() {
+  const cookieStore = cookies();
+  return createServerComponentClient({
+    cookies: () => Promise.resolve(cookieStore)
+  });
 }

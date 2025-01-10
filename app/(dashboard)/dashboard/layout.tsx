@@ -18,7 +18,19 @@ export default async function DashboardLayout({
     } = await supabase.auth.getSession();
 
     if (error || !session) {
-      redirect('/auth/login');
+      if (session) {
+        // Check if user has admin role
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .single();
+
+        if (profile?.role === 'admin') {
+          redirect('/dashboard');
+        }
+      }
+      redirect('/');
     }
 
     return <DashboardLayoutClient session={session}>{children}</DashboardLayoutClient>;

@@ -1,17 +1,16 @@
 'use server';
 
-import { createClient } from '@/lib/supabase';
+import { createClient } from 'lib/supabase/server';
 import {
   Product,
   DbProductInsert as ProductInsert,
   DbProductUpdate as ProductUpdate
-} from '@/lib/supabase/db.types';
-import { supabase } from '@/lib/supabase/supabaseClient';
+} from 'lib/supabase/db.types';
 import { revalidatePath } from 'next/cache';
 import { v4 as uuidv4 } from 'uuid';
 
-
 export const createProduct = async (formData: FormData): Promise<Product> => {
+  const supabase = await createClient();
   try {
     // Input validation
     const name = formData.get('name') as string;
@@ -30,8 +29,7 @@ export const createProduct = async (formData: FormData): Promise<Product> => {
       throw new Error('Invalid price or stock value');
     }
 
-    const productId = uuidv4(); // Generate UUID here
-
+    const productId = uuidv4();
     const now = new Date().toISOString();
     const productData: ProductInsert = {
       id: productId,
@@ -68,12 +66,12 @@ export const createProduct = async (formData: FormData): Promise<Product> => {
 };
 
 export async function updateProduct(id: string, data: FormData) {
+  const supabase = await createClient();
   try {
     const updates: ProductUpdate = {};
 
-    // Properly type and handle FormData values
     for (const [key, value] of data.entries()) {
-      if (value instanceof File) continue; // Skip file inputs
+      if (value instanceof File) continue;
       if (key === 'price') {
         updates.price = parseFloat(value.toString());
       } else if (key === 'stock') {
@@ -104,26 +102,23 @@ export async function updateProduct(id: string, data: FormData) {
 }
 
 export async function getProductImages(productId: string) {
+  const supabase = await createClient();
   try {
-    console.log(`Fetching images for product ID: ${productId}`);
     const { data: product, error } = await supabase
       .from('products')
-      .select('imageUrl')  // Changed from image_url to imageUrl
+      .select('imageUrl')
       .eq('id', productId)
       .single();
 
     if (error) {
       console.error('Error fetching product images:', error);
-      console.error('Supabase error details:', error.message, error.details);
       throw new Error('Failed to fetch product images');
     }
 
     if (!product) {
-      console.error('No product found for the given ID:', productId);
       return [];
     }
 
-    console.log('Fetched product images:', product);
     return product?.imageUrl ? [product.imageUrl] : [];
   } catch (error) {
     console.error('Error fetching product images:', error);
@@ -132,7 +127,7 @@ export async function getProductImages(productId: string) {
 }
 
 export async function getProducts(): Promise<Product[]> {
-  const supabase = createClient();
+  const supabase = await createClient();
   try {
     const { data, error } = await supabase
       .from('products')
@@ -151,6 +146,7 @@ export async function getProducts(): Promise<Product[]> {
 }
 
 export async function getProduct(id: string) {
+  const supabase = await createClient();
   try {
     const { data: product, error } = await supabase
       .from('products')
@@ -170,6 +166,7 @@ export async function getProduct(id: string) {
 }
 
 export async function deleteProduct(id: string) {
+  const supabase = await createClient();
   try {
     const { error } = await supabase
       .from('products')

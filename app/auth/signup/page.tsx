@@ -1,20 +1,18 @@
 'use client'
-import { useRouter } from 'next/navigation'
-import { login } from '@/app/actions/authActions'
-import { LoginForm } from '@/components/authentication/login-form'
-import Image from 'next/image'
-import { useEffect } from 'react'
-import { toast } from 'sonner'
 
-export default function LoginPage() {
+import { useRouter } from 'next/navigation'
+import { signup } from '@/app/actions/authActions'
+import { toast } from 'sonner'
+import { SignupForm } from "components/authentication/signup-form"
+import { GalleryVerticalEnd } from "lucide-react"
+import Image from "next/image"
+
+export default function SignupPage() {
   const router = useRouter()
 
   const handleSubmit = async (formData: FormData) => {
     try {
-      const email = formData.get('email') as string
-      const password = formData.get('password') as string
-
-      const result = await login({ email, password })
+      const result = await signup(formData)
 
       if (result.error) {
         toast.error(result.error)
@@ -22,11 +20,11 @@ export default function LoginPage() {
       }
 
       if (result.success) {
-        // Use replace to prevent back navigation to login
-        router.replace(result.redirectTo || '/')
+        toast.success('Successfully signed up! Welcome to Betty\'s Organic')
+        router.replace('/')  // Redirect to homepage
       }
     } catch (error) {
-      toast.error('Login failed. Please try again.')
+      toast.error('Signup failed. Please try again.')
     }
   }
 
@@ -47,11 +45,11 @@ export default function LoginPage() {
         </div>
         <div className="flex flex-1 items-center justify-center">
           <div className="w-full max-w-xs">
-            <LoginForm onSubmit={handleSubmit} />
+            <SignupForm onSubmit={handleSubmit} />
             <div className="mt-4 text-center text-sm">
-              Don&apos;t have an account?{' '}
-              <a href="/auth/signup" className="font-medium text-primary hover:underline">
-                Sign up
+              Already have an account?{' '}
+              <a href="/auth/login" className="font-medium text-primary hover:underline">
+                Log in
               </a>
             </div>
           </div>
@@ -60,7 +58,7 @@ export default function LoginPage() {
       <div className="relative hidden bg-muted lg:block">
         <Image
           src="/fruits/orange.jpg"
-          alt="Login background"
+          alt="Signup background"
           width={1200}
           height={1200}
           priority

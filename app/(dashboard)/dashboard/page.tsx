@@ -1,53 +1,95 @@
-'use client'
+'use client';
 
-import { useEffect, useState } from 'react'
-import { OverviewCard } from "@/components/OverviewCard"
-import { RecentSales } from "@/components/RecentSales"
-import { RecentOrders } from "@/components/RecentOrders"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { CreditCard, DollarSign, Package, Users } from 'lucide-react'
-import { getTotalRevenue, getTotalCustomers, getTotalProducts, getTotalOrders } from '@/app/actions/supabase-actions'
-import KnowledgeBaseEntry from '@/components/KnowledgeBaseEntry';  // Correct import
-//import { getKnowledgeBaseEntries } from '@/app/actions/knowledgeBaseActions';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useToast } from 'hooks/use-toast';
 
-import AuthGuard from '@/components/AuthGuard'
+import { checkAccess, Role } from '@/lib/auth';
+import { getSession } from '@/lib/auth';
+import { OverviewCard } from "components/OverviewCard";
+import { RecentSales } from "components/RecentSales";
+import { RecentOrders } from "components/RecentOrders";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "components/ui/tabs";
+import { CreditCard, DollarSign, Package, Users } from 'lucide-react';
+import { getTotalRevenue, getTotalCustomers, getTotalProducts, getTotalOrders } from 'app/actions/supabase-actions';
+import { KnowledgeBaseEntry } from 'components/KnowledgeBaseEntry';
+//import { getKnowledgeBaseEntries } from 'app/actions/knowledgeBaseActions';
+
+import AuthGuard from '../../../components/AuthGuard';
 
 export default function DashboardPage() {
-  const [totalRevenue, setTotalRevenue] = useState(0)
-  const [totalCustomers, setTotalCustomers] = useState(0)
-  const [totalProducts, setTotalProducts] = useState(0)
-  const [totalOrders, setTotalOrders] = useState(0)
-  const [entries, setEntries] = useState([])
-  const [recentSales, setRecentSales] = useState([])
-  const [recentOrders, setRecentOrders] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const [totalRevenue, setTotalRevenue] = useState(0);
+  const [totalCustomers, setTotalCustomers] = useState(0);
+  const [totalProducts, setTotalProducts] = useState(0);
+  const [totalOrders, setTotalOrders] = useState(0);
+  const [entries, setEntries] = useState([]);
+  const [recentSales, setRecentSales] = useState([]);
+  const [recentOrders, setRecentOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<Role | null>(null);
+  const [hasAccess, setHasAccess] = useState(false);
 
   useEffect(() => {
     async function fetchDashboardData() {
       try {
-        setLoading(true)
+        setLoading(true);
         const [revenue, customers, products, orders] = await Promise.all([
           getTotalRevenue(),
           getTotalCustomers(),
           getTotalProducts(),
-          getTotalOrders()
-        ])
+          getTotalOrders(),
+        ]);
 
-        setTotalRevenue(revenue ?? 0)
-        setTotalCustomers(customers ?? 0)
-        setTotalProducts(products ?? 0)
-        setTotalOrders(orders ?? 0)
+        setTotalRevenue(revenue ?? 0);
+        setTotalCustomers(customers ?? 0);
+        setTotalProducts(products ?? 0);
+        setTotalOrders(orders ?? 0);
       } catch (err) {
-        console.error('Error fetching dashboard data:', err)
-        setError(err.message)
+        console.error('Error fetching dashboard data:', err);
+        if (err instanceof Error) {
+          setError(err.message);
+        } else {
+          setError(String(err));
+        }
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
     }
-    fetchDashboardData()
-  }, [])
+
+    async function fetchSessionData() {
+      const session = await getSession();
+      setUserRole(session?.user?.role as Role || null);
+    }
+
+    fetchDashboardData();
+    fetchSessionData();
+  }, []);
+
+  useEffect(() => {
+    if (userRole) {
+      setHasAccess(checkAccess(userRole, 'dashboard'));
+    }
+  }, [userRole]);
+
+  const router = useRouter();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (!hasAccess) {
+      toast({
+        title: 'Access Denied',
+        description: 'You do not have permission to view the dashboard',
+        variant: 'destructive',
+      });
+      router.push('/');
+    }
+  }, [hasAccess, router]);
+
+  if (!hasAccess) {
+    return null;
+  }
 
   return (
     <AuthGuard>
@@ -64,9 +106,8 @@ export default function DashboardPage() {
             <TabsTrigger value="reports" disabled>
               Reports
             </TabsTrigger>
-            <TabsTrigger value="notifications" disabled>
-              Notifications
-            </TabsTrigger>
+            <TabsTrigger value="notifications" disabled />
+            Notifications
           </TabsList>
           <TabsContent value="overview" className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -139,5 +180,5 @@ export default function DashboardPage() {
         </Tabs>
       </div>
     </AuthGuard>
-  )
+  );
 }

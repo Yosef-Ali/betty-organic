@@ -1,10 +1,14 @@
 'use client'
 
+import React from 'react'
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { Button } from "components/ui/button"
+import { Input } from "components/ui/input"
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { useState } from 'react'
+import { useAuthForm } from 'lib/hooks/useAuthForm'
 
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import {
   Form,
   FormControl,
@@ -12,12 +16,14 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form"
-import { SignUpFormType, signUpSchema } from "@/lib/definitions"
-import { signup } from "@/app/actions/authActions"
-import { Loader2 } from "lucide-react"
+} from "components/ui/form"
+import { SignUpFormType, signUpSchema } from "lib/definitions"
 
-export function SignUpForm() {
+interface SignupFormProps {
+  onSubmit: (formData: FormData) => Promise<void>
+}
+
+export const SignupForm: React.FC<SignupFormProps> = ({ onSubmit }) => {
   const form = useForm<SignUpFormType>({
     resolver: zodResolver(signUpSchema),
     defaultValues: {
@@ -28,29 +34,44 @@ export function SignUpForm() {
     },
   })
 
+  const supabase = createClientComponentClient()
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const { loading: authLoading, error: authError, signUp } = useAuthForm()
+
+  const handleGoogleSignIn = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      })
+      if (error) throw error
+      if (data?.url) window.location.href = data.url
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Error'
+      setError(errorMessage)
+      form.setError("email", { message: errorMessage })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const formData = new FormData(event.currentTarget)
+    await onSubmit(formData)
+  }
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(async (data) => {
-        const formData = new FormData();
-        formData.append('email', data.email);
-        formData.append('password', data.password);
-        formData.append('full_name', data.name);
-        const result = await signup(formData);
-        if (result?.error) {
-          form.setError("email", { message: result.error });
-        } else if (result?.success && result?.message) {
-          // Redirect to verify page with success message
-          window.location.href = '/auth/verify';
-        } else if (result?.success) {
-          // Redirect to dashboard
-          window.location.href = '/dashboard';
-        }
-      })} className="flex flex-col gap-6">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-6">
         <div className="flex flex-col items-center gap-2 text-center">
-          <h1 className="text-2xl font-bold">Create an account</h1>
-          <p className="text-balance text-sm text-muted-foreground">
-            Enter your information below to create your account
-          </p>
+          <h1 className="text-2xl font-bold">Sign Up</h1>
+          <p className="text-sm text-muted-foreground">Create your account</p>
         </div>
         <div className="grid gap-4">
           <FormField
@@ -105,19 +126,26 @@ export function SignUpForm() {
               </FormItem>
             )}
           />
-          <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-            {form.formState.isSubmitting ? (
-              <Loader2 className="animate-spin h-5 w-5 mr-3" />
-            ) : (
-              "Sign Up"
-            )}
+          <Button type="submit" className="w-full">Sign Up</Button>
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">
+                OR
+              </span>
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full gap-2"
+            onClick={handleGoogleSignIn}
+            disabled={loading}
+          >
+            Continue with Google
           </Button>
-        </div>
-        <div className="text-center text-sm">
-          Already have an account?{" "}
-          <a href="/auth/login" className="underline underline-offset-4">
-            Login
-          </a>
         </div>
       </form>
     </Form>
