@@ -1,9 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { supabase } from '@/lib/supabase/server';
+import { createServerSupabaseClient } from '@/lib/supabase/server';
 
 export async function uploadImage(formData: FormData) {
+  const supabase = await createServerSupabaseClient();
   const file = formData.get("file");
   const productId = formData.get("productId") as string;
 

@@ -1,41 +1,32 @@
-import { createClient } from '@/lib/supabase/server';
+import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import DashboardLayoutClient from '@/components/dashboard/DashboardLayoutClient';
-
-export const revalidate = 0;
+import { revalidatePath } from "next/cache";
 
 export default async function DashboardLayout({
-  children
+  children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
-  const supabase = await createClient();
+  const supabase = await createServerSupabaseClient();
 
-  try {
-    const {
-      data: { session },
-      error
-    } = await supabase.auth.getSession();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-    if (error || !session) {
-      if (session) {
-        // Check if user has admin role
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', session.user.id)
-          .single();
-
-        if (profile?.role === 'admin') {
-          redirect('/dashboard');
-        }
-      }
-      redirect('/');
-    }
-
-    return <DashboardLayoutClient session={session}>{children}</DashboardLayoutClient>;
-  } catch (error) {
-    console.error('Layout error:', error);
+  if (!user) {
     redirect('/auth/login');
   }
+
+  // Check if user has admin role
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+
+  if (!profile?.role || profile.role !== 'admin') {
+    redirect('/');
+  }
+
+  return <>{children}</>;
 }

@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient } from 'lib/supabase/server'
+import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
 interface Order {
@@ -12,7 +12,7 @@ interface Order {
 }
 
 export async function createOrder(order: Omit<Order, 'id' | 'created_at'>) {
-  const supabase = await createClient()
+  const supabase = await createServerSupabaseClient()
   try {
     const { data, error } = await supabase
       .from('orders')
@@ -34,7 +34,7 @@ export async function createOrder(order: Omit<Order, 'id' | 'created_at'>) {
 }
 
 export async function getOrders() {
-  const supabase = await createClient()
+  const supabase = await createServerSupabaseClient()
   try {
     const { data, error } = await supabase
       .from('orders')

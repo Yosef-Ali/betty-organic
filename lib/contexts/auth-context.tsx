@@ -1,8 +1,9 @@
 "use client"
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClientComponentClient, User } from '@supabase/auth-helpers-nextjs'
-import { PostgrestError, UserMetadata } from '@supabase/supabase-js'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { User, PostgrestError, UserMetadata } from '@supabase/supabase-js'
+import type { Database } from '@/types/supabase'
 
 // Extend the Supabase user type:
 interface ExtendedUser extends User {
@@ -36,11 +37,14 @@ interface Profile {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<any>(null)
   const [role, setRole] = useState<Role | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const router = useRouter()
-  const supabase = createClientComponentClient()
+  const supabase = createClientComponentClient<Database>()
 
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = useCallback(async (userId: string) => {
+    setIsLoading(true);
+    setError(null);
     try {
       const { data: profile, error } = await supabase
         .from('profiles')
@@ -74,27 +78,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               code: error?.code || 'UNKNOWN_ERROR_CODE',
               message: error?.message || 'Unknown error message',
               details: error?.details || 'No additional details',
-              timestamp: new Date().toISOString()
+              timestamp: new Date().toISOString(),
+              error: error // Include the full error object
             };
             console.error('Profile fetch error:', errorDetails);
+            setError(error?.message || 'Failed to fetch profile');
             return null;
         }
       }
 
       return profile
-    } catch (error) {
+    } catch (error: any) {
       console.error('Unexpected profile fetch error:', {
-        userId,
-        error: error instanceof Error ? {
-          name: error.name,
-          message: error.message,
-          stack: error.stack
-        } : 'Unknown error',
-        timestamp: new Date().toISOString()
+        name: error.name,
+        message: error.message,
+        stack: error.stack
       });
+      setError(error.message);
       return null
     }
-  }
+  }, [supabase, setIsLoading, setError]);
 
   const handleUserSession = async (session: any) => {
     if (!session?.user) {

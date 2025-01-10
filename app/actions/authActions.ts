@@ -2,8 +2,6 @@
 
 import { LoginFormType, ResetFormType } from 'lib/definitions';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
-import { cookies } from 'next/headers';
-import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { redirect } from 'next/navigation';
 
 // Improved type definitions
@@ -26,7 +24,7 @@ interface SignupData {
 }
 
 export async function signup(formData: FormData): Promise<AuthResponse> {
-  const supabase = createServerSupabaseClient();
+  const supabase = await createServerSupabaseClient();
 
   try {
     const { data: signupData, error } = await supabase.auth.signUp({
@@ -87,7 +85,7 @@ interface LoginResponse extends AuthResponse {
 
 export async function login(formData: LoginFormType): Promise<LoginResponse> {
   try {
-    const supabase = createServerSupabaseClient();
+    const supabase = await createServerSupabaseClient();
 
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
       email: formData.email,
@@ -137,7 +135,7 @@ export async function login(formData: LoginFormType): Promise<LoginResponse> {
 }
 
 export async function resetPassword(formData: ResetFormType): Promise<AuthResponse> {
-  const supabase = createClient();
+  const supabase = await createServerSupabaseClient();
 
   try {
     const { data, error } = await supabase.auth.resetPasswordForEmail(formData.email, {
@@ -146,14 +144,18 @@ export async function resetPassword(formData: ResetFormType): Promise<AuthRespon
 
     if (error) {
       console.error('Password reset error:', error);
-      throw new Error(`Password reset failed: ${error.message}`);
+      return {
+        error: error.message,
+        success: false,
+        data: null
+      };
     }
 
-    console.log('Password reset email sent successfully');
     return {
       error: null,
       success: true,
-      data
+      data,
+      message: 'Password reset email sent. Please check your inbox.'
     };
   } catch (error) {
     console.error('Unexpected password reset error:', error);
@@ -166,7 +168,7 @@ export async function resetPassword(formData: ResetFormType): Promise<AuthRespon
 }
 
 export async function signOut(): Promise<void> {
-  const supabase = createServerSupabaseClient();
+  const supabase = await createServerSupabaseClient();
   await supabase.auth.signOut();
   redirect('/auth/login');
 }
