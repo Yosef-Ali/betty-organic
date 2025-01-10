@@ -1,17 +1,66 @@
-import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { NextResponse, type NextRequest } from 'next/server'
+import type { Database } from '@/types/supabase'
 
-export async function middleware(req: NextRequest) {
-  const res = NextResponse.next()
-  const supabase = createMiddlewareClient({ req, res })
+export async function middleware(request: NextRequest) {
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  })
+
+  const supabase = createServerClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return request.cookies.get(name)?.value
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          request.cookies.set({
+            name,
+            value,
+            ...options,
+          })
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          })
+          response.cookies.set({
+            name,
+            value,
+            ...options,
+          })
+        },
+        remove(name: string, options: CookieOptions) {
+          request.cookies.set({
+            name,
+            value: '',
+            ...options,
+          })
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          })
+          response.cookies.set({
+            name,
+            value: '',
+            ...options,
+          })
+        },
+      },
+    }
+  )
+
+  const { data: { session } } = await supabase.auth.getSession()
 
   // Only check auth for dashboard routes
-  if (req.nextUrl.pathname.startsWith('/dashboard')) {
-    const { data: { session } } = await supabase.auth.getSession()
-
+  if (request.nextUrl.pathname.startsWith('/dashboard')) {
     if (!session) {
-      return NextResponse.redirect(new URL('/auth/login', req.url))
+      return NextResponse.redirect(new URL('/auth/login', request.url));
     }
 
     // Check role from profiles table
@@ -19,20 +68,16 @@ export async function middleware(req: NextRequest) {
       .from('profiles')
       .select('role')
       .eq('id', session.user.id)
-      .single()
+      .single();
 
-    // If user is admin, allow access to dashboard
-    if (profile?.role === 'admin') {
-      return res
+    if (!profile?.role || profile.role !== 'admin') {
+      return NextResponse.redirect(new URL('/', request.url));
     }
-
-    // If user is not admin, redirect to home page
-    return NextResponse.redirect(new URL('/', req.url))
   }
 
-  return res
+  return response
 }
 
 export const config = {
   matcher: ['/dashboard/:path*']
-}
+};

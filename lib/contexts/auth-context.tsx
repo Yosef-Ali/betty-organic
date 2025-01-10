@@ -49,13 +49,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .single()
 
       if (error) {
-        console.error('Profile fetch error:', error)
-        return null
+        // Handle specific error cases
+        switch (error.code) {
+          case 'PGRST116': // 404 - profile not found
+            return null;
+          case 'PGRST106': // 401 - unauthorized
+            console.warn('Unauthorized profile access:', {
+              userId,
+              code: error.code,
+              message: error.message
+            });
+            return null;
+          case 'PGRST100': // 400 - bad request
+            console.error('Invalid profile request:', {
+              userId,
+              code: error.code,
+              message: error.message,
+              details: error.details
+            });
+            return null;
+          default:
+            const errorDetails = {
+              userId,
+              code: error?.code || 'UNKNOWN_ERROR_CODE',
+              message: error?.message || 'Unknown error message',
+              details: error?.details || 'No additional details',
+              timestamp: new Date().toISOString()
+            };
+            console.error('Profile fetch error:', errorDetails);
+            return null;
+        }
       }
 
       return profile
     } catch (error) {
-      console.error('Profile fetch error:', error)
+      console.error('Unexpected profile fetch error:', {
+        userId,
+        error: error instanceof Error ? {
+          name: error.name,
+          message: error.message,
+          stack: error.stack
+        } : 'Unknown error',
+        timestamp: new Date().toISOString()
+      });
       return null
     }
   }

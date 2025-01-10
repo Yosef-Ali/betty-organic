@@ -1,7 +1,7 @@
 'use server';
 
 import { LoginFormType, ResetFormType } from 'lib/definitions';
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { cookies } from 'next/headers';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { redirect } from 'next/navigation';
@@ -26,7 +26,7 @@ interface SignupData {
 }
 
 export async function signup(formData: FormData): Promise<AuthResponse> {
-  const supabase = createClient();
+  const supabase = createServerSupabaseClient();
 
   try {
     const { data: signupData, error } = await supabase.auth.signUp({
@@ -87,47 +87,27 @@ interface LoginResponse extends AuthResponse {
 
 export async function login(formData: LoginFormType): Promise<LoginResponse> {
   try {
-    const cookieStore = cookies();
-    const supabase = createServerComponentClient({
-      cookies: () => Promise.resolve(cookieStore)
-    });
+    const supabase = createServerSupabaseClient();
 
-    // Attempt login
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
       email: formData.email,
       password: formData.password,
     });
 
     if (authError) {
-      return {
-        error: authError.message,
-        success: false,
-        data: null
-      };
+      return { error: authError.message, success: false, data: null };
     }
 
     if (!authData?.user) {
-      return {
-        error: 'Authentication failed',
-        success: false,
-        data: null
-      };
+      return { error: 'Authentication failed', success: false, data: null };
     }
 
-    // Fetch or create profile
-    const { data: profile, error: profileError } = await supabase
+    // Fetch profile
+    const { data: profile } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', authData.user.id)
       .single();
-
-    if (profileError && profileError.code !== 'PGRST116') { // Not found error
-      return {
-        error: 'Failed to fetch profile',
-        success: false,
-        data: null
-      };
-    }
 
     const userRole = profile?.role || 'customer';
 
@@ -152,11 +132,7 @@ export async function login(formData: LoginFormType): Promise<LoginResponse> {
 
   } catch (error) {
     console.error('Login error:', error);
-    return {
-      error: 'An unexpected error occurred',
-      success: false,
-      data: null
-    };
+    return { error: 'Login failed', success: false, data: null };
   }
 }
 
@@ -190,18 +166,7 @@ export async function resetPassword(formData: ResetFormType): Promise<AuthRespon
 }
 
 export async function signOut(): Promise<void> {
-  const cookieStore = cookies();
-  const supabase = createServerComponentClient({
-    cookies: () => Promise.resolve(cookieStore)
-  });
-
+  const supabase = createServerSupabaseClient();
   await supabase.auth.signOut();
   redirect('/auth/login');
-}
-
-function createClient() {
-  const cookieStore = cookies();
-  return createServerComponentClient({
-    cookies: () => Promise.resolve(cookieStore)
-  });
 }
