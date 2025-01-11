@@ -53,51 +53,56 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .single()
 
       if (error) {
+        // Ensure error is properly typed as PostgrestError
+        const postgrestError = error as PostgrestError;
+
+        const errorDetails = {
+          code: postgrestError.code,
+          message: postgrestError.message,
+          details: postgrestError.details,
+          hint: postgrestError.hint,
+          context: {
+            userId,
+            isPublicAccess: true,
+            timestamp: new Date().toISOString()
+          }
+        };
+
         // Handle specific error cases
-        switch (error.code) {
-          case 'PGRST116': // 404 - profile not found
+        switch (postgrestError.code) {
+          case 'PGRST116':
+            console.info('New user - profile will be created:', { userId });
             return null;
-          case 'PGRST106': // 401 - unauthorized
-            console.warn('Unauthorized profile access:', {
-              userId,
-              code: error.code,
-              message: error.message
-            });
+          case 'PGRST106':
+            console.warn('Unauthorized profile access:', errorDetails);
             return null;
-          case 'PGRST100': // 400 - bad request
-            console.error('Invalid profile request:', {
-              userId,
-              code: error.code,
-              message: error.message,
-              details: error.details
-            });
+          case 'PGRST100':
+            console.error('Invalid profile request:', errorDetails);
+            setError('Invalid profile request. Please try again.');
             return null;
           default:
-            const errorDetails = {
-              userId,
-              code: error?.code || 'UNKNOWN_ERROR_CODE',
-              message: error?.message || 'Unknown error message',
-              details: error?.details || 'No additional details',
-              timestamp: new Date().toISOString(),
-              error: error // Include the full error object
-            };
             console.error('Profile fetch error:', errorDetails);
-            setError(error?.message || 'Failed to fetch profile');
+            setError('Unable to load profile. Please refresh the page.');
             return null;
         }
       }
 
-      return profile
-    } catch (error: any) {
-      console.error('Unexpected profile fetch error:', {
-        name: error.name,
-        message: error.message,
-        stack: error.stack
-      });
-      setError(error.message);
-      return null
+      return profile;
+    } catch (error) {
+      const unexpectedError = {
+        message: error instanceof Error ? error.message : 'Unknown error occurred',
+        context: {
+          userId,
+          timestamp: new Date().toISOString()
+        }
+      };
+      console.error('Unexpected profile fetch error:', unexpectedError);
+      setError('An unexpected error occurred. Please try again.');
+      return null;
+    } finally {
+      setIsLoading(false);
     }
-  }, [supabase, setIsLoading, setError]);
+  }, [supabase]);
 
   const handleUserSession = async (session: any) => {
     if (!session?.user) {

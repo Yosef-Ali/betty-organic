@@ -24,6 +24,7 @@ interface OrderSummaryProps {
     name: string;
     grams: number;
     pricePerKg: number;
+    imageUrl: string;
   }>;
   totalAmount: number;
   customerInfo: string;

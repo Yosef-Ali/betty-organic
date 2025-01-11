@@ -5,6 +5,7 @@ import { LoginForm } from '@/components/authentication/login-form'
 import Image from 'next/image'
 import { useEffect } from 'react'
 import { toast } from 'sonner'
+import Link from 'next/link'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -34,7 +35,7 @@ export default function LoginPage() {
     <div className="grid h-screen lg:grid-cols-2">
       <div className="flex flex-col gap-4 p-6 md:p-10">
         <div className="flex justify-center gap-2 md:justify-start">
-          <a href="#" className="flex items-center gap-2 font-medium">
+          <Link href="/" className="flex items-center gap-2 font-medium">
             <Image
               src="/logo.jpeg"
               alt="Company Logo"
@@ -43,7 +44,7 @@ export default function LoginPage() {
               className="rounded-md"
             />
             Betty&apos;s Organic
-          </a>
+          </Link>
         </div>
         <div className="flex flex-1 items-center justify-center">
           <div className="w-full max-w-xs">

@@ -1,25 +1,27 @@
+'use server'
+
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import type { Database } from '@/types/supabase'
 
 export async function createServerSupabaseClient() {
+  const cookieStore = await cookies()
+
   return createClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       auth: {
-        autoRefreshToken: true,
-        persistSession: true,
-        detectSessionInUrl: true,
+        autoRefreshToken: false,
+        persistSession: false,
+        detectSessionInUrl: false,
         storage: {
           getItem: async (key: string) => {
-            const cookieStore = await cookies()
-            const cookie = cookieStore.get(key)
+            const cookie = await cookieStore.get(key)
             return cookie?.value || null
           },
           setItem: async (key: string, value: string) => {
-            const cookieStore = await cookies()
-            cookieStore.set(key, value, {
+            await cookieStore.set(key, value, {
               path: '/',
               httpOnly: true,
               sameSite: 'lax',
@@ -27,8 +29,7 @@ export async function createServerSupabaseClient() {
             })
           },
           removeItem: async (key: string) => {
-            const cookieStore = await cookies()
-            cookieStore.delete(key)
+            await cookieStore.delete(key)
           }
         }
       }

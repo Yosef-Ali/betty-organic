@@ -5,7 +5,16 @@ import { FruitCard } from "./fruit-card";
 import { useEffect, useState } from "react";
 import { Search } from "lucide-react";
 import { supabase } from "@/lib/supabase/supabaseClient";
-import { Product } from "@/types";
+
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+  imageUrl?: string;
+  description?: string;
+  unit: string;
+}
+
 import { CartSheet } from "./marcking-cart/CartSheet";
 
 export function ProductSection() {
@@ -26,9 +35,9 @@ export function ProductSection() {
 
         setProducts(data || []);
         setLoading(false);
-      } catch (err) {
-        console.error("Error fetching products:", err);
-        setError("Failed to load products. Please try again later.");
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : "Unknown error occurred";
+        setError(`Failed to load products: ${errorMessage}`);
         setLoading(false);
       }
     }
@@ -98,7 +107,7 @@ export function ProductSection() {
                       id={product.id}
                       name={product.name}
                       price={product.price}
-                      image={product.imageUrl} // Changed from image_url to imageUrl
+                      imageUrl={product.imageUrl ?? ''}
                       description={product.description}
                       unit={product.unit}
                     />

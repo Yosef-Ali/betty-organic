@@ -12,21 +12,21 @@ interface FruitCardProps {
   id: string;
   name: string;
   price: number;
-  image: string;
-  description?: string | null;  // Make description optional
-  unit: string;
+  imageUrl: string;
+  description?: string;
+  unit?: string;
 }
 
 export function FruitCard({
   id,
   name,
   price,
-  image,
-  description = '', // Add default value
+  imageUrl,  // Changed from image to imageUrl
+  description = '',
   unit = 'piece'
 }: FruitCardProps) {
   const [imageError, setImageError] = useState(false);
-  const hasValidImage = image && image.trim().length > 0 && !imageError;
+  const hasValidImage = imageUrl && imageUrl.trim().length > 0 && !imageError;
   const { addItem } = useCartStore();
 
   // Convert unit to kg if it's lb
@@ -38,7 +38,7 @@ export function FruitCard({
     const cartItem = {
       id,
       name,
-      imageUrl: image,
+      imageUrl,  // No need to rename since it's already imageUrl
       pricePerKg: unit.toLowerCase() === 'kg' ? price : price * 2.20462, // Convert price to per kg
       grams: 1000, // Default to 1kg
     };
@@ -55,7 +55,7 @@ export function FruitCard({
         {hasValidImage ? (
           <button onClick={handleAddToCart} className="w-full h-full">
             <Image
-              src={image}
+              src={imageUrl}
               alt={name}
               fill
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 16.67vw"
