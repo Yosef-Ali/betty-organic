@@ -65,12 +65,25 @@ export default function OrderDetails({ orderId }: { orderId: string }) {
         const { data: orderData, error } = await getOrderDetails(orderId);
         
         if (error) {
+          // Handle RLS-related errors specifically
+          if (error.message.includes('permission denied')) {
+            throw new Error('You do not have permission to view this order');
+          }
           throw error;
         }
 
         // Ensure we have a valid order structure
         if (!orderData || !orderData.items || !orderData.customer) {
           throw new Error('Invalid order data structure');
+        }
+
+        // Check if products are available
+        const unavailableProducts = orderData.items.filter(
+          (item: any) => !item.product || !item.product.name
+        );
+        
+        if (unavailableProducts.length > 0) {
+          throw new Error('Some products in this order are no longer available');
         }
 
         // Create a plain object with only the necessary data
@@ -94,9 +107,20 @@ export default function OrderDetails({ orderId }: { orderId: string }) {
         }));
 
         setOrder(plainOrder);
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error fetching order details:', error);
-        // Handle error state appropriately
+        return (
+          <div className="p-6">
+            <div className="text-center text-destructive">
+              {error.message || 'Failed to load order details'}
+            </div>
+            {error.message.includes('permission denied') && (
+              <div className="mt-2 text-center text-sm text-muted-foreground">
+                Please contact support if you believe this is an error
+              </div>
+            )}
+          </div>
+        );
       }
     }
 
@@ -104,7 +128,13 @@ export default function OrderDetails({ orderId }: { orderId: string }) {
   }, [orderId]);
 
   if (!order) {
-    return <div>Loading...</div>;
+    return (
+      <div className="p-6">
+        <div className="text-center text-muted-foreground">
+          Loading order details...
+        </div>
+      </div>
+    );
   }
 
   const handleTrashClick = () => {
