@@ -38,14 +38,39 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { useRouter } from 'next/navigation';
 
 export default function OrderDetails({ orderId }: { orderId: string }) {
-  const [order, setOrder] = useState<any>(null);
+  const [order, setOrder] = useState<{
+    id: string;
+    createdAt: string;
+    updatedAt?: string;
+    customer: {
+      fullName: string;
+      email: string;
+      phone: string;
+    };
+    items: Array<{
+      id: string;
+      product: {
+        name: string;
+      };
+      price: number;
+      quantity: number;
+    }>;
+  } | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
     async function fetchOrderDetails() {
       const orderData = await getOrderDetails(orderId);
-      setOrder(orderData);
+      // Convert to plain object if needed
+      const plainOrder = {
+        ...orderData,
+        items: orderData.items.map(item => ({
+          ...item,
+          product: { ...item.product }
+        }))
+      };
+      setOrder(plainOrder);
     }
 
     fetchOrderDetails();
@@ -74,7 +99,7 @@ export default function OrderDetails({ orderId }: { orderId: string }) {
   };
 
   // Ensure default quantity is 1 if it is 0
-  const itemsWithDefaultQuantity = order.items.map((item: any) => {
+  const itemsWithDefaultQuantity = order.items.map(item => {
     console.log('Processing item:', item);
     return {
       ...item,
@@ -83,7 +108,7 @@ export default function OrderDetails({ orderId }: { orderId: string }) {
   });
 
   // Calculate the total for each item and the subtotal
-  const itemsWithTotal = itemsWithDefaultQuantity.map((item: any) => ({
+  const itemsWithTotal = itemsWithDefaultQuantity.map(item => ({
     ...item,
     total: item.price,
   }));
