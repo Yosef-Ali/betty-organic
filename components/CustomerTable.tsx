@@ -172,36 +172,28 @@ const CustomerTableContent = ({ customers, isLoading, onDelete }: {
   ))
 }
 
-export function CustomerTable() {
-  const [customers, setCustomers] = useState<CustomerWithOrders[]>([]);
-  const [filteredCustomers, setFilteredCustomers] = useState<CustomerWithOrders[]>([]);
+interface CustomerTableProps {
+  initialCustomers: CustomerWithOrders[];
+}
+
+export function CustomerTable({ initialCustomers }: CustomerTableProps) {
+  const [customers, setCustomers] = useState<CustomerWithOrders[]>(() => 
+    initialCustomers.map(customer => ({
+      ...customer,
+      createdAt: new Date(customer.createdAt),
+      updatedAt: customer.updatedAt ? new Date(customer.updatedAt) : undefined,
+      orders: customer.orders?.map(order => ({
+        ...order,
+        createdAt: new Date(order.createdAt),
+        updatedAt: order.updatedAt ? new Date(order.updatedAt) : undefined
+      })) || []
+    }))
+  );
+  const [filteredCustomers, setFilteredCustomers] = useState<CustomerWithOrders[]>(customers);
   const [searchTerm, setSearchTerm] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
-
-  useEffect(() => {
-    const fetchCustomers = async () => {
-      setIsLoading(true);
-      try {
-        const fetchedCustomers = await getCustomers() as CustomerWithOrders[];
-        const sortedCustomers = fetchedCustomers.sort(
-          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
-        setCustomers(sortedCustomers);
-        setFilteredCustomers(sortedCustomers);
-      } catch (error) {
-        toast({
-          title: 'Error',
-          description: 'Failed to fetch customers',
-          variant: 'destructive',
-        });
-      }
-      setIsLoading(false);
-    };
-
-    fetchCustomers();
-  }, []);
 
   useEffect(() => {
     const filtered = customers.filter(customer =>

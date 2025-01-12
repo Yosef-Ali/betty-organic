@@ -15,7 +15,13 @@ interface CustomerListClientProps {
 }
 
 export function CustomerListClient({ initialCustomers }: CustomerListClientProps) {
-  const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
+  const [customers, setCustomers] = useState<Customer[]>(() => 
+    initialCustomers.map(customer => ({
+      ...customer,
+      createdAt: new Date(customer.createdAt),
+      updatedAt: customer.updatedAt ? new Date(customer.updatedAt) : undefined
+    }))
+  );
 
   const handleCustomersUpdated = async () => {
     const updatedCustomers = await getCustomers();

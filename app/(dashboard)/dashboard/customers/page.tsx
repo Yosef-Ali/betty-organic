@@ -1,13 +1,24 @@
-import { Suspense } from 'react'
+import { getCustomers } from '@/app/actions/customersActions'
 import { CustomerTable } from '@/components/CustomerTable'
 
-export default function CustomersPage() {
+export default async function CustomersPage() {
+  // Fetch and serialize customers data
+  const customers = await getCustomers()
+  const serializedCustomers = customers.map(customer => ({
+    ...customer,
+    createdAt: customer.createdAt.toISOString(),
+    updatedAt: customer.updatedAt?.toISOString(),
+    orders: customer.orders?.map(order => ({
+      ...order,
+      createdAt: order.createdAt.toISOString(),
+      updatedAt: order.updatedAt?.toISOString()
+    })) || []
+  }))
+
   return (
     <div>
       <h2 className="text-2xl font-bold mb-4">Customers</h2>
-      <Suspense fallback={<div>Loading customers...</div>}>
-        <CustomerTable />
-      </Suspense>
+      <CustomerTable initialCustomers={serializedCustomers} />
     </div>
   )
 }
