@@ -74,7 +74,7 @@ export default function OrderDetails({ orderId }: { orderId: string }) {
         }
 
         // Create a plain object with only the necessary data
-        const plainOrder = {
+        const plainOrder = JSON.parse(JSON.stringify({
           id: orderData.id,
           createdAt: orderData.created_at,
           updatedAt: orderData.updated_at || null,
@@ -91,7 +91,7 @@ export default function OrderDetails({ orderId }: { orderId: string }) {
             price: item.price || 0,
             quantity: item.quantity || 1
           }))
-        };
+        }));
 
         setOrder(plainOrder);
       } catch (error) {
@@ -126,17 +126,17 @@ export default function OrderDetails({ orderId }: { orderId: string }) {
   };
 
   // Ensure default quantity is 1 if it is 0
-  const itemsWithDefaultQuantity = order.items.map(item => ({
+  const itemsWithDefaultQuantity = JSON.parse(JSON.stringify(order.items.map(item => ({
     id: item.id,
     product: {
       name: item.product.name
     },
     price: item.price || 0,
     quantity: item.quantity > 0 ? item.quantity : 1
-  }));
+  }))));
 
   // Calculate the total for each item and the subtotal
-  const itemsWithTotal = itemsWithDefaultQuantity.map(item => ({
+  const itemsWithTotal = JSON.parse(JSON.stringify(itemsWithDefaultQuantity.map(item => ({
     id: item.id,
     product: {
       name: item.product.name
@@ -144,7 +144,7 @@ export default function OrderDetails({ orderId }: { orderId: string }) {
     price: item.price,
     quantity: item.quantity,
     total: item.price
-  }));
+  }))));
 
   const subtotal = itemsWithTotal.reduce((acc: number, item: any) => acc + item.total, 0);
 
