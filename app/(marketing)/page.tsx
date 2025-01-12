@@ -28,10 +28,14 @@ export default function Home() {
   return (
     <main className="flex flex-col items-center bg-[#ffc600] relative">
       <Navigation isAdmin={isAdmin} />
-      <Hero />
+      <section id="hero">
+        <Hero />
+      </section>
       <div className="w-full max-w-[1440px] px-4 sm:px-6 lg:px-8">
         <div className="space-y-32">
-          <ProductSection />
+          <section id="products">
+            <ProductSection />
+          </section>
           <div className="relative overflow-hidden">
             <div className="absolute top-0 right-0 w-72 h-72 opacity-20">
               <Image
@@ -44,8 +48,12 @@ export default function Home() {
             </div>
             <DeliveryServices />
           </div>
-          <AboutSection />
-          <TestimonialSection />
+          <section id="about">
+            <AboutSection />
+          </section>
+          <section id="contact">
+            <TestimonialSection />
+          </section>
         </div>
       </div>
       <ChatWidget />
