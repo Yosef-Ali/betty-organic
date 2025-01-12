@@ -4,13 +4,15 @@ import { DeliveryServices } from "components/delivery-services";
 import Footer from "components/Footer";
 import Header from "components/Header";
 import { Hero } from "components/Hero";
-import { Navigation } from "components/Navigation";
+
 import { ProductSection } from "components/products/product-section";
 import { TestimonialSection } from "components/testimonials/testimonial-section";
+import { AboutSection } from "components/AboutSection";
 import ChatWidget from "components/ChatWidget";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import Navigation from "@/components/Navigation";
 
 export default function Home() {
   const [isAdmin, setIsAdmin] = useState(false);
@@ -42,6 +44,7 @@ export default function Home() {
             </div>
             <DeliveryServices />
           </div>
+          <AboutSection />
           <TestimonialSection />
         </div>
       </div>

@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "target": "es2017", // Target ECMAScript 2017
+    "target": "es5", // Target ECMAScript 5
     "outDir": "dist", // Output directory for compiled files (not used in Next.js)
     "lib": [
       "dom",
