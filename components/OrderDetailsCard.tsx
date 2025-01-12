@@ -61,23 +61,43 @@ export default function OrderDetails({ orderId }: { orderId: string }) {
 
   useEffect(() => {
     async function fetchOrderDetails() {
-      const orderData = await getOrderDetails(orderId);
-      // Deep clone and convert to plain object
-      const plainOrder = JSON.parse(JSON.stringify({
-        ...orderData,
-        items: orderData.items.map(item => ({
-          ...item,
-          product: { 
-            name: item.product.name 
-          }
-        })),
-        customer: {
-          fullName: orderData.customer.fullName,
-          email: orderData.customer.email,
-          phone: orderData.customer.phone
+      try {
+        const { data: orderData, error } = await getOrderDetails(orderId);
+        
+        if (error) {
+          throw error;
         }
-      }));
-      setOrder(plainOrder);
+
+        // Ensure we have a valid order structure
+        if (!orderData || !orderData.items || !orderData.customer) {
+          throw new Error('Invalid order data structure');
+        }
+
+        // Create a plain object with only the necessary data
+        const plainOrder = {
+          id: orderData.id,
+          createdAt: orderData.created_at,
+          updatedAt: orderData.updated_at || null,
+          customer: {
+            fullName: orderData.customer.full_name || '',
+            email: orderData.customer.email || '',
+            phone: orderData.customer.phone || ''
+          },
+          items: orderData.items.map(item => ({
+            id: item.id,
+            product: {
+              name: item.product?.name || 'Unknown Product'
+            },
+            price: item.price || 0,
+            quantity: item.quantity || 1
+          }))
+        };
+
+        setOrder(plainOrder);
+      } catch (error) {
+        console.error('Error fetching order details:', error);
+        // Handle error state appropriately
+      }
     }
 
     fetchOrderDetails();
@@ -106,13 +126,14 @@ export default function OrderDetails({ orderId }: { orderId: string }) {
   };
 
   // Ensure default quantity is 1 if it is 0
-  const itemsWithDefaultQuantity = order.items.map(item => {
-    console.log('Processing item:', item);
-    return {
-      ...item,
-      quantity: item.quantity === 0 ? 1 : item.quantity,
-    };
-  });
+  const itemsWithDefaultQuantity = order.items.map(item => ({
+    id: item.id,
+    product: {
+      name: item.product.name
+    },
+    price: item.price || 0,
+    quantity: item.quantity > 0 ? item.quantity : 1
+  }));
 
   // Calculate the total for each item and the subtotal
   const itemsWithTotal = itemsWithDefaultQuantity.map(item => ({
