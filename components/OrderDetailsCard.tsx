@@ -69,7 +69,17 @@ export default function OrderDetails({ orderId }: { orderId: string }) {
           if (error.message.includes('permission denied')) {
             throw new Error('You do not have permission to view this order');
           }
+          if (error.message.includes('JWT expired')) {
+            // Redirect to login if token is expired
+            router.push('/auth/signin');
+            return;
+          }
           throw error;
+        }
+
+        // Check if user is authenticated
+        if (!orderData) {
+          throw new Error('Authentication required. Please login again.');
         }
 
         // Ensure we have a valid order structure
@@ -119,6 +129,17 @@ export default function OrderDetails({ orderId }: { orderId: string }) {
                 Please contact support if you believe this is an error
               </div>
             )}
+            {(error.message.includes('JWT expired') || error.message.includes('Authentication required')) && (
+              <div className="mt-4 text-center">
+                <Button 
+                  variant="link" 
+                  onClick={() => router.push('/auth/signin')}
+                  className="text-primary"
+                >
+                  Login to continue
+                </Button>
+              </div>
+            )}
           </div>
         );
       }
@@ -132,6 +153,15 @@ export default function OrderDetails({ orderId }: { orderId: string }) {
       <div className="p-6">
         <div className="text-center text-muted-foreground">
           Loading order details...
+        </div>
+        <div className="mt-4 text-center">
+          <Button 
+            variant="link" 
+            onClick={() => router.push('/auth/signin')}
+            className="text-primary"
+          >
+            Login to continue
+          </Button>
         </div>
       </div>
     );
