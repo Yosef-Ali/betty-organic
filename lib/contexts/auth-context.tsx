@@ -43,61 +43,83 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const supabase = createClientComponentClient<Database>()
 
   const fetchProfile = useCallback(async (userId: string) => {
+    if (!userId) {
+      console.info('No userId provided, skipping profile fetch');
+      return null;
+    }
+
     setIsLoading(true);
     setError(null);
+
     try {
-      const { data: profile, error } = await supabase
+      // First verify auth state
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        console.info('No active session, skipping profile fetch');
+        return null;
+      }
+
+      console.debug('Fetching profile for userId:', userId);
+
+      const { data: profile, error: pgError } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', userId)
-        .single()
+        .single();
 
-      if (error) {
-        // Ensure error is properly typed as PostgrestError
-        const postgrestError = error as PostgrestError;
-
-        const errorDetails = {
-          code: postgrestError.code,
-          message: postgrestError.message,
-          details: postgrestError.details,
-          hint: postgrestError.hint,
-          context: {
-            userId,
-            isPublicAccess: true,
-            timestamp: new Date().toISOString()
-          }
+      if (pgError) {
+        // Enhanced error context with auth state
+        const errorContext = {
+          userId,
+          code: pgError.code,
+          message: pgError.message,
+          details: pgError.details,
+          hint: pgError.hint,
+          requestTime: new Date().toISOString(),
+          path: window.location.pathname,
+          hasSession: !!session,
+          // Policy-related info
+          statusCode: pgError.code === 'PGRST116' ? 404 :
+            pgError.code === 'PGRST106' ? 403 : 500
         };
 
-        // Handle specific error cases
-        switch (postgrestError.code) {
+        // Policy-specific error handling
+        switch (pgError.code) {
           case 'PGRST116':
-            console.info('New user - profile will be created:', { userId });
+            console.info('Profile not found - will create:', { userId });
             return null;
           case 'PGRST106':
-            console.warn('Unauthorized profile access:', errorDetails);
+            console.warn('Policy check failed:', errorContext);
             return null;
-          case 'PGRST100':
-            console.error('Invalid profile request:', errorDetails);
-            setError('Invalid profile request. Please try again.');
+          case '42501': // Postgres permission denied
+            console.warn('Database permission denied:', errorContext);
             return null;
           default:
-            console.error('Profile fetch error:', errorDetails);
-            setError('Unable to load profile. Please refresh the page.');
-            return null;
+            console.error('Profile fetch error:', errorContext);
         }
+
+        // Only set error state on non-public pages
+        if (window.location.pathname !== '/' && window.location.pathname !== '/auth/login') {
+          setError('Unable to access profile data');
+        }
+        return null;
       }
 
       return profile;
     } catch (error) {
-      const unexpectedError = {
-        message: error instanceof Error ? error.message : 'Unknown error occurred',
-        context: {
-          userId,
-          timestamp: new Date().toISOString()
-        }
+      const errorContext = {
+        type: error instanceof Error ? error.constructor.name : typeof error,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        userId,
+        path: window.location.pathname,
+        timestamp: new Date().toISOString()
       };
-      console.error('Unexpected profile fetch error:', unexpectedError);
-      setError('An unexpected error occurred. Please try again.');
+
+      console.error('Unexpected profile fetch error:', errorContext);
+
+      if (window.location.pathname !== '/' && window.location.pathname !== '/auth/login') {
+        setError('An unexpected error occurred');
+      }
       return null;
     } finally {
       setIsLoading(false);
