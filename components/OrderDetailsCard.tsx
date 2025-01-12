@@ -62,14 +62,21 @@ export default function OrderDetails({ orderId }: { orderId: string }) {
   useEffect(() => {
     async function fetchOrderDetails() {
       const orderData = await getOrderDetails(orderId);
-      // Convert to plain object if needed
-      const plainOrder = {
+      // Deep clone and convert to plain object
+      const plainOrder = JSON.parse(JSON.stringify({
         ...orderData,
         items: orderData.items.map(item => ({
           ...item,
-          product: { ...item.product }
-        }))
-      };
+          product: { 
+            name: item.product.name 
+          }
+        })),
+        customer: {
+          fullName: orderData.customer.fullName,
+          email: orderData.customer.email,
+          phone: orderData.customer.phone
+        }
+      }));
       setOrder(plainOrder);
     }
 
@@ -109,8 +116,13 @@ export default function OrderDetails({ orderId }: { orderId: string }) {
 
   // Calculate the total for each item and the subtotal
   const itemsWithTotal = itemsWithDefaultQuantity.map(item => ({
-    ...item,
-    total: item.price,
+    id: item.id,
+    product: {
+      name: item.product.name
+    },
+    price: item.price,
+    quantity: item.quantity,
+    total: item.price
   }));
 
   const subtotal = itemsWithTotal.reduce((acc: number, item: any) => acc + item.total, 0);
