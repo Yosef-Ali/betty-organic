@@ -46,19 +46,17 @@ interface Customer {
   imageUrl?: string;
   location?: string;
   status: string;
-  orders: Order[]; // Ensure the Order interface is also defined
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-interface Order {
-  id: string;
-  customerId: string;
-  product: string;
-  amount: number;
-  status: string;
-  createdAt: Date;
-  updatedAt: Date;
+  orders?: Array<{
+    id: string;
+    customerId: string;
+    product: string;
+    amount: number;
+    status: string;
+    createdAt: string;
+    updatedAt?: string;
+  }>;
+  createdAt: string;
+  updatedAt?: string;
 }
 
 
@@ -173,22 +171,11 @@ const CustomerTableContent = ({ customers, isLoading, onDelete }: {
 }
 
 interface CustomerTableProps {
-  initialCustomers: CustomerWithOrders[];
+  initialCustomers: Customer[];
 }
 
 export function CustomerTable({ initialCustomers }: CustomerTableProps) {
-  const [customers, setCustomers] = useState<CustomerWithOrders[]>(() => 
-    initialCustomers.map(customer => ({
-      ...customer,
-      createdAt: new Date(customer.createdAt),
-      updatedAt: customer.updatedAt ? new Date(customer.updatedAt) : undefined,
-      orders: customer.orders?.map(order => ({
-        ...order,
-        createdAt: new Date(order.createdAt),
-        updatedAt: order.updatedAt ? new Date(order.updatedAt) : undefined
-      })) || []
-    }))
-  );
+  const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
   const [filteredCustomers, setFilteredCustomers] = useState<CustomerWithOrders[]>(customers);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(false);

@@ -12,7 +12,7 @@ export default async function CustomersPage() {
       ...order,
       createdAt: order.createdAt.toISOString(),
       updatedAt: order.updatedAt?.toISOString()
-    })) || []
+    }))
   }))
 
   return (
