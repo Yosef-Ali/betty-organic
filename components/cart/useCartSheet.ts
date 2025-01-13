@@ -94,7 +94,7 @@ export const useCartSheet = (onOpenChange: (open: boolean) => void) => {
     try {
       const totalAmount = getTotalAmount();
       const orderItems = items.map(item => ({
-        product_id: item.id,
+        productId: item.id,
         quantity: item.grams,
         price: (item.pricePerKg * item.grams) / 1000,
         name: item.name,

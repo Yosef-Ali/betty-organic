@@ -3,21 +3,13 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
+import { Order } from "@/types/order"
+
 interface OrderItem {
-  productId: string
+  product_id: string
   quantity: number
   price: number
   name: string
-}
-
-interface Order {
-  customerId: string
-  status: 'pending' | 'processing' | 'confirmed' | 'completed' | 'cancelled'
-  type: 'store' | 'online'
-  totalAmount: number
-  items: OrderItem[]
-  customerInfo: string
-  orderNumber: string
 }
 
 export async function createOrder(orderData: Order) {
@@ -42,7 +34,7 @@ export async function createOrder(orderData: Order) {
     // Then, create the order items
     const orderItems = orderData.items.map(item => ({
       order_id: order.id,
-      product_id: item.productId,
+      product_id: item.product_id,
       quantity: item.quantity,
       price: item.price,
       product_name: item.name
