@@ -20,7 +20,7 @@ interface PrintPreviewModalProps {
   onClose: () => void;
   items: { name: string; quantity: number; price: number }[];
   total: number;
-  customerInfo: string;
+  customerInfo?: string;
   customerId?: string;
 }
 
