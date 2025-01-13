@@ -108,7 +108,7 @@ export const CartSheet: FC<CartSheetProps> = ({ isOpen, onOpenChange }) => {
                             orderStatus={orderStatus}
                             setOrderStatus={setOrderStatus}
                             isStatusVerified={isStatusVerified}
-                            handleToggleLock={() => setOrderStatus(isStatusVerified ? 'pending' : 'verified')}
+                            handleToggleLock={() => setOrderStatus(isStatusVerified ? 'pending' : 'processing')}
                             handleConfirmDialog={handleConfirmDialog}
                             isSaving={isSaving}
                             onPrintPreview={handleThermalPrintPreview}
