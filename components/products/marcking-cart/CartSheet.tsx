@@ -20,10 +20,12 @@ import { ConfirmPurchaseDialog } from "./ConfirmPurchaseDialog";
 import { CartItem as CartItemType } from "@/types/cart";
 
 interface CartSheetProps {
-  items: CartItemType[];
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
-export const CartSheet = ({ items }: CartSheetProps) => {
+export const CartSheet = ({ isOpen, onOpenChange }: CartSheetProps) => {
+  const { items } = useCartStore();
   const { clearCart } = useCartStore();
   const [isPurchaseDialogOpen, setIsPurchaseDialogOpen] = useState(false);
 
@@ -34,7 +36,7 @@ export const CartSheet = ({ items }: CartSheetProps) => {
 
   return (
     <>
-      <Sheet>
+      <Sheet open={isOpen} onOpenChange={onOpenChange}>
         <SheetTrigger asChild>
           <Button variant="outline" size="icon" className="relative">
             <ShoppingCart className="h-4 w-4" />
