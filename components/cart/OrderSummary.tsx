@@ -18,6 +18,8 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 
+import { Customer } from "@/types/customer";
+
 interface OrderSummaryProps {
   items: Array<{
     id: string;
@@ -27,17 +29,17 @@ interface OrderSummaryProps {
     imageUrl: string;
   }>;
   totalAmount: number;
-  customerInfo: string;
-  setCustomerInfo: (value: string) => void;
-  orderStatus: string;
-  setOrderStatus: (value: string) => void;
+  customerInfo: Customer;
+  setCustomerInfo: (value: Customer) => void;
+  orderStatus: "pending" | "processing" | "completed" | "cancelled";
+  setOrderStatus: (status: "pending" | "processing" | "completed" | "cancelled") => void;
   isStatusVerified: boolean;
   handleToggleLock: () => void;
   handleConfirmDialog: (action: "save" | "cancel") => void;
   isSaving: boolean;
-  onPrintPreview: () => void; // NEW PROP
-  isOrderSaved: boolean; // NEW PROP
-  orderNumber?: string; // NEW PROP
+  onPrintPreview: () => void;
+  isOrderSaved: boolean;
+  orderNumber?: string;
 }
 
 export const OrderSummary: FC<OrderSummaryProps> = ({
@@ -51,12 +53,12 @@ export const OrderSummary: FC<OrderSummaryProps> = ({
   handleToggleLock,
   handleConfirmDialog,
   isSaving,
-  onPrintPreview, // NEW PROP
-  isOrderSaved, // NEW PROP
-  orderNumber, // NEW PROP
+  onPrintPreview,
+  isOrderSaved,
+  orderNumber,
 }) => {
-  const WHATSAPP_NUMBER = '251947385509'; // Group leader's number
-  const WHATSAPP_GROUP_LINK = 'https://chat.whatsapp.com/your-group-invite-link'; // Replace with actual group invite link
+  const WHATSAPP_NUMBER = '251947385509';
+  const WHATSAPP_GROUP_LINK = 'https://chat.whatsapp.com/your-group-invite-link';
 
   const formatDate = () => {
     return new Date().toLocaleDateString('en-US', {
@@ -100,10 +102,8 @@ ${customerInfo ? `\n👤 *Customer:* ${customerInfo}` : ''}
 ${storeInfo}`;
 
       if (shareType === 'group') {
-        // Share to WhatsApp group
         window.open(WHATSAPP_GROUP_LINK, '_blank');
       } else {
-        // Share directly to the group leader
         const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(shareText)}`;
         window.open(whatsappUrl, '_blank');
       }
@@ -178,8 +178,8 @@ ${storeInfo}`;
             id="customer-info"
             type="text"
             placeholder="Enter customer name or phone"
-            value={customerInfo}
-            onChange={(e) => setCustomerInfo(e.target.value)}
+            value={customerInfo.name}
+            onChange={(e) => setCustomerInfo({ ...customerInfo, name: e.target.value })}
             className="mt-1"
           />
         </div>
@@ -197,9 +197,10 @@ ${storeInfo}`;
                 <SelectValue placeholder="Select order status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="paid">Paid</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="credit">Credit</SelectItem>
+                <SelectItem value="processing">Processing</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="cancelled">Cancelled</SelectItem>
               </SelectContent>
             </Select>
           </div>
