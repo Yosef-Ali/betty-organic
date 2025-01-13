@@ -17,20 +17,38 @@ export const metadata: Metadata = {
 export const revalidate = 0;
 
 async function getProducts() {
-  const supabase = createClient();
-  const { data: products, error } = await supabase
-    .from('products')
-    .select('*');
-  if (error) {
-    console.error("Error fetching products:", error);
+  try {
+    const supabase = createClient();
+    const { data: products, error } = await supabase
+      .from('products')
+      .select('*')
+      .timeout(5000); // Add timeout of 5 seconds
+    
+    if (error) {
+      console.error("Error fetching products:", error);
+      return [];
+    }
+    return products || [];
+  } catch (error) {
+    console.error("Timeout or other error fetching products:", error);
     return [];
   }
-  return products || [];
 }
 
 export default async function Home() {
   const products = await getProducts();
-  const serializedProducts = JSON.stringify(products);
+  // Create plain objects from the products
+  const plainProducts = products.map(product => ({
+    id: product.id,
+    name: product.name,
+    description: product.description,
+    price: product.price,
+    imageUrl: product.imageUrl,
+    unit: product.unit,
+    created_at: product.created_at,
+    updated_at: product.updated_at
+  }));
+  const serializedProducts = JSON.stringify(plainProducts);
 
   return (
     <>

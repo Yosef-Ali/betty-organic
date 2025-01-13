@@ -53,16 +53,22 @@ export function ProductSection({ initialProducts }: ProductSectionProps) {
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4 max-w-[1920px] mx-auto mb-16">
-              {filteredProducts.map((product) => (
-                <motion.div
-                  key={product.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <FruitCard {...product} description={product.description || undefined} unit={product.unit || undefined} />
-                </motion.div>
-              ))}
+              {filteredProducts.map((product) => {
+                const optimizedProduct = {
+                  ...product,
+                  imageUrl: product.imageUrl ? `${product.imageUrl}?w=500&q=75` : undefined
+                };
+                return (
+                  <motion.div
+                    key={product.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <FruitCard {...optimizedProduct} description={product.description || undefined} unit={product.unit || undefined} />
+                  </motion.div>
+                );
+              })}
             </div>
           </div>
         </section>
