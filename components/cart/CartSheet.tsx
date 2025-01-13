@@ -103,8 +103,8 @@ export const CartSheet: FC<CartSheetProps> = ({ isOpen, onOpenChange }) => {
                           <OrderSummary
                             items={items}
                             totalAmount={getTotalAmount()}
-                            customerInfo={customer}
-                            setCustomerInfo={setCustomer}
+                            customerId={customer?.id || ''}
+                            setCustomerId={(id) => setCustomer({ ...customer, id })}
                             orderStatus={orderStatus}
                             setOrderStatus={setOrderStatus}
                             isStatusVerified={isStatusVerified}
@@ -143,7 +143,7 @@ export const CartSheet: FC<CartSheetProps> = ({ isOpen, onOpenChange }) => {
                         price: (item.pricePerKg * item.grams) / 1000,
                       }))}
                       total={getTotalAmount()}
-                      customerInfo={customer}
+                      customerId={customer?.id || ''}
                     />
                   )}
                 </AnimatePresence>
