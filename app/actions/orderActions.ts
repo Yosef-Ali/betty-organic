@@ -3,48 +3,85 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
-interface Order {
-  id: string
-  products: string[]
-  status: 'pending' | 'processing' | 'completed' | 'cancelled'
-  created_by: string
-  created_at: string
+interface OrderItem {
+  productId: string
+  quantity: number
+  price: number
+  name: string
 }
 
-export async function createOrder(order: Omit<Order, 'id' | 'created_at'>) {
+interface Order {
+  customerId: string
+  status: 'pending' | 'processing' | 'confirmed' | 'completed' | 'cancelled'
+  type: 'store' | 'online'
+  totalAmount: number
+  items: OrderItem[]
+  customerInfo: string
+  orderNumber: string
+}
+
+export async function createOrder(orderData: Order) {
   const supabase = await createServerSupabaseClient()
   try {
-    const { data, error } = await supabase
+    // First, create the order
+    const { data: order, error: orderError } = await supabase
       .from('orders')
       .insert({
-        ...order,
-        status: 'pending'
+        customer_id: orderData.customerId,
+        status: orderData.status,
+        type: orderData.type,
+        total_amount: orderData.totalAmount,
+        customer_info: orderData.customerInfo,
+        order_number: orderData.orderNumber
       })
       .select()
       .single()
 
-    if (error) throw error
+    if (orderError) throw orderError
+
+    // Then, create the order items
+    const orderItems = orderData.items.map(item => ({
+      order_id: order.id,
+      product_id: item.productId,
+      quantity: item.quantity,
+      price: item.price,
+      product_name: item.name
+    }))
+
+    const { error: itemsError } = await supabase
+      .from('order_items')
+      .insert(orderItems)
+
+    if (itemsError) throw itemsError
 
     revalidatePath('/dashboard/orders')
-    return data
+    return order
   } catch (error) {
     console.error('Error creating order:', error)
-    throw new Error('Failed to create order')
+    throw error
   }
 }
 
 export async function getOrders() {
   const supabase = await createServerSupabaseClient()
   try {
-    const { data, error } = await supabase
+    const { data: orders, error: ordersError } = await supabase
       .from('orders')
-      .select('*')
+      .select(`
+        *,
+        order_items (
+          product_id,
+          quantity,
+          price,
+          product_name
+        )
+      `)
       .order('created_at', { ascending: false })
 
-    if (error) throw error
-    return data as Order[]
+    if (ordersError) throw ordersError
+    return orders
   } catch (error) {
     console.error('Error fetching orders:', error)
-    throw new Error('Failed to fetch orders')
+    throw error
   }
 }
