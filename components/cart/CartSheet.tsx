@@ -89,7 +89,7 @@ export const CartSheet: FC<CartSheetProps> = ({ isOpen, onOpenChange }) => {
                   customerInfo={customer}
                   setCustomerInfo={setCustomer}
                   orderStatus={orderStatus}
-                  setOrderStatus={(status: string) => setOrderStatus(status as Order['status'])}
+                  setOrderStatus={(status: Order['status']) => setOrderStatus(status)}
                   isStatusVerified={isStatusVerified}
                   handleToggleLock={() => setIsStatusVerified(!isStatusVerified)}
                   handleConfirmDialog={handleConfirmDialog}

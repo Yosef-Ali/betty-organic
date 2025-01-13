@@ -3,7 +3,7 @@ import { Customer } from "@/types/customer";
 export interface Order {
   customer_id: string;
   customerId: string;
-  status: "pending" | "processing" | "confirmed" | "completed" | "cancelled";
+  status: "pending" | "processing" | "completed" | "cancelled";
   total_amount: number;
   totalAmount: number;
   type: "store" | "online";

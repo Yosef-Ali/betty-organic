@@ -11,7 +11,7 @@ export const useCartSheet = (onOpenChange: (open: boolean) => void) => {
     name: "",
     email: ""
   });
-  const [orderStatus, setOrderStatus] = useState<Order['status']>("pending");
+  const [orderStatus, setOrderStatus] = useState<Order['status']>("processing");
   const [isThermalPrintPreviewOpen, setIsThermalPrintPreviewOpen] = useState(false);
   const [isOrderConfirmed, setIsOrderConfirmed] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
