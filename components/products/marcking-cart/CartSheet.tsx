@@ -17,8 +17,14 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { ConfirmPurchaseDialog } from "./ConfirmPurchaseDialog";
 
-export function CartSheet() {
-  const { items } = useCartStore();
+import { CartItem as CartItemType } from "@/types/cart";
+
+interface CartSheetProps {
+  items: CartItemType[];
+}
+
+export const CartSheet = ({ items }: CartSheetProps) => {
+  const { clearCart } = useCartStore();
   const [isPurchaseDialogOpen, setIsPurchaseDialogOpen] = useState(false);
 
   const totalAmount = items.reduce(
@@ -41,16 +47,16 @@ export function CartSheet() {
         </SheetTrigger>
         <SheetContent className="flex w-full flex-col pr-0 sm:max-w-lg z-50">
           <SheetHeader>
-            <SheetTitle>Shopping Cart ({items.length})</SheetTitle>
+            <SheetTitle>Shopping Cart ({items?.length})</SheetTitle>
           </SheetHeader>
           <ScrollArea className="flex-1 pr-6">
-            {items.length === 0 ? (
+            {items?.length === 0 ? (
               <div className="flex h-full items-center justify-center">
                 <p className="text-muted-foreground">Your cart is empty</p>
               </div>
             ) : (
               <div className="flex flex-col">
-                {items.map((item) => (
+                {items?.map((item) => (
                   <div key={item.id}>
                     <CartItem item={item} />
                     <Separator />
@@ -76,6 +82,13 @@ export function CartSheet() {
                 </Button>
                 <SharePopup />
               </div>
+              <Button
+                variant="destructive"
+                className="w-full mt-2"
+                onClick={clearCart}
+              >
+                Clear Cart
+              </Button>
             </div>
           )}
         </SheetContent>

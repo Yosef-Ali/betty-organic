@@ -4,8 +4,8 @@ import { motion } from "framer-motion";
 import { FruitCard } from "./fruit-card";
 import { useState } from "react";
 import { Search, ShoppingCart } from "lucide-react";
-import { CartSheet } from "../cart/CartSheet";
 import type { Database } from '@/lib/supabase/database.types';
+import { CartSheet } from "./marcking-cart/CartSheet";
 type Product = Database['public']['Tables']['products']['Row'];
 
 interface ProductSectionProps {
@@ -45,7 +45,7 @@ export function ProductSection({ initialProducts }: ProductSectionProps) {
                 />
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               </div>
-              <button 
+              <button
                 onClick={() => setIsCartOpen(true)}
                 className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
               >
