@@ -1,63 +1,53 @@
-import { createServerClient } from '@supabase/ssr'
+import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'
 import { NextResponse, type NextRequest } from 'next/server'
 import type { Database } from '@/types/supabase'
 
-export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({
-    request,
-  })
+export async function middleware(req: NextRequest) {
+  try {
+    const res = NextResponse.next()
+    const supabase = createMiddlewareClient({ req, res })
 
-  const supabase = createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll()
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            request.cookies.set({ name, value, ...options })
-            response.cookies.set({ name, value, ...options })
-          })
-        },
-      },
+    // Refresh session if expired - required for Server Components
+    const { data: { session }, error } = await supabase.auth.getSession()
+
+    // Get user session
+    const { data: { user } } = await supabase.auth.getUser()
+
+    // Handle auth and marketing paths
+    const isAuthPath = req.nextUrl.pathname.startsWith('/auth')
+    const isVerifyPath = req.nextUrl.pathname.includes('/verify')
+    const isMarketingPath = req.nextUrl.pathname === '/' || req.nextUrl.pathname.startsWith('/(marketing)')
+
+    // Redirect unauthenticated users (except for marketing pages)
+    if (!user && !isAuthPath && !isVerifyPath && !isMarketingPath) {
+      const url = req.nextUrl.clone()
+      url.pathname = '/auth/login'
+      return NextResponse.redirect(url)
     }
-  )
 
-  // Get user session
-  const { data: { user } } = await supabase.auth.getUser()
+    // Handle dashboard routes with role checking
+    if (req.nextUrl.pathname.startsWith('/dashboard')) {
+      if (!user) {
+        return NextResponse.redirect(new URL('/auth/login', req.url))
+      }
 
-  // Handle auth paths
-  const isAuthPath = request.nextUrl.pathname.startsWith('/auth')
-  const isVerifyPath = request.nextUrl.pathname.includes('/verify')
+      // Check user role from profiles table
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
 
-  // Redirect unauthenticated users
-  if (!user && !isAuthPath && !isVerifyPath) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/auth/login'
-    return NextResponse.redirect(url)
+      if (!profile?.role || profile.role !== 'admin') {
+        return NextResponse.redirect(new URL('/', req.url))
+      }
+    }
+
+    return res
+  } catch (error) {
+    console.error('Middleware error:', error)
+    return NextResponse.next()
   }
-
-  // Handle dashboard routes with role checking
-  if (request.nextUrl.pathname.startsWith('/dashboard')) {
-    if (!user) {
-      return NextResponse.redirect(new URL('/auth/login', request.url))
-    }
-
-    // Check user role from profiles table
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-
-    if (!profile?.role || profile.role !== 'admin') {
-      return NextResponse.redirect(new URL('/', request.url))
-    }
-  }
-
-  return response
 }
 
 export const config = {

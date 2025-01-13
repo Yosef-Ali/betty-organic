@@ -1,31 +1,8 @@
-export interface Product {
-  id: string
-  name: string
-  description: string
-  price: number
-  stock: number
-  imageUrl: string
-  createdAt: string
-  updatedAt: string
-  totalSales?: number
-}
+import type { Database } from '@/types/supabase'
 
-export interface DbProductInsert {
-  id?: string
-  name: string
-  description: string
-  price: number
-  stock: number
-  imageUrl: string
-  createdAt?: string
-  updatedAt?: string
-}
+type DbTables = Database['public']['Tables']
+type ProductTable = DbTables['products']
 
-export interface DbProductUpdate {
-  name?: string
-  description?: string
-  price?: number
-  stock?: number
-  imageUrl?: string
-  updatedAt?: string
-}
+export type Product = ProductTable['Row']
+export type DbProductInsert = ProductTable['Insert']
+export type DbProductUpdate = ProductTable['Update']

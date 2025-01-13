@@ -6,9 +6,10 @@ import { useState, useEffect } from "react";
 import { Search, ShoppingCart } from "lucide-react";
 import { CartSheet } from "./marcking-cart/CartSheet";
 import { getProducts } from '@/app/actions/productActions';
+import { Product } from '@/lib/supabase/db.types';
 
 export function ProductSection() {
-  const [products, setProducts] = useState([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
 
@@ -24,7 +25,7 @@ export function ProductSection() {
         setIsLoading(false);
       }
     };
-    
+
     fetchProducts();
   }, []);
   const [searchQuery, setSearchQuery] = useState("");
@@ -58,8 +59,6 @@ export function ProductSection() {
                 />
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               </div>
-
-
               <CartSheet isOpen={isCartOpen} onOpenChange={setIsCartOpen} />
             </div>
 
@@ -79,7 +78,7 @@ export function ProductSection() {
               {!isLoading && !isError && filteredProducts.map((product) => {
                 const optimizedProduct = {
                   ...product,
-                  imageUrl: product.imageUrl ? `${product.imageUrl}?w=500&q=75` : undefined
+                  imageUrl: product.imageUrl ? `${product.imageUrl}?w=500&q=75` : '/placeholder.svg'
                 };
                 return (
                   <motion.div

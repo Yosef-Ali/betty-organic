@@ -1,11 +1,14 @@
 import { useState } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { AuthError } from '@supabase/supabase-js'
+import { supabase } from '@/lib/supabase'
+
+interface AuthResponse {
+  error: AuthError | null;
+}
 
 export function useAuthForm() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const supabase = createClientComponentClient()
 
   const handleAuthError = (error: AuthError) => {
     const errorMessage = error.message === 'Invalid login credentials'
@@ -14,7 +17,7 @@ export function useAuthForm() {
     setError(errorMessage)
   }
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = async (email: string, password: string): Promise<AuthResponse> => {
     try {
       setLoading(true)
       setError(null)
@@ -22,14 +25,15 @@ export function useAuthForm() {
       if (error) throw error
       return { error: null }
     } catch (error) {
-      handleAuthError(error as AuthError)
-      return { error }
+      const authError = error as AuthError
+      handleAuthError(authError)
+      return { error: authError }
     } finally {
       setLoading(false)
     }
   }
 
-  const signUp = async (email: string, password: string, name?: string) => {
+  const signUp = async (email: string, password: string, name?: string): Promise<AuthResponse> => {
     try {
       setLoading(true)
       setError(null)
@@ -44,8 +48,11 @@ export function useAuthForm() {
         }
       })
       if (error) throw error
+      return { error: null }
     } catch (error) {
-      handleAuthError(error as AuthError)
+      const authError = error as AuthError
+      handleAuthError(authError)
+      return { error: authError }
     } finally {
       setLoading(false)
     }

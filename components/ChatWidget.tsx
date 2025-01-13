@@ -1,5 +1,6 @@
+'use client';
+
 import React, { useState } from 'react';
-import { findBestResponse, getDefaultResponse } from '@/lib/chatKnowledgeBase';
 
 const ChatWidget: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -37,7 +38,7 @@ const ChatWidget: React.FC = () => {
   };
 
   return (
-    <div className="fixed bottom-4 right-4 z-[1000]">
+    <div className={`fixed bottom-4 left-4 z-[1000] ${isOpen ? 'mb-20' : ''}`}>
       {!isOpen && (
         <button
           onClick={toggleChat}

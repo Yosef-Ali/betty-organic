@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { Button } from "./ui/button";
-import { ShoppingCart, LayoutDashboard, Menu, Search } from "lucide-react";
+import { ShoppingCart, LayoutDashboard, Menu } from "lucide-react";
 import Image from 'next/image';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useEffect, useState } from 'react';
+import { useCartStore } from '../store/cartStore';
 import { useRouter } from 'next/navigation';
 import type { Session, User } from '@supabase/auth-helpers-nextjs';
 import {
@@ -13,94 +14,73 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "./ui/dropdown-menu";
-import { Input } from "./ui/input";
 import { Badge } from "./ui/badge";
-import { Dialog } from "./ui/dialog";
 import { MobileMenu } from "./MobileMenu";
-import lodash from 'lodash';
-const debounce = lodash.debounce;
+import { useAuth } from '@/lib/hooks/useAuth'; // Ensure correct import
 
-interface NavigationProps {
-  isAdmin: boolean;
-}
 
-export default function Navigation({ isAdmin }: NavigationProps) {
+interface NavigationProps { }
+
+export default function Navigation({ }: NavigationProps) {
   const supabase = createClientComponentClient();
   const router = useRouter();
-  const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [cartCount, setCartCount] = useState(0);
-  const [searchQuery, setSearchQuery] = useState("");
-
-  const debouncedSearch = debounce((query: string) => {
-    if (query.trim()) {
-      router.push(`/products?search=${encodeURIComponent(query)}`);
-    }
-  }, 300);
+  const { items } = useCartStore();
 
   useEffect(() => {
-    const fetchData = async () => {
+    const getUser = async () => {
       try {
+        // Get the current session
         const { data: { session }, error } = await supabase.auth.getSession();
-        if (error) throw error;
+        console.log('Initial session:', session); // Debug log
 
-        setSession(session);
-        if (session) {
-          const { data: userData } = await supabase.auth.getUser();
-          setUser(userData.user);
+        if (error) {
+          throw error;
         }
 
-        // Fetch cart count
-        const { count } = await supabase
-          .from('cart_items')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', session?.user.id || '');
+        if (session?.user) {
+          setUser(session.user);
+          console.log('Setting user from session:', session.user);
+        }
 
-        setCartCount(count || 0);
+        // Set up auth state change listener
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+          async (event, session) => {
+            console.log('Auth event:', event); // Debug log
+            console.log('New session:', session); // Debug log
+
+            if (session?.user) {
+              setUser(session.user);
+            } else {
+              setUser(null);
+            }
+          }
+        );
+
+        setLoading(false);
+        return () => subscription.unsubscribe();
       } catch (error) {
-        console.error('Data fetch error:', error);
-      } finally {
+        console.error('Error in auth:', error);
         setLoading(false);
       }
     };
 
-    fetchData();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session);
-      if (session) {
-        const { data: userData } = await supabase.auth.getUser();
-        setUser(userData.user);
-      } else {
-        setUser(null);
-      }
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    getUser();
   }, [supabase]);
 
   const handleSignIn = () => router.push('/auth/login');
 
   const handleSignOut = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      router.refresh();
+      await supabase.auth.signOut();
+      setUser(null);
+      router.push('/');
     } catch (error) {
-      console.error('Sign out error:', error);
+      console.error('Error signing out:', error);
     }
-  };
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-  };
-
-  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value);
-    debouncedSearch(e.target.value);
   };
 
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, sectionId: string) => {
@@ -118,12 +98,13 @@ export default function Navigation({ isAdmin }: NavigationProps) {
     }
   };
 
+  console.log('Current user state:', user); // Debug log
+
   return (
     <nav className="fixed top-0 z-50 w-full bg-[#ffc600]/80 backdrop-blur-md border-b">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         <div className="flex items-center gap-4">
-          {/* Mobile Menu */}
-          <MobileMenu session={session} />
+          <MobileMenu user={user} /> {/* Changed from session to user */}
 
           {/* Logo */}
           <Link href="/" className="text-2xl md:text-2xl font-bold relative group flex items-center gap-2">
@@ -141,109 +122,85 @@ export default function Navigation({ isAdmin }: NavigationProps) {
           </Link>
         </div>
 
-        {/* Search Bar */}
-        <form onSubmit={handleSearch} className="hidden md:flex flex-1 max-w-md mx-4">
-          <div className="relative w-full">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search products..."
-              className="pl-10"
-              value={searchQuery}
-              onChange={handleSearchInputChange}
-            />
-          </div>
-        </form>
-
         <div className="flex items-center gap-4">
-          {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-6">
-            <a
-              href="#hero"
-              onClick={(e) => handleNavClick(e, 'hero')}
-              className="text-lg font-medium relative group"
-            >
+            <Link href="/" className="text-lg font-medium relative group">
               <span className="relative z-10">Home</span>
               <div className="absolute -bottom-1 left-0 w-full h-0.5 bg-black opacity-0 group-hover:opacity-100 transition-opacity" />
-            </a>
+            </Link>
 
-            <a
-              href="#products"
-              onClick={(e) => handleNavClick(e, 'products')}
-              className="text-lg font-medium relative group"
-            >
+            <Link href="#products" className="text-lg font-medium relative group">
               <span className="relative z-10">Products</span>
               <div className="absolute -bottom-1 left-0 w-full h-0.5 bg-black opacity-0 group-hover:opacity-100 transition-opacity" />
-            </a>
+            </Link>
 
-            <a
-              href="#about"
-              onClick={(e) => handleNavClick(e, 'about')}
-              className="text-lg font-medium relative group"
-            >
+            <Link href="#about" className="text-lg font-medium relative group">
               <span className="relative z-10">About</span>
               <div className="absolute -bottom-1 left-0 w-full h-0.5 bg-black opacity-0 group-hover:opacity-100 transition-opacity" />
-            </a>
+            </Link>
 
-            <a
-              href="#contact"
-              onClick={(e) => handleNavClick(e, 'contact')}
-              className="text-lg font-medium relative group"
-            >
+            <Link href="#contact" className="text-lg font-medium relative group">
               <span className="relative z-10">Contact</span>
               <div className="absolute -bottom-1 left-0 w-full h-0.5 bg-black opacity-0 group-hover:opacity-100 transition-opacity" />
-            </a>
+            </Link>
           </div>
 
-          {/* Auth Section */}
-          {loading ? (
-            <Button variant="ghost" disabled>
-              Loading...
-            </Button>
-          ) : session ? (
-            <div className="flex items-center gap-4">
-              <Link href="/dashboard" className="text-lg font-medium relative group">
-                <Button variant="ghost" className="gap-2">
-                  <LayoutDashboard className="h-5 w-5" />
-                  Dashboard
-                </Button>
-              </Link>
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-                    <Image
-                      src={user?.user_metadata?.avatar_url || "/placeholder-user.webp"}
-                      alt="User Avatar"
-                      fill
-                      className="rounded-full object-cover"
-                    />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={handleSignOut}>
-                    Sign Out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          ) : (
-            <Button variant="ghost" onClick={handleSignIn}>
-              Sign In
-            </Button>
-          )}
-
-          {/* Cart */}
-          <Button size="icon" variant="ghost" className="relative">
-            <ShoppingCart className="h-5 w-5" />
-            {cartCount > 0 && (
-              <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center">
-                {cartCount}
-              </Badge>
+          <div className="flex items-center gap-2">
+            {loading ? (
+              <Button variant="ghost" disabled>Loading...</Button>
+            ) : user ? (
+              <>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      className="relative h-8 w-8 rounded-full overflow-hidden border-2 border-primary"
+                    >
+                      <Image
+                        src={user.user_metadata?.avatar_url || "/placeholder-user.webp"}
+                        alt="User Avatar"
+                        fill
+                        className="object-cover"
+                        priority
+                      />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuItem disabled className="font-medium">
+                      {user.email}
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link href="/dashboard">Dashboard</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/profile">Profile</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleSignOut}>
+                      Sign Out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
+            ) : (
+              <Button variant="default" onClick={handleSignIn}>
+                Sign In
+              </Button>
             )}
-          </Button>
+
+            <Link href="/cart">
+              <Button size="icon" variant="ghost" className="relative">
+                <ShoppingCart className="h-5 w-5" />
+                {items.length > 0 && (
+                  <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center">
+                    {items.length}
+                  </Badge>
+                )}
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
-    </nav>
+    </nav >
   );
 }

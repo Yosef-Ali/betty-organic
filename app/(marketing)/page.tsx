@@ -7,7 +7,7 @@ import { AboutSection } from "components/AboutSection";
 import ChatWidget from "components/ChatWidget";
 import Navigation from "@/components/Navigation";
 import { ProductSection } from "@/components/products/product-section";
-import { createClient } from '@/lib/supabase/client';
+import AuthGuard from "@/components/AuthGuard"; // Import AuthGuard
 
 export const metadata: Metadata = {
   title: 'Betty Organic - Fresh Fruits & Vegetables',
@@ -18,31 +18,33 @@ export const revalidate = 0;
 
 export default function Home() {
   return (
-    <>
-      <Navigation />
-      <main className="flex flex-col items-center bg-[#ffc600] relative">
-        <section id="hero">
-          <Hero />
-        </section>
-        <div className="w-full max-w-[1440px] px-4 sm:px-6 lg:px-8">
-          <div className="space-y-32">
-            <section id="products">
-              <ProductSection />
-            </section>
-            <section id="about">
-              <AboutSection />
-            </section>
-            <section id="delivery-services">
-              <DeliveryServices />
-            </section>
-            <section id="testimonials">
-              <TestimonialSection />
-            </section>
+    <AuthGuard>
+      <>
+        <Navigation />
+        <main className="flex flex-col items-center bg-[#ffc600] relative">
+          <section id="hero">
+            <Hero />
+          </section>
+          <div className="w-full max-w-[1440px] px-4 sm:px-6 lg:px-8">
+            <div className="space-y-32">
+              <section id="products">
+                <ProductSection />
+              </section>
+              <section id="about">
+                <AboutSection />
+              </section>
+              <section id="delivery-services">
+                <DeliveryServices />
+              </section>
+              <section id="testimonials">
+                <TestimonialSection />
+              </section>
+            </div>
           </div>
-        </div>
-        <Footer />
-        <ChatWidget />
-      </main>
-    </>
+          <Footer />
+          <ChatWidget />
+        </main>
+      </>
+    </AuthGuard>
   );
 }

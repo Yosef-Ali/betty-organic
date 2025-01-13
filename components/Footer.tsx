@@ -18,7 +18,7 @@ export default function Footer() {
     <>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
-          <button className="mt-4 px-6 py-2 bg-white rounded-full shadow-md hover:bg-gray-50 transition-colors">
+          <button className="mt-4 px-6 py-2 bg-yellow-500 rounded-full shadow-md hover:bg-yellow-600 transition-colors">
             Contact Us
           </button>
         </DialogTrigger>
@@ -70,12 +70,6 @@ export default function Footer() {
               <p className="text-sm">
                 Fresh, organic produce delivered straight to your door.
               </p>
-              <button
-                onClick={() => setOpen(true)}
-                className="mt-4 px-6 py-2 bg-white rounded-full shadow-md hover:bg-gray-50 transition-colors"
-              >
-                Contact Us
-              </button>
             </div>
 
             {/* Contact Info */}

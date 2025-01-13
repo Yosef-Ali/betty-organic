@@ -35,12 +35,13 @@ export function FruitCard({
   const { toast } = useToast();
 
   const handleAddToCart = () => {
+    const pricePerKg = unit && unit.toLowerCase() === 'lb' ? price * 2.20462 : price;
     const cartItem = {
-      id,
-      name,
-      imageUrl,  // No need to rename since it's already imageUrl
-      pricePerKg: unit.toLowerCase() === 'kg' ? price : price * 2.20462, // Convert price to per kg
-      grams: 1000, // Default to 1kg
+      id: String(id),
+      name: String(name),
+      imageUrl: String(imageUrl || ''),
+      pricePerKg: Number(pricePerKg.toFixed(2)),
+      grams: 1000,
     };
     addItem(cartItem);
     toast({

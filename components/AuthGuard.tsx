@@ -1,28 +1,29 @@
-'use client'
+// components/AuthGuard.tsx
+"use client";
 
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import supabase from '@/lib/supabase/client'
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/hooks/useAuth';
 
-export default function AuthGuard({ children }: { children: React.ReactNode }) {
-  const [loading, setLoading] = useState(true)
-  const [session, setSession] = useState<any>(null)
-  const router = useRouter()
+interface AuthGuardProps {
+  children: React.ReactNode;
+}
+
+const AuthGuard = ({ children }: AuthGuardProps) => {
+  const { isAuthenticated, isLoading } = useAuth();
+  const router = useRouter();
 
   useEffect(() => {
-    async function checkSession() {
-      const { data } = await supabase.auth.getSession()
-      if (!data.session) {
-        router.replace('/auth/login')
-      } else {
-        setSession(data.session)
-      }
-      setLoading(false)
+    if (!isLoading && !isAuthenticated) {
+      router.push('/login');
     }
-    checkSession()
-  }, [router])
+  }, [isAuthenticated, isLoading, router]);
 
-  if (loading) return <p>Loading...</p>
+  if (isLoading) {
+    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+  }
 
-  return <>{children}</>
-}
+  return isAuthenticated ? <>{children}</> : null;
+};
+
+export default AuthGuard;

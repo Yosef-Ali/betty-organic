@@ -1,4 +1,4 @@
-import { CartItem as CartItemType } from "@/src/types/cart";
+import { CartItem as CartItemType } from "../../../types/cart";
 import Image from "next/image";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,7 @@ export function CartItem({ item }: CartItemProps) {
 
   const handleDirectInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = parseFloat(e.target.value);
-    if (!isNaN(value) && value >= 0.1) { // Minimum 0.1kg
+    if (!isNaN(value)) {
       const newGrams = Math.round(value * 1000);
       updateItemQuantity(item.id, newGrams);
     }
@@ -57,12 +57,11 @@ export function CartItem({ item }: CartItemProps) {
             <Minus className="h-3 w-3" />
             <span className="sr-only">Decrease quantity</span>
           </Button>
-          <div className="relative w-24">
+          <div className="relative w-32">
             <Input
-              type="number"
-              step="0.1"
+              type="text"
               min="0.1"
-              value={(item.grams / 1000).toFixed(1)}
+              value={item.grams / 1000}
               onChange={handleDirectInput}
               className="text-center"
             />

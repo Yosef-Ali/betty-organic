@@ -46,17 +46,39 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    setClientPathname(pathname);
-  }, [pathname]);
+    // Initial user fetch
+    fetchUser();
+
+    // Set up real-time subscription to auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setUser(session.user as User);
+      } else {
+        setUser(null);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [supabase.auth]);
+
+  const fetchUser = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        setUser(session.user as User);
+      }
+    } catch (error) {
+      console.error('Error fetching user:', error);
+    }
+  };
 
   useEffect(() => {
-    const fetchUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user as User); // Cast the user to the extended User type
-    };
-
-    fetchUser();
-  }, [supabase]);
+    setClientPathname(pathname);
+  }, [pathname]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -121,11 +143,12 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
           >
             {user ? (
               <Image
-                src={user.user_metadata.avatar_url || "/placeholder-user.webp"}
+                src={user.user_metadata?.avatar_url || "/placeholder-user.webp"}
                 width={36}
                 height={36}
                 alt="Avatar"
-                className="overflow-hidden rounded-full"
+                className="h-full w-full object-cover"
+                priority
               />
             ) : (
               <Image
@@ -133,7 +156,8 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
                 width={36}
                 height={36}
                 alt="Avatar"
-                className="overflow-hidden rounded-full"
+                className="h-full w-full object-cover"
+                priority
               />
             )}
           </Button>

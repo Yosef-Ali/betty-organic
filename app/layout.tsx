@@ -6,7 +6,8 @@ import { TooltipProvider } from "@/components/ui/tooltip"
 import { Toaster } from "@/components/ui/toaster"
 import Providers from './providers'
 import { SessionProvider } from '@/components/SessionProvider'
-import { AuthProvider } from '@/lib/contexts/auth-context'
+import { headers, cookies } from 'next/headers'
+import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
 
 export const metadata: Metadata = {
   title: 'Betty Organic',
@@ -18,22 +19,32 @@ const inter = Inter({
   display: 'swap',
 })
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  let session = null;
+  try {
+    const cookieStore = cookies();
+    const supabase = createServerComponentClient({
+      cookies: () => cookieStore
+    });
+    const { data: { session: userSession } } = await supabase.auth.getSession();
+    session = userSession;
+  } catch (error) {
+    console.error('Error getting session:', error);
+  }
+
   return (
     <html lang="en">
       <body className={cn("min-h-screen bg-background font-sans antialiased", inter.className)}>
         <Providers>
-          <SessionProvider>
-            <AuthProvider>
-              <TooltipProvider>
-                {children}
-              </TooltipProvider>
-              <Toaster />
-            </AuthProvider>
+          <SessionProvider initialSession={session}>
+            <TooltipProvider>
+              {children}
+            </TooltipProvider>
+            <Toaster />
           </SessionProvider>
         </Providers>
       </body>

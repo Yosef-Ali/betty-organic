@@ -233,6 +233,8 @@ export type Database = {
           total_amount: number
           type: string
           updated_at: string | null
+          customerInfo: string // Add this
+          orderNumber: string  // Add this
         }
         Insert: {
           created_at?: string | null
@@ -242,6 +244,8 @@ export type Database = {
           total_amount: number
           type: string
           updated_at?: string | null
+          customerInfo: string // Add this
+          orderNumber: string  // Add this
         }
         Update: {
           created_at?: string | null

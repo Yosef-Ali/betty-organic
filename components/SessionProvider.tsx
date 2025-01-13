@@ -1,11 +1,16 @@
 'use client'
 
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClientComponentClient, Session } from '@supabase/auth-helpers-nextjs'
 import { useRouter } from 'next/navigation'
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+
+interface SessionProviderProps {
+  initialSession: Session | null
+  children: React.ReactNode
+}
 
 type SessionContextType = {
-  session: any
+  session: Session | null
   isLoading: boolean
 }
 
@@ -14,10 +19,10 @@ const SessionContext = createContext<SessionContextType>({
   isLoading: true
 })
 
-export const SessionProvider = ({ children }: { children: React.ReactNode }) => {
+export const SessionProvider = ({ initialSession, children }: SessionProviderProps) => {
   const supabase = createClientComponentClient()
   const router = useRouter()
-  const [session, setSession] = useState<any>(null)
+  const [session, setSession] = useState<Session | null>(initialSession)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {

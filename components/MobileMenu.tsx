@@ -5,12 +5,13 @@ import Link from 'next/link'
 import { Menu, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
+import { User } from '@supabase/supabase-js'
 
 interface MobileMenuProps {
-  session: any // Replace 'any' with your actual session type
+  user: User | null;  // Changed from session to user
 }
 
-export function MobileMenu({ session }: MobileMenuProps) {
+export function MobileMenu({ user }: MobileMenuProps) {
   const [open, setOpen] = useState(false)
 
   const links = [
@@ -20,7 +21,7 @@ export function MobileMenu({ session }: MobileMenuProps) {
     { href: "#contact", label: "Contact" },
   ]
 
-  if (session) {
+  if (user) {
     links.push({ href: "/dashboard", label: "Dashboard" })
   }
 

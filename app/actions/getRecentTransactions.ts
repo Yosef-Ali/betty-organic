@@ -1,6 +1,6 @@
 "use server";
 
-import { supabase } from '@/lib/supabase/supabaseClient';
+import { supabase } from '@/lib/supabase/client';
 
 // Define a type for the transaction
 import { Database } from '@/lib/supabase/database.types';

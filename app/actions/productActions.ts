@@ -1,11 +1,8 @@
 'use server';
 
-import { createClient } from 'lib/supabase/server';
-import {
-  Product,
-  DbProductInsert as ProductInsert,
-  DbProductUpdate as ProductUpdate
-} from 'lib/supabase/db.types';
+import { Product, DbProductInsert, DbProductUpdate } from '@/lib/supabase/db.types';
+import { createServerSupabaseClient as createClient } from 'lib/supabase/server';
+
 import { revalidatePath } from 'next/cache';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -31,7 +28,7 @@ export const createProduct = async (formData: FormData): Promise<Product> => {
 
     const productId = uuidv4();
     const now = new Date().toISOString();
-    const productData: ProductInsert = {
+    const productData: DbProductInsert = {
       id: productId,
       name,
       description: description || '',
@@ -68,9 +65,9 @@ export const createProduct = async (formData: FormData): Promise<Product> => {
 export async function updateProduct(id: string, data: FormData) {
   const supabase = await createClient();
   try {
-    const updates: ProductUpdate = {};
+    const updates: DbProductUpdate = {};
 
-    for (const [key, value] of data.entries()) {
+    for (const [key, value] of Array.from(data.entries())) {
       if (value instanceof File) continue;
       if (key === 'price') {
         updates.price = parseFloat(value.toString());
