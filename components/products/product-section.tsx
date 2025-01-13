@@ -9,11 +9,13 @@ import { CartSheet } from "./marcking-cart/CartSheet";
 type Product = Database['public']['Tables']['products']['Row'];
 
 interface ProductSectionProps {
-  initialProducts?: Product[];
+  initialProducts?: string; // Changed to string for serialized data
 }
 
 export function ProductSection({ initialProducts }: ProductSectionProps) {
-  const [products, setProducts] = useState<Product[]>(initialProducts || []);
+  // Parse the serialized data
+  const parsedProducts = initialProducts ? JSON.parse(initialProducts) : [];
+  const [products, setProducts] = useState<Product[]>(parsedProducts);
   const [searchQuery, setSearchQuery] = useState("");
   const [isCartOpen, setIsCartOpen] = useState(false);
 
