@@ -45,12 +45,12 @@ export function ProductSection({ initialProducts }: ProductSectionProps) {
                 />
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               </div>
-              <button
+              {/* <button
                 onClick={() => setIsCartOpen(true)}
                 className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
               >
                 <ShoppingCart className="h-6 w-6 text-gray-700" />
-              </button>
+              </button> */}
               <CartSheet isOpen={isCartOpen} onOpenChange={setIsCartOpen} />
             </div>
 
