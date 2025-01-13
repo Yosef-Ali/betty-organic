@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import { FruitCard } from "./fruit-card";
 import { useState } from "react";
-import { Search } from "lucide-react";
+import { Search, ShoppingCart } from "lucide-react";
 import { CartSheet } from "../cart/CartSheet";
 import type { Database } from '@/lib/supabase/database.types';
 type Product = Database['public']['Tables']['products']['Row'];
