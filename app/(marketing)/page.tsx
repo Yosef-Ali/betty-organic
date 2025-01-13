@@ -1,63 +1,62 @@
-"use client";
-
+import { Metadata } from 'next';
 import { DeliveryServices } from "components/delivery-services";
 import Footer from "components/Footer";
-import Header from "components/Header";
 import { Hero } from "components/Hero";
-
-import { ProductSection } from "components/products/product-section";
 import { TestimonialSection } from "components/testimonials/testimonial-section";
 import { AboutSection } from "components/AboutSection";
 import ChatWidget from "components/ChatWidget";
-import Image from "next/image";
-import { useEffect, useState } from "react";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import Navigation from "@/components/Navigation";
+import { ProductSection } from "@/components/products/product-section";
+import { createClient } from '@/lib/supabase/client';
 
-export default function Home() {
-  const [isAdmin, setIsAdmin] = useState(false);
-  const supabase = createClientComponentClient();
+export const metadata: Metadata = {
+  title: 'Betty Organic - Fresh Fruits & Vegetables',
+  description: 'Fresh organic fruits and vegetables delivered to your door',
+};
 
-  useEffect(() => {
-    // Example:
-    // supabase.auth.getUser().then(({ data }) => {
-    //   if (data.user && data.user.role === 'admin') setIsAdmin(true);
-    // });
-  }, []);
+export const revalidate = 0;
+
+async function getProducts() {
+  const supabase = createClient();
+  const { data: products, error } = await supabase
+    .from('products')
+    .select('*');
+  if (error) {
+    console.error("Error fetching products:", error);
+    return [];
+  }
+  return products || [];
+}
+
+export default async function Home() {
+  const products = await getProducts();
 
   return (
-    <main className="flex flex-col items-center bg-[#ffc600] relative">
-      <Navigation isAdmin={isAdmin} />
-      <section id="hero">
-        <Hero />
-      </section>
-      <div className="w-full max-w-[1440px] px-4 sm:px-6 lg:px-8">
-        <div className="space-y-32">
-          <section id="products">
-            <ProductSection />
-          </section>
-          <div className="relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-72 h-72 opacity-20">
-              <Image
-                src="/pattern.svg"
-                alt="Decorative pattern"
-                width={288}
-                height={288}
-                className="object-cover"
-              />
-            </div>
-            <DeliveryServices />
+    <>
+      <Navigation />
+      <main className="flex flex-col items-center bg-[#ffc600] relative">
+        <section id="hero">
+          <Hero />
+        </section>
+        <div className="w-full max-w-[1440px] px-4 sm:px-6 lg:px-8">
+          <div className="space-y-32">
+            <section id="products">
+              <ProductSection initialProducts={products} />
+            </section>
+            <section id="about">
+              <AboutSection />
+            </section>
+            <section id="delivery-services">
+              <DeliveryServices />
+            </section>
+            <section id="testimonials">
+              <TestimonialSection />
+            </section>
           </div>
-          <section id="about">
-            <AboutSection />
-          </section>
-          <section id="contact">
-            <TestimonialSection />
-          </section>
         </div>
-      </div>
-      <ChatWidget />
-      <Footer />
-    </main>
+        <Footer />
+        <ChatWidget />
+      </main>
+    </>
   );
 }
