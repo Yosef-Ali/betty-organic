@@ -16,45 +16,7 @@ export const metadata: Metadata = {
 
 export const revalidate = 0;
 
-async function getProducts() {
-  try {
-    const supabase = createClient();
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000); // 5 second timeout
-    
-    const { data: products, error } = await supabase
-      .from('products')
-      .select('*')
-      .abortSignal(controller.signal);
-    
-    clearTimeout(timeout);
-    
-    if (error) {
-      console.error("Error fetching products:", error);
-      return [];
-    }
-    return products || [];
-  } catch (error) {
-    console.error("Timeout or other error fetching products:", error);
-    return [];
-  }
-}
-
-export default async function Home() {
-  const products = await getProducts();
-  // Create plain objects from the products
-  const plainProducts = products.map(product => ({
-    id: product.id,
-    name: product.name,
-    description: product.description,
-    price: product.price,
-    imageUrl: product.imageUrl,
-    unit: product.unit,
-    created_at: product.created_at,
-    updated_at: product.updated_at
-  }));
-  const serializedProducts = JSON.stringify(plainProducts);
-
+export default function Home() {
   return (
     <>
       <Navigation />
@@ -65,7 +27,7 @@ export default async function Home() {
         <div className="w-full max-w-[1440px] px-4 sm:px-6 lg:px-8">
           <div className="space-y-32">
             <section id="products">
-              <ProductSection initialProducts={serializedProducts} />
+              <ProductSection />
             </section>
             <section id="about">
               <AboutSection />

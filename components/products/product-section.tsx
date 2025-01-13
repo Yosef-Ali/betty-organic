@@ -4,18 +4,26 @@ import { motion } from "framer-motion";
 import { FruitCard } from "./fruit-card";
 import { useState } from "react";
 import { Search, ShoppingCart } from "lucide-react";
-import type { Database } from '@/lib/supabase/database.types';
 import { CartSheet } from "./marcking-cart/CartSheet";
+import { useQuery } from '@tanstack/react-query';
+import { createClient } from '@/lib/supabase/client';
+import { Database } from '@/lib/supabase/database.types';
 type Product = Database['public']['Tables']['products']['Row'];
 
-interface ProductSectionProps {
-  initialProducts?: string; // Changed to string for serialized data
-}
-
-export function ProductSection({ initialProducts }: ProductSectionProps) {
-  // Parse the serialized data
-  const parsedProducts = initialProducts ? JSON.parse(initialProducts) : [];
-  const [products, setProducts] = useState<Product[]>(parsedProducts);
+export function ProductSection() {
+  const supabase = createClient();
+  
+  const { data: products = [], isLoading, isError } = useQuery<Product[]>({
+    queryKey: ['products'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*');
+      if (error) throw error;
+      return data;
+    },
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
   const [searchQuery, setSearchQuery] = useState("");
   const [isCartOpen, setIsCartOpen] = useState(false);
 
@@ -53,7 +61,19 @@ export function ProductSection({ initialProducts }: ProductSectionProps) {
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4 max-w-[1920px] mx-auto mb-16">
-              {filteredProducts.map((product) => {
+              {isLoading && (
+                <div className="col-span-full text-center py-8">
+                  Loading products...
+                </div>
+              )}
+              
+              {isError && (
+                <div className="col-span-full text-center py-8 text-red-500">
+                  Error loading products. Please try again later.
+                </div>
+              )}
+
+              {!isLoading && !isError && filteredProducts.map((product) => {
                 const optimizedProduct = {
                   ...product,
                   imageUrl: product.imageUrl ? `${product.imageUrl}?w=500&q=75` : undefined
