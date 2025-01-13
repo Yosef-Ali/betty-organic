@@ -29,8 +29,8 @@ interface OrderSummaryProps {
     imageUrl: string;
   }>;
   totalAmount: number;
-  customerInfo: Customer;
-  setCustomerInfo: (value: Customer) => void;
+  customerId: string;
+  setCustomerId: (id: string) => void;
   orderStatus: "pending" | "processing" | "completed" | "cancelled";
   setOrderStatus: (status: "pending" | "processing" | "completed" | "cancelled") => void;
   isStatusVerified: boolean;
@@ -95,7 +95,7 @@ export const OrderSummary: FC<OrderSummaryProps> = ({
 ${orderDetails}
 
 💰 *Total Amount:* Br ${totalAmount.toFixed(2)}
-${customerInfo ? `\n👤 *Customer:* ${customerInfo}` : ''}
+${customerId ? `\n👤 *Customer ID:* ${customerId}` : ''}
 
 ✨ Thank you for choosing Betty Organic! ✨
 
@@ -178,8 +178,8 @@ ${storeInfo}`;
             id="customer-info"
             type="text"
             placeholder="Enter customer name or phone"
-            value={customerInfo.name}
-            onChange={(e) => setCustomerInfo({ ...customerInfo, name: e.target.value })}
+            value={customerId}
+            onChange={(e) => setCustomerId(e.target.value)}
             className="mt-1"
           />
         </div>
