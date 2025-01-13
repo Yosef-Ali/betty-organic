@@ -2,27 +2,31 @@
 
 import { motion } from "framer-motion";
 import { FruitCard } from "./fruit-card";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search, ShoppingCart } from "lucide-react";
 import { CartSheet } from "./marcking-cart/CartSheet";
-import { createClient } from '@/lib/supabase/client';
-import { Database } from '@/lib/supabase/database.types';
-type Product = Database['public']['Tables']['products']['Row'];
+import { getProducts } from '@/app/actions/productActions';
 
 export function ProductSection() {
-  const supabase = createClient();
+  const [products, setProducts] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isError, setIsError] = useState(false);
 
-  const { data: products = [], isLoading, isError } = useQuery<Product[]>({
-    queryKey: ['products'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('products')
-        .select('*');
-      if (error) throw error;
-      return data;
-    },
-    staleTime: 1000 * 60 * 5, // 5 minutes
-  });
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const data = await getProducts();
+        setProducts(data);
+      } catch (error) {
+        console.error('Error fetching products:', error);
+        setIsError(true);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchProducts();
+  }, []);
   const [searchQuery, setSearchQuery] = useState("");
   const [isCartOpen, setIsCartOpen] = useState(false);
 
