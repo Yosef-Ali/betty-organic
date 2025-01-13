@@ -153,33 +153,7 @@ export const CartSheet: FC<CartSheetProps> = ({ isOpen, onOpenChange }) => {
     </>
   );
 };
-            import {FC} from "react";
-            import {Order} from "@/types/order";
-            import {
-              Sheet,
-              SheetContent,
-              SheetHeader,
-              SheetTitle,
-} from "@/components/ui/sheet";
-            import {ScrollArea} from "@/components/ui/scroll-area";
-            import {CartFooter} from "./CartFooter";
-            import {PrintPreviewModal} from "../PrintPreviewModal";
-            import {AnimatePresence} from "framer-motion";
-            import {Button} from "@/components/ui/button";
-            import {ChevronLeftIcon} from "lucide-react";
-            import {OtpDialog} from "./OtpDialog";
-            import ConfirmDialog from "./ConfirmDialog";
-            import {CartItems} from "./CartItems";
-            import {OrderSummary} from "./OrderSummary";
-            import {useCartSheet} from "./useCartSheet";
-            import {Customer} from "@/types/customer";
-
-            export interface CartSheetProps {
-              isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
-}
-
-            export const CartSheet: FC<CartSheetProps> = ({isOpen, onOpenChange}) => {
+export const CartSheet: FC<CartSheetProps> = ({ isOpen, onOpenChange }) => {
   const {
                 items,
                 customer,
