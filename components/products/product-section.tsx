@@ -9,13 +9,11 @@ import { CartSheet } from "./marcking-cart/CartSheet";
 type Product = Database['public']['Tables']['products']['Row'];
 
 interface ProductSectionProps {
-  initialProducts?: string; // Changed to string for serialized data
+  initialProducts?: Product[];
 }
 
 export function ProductSection({ initialProducts }: ProductSectionProps) {
-  // Parse the serialized data
-  const parsedProducts = initialProducts ? JSON.parse(initialProducts) : [];
-  const [products, setProducts] = useState<Product[]>(parsedProducts);
+  const [products, setProducts] = useState<Product[]>(initialProducts || []);
   const [searchQuery, setSearchQuery] = useState("");
   const [isCartOpen, setIsCartOpen] = useState(false);
 
@@ -47,12 +45,8 @@ export function ProductSection({ initialProducts }: ProductSectionProps) {
                 />
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               </div>
-              {/* <button
-                onClick={() => setIsCartOpen(true)}
-                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-              >
-                <ShoppingCart className="h-6 w-6 text-gray-700" />
-              </button> */}
+
+
               <CartSheet isOpen={isCartOpen} onOpenChange={setIsCartOpen} />
             </div>
 
