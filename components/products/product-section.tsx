@@ -5,14 +5,13 @@ import { FruitCard } from "./fruit-card";
 import { useState } from "react";
 import { Search, ShoppingCart } from "lucide-react";
 import { CartSheet } from "./marcking-cart/CartSheet";
-import { useQuery } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { Database } from '@/lib/supabase/database.types';
 type Product = Database['public']['Tables']['products']['Row'];
 
 export function ProductSection() {
   const supabase = createClient();
-  
+
   const { data: products = [], isLoading, isError } = useQuery<Product[]>({
     queryKey: ['products'],
     queryFn: async () => {
@@ -66,7 +65,7 @@ export function ProductSection() {
                   Loading products...
                 </div>
               )}
-              
+
               {isError && (
                 <div className="col-span-full text-center py-8 text-red-500">
                   Error loading products. Please try again later.
