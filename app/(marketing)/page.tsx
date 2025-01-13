@@ -19,10 +19,15 @@ export const revalidate = 0;
 async function getProducts() {
   try {
     const supabase = createClient();
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+    
     const { data: products, error } = await supabase
       .from('products')
       .select('*')
-      .timeout(5000); // Add timeout of 5 seconds
+      .abortSignal(controller.signal);
+    
+    clearTimeout(timeout);
     
     if (error) {
       console.error("Error fetching products:", error);
