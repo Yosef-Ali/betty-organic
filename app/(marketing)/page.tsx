@@ -30,6 +30,7 @@ async function getProducts() {
 
 export default async function Home() {
   const products = await getProducts();
+  const serializedProducts = JSON.stringify(products);
 
   return (
     <>
@@ -41,7 +42,7 @@ export default async function Home() {
         <div className="w-full max-w-[1440px] px-4 sm:px-6 lg:px-8">
           <div className="space-y-32">
             <section id="products">
-              <ProductSection initialProducts={products} />
+              <ProductSection initialProducts={serializedProducts} />
             </section>
             <section id="about">
               <AboutSection />
