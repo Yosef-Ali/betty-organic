@@ -43,8 +43,15 @@ export function ProductSection({ initialProducts }: ProductSectionProps) {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full px-4 py-2 pl-10 pr-4 text-gray-700 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-200"
                 />
-                <CartSheet isOpen={isCartOpen} onOpenChange={setIsCartOpen} />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               </div>
+              <button 
+                onClick={() => setIsCartOpen(true)}
+                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <ShoppingCart className="h-6 w-6 text-gray-700" />
+              </button>
+              <CartSheet isOpen={isCartOpen} onOpenChange={setIsCartOpen} />
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4 max-w-[1920px] mx-auto mb-16">
