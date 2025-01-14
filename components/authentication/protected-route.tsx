@@ -3,43 +3,25 @@
 import { useAuth } from '@/lib/contexts/auth-context'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { cookies } from 'next/headers'
 
 interface ProtectedRouteProps {
   children: React.ReactNode
   requireAdmin?: boolean
   requireSales?: boolean
   requireCustomer?: boolean
+  initialAuthToken?: string
 }
 
 export default function ProtectedRoute({
   children,
   requireAdmin = false,
   requireSales = false,
-  requireCustomer = false
+  requireCustomer = false,
+  initialAuthToken
 }: ProtectedRouteProps) {
   const { user, isAdmin, isSales, isCustomer, isLoading } = useAuth()
   const router = useRouter()
-  const [isCookieLoaded, setIsCookieLoaded] = useState(false)
-
-  // Handle cookie loading
-  useEffect(() => {
-    const loadCookie = async () => {
-      try {
-        const cookieStore = cookies()
-        const authToken = await cookieStore.get('sb-auth-token')
-        if (authToken) {
-          // Handle the token if needed
-        }
-        setIsCookieLoaded(true)
-      } catch (error) {
-        console.error('Failed to load cookies:', error)
-        setIsCookieLoaded(true) // Continue anyway
-      }
-    }
-
-    loadCookie()
-  }, [])
+  const [isCookieLoaded, setIsCookieLoaded] = useState(!!initialAuthToken)
 
   useEffect(() => {
     if (!isLoading) {
@@ -73,7 +55,7 @@ export default function ProtectedRoute({
     }
   }, [user, isAdmin, isSales, isCustomer, isLoading, requireAdmin, requireSales, requireCustomer, router])
 
-  if (isLoading || !isCookieLoaded) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="flex flex-col items-center gap-4">
