@@ -22,27 +22,35 @@ export default function ProtectedRoute({
 
   useEffect(() => {
     if (!isLoading) {
-      if (!user) {
+      try {
+        if (!user) {
+          router.push('/auth/signin')
+          return
+        }
+
+        if (requireAdmin && !isAdmin) {
+          router.push('/unauthorized')
+          return
+        }
+
+        if (requireSales && !isSales && !isAdmin) {
+          router.push('/unauthorized')
+          return
+        }
+
+        if (requireCustomer && !isCustomer && !isAdmin && !isSales) {
+          router.push('/')
+          return
+        }
+      } catch (error) {
+        console.error('Authentication error:', error)
+        // Clear potentially corrupted auth state
+        localStorage.removeItem('sb-auth-token')
+        document.cookie = 'sb-auth-token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;'
         router.push('/auth/signin')
-        return
-      }
-
-      if (requireAdmin && !isAdmin) {
-        router.push('/unauthorized')
-        return
-      }
-
-      if (requireSales && !isSales && !isAdmin) {
-        router.push('/unauthorized')
-        return
-      }
-
-      if (requireCustomer && !isCustomer && !isAdmin && !isSales) {
-        router.push('/')
-        return
       }
     }
-  }, [user, isAdmin, isSales, isLoading, requireAdmin, requireSales, router])
+  }, [user, isAdmin, isSales, isCustomer, isLoading, requireAdmin, requireSales, requireCustomer, router])
 
   if (isLoading) {
     return (
