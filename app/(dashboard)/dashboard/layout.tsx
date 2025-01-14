@@ -24,5 +24,9 @@ export default async function DashboardLayout({
     redirect('/')
   }
 
-  return <>{children}</>
+  return (
+    <SupabaseProvider>
+      {children}
+    </SupabaseProvider>
+  )
 }

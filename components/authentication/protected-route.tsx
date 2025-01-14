@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
+import { useSupabase } from '@/lib/contexts/supabase-context'
 
 interface ProtectedRouteProps {
   children: React.ReactNode

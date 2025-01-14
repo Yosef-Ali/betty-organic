@@ -2,6 +2,8 @@
 
 import { AuthProvider } from '@/lib/hooks/useAuth';
 
+import { SupabaseProvider } from '@/lib/contexts/supabase-context'
+
 interface ProvidersProps {
   children: React.ReactNode;
 }

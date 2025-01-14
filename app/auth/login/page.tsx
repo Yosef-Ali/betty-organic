@@ -13,9 +13,9 @@ export default function LoginPage() {
 
   const handleSubmit = async (data: LoginFormType) => {
     try {
-      const { error, success, redirectTo } = await login({ 
-        email: data.email, 
-        password: data.password 
+      const { error, success, redirectTo } = await login({
+        email: data.email,
+        password: data.password
       })
 
       if (error) {
@@ -25,9 +25,8 @@ export default function LoginPage() {
 
       if (success) {
         toast.success('Login successful')
-        // Add a small delay to ensure the cookie is set
-        await new Promise(resolve => setTimeout(resolve, 100))
-        router.push(redirectTo || '/')
+        // Refresh the page to ensure cookies are properly set
+        window.location.href = redirectTo || '/'
       }
     } catch (error) {
       console.error('Login error:', error)

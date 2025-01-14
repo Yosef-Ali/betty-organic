@@ -1,75 +1,87 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { logAuthEvent } from '@/lib/utils'
+import { Database } from '@/types/supabase'
 
 export async function updateSession(request: NextRequest) {
-  let response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
+  let supabaseResponse = NextResponse.next({
+    request,
   })
 
-  const supabase = createServerClient(
+  const supabase = createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get(name: string) {
-          return request.cookies.get(name)?.value
+        getAll() {
+          return request.cookies.getAll()
         },
-        set(name: string, value: string, options: CookieOptions) {
-          // If the cookie is updated, update the cookies for the request and response
-          request.cookies.set({
-            name,
-            value,
-            ...(options as any)
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
+          supabaseResponse = NextResponse.next({
+            request,
           })
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          })
-          response.cookies.set({
-            name,
-            value,
-            ...(options as any)
-          })
-        },
-        remove(name: string, options: CookieOptions) {
-          // If the cookie is removed, update the cookies for the request and response
-          request.cookies.delete(name)
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          })
-          response.cookies.delete(name)
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options)
+          )
         },
       },
     }
   )
 
-  // IMPORTANT: Do not make any data fetches or calls to the Supabase client 
-  // before calling auth.getUser() as this is what sets the cookies
-  // and the request object.
+  // IMPORTANT: DO NOT REMOVE auth.getUser()
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // Handle protected routes
-  const isAuthPath = request.nextUrl.pathname.startsWith('/auth')
-  const isVerifyPath = request.nextUrl.pathname.includes('/verify')
-  const isPublicPath = request.nextUrl.pathname === '/' || 
-                      request.nextUrl.pathname.startsWith('/public')
+  // Get current route info
+  const requestUrl = new URL(request.url)
+  const isAuthPath = requestUrl.pathname.startsWith('/auth')
+  const isLoginPath = requestUrl.pathname.startsWith('/login')
+  const isApiPath = requestUrl.pathname.startsWith('/api')
+  const isPublicPath = requestUrl.pathname === '/' ||
+                        requestUrl.pathname.startsWith('/public') ||
+                        requestUrl.pathname.startsWith('/_next') ||
+                        requestUrl.pathname.includes('/verify')
 
-  // If user is not signed in and the route is protected, redirect to login
-  if (!user && !isAuthPath && !isVerifyPath && !isPublicPath) {
-    return NextResponse.redirect(new URL('/auth/login', request.url))
+  // Handle authentication state
+  if (!user) {
+    if (!isAuthPath && !isPublicPath && !isApiPath) {
+      // Save the original URL to redirect back after login
+      const callbackUrl = encodeURIComponent(requestUrl.pathname)
+      logAuthEvent('Redirecting to login', { metadata: { path: requestUrl.pathname } })
+      const url = request.nextUrl.clone()
+      url.pathname = '/login'
+      url.searchParams.set('callbackUrl', callbackUrl)
+      return NextResponse.redirect(url)
+    }
+    return supabaseResponse
   }
 
-  // If user is signed in and tries to access auth pages, redirect to home
-  if (user && isAuthPath) {
-    return NextResponse.redirect(new URL('/', request.url))
+  // User is signed in
+  if (isAuthPath) {
+    // Redirect signed-in users away from auth pages
+    return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
-  return response
+  // Check role-based access
+  const userRole = user.user_metadata?.role || 'customer'
+  const isAdminPath = requestUrl.pathname.startsWith('/admin')
+  const isSalesPath = requestUrl.pathname.startsWith('/sales')
+
+  if (isAdminPath && userRole !== 'admin') {
+    logAuthEvent('Unauthorized admin access', {
+      metadata: {
+        path: requestUrl.pathname,
+        role: userRole
+      }
+    })
+    return NextResponse.redirect(new URL('/dashboard', request.url))
+  }
+
+  if (isSalesPath) {
+    return NextResponse.redirect(new URL('/dashboard', request.url))
+  }
+
+  return supabaseResponse
 }

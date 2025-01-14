@@ -18,6 +18,7 @@ interface AuthContextType {
   isLoading: boolean
   isAdmin: boolean
   isSales: boolean
+  isCustomer: boolean
   error: string | null
 }
 
@@ -27,6 +28,7 @@ const AuthContext = createContext<AuthContextType>({
   isLoading: true,
   isAdmin: false,
   isSales: false,
+  isCustomer: false,
   error: null
 })
 
@@ -58,7 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .single()
 
       if (profileError) throw profileError
-      
+
       if (profile) {
         setRole(profile.role as Role)
         return profile
@@ -71,38 +73,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [supabase])
 
-  const handleUserSession = useCallback(async (session: Session | null) => {
-    if (session?.user) {
-      setUser(session.user as ExtendedUser)
-      await fetchProfile(session.user.id)
-    } else {
-      setUser(null)
-      setRole(null)
-    }
-    setIsLoading(false)
-  }, [fetchProfile])
-
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      handleUserSession(session)
-    })
+    const initializeAuth = async () => {
+      try {
+        setIsLoading(true)
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+        
+        if (sessionError) throw sessionError
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_OUT') {
+        if (session?.user) {
+          setUser(session.user as ExtendedUser)
+          const profile = await fetchProfile(session.user.id)
+          if (!profile) {
+            console.warn('No profile found for user')
+          }
+        } else {
+          setUser(null)
+          setRole(null)
+        }
+      } catch (error) {
+        console.error('Auth initialization error:', error)
+        setError(error instanceof Error ? error.message : 'Authentication failed')
         setUser(null)
         setRole(null)
-        router.push('/auth/signin')
-      } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        await handleUserSession(session)
+      } finally {
+        setIsLoading(false)
       }
-    })
+    }
+
+    initializeAuth()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (session?.user) {
+          setUser(session.user as ExtendedUser)
+          await fetchProfile(session.user.id)
+        } else {
+          setUser(null)
+          setRole(null)
+        }
+      }
+    )
 
     return () => {
       subscription.unsubscribe()
     }
-  }, [supabase, handleUserSession, router])
+  }, [supabase, fetchProfile])
 
   const value = {
     user,
@@ -110,6 +126,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isLoading,
     isAdmin: role === 'admin',
     isSales: role === 'sales',
+    isCustomer: role === 'customer',
     error
   }
 
