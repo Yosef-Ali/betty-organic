@@ -8,14 +8,16 @@ interface ProtectedRouteProps {
   children: React.ReactNode
   requireAdmin?: boolean
   requireSales?: boolean
+  requireCustomer?: boolean
 }
 
 export default function ProtectedRoute({
   children,
   requireAdmin = false,
-  requireSales = false
+  requireSales = false,
+  requireCustomer = false
 }: ProtectedRouteProps) {
-  const { user, isAdmin, isSales, isLoading } = useAuth()
+  const { user, isAdmin, isSales, isCustomer, isLoading } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
@@ -32,6 +34,11 @@ export default function ProtectedRoute({
 
       if (requireSales && !isSales && !isAdmin) {
         router.push('/unauthorized')
+        return
+      }
+
+      if (requireCustomer && !isCustomer && !isAdmin && !isSales) {
+        router.push('/')
         return
       }
     }
@@ -52,7 +59,9 @@ export default function ProtectedRoute({
     return null
   }
 
-  if ((requireAdmin && !isAdmin) || (requireSales && !isSales && !isAdmin)) {
+  if ((requireAdmin && !isAdmin) || 
+      (requireSales && !isSales && !isAdmin) ||
+      (requireCustomer && !isCustomer && !isAdmin && !isSales)) {
     return null
   }
 
