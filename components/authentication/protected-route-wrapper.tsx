@@ -1,4 +1,5 @@
-import { cookies } from 'next/headers'
+import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
 import ProtectedRoute from './protected-route'
 
 interface ProtectedRouteWrapperProps {
@@ -14,12 +15,29 @@ export default async function ProtectedRouteWrapper({
   requireSales = false,
   requireCustomer = false
 }: ProtectedRouteWrapperProps) {
-  const cookieStore = cookies()
-  const authToken = cookieStore.get('sb-auth-token')
+  const supabase = createClient()
+  const { data: { user }, error } = await supabase.auth.getUser()
+
+  if (error || !user) {
+    redirect('/auth/login')
+  }
+
+  // Get user profile
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  // Check role requirements
+  if ((requireAdmin && profile?.role !== 'admin') ||
+      (requireSales && profile?.role !== 'sales') ||
+      (requireCustomer && profile?.role !== 'customer')) {
+    redirect('/')
+  }
 
   return (
     <ProtectedRoute 
-      initialAuthToken={authToken?.value}
       requireAdmin={requireAdmin}
       requireSales={requireSales}
       requireCustomer={requireCustomer}

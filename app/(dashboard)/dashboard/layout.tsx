@@ -1,36 +1,30 @@
-import { createServerComponentSupabaseClient } from '@supabase/auth-helpers-nextjs';
-import { headers, cookies } from 'next/headers';
-import { redirect } from 'next/navigation';
+import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
 
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = createServerComponentSupabaseClient({
-    headers,
-    cookies,
-  });
+  const supabase = createClient()
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  const { data: { user }, error } = await supabase.auth.getUser()
 
-  if (!session) {
-    redirect('/auth/login');
+  if (error || !user) {
+    redirect('/auth/login')
   }
 
   // Get user profile
   const { data: profile } = await supabase
     .from('profiles')
     .select('role')
-    .eq('id', session.user.id)
-    .single();
+    .eq('id', user.id)
+    .single()
 
-  // Redirect if not admin
+  // Redirect if not admin or sales
   if (!profile?.role || !['admin', 'sales'].includes(profile.role)) {
-    redirect('/');
+    redirect('/')
   }
 
-  return <>{children}</>;
+  return <>{children}</>
 }
