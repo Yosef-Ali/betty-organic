@@ -90,7 +90,7 @@ export default function ProtectedRoute({
     return <>{children}</>
   }
 
-  if ((requireAdmin && !isAdmin) || 
+  if ((requireAdmin && !isAdmin) ||
       (requireSales && !isSales && !isAdmin) ||
       (requireCustomer && !isCustomer && !isAdmin && !isSales) ||
       (!requireCustomer && isCustomer)) {
