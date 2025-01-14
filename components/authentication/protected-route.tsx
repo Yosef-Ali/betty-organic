@@ -2,7 +2,6 @@
 
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
-import { useSupabase } from '@/lib/contexts/supabase-context'
 
 interface ProtectedRouteProps {
   children: React.ReactNode
@@ -30,7 +29,7 @@ export default function ProtectedRoute({
       }
 
       const role = session.user.user_metadata?.role
-      
+
       if ((requireAdmin && role !== 'admin') ||
           (requireSales && role !== 'sales') ||
           (requireCustomer && role !== 'customer')) {
