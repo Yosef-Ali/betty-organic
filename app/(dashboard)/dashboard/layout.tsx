@@ -7,22 +7,20 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   const supabase = createClient()
+  
+  // Get session and user in single query
+  const { data: { session }, error } = await supabase.auth.getSession()
 
-  const { data: { user }, error } = await supabase.auth.getUser()
-
-  if (error || !user) {
+  if (error || !session) {
     redirect('/auth/login')
   }
 
-  // Get user profile
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
+  // Get user role from session
+  const { data: { user } } = await supabase.auth.getUser()
+  const role = user?.user_metadata?.role
 
   // Redirect if not admin or sales
-  if (!profile?.role || !['admin', 'sales'].includes(profile.role)) {
+  if (!role || !['admin', 'sales'].includes(role)) {
     redirect('/')
   }
 

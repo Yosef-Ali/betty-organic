@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
-import { useUser } from '@/lib/contexts/user-context'
+import { useSupabase } from '@/lib/contexts/supabase-context'
 
 interface ProtectedRouteProps {
   children: React.ReactNode
@@ -17,25 +17,27 @@ export default function ProtectedRoute({
   requireSales = false,
   requireCustomer = false
 }: ProtectedRouteProps) {
-  const { user, role, isLoading } = useUser()
+  const { session, isLoading } = useSupabase()
   const router = useRouter()
 
   useEffect(() => {
     if (!isLoading) {
-      if (!user) {
+      if (!session) {
         if (requireAdmin || requireSales || requireCustomer) {
           router.push('/auth/login')
         }
         return
       }
 
+      const role = session.user.user_metadata?.role
+      
       if ((requireAdmin && role !== 'admin') ||
           (requireSales && role !== 'sales') ||
           (requireCustomer && role !== 'customer')) {
         router.push('/')
       }
     }
-  }, [user, role, isLoading, requireAdmin, requireSales, requireCustomer, router])
+  }, [session, isLoading, requireAdmin, requireSales, requireCustomer, router])
 
   if (isLoading) {
     return (
@@ -48,7 +50,7 @@ export default function ProtectedRoute({
     )
   }
 
-  if (!user && (requireAdmin || requireSales || requireCustomer)) {
+  if (!session && (requireAdmin || requireSales || requireCustomer)) {
     return null
   }
 

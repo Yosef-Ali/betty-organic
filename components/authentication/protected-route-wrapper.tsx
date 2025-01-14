@@ -16,23 +16,22 @@ export default async function ProtectedRouteWrapper({
   requireCustomer = false
 }: ProtectedRouteWrapperProps) {
   const supabase = createClient()
-  const { data: { user }, error } = await supabase.auth.getUser()
+  
+  // Get session and user in single query
+  const { data: { session }, error } = await supabase.auth.getSession()
 
-  if (error || !user) {
+  if (error || !session) {
     redirect('/auth/login')
   }
 
-  // Get user profile
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
+  // Get user role from session
+  const { data: { user } } = await supabase.auth.getUser()
+  const role = user?.user_metadata?.role
 
   // Check role requirements
-  if ((requireAdmin && profile?.role !== 'admin') ||
-      (requireSales && profile?.role !== 'sales') ||
-      (requireCustomer && profile?.role !== 'customer')) {
+  if ((requireAdmin && role !== 'admin') ||
+      (requireSales && role !== 'sales') ||
+      (requireCustomer && role !== 'customer')) {
     redirect('/')
   }
 
