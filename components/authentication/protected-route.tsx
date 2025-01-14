@@ -27,7 +27,13 @@ export default function ProtectedRoute({
     if (!isLoading) {
       try {
         if (!user) {
-          router.push('/auth/signin')
+          // Only redirect to login if trying to access protected pages
+          if (requireAdmin || requireSales || requireCustomer) {
+            router.push('/auth/signin')
+          } else {
+            // Allow access to public pages
+            return
+          }
           return
         }
 
@@ -73,7 +79,7 @@ export default function ProtectedRoute({
     )
   }
 
-  if (!user) {
+  if (!user && (requireAdmin || requireSales || requireCustomer)) {
     return null
   }
 
