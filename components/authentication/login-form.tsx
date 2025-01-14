@@ -19,9 +19,11 @@ import {
 import { LoginFormType, loginSchema } from "@/lib/definitions"
 import { useAuthForm } from '@/lib/hooks/useAuthForm'
 
-interface LoginFormProps {}
+interface LoginFormProps {
+  onSubmit: (formData: LoginFormType) => Promise<void>;
+}
 
-export const LoginForm: React.FC<LoginFormProps> = () => {
+export const LoginForm: React.FC<LoginFormProps> = ({ onSubmit }) => {
   const form = useForm<LoginFormType>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -35,17 +37,11 @@ export const LoginForm: React.FC<LoginFormProps> = () => {
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
 
-  const onSubmit = async (data: LoginFormType) => {
+  const handleSubmit = async (data: LoginFormType) => {
     try {
       setLoading(true)
       setError(null)
-      const { error: signInError } = await signIn(data.email, data.password)
-
-      if (signInError) {
-        setError(signInError.message)
-        return
-      }
-
+      await onSubmit(data)
       router.push('/dashboard')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred during sign in')
@@ -56,7 +52,7 @@ export const LoginForm: React.FC<LoginFormProps> = () => {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-6">
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="flex flex-col gap-6">
         <div className="flex flex-col items-center gap-2 text-center">
           <h1 className="text-2xl font-bold">Login</h1>
           <p className="text-sm text-muted-foreground">Enter your email and password</p>

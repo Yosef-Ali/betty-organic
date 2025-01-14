@@ -1,70 +1,75 @@
-import { createServerClient } from '@supabase/ssr'
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function updateSession(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({
-    request,
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
   })
 
   const supabase = createServerClient(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_ANON_KEY!,
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get(name) {
+        get(name: string) {
           return request.cookies.get(name)?.value
         },
-        set(name, value, options) {
+        set(name: string, value: string, options: CookieOptions) {
+          // If the cookie is updated, update the cookies for the request and response
           request.cookies.set({
             name,
             value,
-            ...options,
+            ...(options as any)
           })
-          supabaseResponse = NextResponse.next({
-            request,
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
           })
-          supabaseResponse.cookies.set({
+          response.cookies.set({
             name,
             value,
-            ...options,
+            ...(options as any)
           })
+        },
+        remove(name: string, options: CookieOptions) {
+          // If the cookie is removed, update the cookies for the request and response
+          request.cookies.delete(name)
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          })
+          response.cookies.delete(name)
         },
       },
     }
   )
 
-  // Do not run code between createServerClient and
-  // supabase.auth.getUser(). A simple mistake could make it very hard to debug
-  // issues with users being randomly logged out.
-
-  // IMPORTANT: DO NOT REMOVE auth.getUser()
-
+  // IMPORTANT: Do not make any data fetches or calls to the Supabase client 
+  // before calling auth.getUser() as this is what sets the cookies
+  // and the request object.
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // Allow access to auth-related paths and verification
+  // Handle protected routes
   const isAuthPath = request.nextUrl.pathname.startsWith('/auth')
   const isVerifyPath = request.nextUrl.pathname.includes('/verify')
+  const isPublicPath = request.nextUrl.pathname === '/' || 
+                      request.nextUrl.pathname.startsWith('/public')
 
-  if (!user && !isAuthPath && !isVerifyPath) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/auth/login'
-    return NextResponse.redirect(url)
+  // If user is not signed in and the route is protected, redirect to login
+  if (!user && !isAuthPath && !isVerifyPath && !isPublicPath) {
+    return NextResponse.redirect(new URL('/auth/login', request.url))
   }
 
-  // IMPORTANT: You *must* return the supabaseResponse object as it is.
-  // If you're creating a new response object with NextResponse.next() make sure to:
-  // 1. Pass the request in it, like so:
-  //    const myNewResponse = NextResponse.next({ request })
-  // 2. Copy over the cookies, like so:
-  //    myNewResponse.cookies.setAll(supabaseResponse.cookies.getAll())
-  // 3. Change the myNewResponse object to fit your needs, but avoid changing
-  //    the cookies!
-  // 4. Finally:
-  //    return myNewResponse
-  // If this is not done, you may be causing the browser and server to go out
-  // of sync and terminate the user's session prematurely!
+  // If user is signed in and tries to access auth pages, redirect to home
+  if (user && isAuthPath) {
+    return NextResponse.redirect(new URL('/', request.url))
+  }
 
-  return supabaseResponse
+  return response
 }

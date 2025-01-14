@@ -23,7 +23,7 @@ async function ProductListContent() {
           id={product.id}
           name={product.name}
           price={product.price}
-          image={product.imageUrl ?? '/placeholder.svg'}
+          imageUrl={product.imageUrl ?? '/placeholder.svg'}
           description={product.description ?? ''}
           unit="unit"
         />

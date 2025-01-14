@@ -2,6 +2,7 @@
 import { useRouter } from 'next/navigation'
 import { login } from '@/app/actions/authActions'
 import { LoginForm } from '@/components/authentication/login-form'
+import { LoginFormType } from '@/lib/definitions'
 import Image from 'next/image'
 import { useEffect } from 'react'
 import { toast } from 'sonner'
@@ -10,23 +11,26 @@ import Link from 'next/link'
 export default function LoginPage() {
   const router = useRouter()
 
-  const handleSubmit = async (formData: FormData) => {
+  const handleSubmit = async (data: LoginFormType) => {
     try {
-      const email = formData.get('email') as string
-      const password = formData.get('password') as string
+      const { error, success, redirectTo } = await login({ 
+        email: data.email, 
+        password: data.password 
+      })
 
-      const result = await login({ email, password })
-
-      if (result.error) {
-        toast.error(result.error)
+      if (error) {
+        toast.error(error)
         return
       }
 
-      if (result.success) {
-        // Use replace to prevent back navigation to login
-        router.replace(result.redirectTo || '/')
+      if (success) {
+        toast.success('Login successful')
+        // Add a small delay to ensure the cookie is set
+        await new Promise(resolve => setTimeout(resolve, 100))
+        router.push(redirectTo || '/')
       }
     } catch (error) {
+      console.error('Login error:', error)
       toast.error('Login failed. Please try again.')
     }
   }

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { AuthError } from '@supabase/supabase-js'
-import { supabase } from '@/lib/supabase'
+import { supabase } from '../supabase/client'
 
 interface AuthResponse {
   error: AuthError | null;

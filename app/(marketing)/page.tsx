@@ -18,7 +18,6 @@ export const revalidate = 0;
 
 export default function Home() {
   return (
-    <AuthGuard>
       <>
         <Navigation />
         <main className="flex flex-col items-center bg-[#ffc600] relative">
@@ -45,6 +44,5 @@ export default function Home() {
           <ChatWidget />
         </main>
       </>
-    </AuthGuard>
   );
 }
