@@ -29,10 +29,12 @@ export default function ProtectedRoute({
         if (!user) {
           // Only redirect to login if trying to access protected pages
           if (requireAdmin || requireSales || requireCustomer) {
-            router.push('/auth/signin')
-          } else {
-            // Allow access to public pages
-            return
+            // For customer pages, redirect to home instead of login
+            if (requireCustomer) {
+              router.push('/')
+            } else {
+              router.push('/auth/signin')
+            }
           }
           return
         }
@@ -79,8 +81,13 @@ export default function ProtectedRoute({
     )
   }
 
-  if (!user && (requireAdmin || requireSales || requireCustomer)) {
-    return null
+  if (!user) {
+    // Show loading state for protected pages
+    if (requireAdmin || requireSales || requireCustomer) {
+      return null
+    }
+    // Allow public pages to render
+    return <>{children}</>
   }
 
   if ((requireAdmin && !isAdmin) || 
