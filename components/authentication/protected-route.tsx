@@ -41,7 +41,14 @@ export default function ProtectedRoute({
           return
         }
 
-        if (requireCustomer && !isCustomer && !isAdmin && !isSales) {
+        if (requireCustomer) {
+          if (!isCustomer && !isAdmin && !isSales) {
+            // If trying to access customer-only page but not a customer
+            router.push('/')
+            return
+          }
+        } else if (isCustomer) {
+          // If customer trying to access non-customer page (like dashboard)
           router.push('/')
           return
         }
@@ -72,7 +79,8 @@ export default function ProtectedRoute({
 
   if ((requireAdmin && !isAdmin) || 
       (requireSales && !isSales && !isAdmin) ||
-      (requireCustomer && !isCustomer && !isAdmin && !isSales)) {
+      (requireCustomer && !isCustomer && !isAdmin && !isSales) ||
+      (!requireCustomer && isCustomer)) {
     return null
   }
 
