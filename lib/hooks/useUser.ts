@@ -1,14 +1,13 @@
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { useEffect, useState } from 'react'
+import { User as SupabaseUser } from '@supabase/supabase-js'
 
 export interface UserMetadata {
   role: 'admin' | 'sales' | 'customer'
   avatar_url?: string
 }
 
-export interface User {
-  id: string
-  email?: string
+export type User = Omit<SupabaseUser, 'user_metadata'> & {
   user_metadata: UserMetadata
 }
 
@@ -18,20 +17,23 @@ export function useUser() {
   const supabase = createClientComponentClient()
 
   useEffect(() => {
-    const getUser = async () => {
+    // Immediately check for an existing session
+    const getInitialSession = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession()
-        setUser(session?.user ?? null)
+        setUser(session?.user as User ?? null)
+      } catch (error) {
+        console.error('Error getting initial session:', error)
       } finally {
         setLoading(false)
       }
     }
 
-    getUser()
+    getInitialSession()
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
-      setUser(session?.user ?? null)
-      setLoading(false)
+    // Set up the auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user as User ?? null)
     })
 
     return () => subscription.unsubscribe()

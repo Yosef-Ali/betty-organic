@@ -19,64 +19,22 @@ import {
 import { Badge } from "./ui/badge";
 import { MobileMenu } from "./MobileMenu";
 import { useAuth } from '@/lib/hooks/useAuth'; // Ensure correct import
+import { useUser } from '@/lib/hooks/useUser'; // New import
 
 
 interface NavigationProps { }
 
 export default function Navigation({ }: NavigationProps) {
-  const supabase = createClientComponentClient();
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { user, loading } = useUser();
   const { items } = useCartStore();
-
-  useEffect(() => {
-    const getUser = async () => {
-      try {
-        // Get the current session
-        const { data: { session }, error } = await supabase.auth.getSession();
-        console.log('Initial session:', session); // Debug log
-
-        if (error) {
-          throw error;
-        }
-
-        if (session?.user) {
-          setUser(session.user);
-          console.log('Setting user from session:', session.user);
-        }
-
-        // Set up auth state change listener
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(
-          async (event, session) => {
-            console.log('Auth event:', event); // Debug log
-            console.log('New session:', session); // Debug log
-
-            if (session?.user) {
-              setUser(session.user);
-            } else {
-              setUser(null);
-            }
-          }
-        );
-
-        setLoading(false);
-        return () => subscription.unsubscribe();
-      } catch (error) {
-        console.error('Error in auth:', error);
-        setLoading(false);
-      }
-    };
-
-    getUser();
-  }, [supabase]);
 
   const handleSignIn = () => router.push('/auth/login');
 
   const handleSignOut = async () => {
+    const supabase = createClientComponentClient();
     try {
       await supabase.auth.signOut();
-      setUser(null);
       router.push('/');
     } catch (error) {
       console.error('Error signing out:', error);
@@ -98,7 +56,10 @@ export default function Navigation({ }: NavigationProps) {
     }
   };
 
-  console.log('Current user state:', user); // Debug log
+  // Add this function to get the user's initials as fallback
+  const getInitials = (email: string) => {
+    return email.substring(0, 2).toUpperCase();
+  };
 
   return (
     <nav className="fixed top-0 z-50 w-full bg-[#ffc600]/80 backdrop-blur-md border-b">
@@ -147,43 +108,70 @@ export default function Navigation({ }: NavigationProps) {
 
           <div className="flex items-center gap-2">
             {loading ? (
-              <Button variant="ghost" disabled>Loading...</Button>
+              <Button variant="ghost" disabled>
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              </Button>
             ) : user ? (
-              <>
+              <div className="flex items-center gap-4">
+                <Button
+                  variant="ghost"
+                  onClick={() => router.push('/dashboard')}
+                  className="hidden md:flex gap-2"
+                >
+                  <LayoutDashboard className="h-4 w-4" />
+                  Dashboard
+                </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="ghost"
-                      className="relative h-8 w-8 rounded-full overflow-hidden border-2 border-primary"
+                      className="relative h-8 w-8 rounded-full overflow-hidden border-2 border-primary hover:bg-primary/10"
                     >
-                      <Image
-                        src={user.user_metadata?.avatar_url || "/placeholder-user.webp"}
-                        alt="User Avatar"
-                        fill
-                        className="object-cover"
-                        priority
-                      />
+                      {user.user_metadata?.avatar_url ? (
+                        <Image
+                          src={user.user_metadata.avatar_url}
+                          alt="User Avatar"
+                          fill
+                          className="object-cover"
+                          priority
+                          sizes="32px"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-primary text-white text-sm font-medium">
+                          {getInitials(user.email || '')}
+                        </div>
+                      )}
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuItem disabled className="font-medium">
-                      {user.email}
-                    </DropdownMenuItem>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <div className="flex flex-col space-y-1 p-2">
+                      <p className="text-sm font-medium">{user.email}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {user.user_metadata?.role || 'User'}
+                      </p>
+                    </div>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
-                      <Link href="/dashboard">Dashboard</Link>
+                      <Link href="/dashboard" className="w-full cursor-pointer">
+                        <LayoutDashboard className="mr-2 h-4 w-4" />
+                        Dashboard
+                      </Link>
                     </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link href="/profile">Profile</Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleSignOut}>
+                    <DropdownMenuItem
+                      onClick={handleSignOut}
+                      className="text-red-600 cursor-pointer"
+                    >
                       Sign Out
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-              </>
+              </div>
             ) : (
-              <Button variant="default" onClick={handleSignIn}>
+              <Button
+                variant="default"
+                onClick={handleSignIn}
+                className="hover:bg-primary/90"
+              >
                 Sign In
               </Button>
             )}

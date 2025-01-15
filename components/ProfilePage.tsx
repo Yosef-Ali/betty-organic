@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { updateProfile } from '@/app/profile/actions'
+import { Skeleton } from "@/components/ui/skeleton"
+import { updateProfile } from '@/app/actions/userActions'
 
 type ExtendedUser = User & {
   role?: string
@@ -21,13 +22,18 @@ export default function ProfilePage() {
   const [email, setEmail] = useState('')
   const [image, setImage] = useState('')
   const [message, setMessage] = useState('')
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     if (session?.user) {
       const user = session.user as ExtendedUser
-      setName(user.name || '')
-      setEmail(user.email || '')
-      setImage(user.image || '')
+      // Simulate loading for 1.5 seconds
+      setTimeout(() => {
+        setName(user.name || '')
+        setEmail(user.email || '')
+        setImage(user.image || '')
+        setIsLoading(false)
+      }, 1500)
     }
   }, [session])
 
@@ -59,49 +65,74 @@ export default function ProfilePage() {
           <CardTitle className="text-2xl font-bold text-center">Your Atracure Profile</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex justify-center mb-6">
-            <Avatar className="w-24 h-24">
-              <AvatarImage src={image} alt={name} />
-              <AvatarFallback>{name?.charAt(0) || 'A'}</AvatarFallback>
-            </Avatar>
-          </div>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
-              <Input
-                id="name"
-                name="name"
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-              />
+          {isLoading ? (
+            <div className="space-y-6 animate-pulse">
+              <div className="flex justify-center mb-6">
+                <Skeleton className="w-24 h-24 rounded-full" />
+              </div>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-10 w-full" />
+                </div>
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-10 w-full" />
+                </div>
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-10 w-full" />
+                </div>
+                <Skeleton className="h-10 w-full" />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="image">Profile Image URL</Label>
-              <Input
-                id="image"
-                name="image"
-                type="url"
-                value={image}
-                onChange={(e) => setImage(e.target.value)}
-              />
-            </div>
-            <Button type="submit" className="w-full">
-              Update Profile
-            </Button>
-          </form>
+          ) : (
+            <>
+              <div className="flex justify-center mb-6">
+                <Avatar className="w-24 h-24">
+                  <AvatarImage src={image} alt={name} />
+                  <AvatarFallback>{name?.charAt(0) || 'A'}</AvatarFallback>
+                </Avatar>
+              </div>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Name</Label>
+                  <Input
+                    id="name"
+                    name="name"
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="image">Profile Image URL</Label>
+                  <Input
+                    id="image"
+                    name="image"
+                    type="url"
+                    value={image}
+                    onChange={(e) => setImage(e.target.value)}
+                  />
+                </div>
+                <Button type="submit" className="w-full">
+                  Update Profile
+                </Button>
+              </form>
+            </>
+          )}
           {message && (
             <p className={`mt-4 text-center ${message.includes('success') ? 'text-green-600' : 'text-red-600'}`}>
               {message}

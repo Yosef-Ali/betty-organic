@@ -46,63 +46,50 @@ export default function ProfilePage() {
   }, [user])
 
   const fetchOrders = async () => {
-    if (!user) return
     setLoadingOrders(true)
-    let customer
     try {
-      const supabase = createClient()
-      if (!session) {
-        throw new Error('No active session')
+      if (!user?.email) {
+        console.error('User email is not available');
+        return;
       }
 
-      if (!session?.user?.email) {
-        throw new Error('No email found in session')
-      }
-
-      // Check if customer exists, create if not
-      let { data: customerData } = await supabase
+      const { data: customer, error: customerError } = await createClient()
         .from('customers')
-        .select('id')
-        .eq('email', session.user.email)
+        .select('*')
+        .eq('email', user.email)
         .single()
 
-      if (!customerData) {
-        // Create new customer profile
-        const { data: newCustomer } = await supabase
-          .from('customers')
-          .insert<Customer>({
-            email: session.user.email,
-            full_name: user.user_metadata?.full_name || '',
-            created_at: new Date().toISOString(),
-            status: 'active',
-            image_url: user.user_metadata?.avatar_url || null,
-            updated_at: new Date().toISOString(),
-            id: '', // Will be auto-generated
-            phone: null,
-            location: null
-          })
-          .select('id')
-          .single()
+      if (customerError) {
+        // If customer doesn't exist, create one
+        if (customerError.code === 'PGRST116') {
+          const { data: newCustomer, error: createError } = await createClient()
+            .from('customers')
+            .insert({
+              id: user.id || '',
+              full_name: user.user_metadata?.full_name ?? '',
+              email: user.email ?? '',
+              status: 'active'
+            })
+            .select()
+            .single()
 
-        if (!newCustomer) {
-          throw new Error('Failed to create customer profile')
+          if (createError) throw createError
+          
+          // Use the newly created customer to fetch orders
+          const { data: ordersData, error } = await createClient()
+            .from('orders')
+            .select('*')
+            .eq('customer_id', newCustomer.id)
+            .order('created_at', { ascending: false })
+
+          if (error) throw error
+          setOrders(ordersData as Order[] || [])
+          return
         }
-        customerData = newCustomer
+        throw customerError
       }
 
-      customer = customerData
-
-      // Validate orders table exists by attempting to select
-      const { error: tableCheckError } = await supabase
-        .from('orders')
-        .select('id')
-        .limit(1)
-
-      if (tableCheckError?.code === '42P01') { // 42P01 = undefined_table error code
-        throw new Error('Orders table not found in database')
-      }
-
-      const { data: ordersData, error } = await supabase
+      const { data: ordersData, error } = await createClient()
         .from('orders')
         .select('*')
         .eq('customer_id', customer.id)
@@ -113,8 +100,6 @@ export default function ProfilePage() {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       console.error('Error fetching orders:', errorMessage);
-
-      // Set an error message to display to the user
       setMessage(`Failed to fetch orders: ${errorMessage}`);
     } finally {
       setLoadingOrders(false)

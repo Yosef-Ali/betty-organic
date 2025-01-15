@@ -7,6 +7,7 @@ import { RecentSales } from "components/RecentSales";
 import { RecentOrders } from "components/RecentOrders";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "components/ui/tabs";
+import { Skeleton } from "components/ui/skeleton";
 import { CreditCard, DollarSign, Package, Users } from 'lucide-react';
 import { getTotalRevenue, getTotalCustomers, getTotalProducts, getTotalOrders } from 'app/actions/supabase-actions';
 
@@ -52,8 +53,25 @@ export default function DashboardContent() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+      <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+        <div className="flex items-center justify-between space-y-2">
+          <Skeleton className="h-8 w-[200px]" />
+        </div>
+        <div className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {[...Array(4)].map((_, i) => (
+              <Skeleton key={i} className="h-[110px] rounded-lg" />
+            ))}
+          </div>
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-7">
+            <div className="col-span-4">
+              <Skeleton className="h-[400px] rounded-lg" />
+            </div>
+            <div className="col-span-3">
+              <Skeleton className="h-[400px] rounded-lg" />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
