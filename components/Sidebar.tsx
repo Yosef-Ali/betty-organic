@@ -32,17 +32,14 @@ export default function Sidebar({ expanded, onToggle, mobileMenuOpen, onMobileMe
   };
 
   const navItems = [
-    { href: "/dashboard", icon: Home, label: "Dashboard" },
-    ...(!isAdmin && !isSales ? [
-      { href: "/profile", icon: Users, label: "Profile" },
-      { href: "/profile/orders", icon: ShoppingCart, label: "Order History" },
-    ] : []),
     ...(isAdmin || isSales ? [
+      { href: "/dashboard", icon: Home, label: "Dashboard" },
       { href: "/dashboard/sales", icon: ShoppingBag, label: "Sales" },
       { href: "/dashboard/orders", icon: ShoppingCart, label: "Orders" },
       { href: "/dashboard/products", icon: Package, label: "Products" },
       { href: "/dashboard/customers", icon: Users2, label: "Customers" },
     ] : []),
+    { href: "/profile", icon: Users, label: "Profile" },
     ...(isAdmin ? [{ href: "/dashboard/users", icon: Settings, label: "Users" }] : []),
     ...(isAdmin ? [{ href: "/analytics", icon: LineChart, label: "Analytics" }] : [])
   ];
@@ -70,8 +67,7 @@ export default function Sidebar({ expanded, onToggle, mobileMenuOpen, onMobileMe
         )}
       </div>
       <nav className="flex-1 overflow-y-auto py-5 px-2">
-        {/* Admin/Sales user links */}
-        {(isAdmin || isSales) && navItems.map((item) => (
+        {navItems.map((item) => (
           <SidebarLink key={item.href} {...item} expanded={expanded || isMobile} onClick={isMobile ? onMobileMenuClose : undefined} />
         ))}
       </nav>
