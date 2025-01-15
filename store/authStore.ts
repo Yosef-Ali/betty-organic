@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { User } from 'next-auth'
+import { User } from '@supabase/supabase-js'
 
 type ExtendedUser = User & {
   role?: string

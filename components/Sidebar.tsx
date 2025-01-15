@@ -70,27 +70,9 @@ export default function Sidebar({ expanded, onToggle, mobileMenuOpen, onMobileMe
         )}
       </div>
       <nav className="flex-1 overflow-y-auto py-5 px-2">
-        {/* Customer-specific tabs */}
-        {!isAdmin && !isSales && (
-          <Tabs defaultValue="profile" className="w-full">
-            <TabsList>
-              <TabsTrigger value="profile">Profile</TabsTrigger>
-              <TabsTrigger value="orders">Order History</TabsTrigger>
-            </TabsList>
-            <TabsContent value="profile">
-              <SidebarLink href="/profile" icon={Users} label="Profile" expanded={expanded || isMobile} onClick={isMobile ? onMobileMenuClose : undefined} />
-            </TabsContent>
-            <TabsContent value="orders">
-              <SidebarLink href="/profile/orders" icon={ShoppingCart} label="Order History" expanded={expanded || isMobile} onClick={isMobile ? onMobileMenuClose : undefined} />
-            </TabsContent>
-          </Tabs>
-        )}
-
         {/* Admin/Sales user links */}
         {(isAdmin || isSales) && navItems.map((item) => (
-          item.href !== "/profile" && item.href !== "/profile/orders" && (
-            <SidebarLink key={item.href} {...item} expanded={expanded || isMobile} onClick={isMobile ? onMobileMenuClose : undefined} />
-          )
+          <SidebarLink key={item.href} {...item} expanded={expanded || isMobile} onClick={isMobile ? onMobileMenuClose : undefined} />
         ))}
       </nav>
       <div className="px-2 py-5">

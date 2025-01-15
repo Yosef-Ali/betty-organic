@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useSession } from 'next-auth/react'
-import { User } from 'next-auth'
+import { useAuth } from '@/lib/hooks/useAuth'
+import { User } from '@supabase/supabase-js'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -16,7 +16,7 @@ type ExtendedUser = User & {
 }
 
 export default function ProfilePage() {
-  const { data: session, update } = useSession()
+  const { session } = useAuth()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [image, setImage] = useState('')
@@ -25,9 +25,9 @@ export default function ProfilePage() {
   useEffect(() => {
     if (session?.user) {
       const user = session.user as ExtendedUser
-      setName(user.name || '')
+      setName(user.user_metadata?.full_name || '')
       setEmail(user.email || '')
-      setImage(user.image || '')
+      setImage(user.user_metadata?.avatar_url || '')
     }
   }, [session])
 
@@ -39,7 +39,6 @@ export default function ProfilePage() {
       const result = await updateProfile({ name, email, image })
       if (result.success) {
         setMessage('Profile updated successfully')
-        await update({ name, email, image })
       } else {
         setMessage(result.error || 'Failed to update profile')
       }
