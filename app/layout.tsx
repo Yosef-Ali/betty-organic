@@ -7,6 +7,7 @@ import { Toaster } from "@/components/ui/toaster"
 import { SessionProvider } from '@/components/SessionProvider'
 import { cookies } from 'next/headers'
 import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
+import { Providers } from './providers'
 
 export const metadata: Metadata = {
   title: 'Betty Organic',
@@ -34,12 +35,9 @@ export default async function RootLayout({
     <html lang="en">
       <body className={cn("min-h-screen bg-background font-sans antialiased", inter.className)}>
 
-        <SessionProvider initialSession={session}>
-          <TooltipProvider>
-            {children}
-          </TooltipProvider>
-          <Toaster />
-        </SessionProvider>
+        <Providers>
+          {children}
+        </Providers>
       </body>
     </html>
   )
