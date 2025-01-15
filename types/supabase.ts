@@ -57,3 +57,16 @@ export interface Database {
     };
   };
 }
+
+// types/supabase.ts
+export type UserRole = 'admin' | 'sales' | 'customer'
+
+export interface UserMetadata {
+  role: UserRole
+}
+
+declare module '@supabase/supabase-js' {
+  interface UserMetadata {
+    role: UserRole
+  }
+}

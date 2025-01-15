@@ -13,11 +13,7 @@ type RecentSale = {
   }
 }
 
-interface RecentSalesProps {
-  data: any[]
-}
-
-export function RecentSales({ data }: RecentSalesProps) {
+export function RecentSales() {
   const [recentSales, setRecentSales] = useState<RecentSale[]>([])
 
   useEffect(() => {
@@ -48,4 +44,3 @@ export function RecentSales({ data }: RecentSalesProps) {
     </div>
   )
 }
-

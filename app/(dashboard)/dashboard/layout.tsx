@@ -1,32 +1,16 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
+import ProtectedRouteWrapper from '@/components/authentication/protected-route-wrapper';
+import DashboardLayoutClient from './layout-client';
 
-export default async function DashboardLayout({
+export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = createClient()
-  
-  // Get session and user in single query
-  const { data: { session }, error } = await supabase.auth.getSession()
-
-  if (error || !session) {
-    redirect('/auth/login')
-  }
-
-  // Get user role from session
-  const { data: { user } } = await supabase.auth.getUser()
-  const role = user?.user_metadata?.role
-
-  // Redirect if not admin or sales
-  if (!role || !['admin', 'sales'].includes(role)) {
-    redirect('/')
-  }
-
   return (
-    <SupabaseProvider>
-      {children}
-    </SupabaseProvider>
-  )
+    <ProtectedRouteWrapper>
+      <DashboardLayoutClient>
+        {children}
+      </DashboardLayoutClient>
+    </ProtectedRouteWrapper>
+  );
 }

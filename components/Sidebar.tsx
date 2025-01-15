@@ -6,7 +6,7 @@ import Image from "next/image"
 import { Home, ShoppingBag, ShoppingCart, Package, Users2, Users, LineChart, Settings, ChevronLeft, ChevronRight, X } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip'
 import { Button } from './ui/button'
-import { useAuth } from '@/lib/contexts/auth-context'
+import { useUser } from '@/lib/hooks/useUser'
 
 interface SidebarProps {
   expanded: boolean
@@ -16,7 +16,7 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ expanded, onToggle, mobileMenuOpen, onMobileMenuClose }: SidebarProps) {
-  const { isAdmin } = useAuth()
+  const { isAdmin, isSales } = useUser()
   const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
@@ -32,13 +32,14 @@ export default function Sidebar({ expanded, onToggle, mobileMenuOpen, onMobileMe
 
   const navItems = [
     { href: "/dashboard", icon: Home, label: "Dashboard" },
-    { href: "/dashboard/sales", icon: ShoppingBag, label: "Sales" },
-    { href: "/dashboard/orders", icon: ShoppingCart, label: "Orders" },
-    { href: "/dashboard/products", icon: Package, label: "Products" },
-    { href: "/dashboard/customers", icon: Users2, label: "Customers" },
-    // Only show if admin:
+    ...(isAdmin || isSales ? [
+      { href: "/dashboard/sales", icon: ShoppingBag, label: "Sales" },
+      { href: "/dashboard/orders", icon: ShoppingCart, label: "Orders" },
+      { href: "/dashboard/products", icon: Package, label: "Products" },
+      { href: "/dashboard/customers", icon: Users2, label: "Customers" },
+    ] : []),
     ...(isAdmin ? [{ href: "/dashboard/users", icon: Settings, label: "Users" }] : []),
-    { href: "/analytics", icon: LineChart, label: "Analytics" },
+    ...(isAdmin ? [{ href: "/analytics", icon: LineChart, label: "Analytics" }] : [])
   ]
 
   const sidebarContent = (

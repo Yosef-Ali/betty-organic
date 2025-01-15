@@ -14,11 +14,7 @@ type RecentOrder = {
   }
 }
 
-interface RecentOrdersProps {
-  data: any[]
-}
-
-export function RecentOrders({ data }: RecentOrdersProps) {
+export function RecentOrders() {
   const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([])
 
   useEffect(() => {
@@ -54,4 +50,3 @@ export function RecentOrders({ data }: RecentOrdersProps) {
     </Table>
   )
 }
-

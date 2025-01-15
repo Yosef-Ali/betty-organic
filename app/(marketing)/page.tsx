@@ -7,7 +7,6 @@ import { AboutSection } from "components/AboutSection";
 import ChatWidget from "components/ChatWidget";
 import Navigation from "@/components/Navigation";
 import { ProductSection } from "@/components/products/product-section";
-import AuthGuard from "@/components/AuthGuard"; // Import AuthGuard
 
 export const metadata: Metadata = {
   title: 'Betty Organic - Fresh Fruits & Vegetables',

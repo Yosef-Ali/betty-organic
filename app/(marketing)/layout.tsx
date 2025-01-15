@@ -1,6 +1,5 @@
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { Toaster } from "@/components/ui/toaster"
-import Providers from '../providers'
 
 export default function MarketingLayout({
   children,
@@ -8,11 +7,11 @@ export default function MarketingLayout({
   children: React.ReactNode
 }) {
   return (
-    <Providers>
+   <>
       <TooltipProvider>
         {children}
       </TooltipProvider>
       <Toaster />
-    </Providers>
+     </>
   )
 }

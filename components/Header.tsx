@@ -13,20 +13,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "components/ui/dropdown-menu";
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'; // Import Supabase client
+import { createClientComponentClient, User } from '@supabase/auth-helpers-nextjs'; // Import Supabase client
 import { Home, ShoppingBag, ShoppingCart, Package, Users2, LineChart } from "lucide-react";
 import Breadcrumb from "./Breadcrumb";
-import { User as SupabaseUser } from '@supabase/supabase-js'; // Import Supabase User type
+import { useUser } from '@/lib/hooks/useUser'
 
 interface HeaderProps {
   onMobileMenuToggle: () => void;
-}
-
-// Extend the Supabase User type to include avatar_url in user_metadata
-interface User extends SupabaseUser {
-  user_metadata: {
-    avatar_url: string;
-  };
 }
 
 const navItems = [
@@ -39,42 +32,11 @@ const navItems = [
 ];
 
 export default function Header({ onMobileMenuToggle }: HeaderProps) {
+  const { user } = useUser()
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClientComponentClient();
   const [clientPathname, setClientPathname] = useState('');
-  const [user, setUser] = useState<User | null>(null);
-
-  useEffect(() => {
-    // Initial user fetch
-    fetchUser();
-
-    // Set up real-time subscription to auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        setUser(session.user as User);
-      } else {
-        setUser(null);
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [supabase.auth]);
-
-  const fetchUser = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        setUser(session.user as User);
-      }
-    } catch (error) {
-      console.error('Error fetching user:', error);
-    }
-  };
 
   useEffect(() => {
     setClientPathname(pathname);
@@ -115,7 +77,7 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
   };
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background/80 px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:p-6"> {/* Added /80 for opacity */}
+    <header className="sticky top-0  z-30 flex h-14 items-center gap-4 border-b bg-background/80 px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:p-6"> {/* Added /80 for opacity */}
       <Button size="icon" variant="outline" className="sm:hidden" onClick={onMobileMenuToggle}>
         <PanelLeft className="h-5 w-5" />
         <span className="sr-only">Toggle Menu</span>
@@ -141,25 +103,14 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
             size="icon"
             className="overflow-hidden rounded-full"
           >
-            {user ? (
-              <Image
-                src={user.user_metadata?.avatar_url || "/placeholder-user.webp"}
-                width={36}
-                height={36}
-                alt="Avatar"
-                className="h-full w-full object-cover"
-                priority
-              />
-            ) : (
-              <Image
-                src="/placeholder-user.webp"
-                width={36}
-                height={36}
-                alt="Avatar"
-                className="h-full w-full object-cover"
-                priority
-              />
-            )}
+            <Image
+              src={user?.user_metadata?.avatar_url || "/placeholder-user.webp"}
+              width={36}
+              height={36}
+              alt="Avatar"
+              className="h-full w-full object-cover"
+              priority
+            />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">

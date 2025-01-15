@@ -23,7 +23,7 @@ const BreadcrumbSeparator = () => <span className="mx-2 text-gray-400">/</span>;
 
 export default function Breadcrumb({ pathSegments }: { pathSegments: string[] }) {
   return (
-    <nav aria-label="breadcrumb">
+    <nav aria-label="breadcrumb bg-yellow-500">
       <ol className="flex items-center space-x-1">
         {pathSegments.map((segment, index) => {
           // Ensure dashboard path is always lowercase

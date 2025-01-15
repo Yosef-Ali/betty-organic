@@ -36,13 +36,13 @@ export async function updateSession(request: NextRequest) {
 
   // Get current route info
   const requestUrl = new URL(request.url)
-  const isAuthPath = requestUrl.pathname.startsWith('/auth')
-  const isLoginPath = requestUrl.pathname.startsWith('/login')
+  const isAuthPath = requestUrl.pathname.startsWith('/auth') ||
+    requestUrl.pathname.startsWith('/login')
   const isApiPath = requestUrl.pathname.startsWith('/api')
   const isPublicPath = requestUrl.pathname === '/' ||
-                        requestUrl.pathname.startsWith('/public') ||
-                        requestUrl.pathname.startsWith('/_next') ||
-                        requestUrl.pathname.includes('/verify')
+    requestUrl.pathname.startsWith('/public') ||
+    requestUrl.pathname.startsWith('/_next') ||
+    requestUrl.pathname.includes('/verify')
 
   // Handle authentication state
   if (!user) {
@@ -60,8 +60,7 @@ export async function updateSession(request: NextRequest) {
 
   // User is signed in
   if (isAuthPath) {
-    // Redirect signed-in users away from auth pages
-    return NextResponse.redirect(new URL('/dashboard', request.url))
+    return supabaseResponse;
   }
 
   // Check role-based access

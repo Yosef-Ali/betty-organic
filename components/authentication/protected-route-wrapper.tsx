@@ -1,6 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import ProtectedRoute from './protected-route'
 
 interface ProtectedRouteWrapperProps {
   children: React.ReactNode
@@ -15,8 +14,8 @@ export default async function ProtectedRouteWrapper({
   requireSales = false,
   requireCustomer = false
 }: ProtectedRouteWrapperProps) {
-  const supabase = createClient()
-  
+  const supabase = await createClient()
+
   // Get session and user in single query
   const { data: { session }, error } = await supabase.auth.getSession()
 
@@ -26,22 +25,16 @@ export default async function ProtectedRouteWrapper({
 
   // Get user role from session
   const { data: { user } } = await supabase.auth.getUser()
-  const role = user?.user_metadata?.role
+  const role = user?.user_metadata?.role as 'admin' | 'sales' | 'customer'
 
-  // Check role requirements
-  if ((requireAdmin && role !== 'admin') ||
-      (requireSales && role !== 'sales') ||
-      (requireCustomer && role !== 'customer')) {
+  // Check admin and sales role requirements
+  if (requireAdmin && role !== 'admin') {
     redirect('/')
   }
 
-  return (
-    <ProtectedRoute 
-      requireAdmin={requireAdmin}
-      requireSales={requireSales}
-      requireCustomer={requireCustomer}
-    >
-      {children}
-    </ProtectedRoute>
-  )
+  if (requireSales && role !== 'sales') {
+    redirect('/')
+  }
+
+  return <>{children}</>
 }
