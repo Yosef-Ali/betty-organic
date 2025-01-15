@@ -11,6 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { updateProfile } from '@/app/actions/userActions'
 import { createClient } from '@/lib/supabase/client'
+import type { Customer } from '@/lib/supabase/types'
 
 export default function ProfilePage() {
   const { user, session } = useAuth()
@@ -45,18 +46,74 @@ export default function ProfilePage() {
   const fetchOrders = async () => {
     if (!user) return
     setLoadingOrders(true)
+    let customer
     try {
       const supabase = createClient()
-      const { data, error } = await supabase
+      if (!session) {
+        throw new Error('No active session')
+      }
+
+      if (!session?.user?.email) {
+        throw new Error('No email found in session')
+      }
+
+      // Check if customer exists, create if not
+      let { data: customerData } = await supabase
+        .from('customers')
+        .select('id')
+        .eq('email', session.user.email)
+        .single()
+
+      if (!customerData) {
+        // Create new customer profile
+        const { data: newCustomer } = await supabase
+          .from('customers')
+          .insert<Customer>({
+            email: session.user.email,
+            full_name: user.user_metadata?.full_name || '',
+            created_at: new Date().toISOString(),
+            status: 'active',
+            image_url: user.user_metadata?.avatar_url || null,
+            updated_at: new Date().toISOString(),
+            id: '', // Will be auto-generated
+            phone: null,
+            location: null
+          })
+          .select('id')
+          .single()
+
+        if (!newCustomer) {
+          throw new Error('Failed to create customer profile')
+        }
+        customerData = newCustomer
+      }
+
+      customer = customerData
+
+      // Validate orders table exists by attempting to select
+      const { error: tableCheckError } = await supabase
+        .from('orders')
+        .select('id')
+        .limit(1)
+
+      if (tableCheckError?.code === '42P01') { // 42P01 = undefined_table error code
+        throw new Error('Orders table not found in database')
+      }
+
+      const { data: ordersData, error } = await supabase
         .from('orders')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('customer_id', customer.id)
         .order('created_at', { ascending: false })
 
       if (error) throw error
-      setOrders(data || [])
+      setOrders(ordersData as Order[] || [])
     } catch (error) {
-      console.error('Error fetching orders:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      console.error('Error fetching orders:', errorMessage);
+
+      // Set an error message to display to the user
+      setMessage(`Failed to fetch orders: ${errorMessage}`);
     } finally {
       setLoadingOrders(false)
     }
@@ -170,9 +227,44 @@ export default function ProfilePage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground">No orders found</p>
-                </div>
+                {loadingOrders ? (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground">Loading orders...</p>
+                  </div>
+                ) : message ? (
+                  <div className="text-center py-8">
+                    <p className="text-red-600">{message}</p>
+                  </div>
+                ) : orders.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground">No orders found</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {orders.map((order) => (
+                      <div key={order.id} className="border p-4 rounded-lg">
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <p className="font-medium">Order #{order.orderNumber}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {order.created_at && new Date(order.created_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <div>
+                            <span className="px-2 py-1 rounded-full text-sm bg-primary/10 text-primary">
+                              {order.status}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="mt-2">
+                          <p className="text-sm text-muted-foreground">
+                            Total Amount: ${order.total_amount.toFixed(2)}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
