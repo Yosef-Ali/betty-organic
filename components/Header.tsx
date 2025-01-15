@@ -28,7 +28,9 @@ const navItems = [
   { href: "/orders", icon: ShoppingCart, label: "Orders" },
   { href: "/products", icon: Package, label: "Products" },
   { href: "/customers", icon: Users2, label: "Customers" },
+  { href: "/profile", icon: Users2, label: "Profile" },
   { href: "/analytics", icon: LineChart, label: "Analytics" },
+  { href: "/settings", icon: Users2, label: "Settings" },
 ];
 
 export default function Header({ onMobileMenuToggle }: HeaderProps) {
@@ -117,7 +119,7 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
           <DropdownMenuLabel>My Account</DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem asChild>
-            <Link href="/profile">Profile</Link>
+            <Link href="/dashboard/profile">Profile</Link>
           </DropdownMenuItem>
           <DropdownMenuItem>Support</DropdownMenuItem>
           <DropdownMenuSeparator />

@@ -104,25 +104,28 @@ export async function login(formData: LoginFormType): Promise<AuthResponse<Login
       }
     }
 
-    // Set the auth cookie manually
-    const cookieStore = await cookies()
-    const token = cookieStore.get('sb-xmumlfgzvrliepxcjqil-auth-token')?.value
+    // Get the session directly from Supabase
+    const { data: { session: authSession }, error: sessionError } = await supabase.auth.getSession()
 
-    if (token) {
-      try {
-        const decoded = Buffer.from(token.split('.')[1], 'base64').toString()
-        const payload = JSON.parse(decoded)
-        // Store session data in cookies
-        cookieStore.set('sb-session', JSON.stringify(payload), {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax',
-          path: '/'
-        })
-      } catch (error) {
-        console.error('Failed to parse auth token:', error)
+    if (sessionError) {
+      return {
+        error: sessionError.message,
+        success: false,
+        data: null
       }
     }
+
+    if (!authSession) {
+      return {
+        error: 'No session found',
+        success: false,
+        data: null
+      }
+    }
+
+    // Get user role from session
+    const userRole = authSession.user?.user_metadata?.role || 'customer'
+    const redirectPath = userRole === 'admin' ? '/admin' : '/'
 
     const { data: { user }, error: refreshError } = await supabase.auth.getUser()
     if (refreshError) {
@@ -134,7 +137,7 @@ export async function login(formData: LoginFormType): Promise<AuthResponse<Login
     }
 
     const role = user?.user_metadata?.role || 'customer'
-    const redirectTo = role === 'admin' ? '/admin' : '/dashboard'
+    const redirectTo = role === 'admin' ? '/admin' : '/'
 
     // Ensure the cookie is set before redirecting
     await new Promise(resolve => setTimeout(resolve, 100))

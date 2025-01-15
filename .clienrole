@@ -1,0 +1,250 @@
+# betty-organic Project Configuration
+
+## Advanced Role-Based Access Control
+
+### Role Definitions
+- **Admin**: Full system access
+- **Manager**: Content management, user management
+- **Editor**: Content creation and editing
+- **Viewer**: Read-only access
+- **Guest**: Limited public access
+
+### Granular Permissions
+- Define permissions at resource/action level:
+  ```yaml
+  permissions:
+    products:
+      create: [Admin, Manager]
+      read: [Admin, Manager, Editor, Viewer]
+      update: [Admin, Manager, Editor]
+      delete: [Admin]
+  ```
+
+### Dynamic Role Assignment
+- Roles assigned based on:
+  - User behavior patterns
+  - Contextual factors (location, device, time)
+  - Risk-based authentication scores
+
+### Role Synchronization
+- Automated sync with:
+  - Supabase Auth
+  - External identity providers
+  - Directory services
+
+### Audit Logging
+- Track all role changes and access events:
+  ```typescript
+  interface AuditLog {
+    timestamp: Date;
+    userId: string;
+    action: 'role-assigned' | 'permission-changed' | 'access-granted';
+    details: Record<string, unknown>;
+  }
+  ```
+
+### Multi-Factor Authentication
+- Required for:
+  - Role changes
+  - Sensitive operations
+  - Privileged access
+
+### Role Hierarchies
+- Define custom role inheritance:
+  ```yaml
+  role_hierarchy:
+    Admin:
+      inherits: [Manager, Editor]
+    Manager:
+      inherits: [Editor]
+  ```
+
+### Identity Management Integration
+- Seamless integration with:
+  - Supabase Auth
+  - OAuth providers
+  - Enterprise SSO
+
+### Role Expiration
+- Automatic role expiration:
+  ```yaml
+  role_expiration:
+    Guest: 7d
+    Viewer: 30d
+    Editor: 90d
+  ```
+
+### Conditional Access Policies
+- Context-aware access rules:
+  ```typescript
+  const accessPolicy = {
+    conditions: [
+      { time: '09:00-17:00' },
+      { location: ['US', 'CA'] },
+      { device: 'company-managed' }
+    ],
+    permissions: ['read', 'write']
+  };
+  ```
+
+### Real-Time Monitoring
+- Track role usage:
+  ```typescript
+  interface RoleUsage {
+    role: string;
+    activeUsers: number;
+    lastAccess: Date;
+    resourceUsage: Record<string, number>;
+  }
+  ```
+
+## Project Roles and Responsibilities
+
+### Cline (AI Assistant)
+- Provide technical implementation guidance
+- Write and modify code as requested
+- Suggest best practices and optimizations
+- Help debug and troubleshoot issues
+- Maintain code quality and consistency
+- Document technical decisions
+
+### User (Project Owner)
+- Define project requirements and goals
+- Provide feedback on implementations
+- Make final decisions on features and direction
+- Test and validate functionality
+- Manage project priorities and timeline
+
+### Authenticated User
+- View and update own profile
+- Insert new profile information
+
+## Collaboration Process
+1. User defines tasks and requirements
+2. Cline provides implementation options
+3. User selects preferred approach
+4. Cline implements the solution
+5. User reviews and provides feedback
+6. Iterate until task is complete
+
+## Project Context
+
+betty-organic is a web application designed to provide users with organic product recommendations. The project utilizes a modern tech stack to ensure a seamless user experience.
+
+## Code Style and Structure
+
+- **Code Style**:
+  - Write concise, technical TypeScript code with accurate examples.
+  - Use functional and declarative programming patterns; avoid classes.
+  - Prefer iteration and modularization over code duplication.
+  - Use descriptive variable names with auxiliary verbs (e.g., `isLoading`, `hasError`).
+
+- **Directory Structure**:
+  - Organize files to promote modularity and reusability.
+
+    ```
+    src/
+    ├── app/              # Next.js App Router (Next.js 15)
+    ├── components/       # Shared React components
+    ├── hooks/            # Custom React hooks
+    ├── utils/            # Helper functions
+    ├── types/            # TypeScript types
+    ├── lib/              # Shared libraries
+    ├── styles/           # Global styles (e.g., Tailwind CSS configurations)
+    ├── pages/            # Next.js Pages Router (if applicable)
+    ├── public/           # Public assets
+    └── services/         # API service functions (e.g., Supabase interactions)
+    ```
+
+## Tech Stack
+
+- Next.js 15.0.3
+- React 19
+- TypeScript
+- Tailwind CSS
+- shadcn/ui
+- Supabase (Auth and Storage)
+- pnpm (Package Manager)
+
+## Naming Conventions
+
+- Use lowercase with dashes for directories (e.g., `components/form-wizard`).
+- Favor named exports for components and utilities.
+- Use PascalCase for component files (e.g., `ProductCard.tsx`).
+- Use camelCase for utility files (e.g., `fetchData.ts`).
+
+## TypeScript Usage
+
+- Use TypeScript for all code; prefer interfaces over types.
+- Avoid enums; use constant objects with 'as const' assertion.
+- Use functional components with TypeScript interfaces.
+- Define strict types for API interactions, especially with Supabase.
+- Use absolute imports for all files (`@/...`).
+- Avoid try/catch blocks unless there's a good reason to handle errors in that abstraction.
+- Use explicit return types for all functions.
+
+## Next.js 15 and React 19 Specific
+
+- **Server Components**:
+  - Utilize React Server Components for improved performance.
+  - Ensure components are appropriately marked as server or client components.
+
+- **App Router**:
+  - Leverage the Next.js App Router for file-based routing.
+  - Organize routes within the `src/app` directory.
+
+## Supabase Integration
+
+- **Authentication**:
+  - Implement Supabase Auth for user authentication.
+  - Manage authentication state using React context or Zustand.
+
+- **Storage**:
+  - Use Supabase Storage for handling user-uploaded content.
+  - Define strict types for storage objects and buckets.
+
+## shadcn/ui Integration
+
+- **UI Components**:
+  - Utilize shadcn/ui for building consistent and accessible UI components.
+  - Customize components as needed to align with the project's design requirements.
+
+## Package Management
+
+- **pnpm**:
+  - Use pnpm as the package manager for efficient dependency management.
+  - Ensure all team members use the same pnpm version to maintain consistency.
+
+## Additional Guidelines
+
+- **Styling**:
+  - Use Tailwind CSS for utility-first styling.
+  - Maintain a consistent design system across the application.
+
+- **State Management**:
+  - Use React's built-in state management for local component state.
+  - For global state, consider using Zustand or React Context API.
+
+- **Testing**:
+  - Write unit tests for all utility functions and React components.
+  - Use Jest and React Testing Library for testing.
+
+- **Version Control**:
+  - Follow the GitFlow branching model.
+  - Write clear and concise commit messages.
+
+- **Documentation**:
+  - Maintain clear documentation for all modules and components.
+  - Use JSDoc for inline documentation.
+
+- **Code Reviews**:
+  - All code must be peer-reviewed before merging into the main branch.
+  - Address all review comments before approval.
+
+- **Deployment**:
+  - Ensure all tests pass before deployment.
+  - Use continuous integration and deployment pipelines.
+
+This configuration serves as a comprehensive guide to maintain code quality and consistency across the `betty-organic` project, ensuring alignment with the latest technologies and best practices.
+
+*Note: Adjust the directory structure and guidelines as per your project's specific requirements.*

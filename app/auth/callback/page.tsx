@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { cookies } from 'next/headers'
 
 export default function AuthCallbackPage() {
   const router = useRouter()
@@ -13,7 +14,7 @@ export default function AuthCallbackPage() {
       try {
         // Get the session from the OAuth callback
         const { data: { session }, error } = await supabase.auth.getSession()
-        
+
         // Handle both OAuth and magic link callbacks
         // Handle both URL hash and query parameters
         const params = new URLSearchParams(
@@ -23,15 +24,15 @@ export default function AuthCallbackPage() {
         if (params.get('type') === 'magiclink') {
           // Get email from sessionStorage if not in params
           const email = params.get('email') || sessionStorage.getItem('magicLinkEmail') || ''
-          
+
           const { error } = await supabase.auth.verifyOtp({
             type: 'magiclink',
             token_hash: params.get('token_hash') || '',
             email
           })
-          
+
           if (error) throw error
-          
+
           // Clear stored email
           sessionStorage.removeItem('magicLinkEmail')
         } else if (params.get('access_token')) {
@@ -41,7 +42,7 @@ export default function AuthCallbackPage() {
             refresh_token: params.get('refresh_token') || ''
           })
         }
-        
+
         if (error) {
           console.error('Error getting session:', error)
           router.push('/auth/signin?error=' + encodeURIComponent(error.message))
@@ -57,10 +58,45 @@ export default function AuthCallbackPage() {
         // Clear the hash from URL
         window.history.replaceState({}, document.title, window.location.pathname)
 
-        // Redirect to dashboard or stored returnTo URL
-        const returnTo = sessionStorage.getItem('returnTo') || '/dashboard'
-        sessionStorage.removeItem('returnTo')
-        router.push(returnTo)
+        try {
+          // Set timeout for the authentication process
+          const timeout = setTimeout(() => {
+            throw new Error('Authentication timed out')
+          }, 10000) // 10 seconds timeout
+
+          // Wait for cookies to be set
+          await new Promise(resolve => setTimeout(resolve, 500))
+
+          // Get the redirect URL from session storage or default to homepage
+          const returnTo = sessionStorage.getItem('returnTo') || '/'
+          sessionStorage.removeItem('returnTo')
+
+          // Verify authentication status
+          const supabase = createClientComponentClient()
+          const { data: { session: authSession }, error: sessionError } = await supabase.auth.getSession()
+
+          if (sessionError) {
+            throw new Error(`Session error: ${sessionError.message}`)
+          }
+
+          if (!authSession) {
+            throw new Error('No session found')
+          }
+
+          // Get user role from session
+          const userRole = authSession.user?.user_metadata?.role || 'customer'
+          const redirectPath = userRole === 'admin' ? '/admin' : '/'
+
+          // Perform the redirect
+          await router.push(redirectPath)
+
+          clearTimeout(timeout)
+        } catch (error: unknown) {
+          const errorMessage = error instanceof Error ? error.message : 'Authentication failed'
+          console.error('Authentication error:', errorMessage)
+          // Redirect to error page with specific error message
+          await router.push(`/auth/error?message=${encodeURIComponent(errorMessage)}`)
+        }
       } catch (err) {
         console.error('Auth callback error:', err)
         router.push('/auth/signin?error=unexpected_error')

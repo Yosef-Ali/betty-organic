@@ -19,25 +19,29 @@ export function useUser() {
 
   useEffect(() => {
     const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      setUser(user as User)
-      setLoading(false)
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        setUser(session?.user ?? null)
+      } finally {
+        setLoading(false)
+      }
     }
 
     getUser()
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
-      setUser(session?.user as User ?? null)
+      setUser(session?.user ?? null)
       setLoading(false)
     })
 
     return () => subscription.unsubscribe()
-  }, [supabase.auth])
+  }, [supabase])
 
   return {
     user,
     loading,
     isAdmin: user?.user_metadata.role === 'admin',
-    isSales: user?.user_metadata.role === 'sales'
+    isSales: user?.user_metadata.role === 'sales',
+    isCustomer: user?.user_metadata.role === 'customer',
   }
 }

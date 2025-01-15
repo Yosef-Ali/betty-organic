@@ -1,37 +1,42 @@
 'use client'
 
-import { useState, useEffect } from "react"
-import Link from "next/link"
-import Image from "next/image"
-import { Home, ShoppingBag, ShoppingCart, Package, Users2, Users, LineChart, Settings, ChevronLeft, ChevronRight, X } from "lucide-react"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip'
-import { Button } from './ui/button'
-import { useUser } from '@/lib/hooks/useUser'
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { Home, ShoppingBag, ShoppingCart, Package, Users2, Users, LineChart, Settings, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
+import { Button } from './ui/button';
+import { useUser } from '@/lib/hooks/useUser';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 
 interface SidebarProps {
-  expanded: boolean
-  onToggle: (expanded: boolean) => void
-  mobileMenuOpen: boolean
-  onMobileMenuClose: () => void
+  expanded: boolean;
+  onToggle: (expanded: boolean) => void;
+  mobileMenuOpen: boolean;
+  onMobileMenuClose: () => void;
 }
 
 export default function Sidebar({ expanded, onToggle, mobileMenuOpen, onMobileMenuClose }: SidebarProps) {
-  const { isAdmin, isSales } = useUser()
-  const [isMobile, setIsMobile] = useState(false)
+  const { isAdmin, isSales } = useUser();
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 640)
-    checkMobile()
-    window.addEventListener('resize', checkMobile)
-    return () => window.removeEventListener('resize', checkMobile)
-  }, [])
+    const checkMobile = () => setIsMobile(window.innerWidth < 640);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const toggleSidebar = () => {
-    onToggle(!expanded)
-  }
+    onToggle(!expanded);
+  };
 
   const navItems = [
     { href: "/dashboard", icon: Home, label: "Dashboard" },
+    ...(!isAdmin && !isSales ? [
+      { href: "/profile", icon: Users, label: "Profile" },
+      { href: "/profile/orders", icon: ShoppingCart, label: "Order History" },
+    ] : []),
     ...(isAdmin || isSales ? [
       { href: "/dashboard/sales", icon: ShoppingBag, label: "Sales" },
       { href: "/dashboard/orders", icon: ShoppingCart, label: "Orders" },
@@ -40,7 +45,7 @@ export default function Sidebar({ expanded, onToggle, mobileMenuOpen, onMobileMe
     ] : []),
     ...(isAdmin ? [{ href: "/dashboard/users", icon: Settings, label: "Users" }] : []),
     ...(isAdmin ? [{ href: "/analytics", icon: LineChart, label: "Analytics" }] : [])
-  ]
+  ];
 
   const sidebarContent = (
     <>
@@ -65,8 +70,27 @@ export default function Sidebar({ expanded, onToggle, mobileMenuOpen, onMobileMe
         )}
       </div>
       <nav className="flex-1 overflow-y-auto py-5 px-2">
-        {navItems.map((item) => (
-          <SidebarLink key={item.href} {...item} expanded={expanded || isMobile} onClick={isMobile ? onMobileMenuClose : undefined} />
+        {/* Customer-specific tabs */}
+        {!isAdmin && !isSales && (
+          <Tabs defaultValue="profile" className="w-full">
+            <TabsList>
+              <TabsTrigger value="profile">Profile</TabsTrigger>
+              <TabsTrigger value="orders">Order History</TabsTrigger>
+            </TabsList>
+            <TabsContent value="profile">
+              <SidebarLink href="/profile" icon={Users} label="Profile" expanded={expanded || isMobile} onClick={isMobile ? onMobileMenuClose : undefined} />
+            </TabsContent>
+            <TabsContent value="orders">
+              <SidebarLink href="/profile/orders" icon={ShoppingCart} label="Order History" expanded={expanded || isMobile} onClick={isMobile ? onMobileMenuClose : undefined} />
+            </TabsContent>
+          </Tabs>
+        )}
+
+        {/* Admin/Sales user links */}
+        {(isAdmin || isSales) && navItems.map((item) => (
+          item.href !== "/profile" && item.href !== "/profile/orders" && (
+            <SidebarLink key={item.href} {...item} expanded={expanded || isMobile} onClick={isMobile ? onMobileMenuClose : undefined} />
+          )
         ))}
       </nav>
       <div className="px-2 py-5">
@@ -83,14 +107,14 @@ export default function Sidebar({ expanded, onToggle, mobileMenuOpen, onMobileMe
       </div>
       {!isMobile && <ToggleButton expanded={expanded} onClick={toggleSidebar} />}
     </>
-  )
+  );
 
   if (isMobile) {
     return (
       <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-background border-r transition-transform duration-300 ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         {sidebarContent}
       </aside>
-    )
+    );
   }
 
   return (
@@ -99,15 +123,15 @@ export default function Sidebar({ expanded, onToggle, mobileMenuOpen, onMobileMe
         {sidebarContent}
       </aside>
     </TooltipProvider>
-  )
+  );
 }
 
 interface SidebarLinkProps {
-  href: string
-  icon: React.ElementType
-  label: string
-  expanded: boolean
-  onClick?: () => void
+  href: string;
+  icon: React.ElementType;
+  label: string;
+  expanded: boolean;
+  onClick?: () => void;
 }
 
 function SidebarLink({ href, icon: Icon, label, expanded, onClick }: SidebarLinkProps) {
@@ -125,12 +149,12 @@ function SidebarLink({ href, icon: Icon, label, expanded, onClick }: SidebarLink
       </TooltipTrigger>
       {!expanded && <TooltipContent side="right">{label}</TooltipContent>}
     </Tooltip>
-  )
+  );
 }
 
 interface ToggleButtonProps {
-  expanded: boolean
-  onClick: () => void
+  expanded: boolean;
+  onClick: () => void;
 }
 
 function ToggleButton({ expanded, onClick }: ToggleButtonProps) {
@@ -141,5 +165,5 @@ function ToggleButton({ expanded, onClick }: ToggleButtonProps) {
     >
       {expanded ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
     </button>
-  )
+  );
 }
