@@ -5,14 +5,21 @@ import { NextResponse } from 'next/server'
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
-  const requestUrl = new URL(request.url)
-  const code = requestUrl.searchParams.get('code')
+  try {
+    const requestUrl = new URL(request.url)
+    const code = requestUrl.searchParams.get('code')
 
-  if (code) {
+    if (!code) {
+      throw new Error('No code provided')
+    }
+
     const supabase = createRouteHandlerClient({ cookies })
     await supabase.auth.exchangeCodeForSession(code)
-  }
 
-  // URL to redirect to after sign in process completes
-  return NextResponse.redirect(requestUrl.origin)
+    return NextResponse.redirect(new URL('/dashboard', requestUrl))
+  } catch (error) {
+    console.error('Auth callback error:', error)
+    // Make sure this URL is absolute
+    return NextResponse.redirect(new URL('/auth/login?error=callback_error', request.url))
+  }
 }

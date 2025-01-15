@@ -1,19 +1,67 @@
-import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { Database } from '@/lib/supabase/types'
 
 export async function middleware(request: NextRequest) {
-  const res = NextResponse.next()
-  const supabase = createMiddlewareClient({ req: request, res })
+  const response = NextResponse.next()
 
-  // Refresh session if expired - required for Server Components
-  await supabase.auth.getSession()
+  const supabase = createServerClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return request.cookies.get(name)?.value
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          request.cookies.set({ name, value, ...options })
+          response.cookies.set({ name, value, ...options })
+        },
+        remove(name: string, options: CookieOptions) {
+          request.cookies.set({ name, value: '', ...options })
+          response.cookies.set({ name, value: '', ...options })
+        }
+      }
+    }
+  )
 
-  return res
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+
+    // Check protected routes
+    const protectedPaths = ['/dashboard', '/settings', '/profile']
+    const isProtectedRoute = protectedPaths.some(path =>
+      request.nextUrl.pathname.startsWith(path)
+    )
+
+    // Redirect to login if accessing protected route without session
+    if (isProtectedRoute && !session) {
+      return NextResponse.redirect(new URL('/auth/login', request.url))
+    }
+
+    // Redirect to dashboard if accessing auth routes with session
+    if (request.nextUrl.pathname.startsWith('/auth') && session) {
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
+
+    return response
+  } catch (error) {
+    console.error('Middleware error:', error)
+    return NextResponse.next()
+  }
 }
 
 export const config = {
   matcher: [
-    '/((?!api|_next/static|_next/image|assets|favicon.ico|sw.js).*)',
-  ],
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public (public files)
+     * - auth/callback (auth callback route)
+     */
+    '/((?!_next/static|_next/image|favicon.ico|public|auth/callback).*)'
+  ]
 }
