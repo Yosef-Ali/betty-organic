@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -10,8 +11,12 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast";
+import { useUser } from '@/lib/hooks/useUser';
+import { useAuth } from '@/lib/hooks/useAuth';
 import { Share2 } from "lucide-react";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { v4 as uuidv4 } from 'uuid';
+import { useEffect } from 'react';
 
 interface ConfirmPurchaseDialogProps {
   open: boolean;
@@ -32,54 +37,119 @@ export function ConfirmPurchaseDialog({
   total,
 }: ConfirmPurchaseDialogProps) {
   const { toast } = useToast();
+  const router = useRouter();
+  const { user } = useUser();
+  const { isAuthenticated } = useAuth();
+  const supabase = createClientComponentClient();
 
   const handleCheckout = async () => {
-    const supabase = createClientComponentClient();
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    const user = session?.user;
-
-    if (!user) {
+    // Check authentication only when trying to checkout
+    if (!isAuthenticated || !user) {
       toast({
-        title: "Unauthorized",
-        description: "You must be logged in to place an order.",
-        variant: "destructive",
+        title: "Sign in Required",
+        description: "Please sign in first to complete your purchase. You'll be redirected to the login page.",
+        variant: "default",
       });
+      router.push('/auth/login');
+      onOpenChange(false);
       return;
     }
 
     try {
-      const { data, error } = await supabase
+      // Create order with required fields
+      const orderData = {
+        customer_id: user.id,
+        total_amount: Number(total.toFixed(2)), // Ensure decimal precision
+        status: "pending",
+        type: "online",
+      };
+
+      console.log("User ID:", user.id);
+      console.log("Creating order with data:", orderData);
+
+      const { data: order, error: orderError } = await supabase
         .from("orders")
-        .insert({
-          customer_id: user.id,
-          total_amount: total,
-          status: "pending",
-          type: "online", // or whatever type you're using
-        })
+        .insert(orderData)
         .select()
         .single();
 
-      if (error) throw error;
+      if (orderError) {
+        console.error("Order creation error:", {
+          error: orderError,
+          message: orderError.message,
+          details: orderError.details,
+          hint: orderError.hint,
+          code: orderError.code
+        });
 
-      // Handle success
-      console.log("Order created:", data);
+        toast({
+          title: "Order Creation Failed",
+          description: orderError.message || "Failed to create order. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log("Order created successfully:", order);
+
+      // Create order items
+      const orderItems = items.map(item => ({
+        order_id: order.id,
+        product_id: item.id,
+        quantity: Math.max(1, Math.round(item.grams / 1000)), // Ensure minimum quantity of 1
+        price: Number((item.pricePerKg * item.grams / 1000).toFixed(2)), // Ensure decimal precision
+        product_name: item.name
+      }));
+
+      console.log("Creating order items:", orderItems);
+
+      const { error: itemsError } = await supabase
+        .from("order_items")
+        .insert(orderItems);
+
+      if (itemsError) {
+        console.error("Order items creation error:", {
+          error: itemsError,
+          message: itemsError.message,
+          details: itemsError.details,
+          hint: itemsError.hint,
+          code: itemsError.code
+        });
+
+        toast({
+          title: "Order Items Creation Failed",
+          description: itemsError.message || "Failed to create order items. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       toast({
-        title: "Order placed successfully",
-        description: "Your order has been submitted and is being processed",
+        title: "Order Confirmed!",
+        description: `Your order has been placed successfully. We'll process it right away.`,
       });
       onOpenChange(false);
-      // Clear cart and show success message
-    } catch (error) {
-      console.error("Error creating order:", error);
+    } catch (error: any) {
+      console.error("Error creating order:", {
+        error,
+        message: error?.message,
+        details: error?.details,
+        hint: error?.hint,
+        code: error?.code
+      });
+
+      let errorMessage = "There was a problem placing your order.";
+      if (error?.message?.includes("timeout")) {
+        errorMessage = "Connection timeout. Please check your internet connection and try again.";
+      } else if (error?.message?.includes("auth")) {
+        errorMessage = "Please sign in again and retry your order.";
+      }
+
       toast({
-        title: "Error placing order",
-        description:
-          error instanceof Error ? error.message : "Failed to place order",
+        title: "Order Failed",
+        description: errorMessage,
         variant: "destructive",
       });
-      // Show error message to user
     }
   };
 

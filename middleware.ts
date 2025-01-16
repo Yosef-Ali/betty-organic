@@ -29,11 +29,23 @@ export async function middleware(request: NextRequest) {
   try {
     const { data: { session } } = await supabase.auth.getSession()
 
-    // Check protected routes
-    const protectedPaths = ['/dashboard', '/settings', '/profile']
+    // Define public and protected routes
+    const publicPaths = ['/', '/about', '/contact', '/pricing', '/marketing']
+    const protectedPaths = ['/dashboard', '/settings', '/profile', '/orders', '/customers', '/products']
+
+    const isPublicRoute = publicPaths.some(path =>
+      request.nextUrl.pathname.startsWith(path) ||
+      request.nextUrl.pathname.startsWith('/marketing')
+    )
+
     const isProtectedRoute = protectedPaths.some(path =>
       request.nextUrl.pathname.startsWith(path)
     )
+
+    // Allow public routes
+    if (isPublicRoute) {
+      return response
+    }
 
     // Redirect to login if accessing protected route without session
     if (isProtectedRoute && !session) {
