@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 
-export interface CartItem {
+export interface MarketingCartItem {
   id: string
   name: string
   imageUrl: string
@@ -9,52 +9,16 @@ export interface CartItem {
   grams: number
 }
 
-interface CartStore {
-  items: CartItem[]
-  addItem: (item: CartItem) => void
+interface MarketingCartStore {
+  items: MarketingCartItem[]
+  addItem: (item: MarketingCartItem) => void
   removeFromCart: (id: string) => void
   updateItemQuantity: (id: string, grams: number) => void
   clearCart: () => void
   getTotalAmount: () => number
 }
 
-const cleanLocalStorage = () => {
-  // Check if we're in a browser environment with localStorage available
-  if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
-    return [];
-  }
-
-  try {
-    const storedData = window.localStorage.getItem('betty-organic-cart');
-    if (storedData) {
-      const parsedData = JSON.parse(storedData);
-      // Validate and clean the data structure
-      const cleanedItems = Array.isArray(parsedData?.state?.items)
-        ? parsedData.state.items.filter((item: CartItem) =>
-            item &&
-            typeof item.id === 'string' &&
-            typeof item.name === 'string' &&
-            typeof item.grams === 'number' &&
-            typeof item.pricePerKg === 'number' &&
-            typeof item.imageUrl === 'string'
-          )
-        : [];
-
-      // Update storage with cleaned data
-      localStorage.setItem('betty-organic-cart', JSON.stringify({
-        state: { items: cleanedItems }
-      }));
-      return cleanedItems;
-    }
-  } catch (error) {
-    console.error('Error cleaning localStorage:', error);
-    localStorage.removeItem('betty-organic-cart');
-    return [];
-  }
-  return [];
-};
-
-export const useCartStore = create<CartStore>()(
+export const useMarketingCartStore = create<MarketingCartStore>()(
   persist(
     (set, get) => ({
       items: [],
@@ -67,27 +31,21 @@ export const useCartStore = create<CartStore>()(
             ),
           };
         }
-        // Ensure we're working with serializable data
-        const serializedItem = {
-          id: String(newItem.id),
-          name: String(newItem.name),
-          imageUrl: String(newItem.imageUrl),
-          pricePerKg: Number(newItem.pricePerKg),
-          grams: Number(newItem.grams)
-        };
-        return { items: [...state.items, serializedItem] };
+        return { items: [...state.items, newItem] };
       }),
       removeFromCart: (id) => set((state) => ({
         items: state.items.filter((item) => item.id !== id),
       })),
       updateItemQuantity: (id: string, grams: number) => set((state) => ({
         items: state.items.map((item) =>
-          item.id === id ? { ...item, grams: Number(grams) } : item
+          item.id === id ? { ...item, grams } : item
         ),
       })),
       clearCart: () => {
         set({ items: [] });
-        localStorage.removeItem('betty-organic-cart');
+        if (typeof window !== 'undefined') {
+          window.localStorage.removeItem('marketing-cart');
+        }
       },
       getTotalAmount: () => {
         const { items } = get();
@@ -97,15 +55,8 @@ export const useCartStore = create<CartStore>()(
       },
     }),
     {
-      name: 'betty-organic-cart',
-      storage: createJSONStorage(() => ({
-        getItem: (name) => {
-          cleanLocalStorage();
-          return localStorage.getItem(name);
-        },
-        setItem: (name, value) => localStorage.setItem(name, value),
-        removeItem: (name) => localStorage.removeItem(name),
-      })),
+      name: 'marketing-cart',
+      storage: createJSONStorage(() => localStorage),
     }
   )
 )

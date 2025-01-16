@@ -104,49 +104,15 @@ export async function login(formData: LoginFormType): Promise<AuthResponse<Login
       }
     }
 
-    // Get the session directly from Supabase
-    const { data: { session: authSession }, error: sessionError } = await supabase.auth.getSession()
-
-    if (sessionError) {
-      return {
-        error: sessionError.message,
-        success: false,
-        data: null
-      }
-    }
-
-    if (!authSession) {
-      return {
-        error: 'No session found',
-        success: false,
-        data: null
-      }
-    }
-
-    // Get user role from session
-    const userRole = authSession.user?.user_metadata?.role || 'customer'
-    const redirectPath = userRole === 'admin' ? '/admin' : '/'
-
-    const { data: { user }, error: refreshError } = await supabase.auth.getUser()
-    if (refreshError) {
-      return {
-        error: refreshError.message,
-        success: false,
-        data: null
-      }
-    }
-
-    const role = user?.user_metadata?.role || 'customer'
-    const redirectTo = role === 'admin' ? '/admin' : '/'
-
-    // Ensure the cookie is set before redirecting
-    await new Promise(resolve => setTimeout(resolve, 100))
+    const userRole = session.user.user_metadata?.role || 'customer'
 
     return {
       error: null,
       success: true,
-      data: { role },
-      redirectTo
+      data: {
+        role: userRole as 'admin' | 'customer' | 'sales'
+      },
+      redirectTo: '/'
     }
   } catch (error) {
     return {

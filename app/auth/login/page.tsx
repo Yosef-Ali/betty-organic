@@ -11,6 +11,15 @@ import Link from 'next/link'
 export default function LoginPage() {
   const router = useRouter()
 
+  useEffect(() => {
+    // Store redirect URL in cookie if present in URL
+    const urlParams = new URLSearchParams(window.location.search)
+    const redirectUrl = urlParams.get('redirect')
+    if (redirectUrl) {
+      document.cookie = `redirectUrl=${redirectUrl};path=/`
+    }
+  }, [])
+
   const handleSubmit = async (data: LoginFormType) => {
     try {
       const { error, success, redirectTo } = await login({
@@ -25,8 +34,11 @@ export default function LoginPage() {
 
       if (success) {
         toast.success('Login successful')
-        // Refresh the page to ensure cookies are properly set
-        window.location.href = redirectTo || '/'
+        
+        // Let the page load completely before redirect
+        setTimeout(() => {
+          window.location.href = redirectTo || '/'
+        }, 500)
       }
     } catch (error) {
       console.error('Login error:', error)

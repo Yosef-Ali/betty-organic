@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useCartStore } from "@/store/cartStore";
+import { useMarketingCartStore } from "@/store/cartStore";
 import { Button } from "@/components/ui/button";
 import { ShoppingCart } from "lucide-react";
 import {
@@ -25,14 +25,23 @@ interface CartSheetProps {
 }
 
 export const CartSheet = ({ isOpen, onOpenChange }: CartSheetProps) => {
-  const { items } = useCartStore();
-  const { clearCart } = useCartStore();
+  const { items } = useMarketingCartStore();
+  const { clearCart } = useMarketingCartStore();
   const [isPurchaseDialogOpen, setIsPurchaseDialogOpen] = useState(false);
 
   const totalAmount = items.reduce(
     (total, item) => total + item.pricePerKg * (item.grams / 1000),
     0
   );
+
+  // Handle purchase dialog closing
+  const handlePurchaseDialogChange = (open: boolean) => {
+    setIsPurchaseDialogOpen(open);
+    if (!open) {
+      // If purchase dialog is closing, also close the cart sheet
+      onOpenChange(false);
+    }
+  };
 
   return (
     <>
@@ -87,7 +96,10 @@ export const CartSheet = ({ isOpen, onOpenChange }: CartSheetProps) => {
               <Button
                 variant="destructive"
                 className="w-full mt-2"
-                onClick={clearCart}
+                onClick={() => {
+                  clearCart();
+                  onOpenChange(false);
+                }}
               >
                 Clear Cart
               </Button>
@@ -98,7 +110,7 @@ export const CartSheet = ({ isOpen, onOpenChange }: CartSheetProps) => {
 
       <ConfirmPurchaseDialog
         open={isPurchaseDialogOpen}
-        onOpenChange={setIsPurchaseDialogOpen}
+        onOpenChange={handlePurchaseDialogChange}
         items={items}
         total={totalAmount}
       />

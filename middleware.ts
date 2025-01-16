@@ -29,32 +29,14 @@ export async function middleware(request: NextRequest) {
   try {
     const { data: { session } } = await supabase.auth.getSession()
 
-    // Define public and protected routes
-    const publicPaths = ['/', '/about', '/contact', '/pricing', '/marketing']
-    const protectedPaths = ['/dashboard', '/settings', '/profile', '/orders', '/customers', '/products']
-
-    const isPublicRoute = publicPaths.some(path =>
-      request.nextUrl.pathname.startsWith(path) ||
-      request.nextUrl.pathname.startsWith('/marketing')
-    )
-
-    const isProtectedRoute = protectedPaths.some(path =>
-      request.nextUrl.pathname.startsWith(path)
-    )
-
-    // Allow public routes
-    if (isPublicRoute) {
-      return response
-    }
-
-    // Redirect to login if accessing protected route without session
-    if (isProtectedRoute && !session) {
+    // Only protect dashboard routes
+    if (request.nextUrl.pathname.startsWith('/dashboard') && !session) {
       return NextResponse.redirect(new URL('/auth/login', request.url))
     }
 
-    // Redirect to dashboard if accessing auth routes with session
+    // Redirect to home if accessing auth routes with session
     if (request.nextUrl.pathname.startsWith('/auth') && session) {
-      return NextResponse.redirect(new URL('/dashboard', request.url))
+      return NextResponse.redirect(new URL('/', request.url))
     }
 
     return response

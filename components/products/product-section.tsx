@@ -31,7 +31,7 @@ export function ProductSection() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isCartOpen, setIsCartOpen] = useState(false);
 
-  const filteredProducts = products.filter((product: Product) =>
+  const filteredProducts = products?.filter((product: Product) =>
     product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     (product.description?.toLowerCase() || '').includes(searchQuery.toLowerCase())
   );

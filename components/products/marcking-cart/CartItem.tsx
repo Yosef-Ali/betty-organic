@@ -3,14 +3,14 @@ import Image from "next/image";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Minus, Plus } from "lucide-react";
-import { useCartStore } from "@/store/cartStore";
+import { useMarketingCartStore } from "@/store/cartStore";
 
 interface CartItemProps {
   item: CartItemType;
 }
 
 export function CartItem({ item }: CartItemProps) {
-  const { updateItemQuantity } = useCartStore();
+  const { updateItemQuantity } = useMarketingCartStore();
 
   const handleQuantityChange = (value: number) => {
     const newGrams = Math.max(100, item.grams + value); // Minimum 100g

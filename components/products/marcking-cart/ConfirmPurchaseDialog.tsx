@@ -12,11 +12,13 @@ import {
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast";
 import { useUser } from '@/lib/hooks/useUser';
-import { useAuth } from '@/lib/hooks/useAuth';
+
+import { createOrder } from '@/app/actions/orderActions';
+import type { Order } from "@/types/order";
 import { Share2 } from "lucide-react";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
-import { v4 as uuidv4 } from 'uuid';
-import { useEffect } from 'react';
+import { useMarketingCartStore } from "@/store/cartStore";
+import { useAuth } from "@/lib/hooks/useAuth";
 
 interface ConfirmPurchaseDialogProps {
   open: boolean;
@@ -41,113 +43,72 @@ export function ConfirmPurchaseDialog({
   const { user } = useUser();
   const { isAuthenticated } = useAuth();
   const supabase = createClientComponentClient();
+  const clearCart = useMarketingCartStore(state => state.clearCart);
 
   const handleCheckout = async () => {
     // Check authentication only when trying to checkout
     if (!isAuthenticated || !user) {
       toast({
         title: "Sign in Required",
-        description: "Please sign in first to complete your purchase. You'll be redirected to the login page.",
+        description: "Please sign in first to place orders. Your cart will be saved automatically.",
         variant: "default",
       });
+
       router.push('/auth/login');
       onOpenChange(false);
       return;
     }
 
     try {
-      // Create order with required fields
-      const orderData = {
+      // Create order using server action
+      const orderNumber = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+      const orderData: Order = {
         customer_id: user.id,
-        total_amount: Number(total.toFixed(2)), // Ensure decimal precision
         status: "pending",
         type: "online",
+        total_amount: Number(total.toFixed(2)),
+        orderNumber: orderNumber,
+        items: items.map(item => ({
+          product_id: item.id,
+          quantity: Math.max(1, Math.round(item.grams / 1000)),
+          price: Number((item.pricePerKg * item.grams / 1000).toFixed(2)),
+          name: item.name
+        }))
       };
 
-      console.log("User ID:", user.id);
-      console.log("Creating order with data:", orderData);
+      const { data: order, error } = await createOrder(orderData);
 
-      const { data: order, error: orderError } = await supabase
-        .from("orders")
-        .insert(orderData)
-        .select()
-        .single();
-
-      if (orderError) {
-        console.error("Order creation error:", {
-          error: orderError,
-          message: orderError.message,
-          details: orderError.details,
-          hint: orderError.hint,
-          code: orderError.code
-        });
-
+      if (error) {
+        console.error("Order creation error:", error);
         toast({
           title: "Order Creation Failed",
-          description: orderError.message || "Failed to create order. Please try again.",
+          description: error.message || "Failed to create order. Please try again.",
           variant: "destructive",
         });
         return;
       }
 
-      console.log("Order created successfully:", order);
+      // Clear cart first to ensure state is updated
+      clearCart();
 
-      // Create order items
-      const orderItems = items.map(item => ({
-        order_id: order.id,
-        product_id: item.id,
-        quantity: Math.max(1, Math.round(item.grams / 1000)), // Ensure minimum quantity of 1
-        price: Number((item.pricePerKg * item.grams / 1000).toFixed(2)), // Ensure decimal precision
-        product_name: item.name
-      }));
-
-      console.log("Creating order items:", orderItems);
-
-      const { error: itemsError } = await supabase
-        .from("order_items")
-        .insert(orderItems);
-
-      if (itemsError) {
-        console.error("Order items creation error:", {
-          error: itemsError,
-          message: itemsError.message,
-          details: itemsError.details,
-          hint: itemsError.hint,
-          code: itemsError.code
-        });
-
-        toast({
-          title: "Order Items Creation Failed",
-          description: itemsError.message || "Failed to create order items. Please try again.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      toast({
-        title: "Order Confirmed!",
-        description: `Your order has been placed successfully. We'll process it right away.`,
-      });
+      // Then close the dialog which will trigger cart sheet closing
       onOpenChange(false);
+
+      // Show success message after everything is closed
+      setTimeout(() => {
+        toast({
+          title: "Order Confirmed! ",
+          description: "Thank you for your order. We will contact you soon about delivery details.",
+          duration: 5000,
+        });
+      }, 100);
+
     } catch (error: any) {
-      console.error("Error creating order:", {
-        error,
-        message: error?.message,
-        details: error?.details,
-        hint: error?.hint,
-        code: error?.code
-      });
-
-      let errorMessage = "There was a problem placing your order.";
-      if (error?.message?.includes("timeout")) {
-        errorMessage = "Connection timeout. Please check your internet connection and try again.";
-      } else if (error?.message?.includes("auth")) {
-        errorMessage = "Please sign in again and retry your order.";
-      }
-
+      console.error("Error creating order:", error);
       toast({
         title: "Order Failed",
-        description: errorMessage,
+        description: error?.message || "There was a problem placing your order. Please try again.",
         variant: "destructive",
       });
     }
@@ -157,7 +118,7 @@ export function ConfirmPurchaseDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Confirm Orders</DialogTitle>
+          <DialogTitle>Confirm Order</DialogTitle>
           <DialogDescription>
             Are you sure you want to place this order?
           </DialogDescription>
@@ -184,7 +145,7 @@ export function ConfirmPurchaseDialog({
             Share via WhatsApp
           </Button>
           <Button onClick={handleCheckout}>
-            Confirm Orders
+            Confirm Order
           </Button>
         </DialogFooter>
       </DialogContent>

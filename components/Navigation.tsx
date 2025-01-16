@@ -6,7 +6,7 @@ import { ShoppingCart, LayoutDashboard, Menu } from "lucide-react";
 import Image from 'next/image';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useEffect, useState } from 'react';
-import { useCartStore } from '../store/cartStore';
+import { useMarketingCartStore } from '../store/cartStore';
 import { useRouter } from 'next/navigation';
 import type { Session, User } from '@supabase/auth-helpers-nextjs';
 import {
@@ -18,23 +18,20 @@ import {
 } from "./ui/dropdown-menu";
 import { Badge } from "./ui/badge";
 import { MobileMenu } from "./MobileMenu";
-import { useAuth } from '@/lib/hooks/useAuth'; // Ensure correct import
-import { useUser } from '@/lib/hooks/useUser'; // New import
-
+import { useAuth } from "@/lib/hooks/useAuth";
 
 interface NavigationProps { }
 
 export default function Navigation({ }: NavigationProps) {
   const router = useRouter();
-  const { user, loading } = useUser();
-  const { items } = useCartStore();
+  const { isAuthenticated, user, logout, isLoading: loading } = useAuth(); // Use isAuthenticated, user, logout, and loading from useAuth
+  const { items } = useMarketingCartStore();
 
   const handleSignIn = () => router.push('/auth/login');
 
   const handleSignOut = async () => {
-    const supabase = createClientComponentClient();
     try {
-      await supabase.auth.signOut();
+      await logout();
       router.push('/');
     } catch (error) {
       console.error('Error signing out:', error);
@@ -113,14 +110,16 @@ export default function Navigation({ }: NavigationProps) {
               </Button>
             ) : user ? (
               <div className="flex items-center gap-4">
-                <Button
-                  variant="ghost"
-                  onClick={() => router.push('/dashboard')}
-                  className="hidden md:flex gap-2"
-                >
-                  <LayoutDashboard className="h-4 w-4" />
-                  Dashboard
-                </Button>
+                {user.user_metadata?.role === 'admin' && (
+                  <Button
+                    variant="ghost"
+                    onClick={() => router.push('/dashboard')}
+                    className="hidden md:flex gap-2"
+                  >
+                    <LayoutDashboard className="h-4 w-4" />
+                    Dashboard
+                  </Button>
+                )}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button

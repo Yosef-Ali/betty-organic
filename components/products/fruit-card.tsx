@@ -5,7 +5,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { ShoppingCart, ImageIcon } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
-import { useCartStore } from "@/store/cartStore";
+import { useMarketingCartStore } from "@/store/cartStore";
 import { useToast } from "@/hooks/use-toast";
 
 interface FruitCardProps {
@@ -27,7 +27,7 @@ export function FruitCard({
 }: FruitCardProps) {
   const [imageError, setImageError] = useState(false);
   const hasValidImage = imageUrl && imageUrl.trim().length > 0 && !imageError;
-  const { addItem } = useCartStore();
+  const { addItem } = useMarketingCartStore();
 
   // Convert unit to kg if it's lb
   const displayUnit = unit && unit.toLowerCase() === 'lb' ? 'kg' : unit || 'piece';
