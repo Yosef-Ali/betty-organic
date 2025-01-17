@@ -11,7 +11,6 @@ interface OrderItem {
   product_id: string
   quantity: number
   price: number
-  name: string
 }
 
 export async function createOrder(orderData: Order) {
@@ -23,11 +22,15 @@ export async function createOrder(orderData: Order) {
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
     if (sessionError || !session) {
-      throw new Error('Authentication required');
+      console.error('Authentication error:', {
+        code: sessionError?.code,
+        message: sessionError?.message
+      });
+      throw new Error(`Authentication error: ${sessionError?.message || 'Unknown error'}`);
     }
 
     // Validate order data
-    if (!orderData?.customer_id || !orderData?.items?.length) {
+    if (!orderData?.customer_id || !orderData?.order_items?.length) {
       throw new Error('Invalid order data: Missing required fields');
     }
 
@@ -36,7 +39,7 @@ export async function createOrder(orderData: Order) {
       throw new Error('Unauthorized: Cannot create order for another user');
     }
 
-    console.log('Creating order with data:', JSON.stringify(orderData, null, 2));
+    // console.log('Creating order with data:', JSON.stringify(orderData, null, 2));
 
     // First create the order without items
     const orderToCreate = {
@@ -59,20 +62,21 @@ export async function createOrder(orderData: Order) {
         message: orderError.message,
         details: orderError.details
       });
-      throw orderError;
+      throw new Error(`Database error creating order: ${orderError.message || 'Unknown error'}`);
     }
 
     // Then create the order items
-    const orderItems = orderData.items.map(item => ({
+    const orderItems = orderData.order_items.map(item => ({
       id: crypto.randomUUID(),
       order_id: order.id,
       product_id: item.product_id,
       quantity: item.quantity,
-      price: item.price
+      price: item.price,
+      product_name: item.product_name
     }));
 
     const { error: itemsError } = await supabase
-      .from('order_item')
+      .from('order_items')
       .insert(orderItems);
 
     if (itemsError) {
@@ -85,7 +89,7 @@ export async function createOrder(orderData: Order) {
       throw itemsError;
     }
 
-    return { data: { ...order, items: orderData.items }, error: null };
+    return { data: { ...order, order_items: orderData.order_items }, error: null };
 
   } catch (err) {
     const error = err as Error;
@@ -105,11 +109,15 @@ export async function getOrders() {
       .from('orders')
       .select(`
         *,
-        order_items (
+        order_items!order_items_order_id_fkey (
           product_id,
           quantity,
           price,
-          product_name
+          products!inner (
+            id,
+            name,
+            price
+          )
         )
       `)
       .order('created_at', { ascending: false })

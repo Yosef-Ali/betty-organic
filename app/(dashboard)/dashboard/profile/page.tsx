@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { v4 as uuidv4 } from 'uuid'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,23 +13,21 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { PackageOpen, Package, ChevronRight } from "lucide-react"
 import { updateProfile } from '@/app/actions/userActions'
 import { createClient } from '@/lib/supabase/client'
+import { Database } from '@/types/supabase'
 
+// Profile Page and Order History
 export default function ProfilePage() {
   const { user } = useAuth()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [image, setImage] = useState('')
   const [message, setMessage] = useState('')
-  interface Order {
-    created_at: string | null
-    customer_id: string
-    id: string
-    status: string
-    total_amount: number
-    type: string
-    updated_at: string | null
-    customerInfo: string
-    orderNumber: string
+  type Order = Database['public']['Tables']['orders']['Row'] & {
+    order_items: Array<
+      Database['public']['Tables']['order_items']['Row'] & {
+        products: Database['public']['Tables']['products']['Row']
+      }
+    >
   }
 
   const [orders, setOrders] = useState<Order[]>([])
@@ -44,93 +43,31 @@ export default function ProfilePage() {
   }, [user])
 
   const fetchOrders = async () => {
+    if (!user) return
+
     try {
-      setLoadingOrders(true)
       const supabase = createClient()
-      const { data: { user }, error: authError } = await supabase.auth.getUser()
 
-      console.log('Auth user data:', { user, authError })
-
-      if (authError) {
-        console.error('Authentication error:', authError)
-        throw new Error(`Authentication failed: ${authError.message}`)
-      }
-
-      if (!user) {
-        throw new Error('User not authenticated')
-      }
-
-      console.log('Fetching customer with id:', user.id)
-
-      // Add logging to debug customer fetch
-      let customerResult = await supabase
-        .from('customers')
-        .select('id, email, full_name, status')
-        .eq('id', user.id)
-        .single()
-
-      let customerData = customerResult.data
-      const customerError = customerResult.error
-
-      console.log('Raw customer query result:', { customerData, customerError })
-
-      if (customerError) {
-        // Log the full error object for debugging
-        console.error('Detailed customer error:', JSON.stringify(customerError, null, 2))
-
-        if (customerError.code === 'PGRST116') {
-          console.log('No customer found, attempting to create one...')
-          const { data: newCustomer, error: createError } = await supabase
-            .from('customers')
-            .insert({
-              id: user.id,
-              email: user.email || '',
-              full_name: user.user_metadata?.full_name || '',
-              status: 'active'
-            })
-            .select()
-            .single()
-
-          if (createError) {
-            console.error('Error creating customer:', createError)
-            throw new Error(`Failed to create customer: ${createError.message}`)
-          }
-
-          console.log('New customer created:', newCustomer)
-          customerData = newCustomer
-        } else {
-          throw new Error(`Customer fetch failed: ${customerError.message || JSON.stringify(customerError)}`)
-        }
-      }
-
-      if (!customerData) {
-        throw new Error('No customer data available')
-      }
-
-      // Add logging to debug orders fetch
-      const { data: ordersData, error: ordersError } = await supabase
+      const { data: orders, error: ordersError } = await supabase
         .from('orders')
-        .select('*')
-        .eq('customer_id', customerData.id)
+        .select(`
+          *,
+          order_items (
+            *,
+            products (*)
+          )
+        `)
+        .eq('customer_id', user.id)
         .order('created_at', { ascending: false })
-
-      console.log('Orders fetch result:', { ordersData, ordersError })
 
       if (ordersError) {
         console.error('Error fetching orders:', ordersError)
-        throw ordersError
+        return
       }
 
-      setOrders(ordersData || [])
+      setOrders(orders || [])
     } catch (error) {
-      console.error('Full error object:', error)
-      const errorMessage = error instanceof Error ? error.message :
-        error && typeof error === 'object' ? JSON.stringify(error, null, 2) :
-        'Unknown error occurred'
-      console.error('Error in fetchOrders:', errorMessage)
-      setMessage(`Failed to fetch orders: ${errorMessage}`)
-    } finally {
-      setLoadingOrders(false)
+      console.error('Error in fetchOrders:', error)
     }
   }
 
@@ -168,10 +105,10 @@ export default function ProfilePage() {
             <p className="text-muted-foreground">Manage your account settings and view order history</p>
           </div>
         </div>
-        <Tabs defaultValue="profile" className="w-full">
+        <Tabs defaultValue="orders" className="w-full">
           <TabsList className="w-[400px]">
-            <TabsTrigger value="profile" className="w-1/2">Profile</TabsTrigger>
             <TabsTrigger value="orders" className="w-1/2">Order History</TabsTrigger>
+            <TabsTrigger value="profile" className="w-1/2">Profile</TabsTrigger>
           </TabsList>
 
           <TabsContent value="profile">
@@ -298,10 +235,20 @@ export default function ProfilePage() {
                             <Package className="w-6 h-6 text-muted-foreground" />
                           </div>
                           <div>
-                            <p className="font-medium">Order #{order.orderNumber}</p>
+                            <p className="font-medium">Order #{order.id.slice(0, 8)}</p>
                             <p className="text-sm text-muted-foreground">
                               {order.created_at && new Date(order.created_at).toLocaleDateString()}
                             </p>
+                            <p className="text-sm text-muted-foreground">Order Items:</p>
+                            <ul className="list-disc list-inside">
+                              {order.order_items.map((item: Database['public']['Tables']['order_items']['Row'] & {
+                                products: Database['public']['Tables']['products']['Row']
+                              }, index: number) => (
+                                <li key={index}>
+                                  {item.products.name} - Quantity: {item.quantity} - Price: ${item.price.toFixed(2)}
+                                </li>
+                              ))}
+                            </ul>
                           </div>
                         </div>
                         <div className="flex items-center gap-4">

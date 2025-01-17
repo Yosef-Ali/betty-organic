@@ -119,15 +119,16 @@ export function ConfirmPurchaseDialog({
         status: "pending",
         type: "online",
         total_amount: Number(total.toFixed(2)),
-        items: items.map(item => ({
+        order_items: items.map(item => ({
+          id: crypto.randomUUID(),
           product_id: item.id,
           quantity: Math.max(1, Math.round(item.grams / 1000)),
           price: Number((item.pricePerKg * item.grams / 1000).toFixed(2)),
-          name: item.name
+          product_name: item.name
         }))
       };
 
-      console.log('Submitting order:', JSON.stringify(orderData, null, 2));
+      // console.log('Submitting order:', JSON.stringify(orderData, null, 2));
       const { data: order, error: orderError } = await createOrder(orderData);
 
       if (orderError) {
@@ -159,11 +160,22 @@ export function ConfirmPurchaseDialog({
         hint?: string;
       };
 
-      const errorMessage = e.message && e.message !== '{}'
-        ? e.message
-        : JSON.stringify(e) || 'An unexpected error occurred during checkout';
+      let errorMessage = 'An unexpected error occurred during checkout';
 
-      console.error('Checkout error:', errorMessage);
+      if (e.message && e.message !== '{}') {
+        errorMessage = e.message;
+      } else if (e.code) {
+        errorMessage = `Error ${e.code}: ${e.details || 'Unknown error'}`;
+      } else if (typeof err === 'object' && err !== null) {
+        errorMessage = JSON.stringify(err, null, 2);
+      }
+
+      console.error('Checkout error:', {
+        message: e.message,
+        code: e.code,
+        details: e.details,
+        stack: e.stack
+      });
 
       setError(errorMessage);
 

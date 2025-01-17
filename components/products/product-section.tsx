@@ -2,21 +2,26 @@
 
 import { motion } from "framer-motion";
 import { FruitCard } from "./fruit-card";
-import { useState, useEffect } from "react";
-import { Search, ShoppingCart } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Search, ShoppingCart, X } from "lucide-react";
 import { CartSheet } from "./marcking-cart/CartSheet";
 import { getProducts } from '@/app/actions/productActions';
 import { Product } from '@/lib/supabase/db.types';
+import debounce from 'lodash/debounce';
 
 export function ProductSection() {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
+  const [isCartOpen, setIsCartOpen] = useState(false);
 
   useEffect(() => {
     const fetchProducts = async () => {
       try {
         const data = await getProducts();
+        console.log('Fetched products:', data);
         setProducts(data);
       } catch (error) {
         console.error('Error fetching products:', error);
@@ -28,13 +33,39 @@ export function ProductSection() {
 
     fetchProducts();
   }, []);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isCartOpen, setIsCartOpen] = useState(false);
 
-  const filteredProducts = products?.filter((product: Product) =>
-    product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (product.description?.toLowerCase() || '').includes(searchQuery.toLowerCase())
+  const debouncedSearch = useCallback(
+    debounce((query: string) => {
+      setIsSearching(false);
+    }, 300),
+    []
   );
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+    setIsSearching(true);
+    debouncedSearch(query);
+  };
+
+  const clearSearch = () => {
+    setSearchQuery("");
+    setIsSearching(false);
+  };
+
+  const filteredProducts = products?.filter((product: Product) => {
+    const searchLower = searchQuery.toLowerCase().trim();
+    if (!searchLower) return true;
+
+    const searchFields = [
+      product.name,
+      product.description,
+      product.category,
+      product.unit
+    ].map(field => (field || '').toLowerCase());
+
+    return searchFields.some(field => field.includes(searchLower));
+  });
 
   return (
     <div className="w-full max-w-[1440px] px-4 sm:px-6 lg:px-8">
@@ -52,12 +83,20 @@ export function ProductSection() {
               <div className="relative flex-1">
                 <input
                   type="text"
-                  placeholder="Search fruits..."
+                  placeholder="Search fruits by name, description, or category..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full px-4 py-2 pl-10 pr-4 text-gray-700 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-200"
+                  onChange={handleSearchChange}
+                  className="w-full px-4 py-2 pl-10 pr-10 text-gray-700 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-yellow-500 focus:ring-2 focus:ring-yellow-200 transition-all duration-200"
                 />
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                {searchQuery && (
+                  <button
+                    onClick={clearSearch}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
               </div>
               <CartSheet isOpen={isCartOpen} onOpenChange={setIsCartOpen} />
             </div>
@@ -72,6 +111,12 @@ export function ProductSection() {
               {isError && (
                 <div className="col-span-full text-center py-8 text-red-500">
                   Error loading products. Please try again later.
+                </div>
+              )}
+
+              {!isLoading && !isError && filteredProducts.length === 0 && (
+                <div className="col-span-full text-center py-8 text-gray-500">
+                  No products found matching your search.
                 </div>
               )}
 

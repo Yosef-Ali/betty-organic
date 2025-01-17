@@ -6,11 +6,15 @@ export interface Order {
   total_amount: number;
   status: "pending" | "processing" | "shipped" | "delivered" | "cancelled";
   type: "online" | "pos";
-  items: Array<{
+  created_at?: string | null;
+  updated_at?: string | null;
+  customer_info?: any;
+  order_items: Array<{
+    id: string;
     product_id: string;
     quantity: number;
     price: number;
-    name: string;
+    product_name: string;
   }>;
   order_number?: string;
 }

@@ -36,7 +36,9 @@ export const createProduct = async (formData: FormData): Promise<Product> => {
       stock,
       imageUrl: '/placeholder.svg',
       createdAt: now,
-      updatedAt: now
+      updatedAt: now,
+      active: true,
+      totalSales: 0
     };
 
     const { data: product, error } = await supabase
@@ -65,7 +67,9 @@ export const createProduct = async (formData: FormData): Promise<Product> => {
 export async function updateProduct(id: string, data: FormData) {
   const supabase = await createClient();
   try {
-    const updates: DbProductUpdate = {};
+    const updates: DbProductUpdate = {
+      updatedAt: new Date().toISOString()
+    };
 
     for (const [key, value] of Array.from(data.entries())) {
       if (value instanceof File) continue;
@@ -129,7 +133,7 @@ export async function getProducts(): Promise<Product[]> {
     const { data, error } = await supabase
       .from('products')
       .select('*')
-      .order('createdAt', { ascending: false });
+      .order('createdat', { ascending: false });
 
     if (error) throw error;
     return (data || []).map(product => ({
