@@ -2,7 +2,6 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { getServerSession } from 'next-auth';
 
 export async function getUsers() {
   const supabase = await createClient()
@@ -38,33 +37,44 @@ export async function updateUserRole(id: string, role: 'customer' | 'admin' | 's
 }
 
 export async function updateProfile({ name, email, image }: { name: string, email: string, image: string }) {
-  const supabase = await createClient();
-  const session = await getServerSession();
-  const userId = session?.user?.id;
-
-  if (!userId) {
-    return { error: 'Unauthorized' };
-  }
-
   try {
-    const { error } = await supabase
-      .from('profiles')
-      .update({
-        full_name: name,
-        email: email,
-        avatar_url: image,
-      })
-      .eq('id', userId);
+    const supabase = await createClient();
 
-    if (error) {
-      console.error('Error updating profile:', error);
-      return { error: error.message };
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      return { success: false, error: 'Not authenticated' };
+    }
+
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .upsert({
+        id: user.id,
+        full_name: name,
+        avatar_url: image,
+        updated_at: new Date().toISOString(),
+      });
+
+    if (profileError) {
+      return { success: false, error: profileError.message };
+    }
+
+    // Update user metadata
+    const { error: updateError } = await supabase.auth.updateUser({
+      data: {
+        full_name: name,
+        avatar_url: image
+      }
+    });
+
+    if (updateError) {
+      return { success: false, error: updateError.message };
     }
 
     revalidatePath('/dashboard/profile');
     return { success: true };
   } catch (error) {
-    console.error('Unexpected error updating profile:', error);
-    return { error: 'Failed to update profile' };
+    console.error('Profile update error:', error);
+    return { success: false, error: 'An error occurred while updating profile' };
   }
 }
