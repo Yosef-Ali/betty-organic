@@ -4,11 +4,10 @@ import Link from "next/link";
 import { Button } from "./ui/button";
 import { ShoppingCart, LayoutDashboard, Menu } from "lucide-react";
 import Image from 'next/image';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useEffect, useState } from 'react';
 import { useMarketingCartStore } from '../store/cartStore';
 import { useRouter } from 'next/navigation';
-import type { Session, User } from '@supabase/auth-helpers-nextjs';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,17 +23,27 @@ interface NavigationProps { }
 
 export default function Navigation({ }: NavigationProps) {
   const router = useRouter();
-  const { isAuthenticated, user, logout, isLoading: loading } = useAuth(); // Use isAuthenticated, user, logout, and loading from useAuth
+  const supabase = createClientComponentClient();
+  const { isAuthenticated, user, isLoading: loading } = useAuth(); // Use isAuthenticated, user, and loading from useAuth
   const { items } = useMarketingCartStore();
 
   const handleSignIn = () => router.push('/auth/login');
 
   const handleSignOut = async () => {
     try {
-      await logout();
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        throw new Error(error.message);
+      }
       router.push('/');
     } catch (error) {
-      console.error('Error signing out:', error);
+      if (error instanceof Error) {
+        console.error('Error signing out:', error.message);
+        alert(`Logout failed: ${error.message}`);
+      } else {
+        console.error('Unknown error during logout:', error);
+        alert('An unexpected error occurred during logout');
+      }
     }
   };
 

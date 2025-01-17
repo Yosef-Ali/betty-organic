@@ -1,21 +1,28 @@
 'use client'
+
+import { useAuth } from '@/lib/hooks/useAuth'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
-import { useAuth } from '@/lib/hooks/useAuth'
 
 export default function ProtectedRouteWrapper({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const { session } = useAuth()
+  const { isAuthenticated, isLoading } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
-    if (!session) {
+    if (!isLoading && !isAuthenticated) {
       router.push('/auth/login')
     }
-  }, [session, router])
+  }, [isAuthenticated, isLoading, router])
 
-  return <>{children}</>
+  // Show nothing while checking authentication
+  if (isLoading) {
+    return null
+  }
+
+  // Only render children if authenticated
+  return isAuthenticated ? <>{children}</> : null
 }
