@@ -1,6 +1,9 @@
 'use client'
 
 import { useEffect } from 'react'
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { AlertCircle } from "lucide-react"
+import { Button } from '@/components/ui/button'
 
 export default function DashboardError({
   error,
@@ -10,20 +13,23 @@ export default function DashboardError({
   reset: () => void
 }) {
   useEffect(() => {
+    // Log the error to an error reporting service
     console.error('Dashboard error:', error)
   }, [error])
 
   return (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="text-center">
-        <h2 className="text-xl font-bold mb-4">Something went wrong!</h2>
-        <button
-          onClick={reset}
-          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-        >
-          Try again
-        </button>
-      </div>
+    <div className="container mx-auto p-6">
+      <Alert variant="destructive" className="mb-4">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Something went wrong</AlertTitle>
+        <AlertDescription>
+          {error.message || 'An unexpected error occurred'}
+        </AlertDescription>
+      </Alert>
+      
+      <Button onClick={reset} variant="outline">
+        Try again
+      </Button>
     </div>
   )
 }

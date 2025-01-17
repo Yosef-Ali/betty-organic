@@ -17,7 +17,13 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ expanded, onToggle, mobileMenuOpen, onMobileMenuClose }: SidebarProps) {
-  const { isAdmin, isSales } = useUser();
+  const { isAdmin, isSales, user } = useUser();
+  console.log('User details:', {
+    isAdmin,
+    role: user?.user_metadata?.role,
+    metadata: user?.user_metadata,
+    user
+  });
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {

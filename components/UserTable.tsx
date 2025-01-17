@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { PlusCircle, MoreHorizontal, ListFilter, File } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
@@ -40,257 +40,194 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 
 interface User {
   id: string;
-  name?: string;
-  full_name?: string;
-  email: string;
-  role?: string;
-  imageUrl?: string;
-  status: string;
-  lastActive?: string;
-  createdAt: Date;
-  updatedAt: Date;
+  [key: string]: any;  // Allow any additional fields
 }
 
-type UserWithDetails = User & {
-  imageUrl?: string
-};
-
-const UserTableContent = ({ users, isLoading, onDelete }: {
-  users: UserWithDetails[]
+function UserTableContent({ users, isLoading, onDelete }: {
+  users: User[]
   isLoading: boolean
   onDelete: (id: string) => Promise<void>
-}) => {
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const router = useRouter();
+}) {
+  const router = useRouter()
+  const { toast } = useToast()
 
   if (isLoading) {
     return (
       <TableRow>
-        <TableCell colSpan={7} className="h-24 text-center">
-          Loading...
+        <TableCell colSpan={4} className="h-24 text-center">
+          <div className="flex items-center justify-center">
+            <div className="h-6 w-6 animate-spin rounded-full border-b-2 border-gray-900"></div>
+            <span className="ml-2">Loading...</span>
+          </div>
         </TableCell>
       </TableRow>
     )
   }
 
-  if (users.length === 0) {
+  if (!users || users.length === 0) {
     return (
       <TableRow>
-        <TableCell colSpan={7} className="h-24 text-center">
+        <TableCell colSpan={4} className="h-24 text-center">
           No users found.
         </TableCell>
       </TableRow>
     )
   }
 
-  return users.map((user: UserWithDetails) => (
-    <TableRow key={user.id}>
-      <TableCell className="hidden sm:table-cell">
-        <div className="relative h-12 w-12">
-          <Image
-            alt="User avatar"
-            className="rounded-full object-cover"
-            fill
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            src={user.imageUrl || '/uploads/placeholder.svg'}
-            onError={(e) => {
-              const target = e.target as HTMLImageElement;
-              target.src = '/uploads/placeholder.svg';
-            }}
-          />
-        </div>
-      </TableCell>
-      <TableCell className="font-medium">{user.full_name || user.name}</TableCell>
-      <TableCell>{user.email || 'N/A'}</TableCell>
-      <TableCell>{user.role || 'N/A'}</TableCell>
-      <TableCell>{user.status}</TableCell>
-      <TableCell>{user.lastActive || 'N/A'}</TableCell>
-      <TableCell>
-        {user.createdAt ? formatDistanceToNow(new Date(user.createdAt), { addSuffix: true }) : 'N/A'}
-      </TableCell>
-      <TableCell>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button aria-haspopup="true" size="icon" variant="ghost">
-              <MoreHorizontal className="h-4 w-4" />
-              <span className="sr-only">Toggle menu</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem onSelect={() => router.push(`/dashboard/users/${user.id}/edit`)}>
-              Edit
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={(event) => event.preventDefault()}>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <button className="w-full text-left">Delete</button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This action cannot be undone. This will permanently delete the user.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={async () => {
-                        setDeletingId(user.id);
-                        await onDelete(user.id);
-                        setDeletingId(null);
-                      }}
-                      disabled={deletingId === user.id}
-                    >
-                      {deletingId === user.id ? 'Deleting...' : 'Delete'}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </TableCell>
-    </TableRow>
-  ))
-}
-
-interface UserTableProps {
-  initialUsers: UserWithDetails[];
-}
-
-export function UserTable({ initialUsers }: UserTableProps) {
-  const [users, setUsers] = useState<UserWithDetails[]>(initialUsers);
-  const [filteredUsers, setFilteredUsers] = useState<UserWithDetails[]>(initialUsers);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const router = useRouter();
-  const { toast } = useToast();
-
   const handleDelete = async (id: string) => {
     try {
-      await deleteUser(id);
-      setUsers(prevUsers => prevUsers.filter(user => user.id !== id));
-      setFilteredUsers(prevUsers => prevUsers.filter(user => user.id !== id));
+      await onDelete(id)
       toast({
-        title: 'User deleted',
-        description: 'The user has been successfully deleted.',
-      });
+        title: "Success",
+        description: "User deleted successfully",
+      })
     } catch (error) {
-      console.error('Error deleting user:', error);
       toast({
-        title: 'Error',
-        description: 'Failed to delete user. Please try again.',
-        variant: 'destructive'
-      });
+        title: "Error",
+        description: "Failed to delete user",
+        variant: "destructive",
+      })
     }
-  };
-
-  useEffect(() => {
-    const filtered = users.filter(user =>
-      user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    setFilteredUsers(filtered);
-  }, [searchTerm, users]);
-
-  const renderTable = (users: UserWithDetails[]) => (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead className="hidden w-[100px] sm:table-cell">
-            <span className="sr-only">Avatar</span>
-          </TableHead>
-          <TableHead>Full Name</TableHead>
-          <TableHead>Email</TableHead>
-          <TableHead>Role</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Last Active</TableHead>
-          <TableHead>Created at</TableHead>
-          <TableHead><span className="sr-only">Actions</span></TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        <UserTableContent
-          users={users}
-          isLoading={isLoading}
-          onDelete={handleDelete}
-        />
-      </TableBody>
-    </Table>
-  )
+  }
 
   return (
-    <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">
-      <Tabs defaultValue="all">
-        <div className="flex items-center">
-          <TabsList>
-            <TabsTrigger value="all">All Users</TabsTrigger>
-            <TabsTrigger value="inactive">Inactive Users</TabsTrigger>
-          </TabsList>
-          <div className="ml-auto flex items-center gap-2">
-            <Input
-              type="search"
-              placeholder="Search users..."
-              className="h-8 w-[150px] lg:w-[250px]"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+    <>
+      {users.map((user) => (
+        <TableRow key={user.id}>
+          <TableCell>
+            <div className="flex items-center space-x-3">
+              <Avatar>
+                <AvatarFallback>
+                  {(user.name || user.email || user.id).charAt(0).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <div className="font-medium">
+                  {user.name || user.email || `User ${user.id.slice(0, 8)}`}
+                </div>
+                {user.email && (
+                  <div className="text-sm text-gray-500">{user.email}</div>
+                )}
+              </div>
+            </div>
+          </TableCell>
+          <TableCell>{user.role || 'user'}</TableCell>
+          <TableCell>
+            <div className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
+              ${user.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+              {user.status || 'active'}
+            </div>
+          </TableCell>
+          <TableCell>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="h-8 gap-1">
-                  <ListFilter className="h-3.5 w-3.5" />
-                  <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                    Filter
-                  </span>
+                <Button variant="ghost" className="h-8 w-8 p-0">
+                  <span className="sr-only">Open menu</span>
+                  <MoreHorizontal className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Filter by</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => router.push(`/dashboard/users/${user.id}/edit`)}>
+                  Edit
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuCheckboxItem checked>Active</DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem>Inactive</DropdownMenuCheckboxItem>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <DropdownMenuItem className="text-red-600" onSelect={(e) => e.preventDefault()}>
+                      Delete
+                    </DropdownMenuItem>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This action cannot be undone. This will permanently delete the user
+                        account and remove their data from our servers.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => handleDelete(user.id)}
+                        className="bg-red-600 hover:bg-red-700"
+                      >
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </DropdownMenuContent>
             </DropdownMenu>
-            <Button size="sm" variant="outline" className="h-8 gap-1">
-              <File className="h-3.5 w-3.5" />
-              <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Export</span>
-            </Button>
-            <Button size="sm" className="h-8 gap-1" onClick={() => router.push('/dashboard/users/new')}>
-              <PlusCircle className="h-3.5 w-3.5" />
-              <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Add User</span>
-            </Button>
-          </div>
-        </div>
-        <TabsContent value="all">
-          <Card>
-            <CardHeader>
-              <CardTitle>Users</CardTitle>
-              <CardDescription>Manage your system users and their permissions.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {renderTable(filteredUsers)}
-            </CardContent>
-            <CardFooter>
-              <div className="text-xs text-muted-foreground">
-                Showing <strong>1-{filteredUsers.length}</strong> of <strong>{users.length}</strong> users
-              </div>
-            </CardFooter>
-          </Card>
-        </TabsContent>
-        <TabsContent value="inactive">
-          <Card>
-            <CardHeader>
-              <CardTitle>Inactive Users</CardTitle>
-              <CardDescription>View and manage inactive system users.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {renderTable(filteredUsers.filter(user => user.status === 'inactive'))}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-    </main>
+          </TableCell>
+        </TableRow>
+      ))}
+    </>
+  )
+}
+
+export default function UserTable({ initialUsers }: { initialUsers: User[] }) {
+  const [users, setUsers] = useState<User[]>(initialUsers)
+  const [isLoading, setIsLoading] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
+
+  const filteredUsers = useMemo(() => {
+    if (!searchTerm) return users
+    const lowerSearchTerm = searchTerm.toLowerCase()
+    return users.filter(user => {
+      const searchableFields = [
+        user.name,
+        user.email,
+        user.role,
+        user.id
+      ].filter(Boolean)
+      return searchableFields.some(field =>
+        field.toLowerCase().includes(lowerSearchTerm)
+      )
+    })
+  }, [users, searchTerm])
+
+  const handleDelete = async (id: string) => {
+    try {
+      setIsLoading(true)
+      await deleteUser(id)
+      setUsers(users.filter(user => user.id !== id))
+    } catch (error) {
+      console.error('Error deleting user:', error)
+      throw error
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <Input
+          placeholder="Search users..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="max-w-sm"
+        />
+      </div>
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>User</TableHead>
+              <TableHead>Role</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="w-[70px]">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <UserTableContent
+              users={filteredUsers}
+              isLoading={isLoading}
+              onDelete={handleDelete}
+            />
+          </TableBody>
+        </Table>
+      </div>
+    </div>
   )
 }
