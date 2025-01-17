@@ -1,9 +1,11 @@
 'use server'
 
-import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-
-import { Order } from "@/types/order"
+import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
+import { cookies } from "next/headers";
+import type { Order } from "@/types/order";
+import crypto from 'crypto';
 
 interface OrderItem {
   product_id: string
@@ -13,49 +15,90 @@ interface OrderItem {
 }
 
 export async function createOrder(orderData: Order) {
-  const supabase = await createServerSupabaseClient()
   try {
-    // First, create the order
+    // Create authenticated Supabase client
+    const supabase = await createClient();
+
+    // Get the current user's session
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+    if (sessionError || !session) {
+      throw new Error('Authentication required');
+    }
+
+    // Validate order data
+    if (!orderData?.customer_id || !orderData?.items?.length) {
+      throw new Error('Invalid order data: Missing required fields');
+    }
+
+    // Ensure customer_id matches authenticated user
+    if (orderData.customer_id !== session.user.id) {
+      throw new Error('Unauthorized: Cannot create order for another user');
+    }
+
+    console.log('Creating order with data:', JSON.stringify(orderData, null, 2));
+
+    // First create the order without items
+    const orderToCreate = {
+      id: orderData.id,
+      customer_id: session.user.id, // Use the authenticated user's ID
+      total_amount: orderData.total_amount,
+      status: orderData.status,
+      type: orderData.type
+    };
+
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .insert({
-        customer_id: orderData.customerId,
-        status: orderData.status,
-        type: orderData.type,
-        total_amount: orderData.totalAmount,
-        customer_info: orderData.customerInfo,
-        order_number: orderData.orderNumber
-      })
+      .insert(orderToCreate)
       .select()
-      .single()
+      .single();
 
-    if (orderError) throw orderError
+    if (orderError) {
+      console.error('Database error creating order:', {
+        code: orderError.code,
+        message: orderError.message,
+        details: orderError.details
+      });
+      throw orderError;
+    }
 
-    // Then, create the order items
+    // Then create the order items
     const orderItems = orderData.items.map(item => ({
+      id: crypto.randomUUID(),
       order_id: order.id,
       product_id: item.product_id,
       quantity: item.quantity,
-      price: item.price,
-      product_name: item.name
-    }))
+      price: item.price
+    }));
 
     const { error: itemsError } = await supabase
-      .from('order_items')
-      .insert(orderItems)
+      .from('order_item')
+      .insert(orderItems);
 
-    if (itemsError) throw itemsError
+    if (itemsError) {
+      console.error('Database error creating order items:', {
+        code: itemsError.code,
+        message: itemsError.message,
+        details: itemsError.details
+      });
+      // TODO: Should probably delete the order if items creation fails
+      throw itemsError;
+    }
 
-    revalidatePath('/dashboard/orders')
-    return order
-  } catch (error) {
-    console.error('Error creating order:', error)
-    throw error
+    return { data: { ...order, items: orderData.items }, error: null };
+
+  } catch (err) {
+    const error = err as Error;
+    console.error('Server error creating order:', {
+      message: error.message,
+      stack: error.stack
+    });
+    return { data: null, error };
   }
 }
 
 export async function getOrders() {
-  const supabase = await createServerSupabaseClient()
+  const supabase = await createClient()
   try {
     const { data: orders, error: ordersError } = await supabase
       .from('orders')

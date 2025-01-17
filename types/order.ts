@@ -1,6 +1,7 @@
 import { Customer } from "@/types/customer";
 
 export interface Order {
+  id: string;
   customer_id: string;
   total_amount: number;
   status: "pending" | "processing" | "shipped" | "delivered" | "cancelled";
@@ -11,7 +12,7 @@ export interface Order {
     price: number;
     name: string;
   }>;
-  orderNumber: string;
+  order_number?: string;
 }
 
 export interface OrderWithProducts extends Order {

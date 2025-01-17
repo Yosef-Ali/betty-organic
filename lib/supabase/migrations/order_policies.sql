@@ -1,60 +1,52 @@
--- Drop existing policies
-DROP POLICY IF EXISTS "customer_manage_orders" ON orders;
-DROP POLICY IF EXISTS "customer_insert_orders" ON orders;
-DROP POLICY IF EXISTS "customer_read_own_orders" ON orders;
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Enable insert for authenticated users" ON public.orders;
+DROP POLICY IF EXISTS "Enable select for users based on customer_id" ON public.orders;
+DROP POLICY IF EXISTS "Sales can create orders" ON public.orders;
+DROP POLICY IF EXISTS "Sales can view their orders" ON public.orders;
 
 -- Enable RLS
-ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
 
--- Allow authenticated users to create orders
-CREATE POLICY "customer_insert_orders" 
-ON orders
-FOR INSERT 
-TO authenticated
-WITH CHECK (auth.uid()::text = customer_id);
+-- Policy for authenticated users to create orders
+CREATE POLICY "Enable insert for authenticated users"
+ON public.orders
+FOR INSERT
+WITH CHECK (auth.role() IN ('authenticated', 'sales'));
 
--- Allow users to read their own orders
-CREATE POLICY "customer_read_own_orders" 
-ON orders
-FOR SELECT 
-TO authenticated
-USING (auth.uid()::text = customer_id);
+-- Policy for users to view their own orders
+CREATE POLICY "Enable select for users based on customer_id"
+ON public.orders
+FOR SELECT
+USING (customer_id = auth.uid());
 
--- Allow users to manage their own orders
-CREATE POLICY "customer_manage_orders" 
-ON orders
-FOR ALL 
-TO authenticated
-USING (auth.uid()::text = customer_id);
+-- Policy for order items
+DROP POLICY IF EXISTS "Enable insert for authenticated users" ON public.order_items;
+DROP POLICY IF EXISTS "Enable select for order owners" ON public.order_items;
 
--- Order items policies
-DROP POLICY IF EXISTS "customer_insert_order_items" ON order_items;
-DROP POLICY IF EXISTS "customer_read_order_items" ON order_items;
-
-ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
+-- Enable RLS on order_items
+ALTER TABLE public.order_items ENABLE ROW LEVEL SECURITY;
 
 -- Allow authenticated users to create order items
-CREATE POLICY "customer_insert_order_items" 
-ON order_items
-FOR INSERT 
-TO authenticated
+CREATE POLICY "Enable insert for authenticated users"
+ON public.order_items
+FOR INSERT
 WITH CHECK (
+  auth.role() IN ('authenticated', 'sales') AND
   EXISTS (
-    SELECT 1 FROM orders
-    WHERE orders.id = order_items.order_id
-    AND orders.customer_id = auth.uid()::text
+    SELECT 1 FROM public.orders
+    WHERE id = order_items.order_id
+    AND customer_id = auth.uid()
   )
 );
 
--- Allow users to read their own order items
-CREATE POLICY "customer_read_order_items" 
-ON order_items
-FOR SELECT 
-TO authenticated
+-- Allow users to view their own order items
+CREATE POLICY "Enable select for order owners"
+ON public.order_items
+FOR SELECT
 USING (
   EXISTS (
-    SELECT 1 FROM orders
-    WHERE orders.id = order_items.order_id
-    AND orders.customer_id = auth.uid()::text
+    SELECT 1 FROM public.orders
+    WHERE id = order_items.order_id
+    AND customer_id = auth.uid()
   )
 );

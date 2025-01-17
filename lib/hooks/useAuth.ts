@@ -56,12 +56,14 @@ export function useAuth(): AuthContext {
     }
   }, [supabase, checkSession, router]);
 
-  const logout = useCallback(async (): Promise<boolean> => {
+  const logout = async () => {
     try {
       setIsLoading(true);
       const { error } = await supabase.auth.signOut();
 
-      if (error) throw error;
+      if (error) {
+        throw new Error(error.message);
+      }
 
       setUser(null);
       setIsAuthenticated(false);
@@ -76,7 +78,7 @@ export function useAuth(): AuthContext {
     } finally {
       setIsLoading(false);
     }
-  }, [supabase, router]);
+  };
 
   useEffect(() => {
     checkSession();
