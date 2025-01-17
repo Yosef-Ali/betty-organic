@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/lib/hooks/useAuth'
-import type { User } from '@supabase/supabase-js'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -13,10 +12,9 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { PackageOpen, Package, ChevronRight } from "lucide-react"
 import { updateProfile } from '@/app/actions/userActions'
 import { createClient } from '@/lib/supabase/client'
-import type { Customer } from '@/lib/supabase/types'
 
 export default function ProfilePage() {
-  const { user, session } = useAuth()
+  const { user } = useAuth()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [image, setImage] = useState('')
@@ -46,61 +44,91 @@ export default function ProfilePage() {
   }, [user])
 
   const fetchOrders = async () => {
-    setLoadingOrders(true)
     try {
-      if (!user?.email) {
-        console.error('User email is not available');
-        return;
+      setLoadingOrders(true)
+      const supabase = createClient()
+      const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+      console.log('Auth user data:', { user, authError })
+
+      if (authError) {
+        console.error('Authentication error:', authError)
+        throw new Error(`Authentication failed: ${authError.message}`)
       }
 
-      const { data: customer, error: customerError } = await createClient()
+      if (!user) {
+        throw new Error('User not authenticated')
+      }
+
+      console.log('Fetching customer with id:', user.id)
+
+      // Add logging to debug customer fetch
+      let customerResult = await supabase
         .from('customers')
-        .select('*')
-        .eq('email', user.email)
+        .select('id, email, full_name, status')
+        .eq('id', user.id)
         .single()
 
+      let customerData = customerResult.data
+      const customerError = customerResult.error
+
+      console.log('Raw customer query result:', { customerData, customerError })
+
       if (customerError) {
-        // If customer doesn't exist, create one
+        // Log the full error object for debugging
+        console.error('Detailed customer error:', JSON.stringify(customerError, null, 2))
+
         if (customerError.code === 'PGRST116') {
-          const { data: newCustomer, error: createError } = await createClient()
+          console.log('No customer found, attempting to create one...')
+          const { data: newCustomer, error: createError } = await supabase
             .from('customers')
             .insert({
-              id: user.id || '',
-              full_name: user.user_metadata?.full_name ?? '',
-              email: user.email ?? '',
+              id: user.id,
+              email: user.email || '',
+              full_name: user.user_metadata?.full_name || '',
               status: 'active'
             })
             .select()
             .single()
 
-          if (createError) throw createError
-          
-          // Use the newly created customer to fetch orders
-          const { data: ordersData, error } = await createClient()
-            .from('orders')
-            .select('*')
-            .eq('customer_id', newCustomer.id)
-            .order('created_at', { ascending: false })
+          if (createError) {
+            console.error('Error creating customer:', createError)
+            throw new Error(`Failed to create customer: ${createError.message}`)
+          }
 
-          if (error) throw error
-          setOrders(ordersData as Order[] || [])
-          return
+          console.log('New customer created:', newCustomer)
+          customerData = newCustomer
+        } else {
+          throw new Error(`Customer fetch failed: ${customerError.message || JSON.stringify(customerError)}`)
         }
-        throw customerError
       }
 
-      const { data: ordersData, error } = await createClient()
+      if (!customerData) {
+        throw new Error('No customer data available')
+      }
+
+      // Add logging to debug orders fetch
+      const { data: ordersData, error: ordersError } = await supabase
         .from('orders')
         .select('*')
-        .eq('customer_id', customer.id)
+        .eq('customer_id', customerData.id)
         .order('created_at', { ascending: false })
 
-      if (error) throw error
-      setOrders(ordersData as Order[] || [])
+      console.log('Orders fetch result:', { ordersData, ordersError })
+
+      if (ordersError) {
+        console.error('Error fetching orders:', ordersError)
+        throw ordersError
+      }
+
+      setOrders(ordersData || [])
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      console.error('Error fetching orders:', errorMessage);
-      setMessage(`Failed to fetch orders: ${errorMessage}`);
+      console.error('Full error object:', error)
+      const errorMessage = error instanceof Error ? error.message :
+        error && typeof error === 'object' ? JSON.stringify(error, null, 2) :
+        'Unknown error occurred'
+      console.error('Error in fetchOrders:', errorMessage)
+      setMessage(`Failed to fetch orders: ${errorMessage}`)
     } finally {
       setLoadingOrders(false)
     }

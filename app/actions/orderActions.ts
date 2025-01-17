@@ -100,6 +100,7 @@ export async function createOrder(orderData: Order) {
 export async function getOrders() {
   const supabase = await createClient()
   try {
+    console.log('Fetching orders from Supabase');
     const { data: orders, error: ordersError } = await supabase
       .from('orders')
       .select(`
@@ -113,7 +114,16 @@ export async function getOrders() {
       `)
       .order('created_at', { ascending: false })
 
-    if (ordersError) throw ordersError
+    if (ordersError) {
+      console.error('Supabase error fetching orders:', {
+        code: ordersError.code,
+        message: ordersError.message,
+        details: ordersError.details
+      });
+      throw ordersError;
+    }
+
+    console.log('Orders fetched successfully:', orders);
     return orders
   } catch (error) {
     console.error('Error fetching orders:', error)
