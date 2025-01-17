@@ -1,9 +1,9 @@
 "use server";
 
 import { supabase } from '@/lib/supabase/client';
+import { Database } from '@/types/supabase';
 
 // Define a type for the transaction
-import { Database } from '@/lib/supabase/database.types';
 
 type Transaction = Database['public']['Tables']['orders']['Row'] & {
   customer: Database['public']['Tables']['customers']['Row'];

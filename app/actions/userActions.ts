@@ -46,21 +46,9 @@ export async function updateProfile({ name, email, image }: { name: string, emai
       return { success: false, error: 'Not authenticated' };
     }
 
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .upsert({
-        id: user.id,
-        full_name: name,
-        avatar_url: image,
-        updated_at: new Date().toISOString(),
-      });
-
-    if (profileError) {
-      return { success: false, error: profileError.message };
-    }
-
-    // Update user metadata
+    // Only update the user metadata
     const { error: updateError } = await supabase.auth.updateUser({
+      email: email !== user.email ? email : undefined, // Only update email if changed
       data: {
         full_name: name,
         avatar_url: image
@@ -68,7 +56,21 @@ export async function updateProfile({ name, email, image }: { name: string, emai
     });
 
     if (updateError) {
+      console.error('Error updating user:', updateError);
       return { success: false, error: updateError.message };
+    }
+
+    // Update the profile record with basic info
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .upsert({
+        id: user.id,
+        updated_at: new Date().toISOString(),
+      });
+
+    if (profileError) {
+      console.error('Error updating profile:', profileError);
+      // Don't return error here as the main update was successful
     }
 
     revalidatePath('/dashboard/profile');

@@ -1,7 +1,8 @@
 'use client';
 
+import { Database } from '@/types/supabase';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { Database } from '@/lib/supabase/database.types';
+
 import { useRouter } from 'next/navigation';
 
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];

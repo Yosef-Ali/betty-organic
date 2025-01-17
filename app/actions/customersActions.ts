@@ -3,7 +3,7 @@
 import { UTApi } from "uploadthing/server";
 import { revalidatePath } from 'next/cache';
 import { supabase } from '@/lib/supabase/client';
-import { Database } from '@/lib/supabase/database.types';
+import type { Database } from '@/types/supabase';
 type Customer = Database['public']['Tables']['customers']['Row'];
 import { v4 as uuidv4 } from 'uuid';
 

@@ -1,20 +1,11 @@
 "use server";
-import { createClient } from '@/lib/supabase/server'
-import { revalidatePath } from "next/cache";
 
-export async function uploadImage(formData: FormData) {
+import { revalidatePath } from "next/cache";
+import { createClient } from '@/lib/supabase/server'
+
+export async function uploadProfileImage(formData: FormData) {
   const supabase = await createClient();
   const file = formData.get("file");
-  const productId = formData.get("productId") as string;
-
-  if (!productId) {
-    console.error("No product ID provided");
-    return {
-      success: false,
-      error: "Product ID is required",
-      details: { type: 'validation', field: 'productId' }
-    };
-  }
 
   if (!file || !(file instanceof Blob)) {
     console.error("Invalid file:", file);
@@ -26,15 +17,14 @@ export async function uploadImage(formData: FormData) {
   }
 
   try {
-    console.log('Starting upload for product:', productId);
-    const uniqueFileName = `${Date.now()}-${file.name || 'upload'}`;
+    const uniqueFileName = `${Date.now()}-${file.name || 'avatar'}`;
 
     // Convert File/Blob to ArrayBuffer
     const arrayBuffer = await file.arrayBuffer();
     const buffer = new Uint8Array(arrayBuffer);
 
     const { data, error: uploadError } = await supabase.storage
-      .from('product-images')
+      .from('avatars')
       .upload(uniqueFileName, buffer, {
         cacheControl: '3600',
         upsert: true,
@@ -51,10 +41,10 @@ export async function uploadImage(formData: FormData) {
 
     console.log('File uploaded:', data?.path);
 
-    // Use Supabase's getPublicUrl for reliable URL construction
+    // Get public URL
     const { data: publicUrlData } = supabase
       .storage
-      .from('product-images')
+      .from('avatars')
       .getPublicUrl(data?.path || '');
 
     if (!publicUrlData?.publicUrl) {
@@ -66,43 +56,50 @@ export async function uploadImage(formData: FormData) {
       };
     }
 
-    const fileUrl = publicUrlData.publicUrl; // Changed from publicURL to publicUrl
+    const fileUrl = publicUrlData.publicUrl;
     console.log('Public URL:', fileUrl);
 
-    // Update the product with the new image URL
-    console.log('Updating product with new image URL...');
-    const { data: product, error: dbError } = await supabase
-      .from('products')
-      .update({
-        imageUrl: fileUrl,
-      })
-      .eq('id', productId)
-      .select()
-      .single();
-
-    if (dbError) {
-      console.error('Error updating product with image URL:', dbError);
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    
+    if (userError || !user) {
+      console.error("Error getting user:", userError);
       return {
         success: false,
-        error: "Failed to update product with image URL",
-        details: { type: 'update', original: dbError.message }
+        error: "Failed to get user information",
+        details: { type: 'auth', original: userError?.message }
       };
     }
 
-    console.log('Product updated with new image URL:', product);
+    // Update user metadata with new avatar URL
+    const { error: updateError } = await supabase.auth.updateUser({
+      data: { 
+        avatar_url: fileUrl,
+        full_name: user.user_metadata.full_name // preserve existing metadata
+      }
+    });
 
-    revalidatePath('/dashboard/products');
+    if (updateError) {
+      console.error('Error updating user metadata:', updateError);
+      return {
+        success: false,
+        error: "Failed to update user metadata",
+        details: { type: 'metadata', original: updateError.message }
+      };
+    }
+
+    revalidatePath('/dashboard/profile');
     return {
       success: true,
       imageUrl: fileUrl,
       details: { path: data?.path }
     };
   } catch (error: any) {
-    console.error("Upload error:", error);
+    console.error('Unexpected error during upload:', error);
     return {
       success: false,
-      error: "Upload failed",
-      details: { type: 'unknown', original: error.message }
+      error: error.message || "An unexpected error occurred",
+      details: { type: 'unexpected' }
     };
   }
 }
