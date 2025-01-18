@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { v4 as uuidv4 } from 'uuid'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { Button } from "@/components/ui/button"
@@ -10,11 +10,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Upload, Trash2 } from "lucide-react"
-import { updateProfile } from '@/app/actions/userActions'
-import { uploadProfileImage } from '@/app/actions/upload-profile-image'
-import { createClient } from '@/lib/supabase/client'
 import { PackageOpen, Package, ChevronRight } from "lucide-react"
+import { updateProfile } from '@/app/actions/userActions'
+import { createClient } from '@/lib/supabase/client'
 import { Database } from '@/types/supabase'
 
 // Profile Page and Order History
@@ -24,7 +22,6 @@ export default function ProfilePage() {
   const [email, setEmail] = useState('')
   const [image, setImage] = useState('')
   const [message, setMessage] = useState('')
-  const [loading, setLoading] = useState(false)
   type Order = Database['public']['Tables']['orders']['Row'] & {
     order_items: Array<
       Database['public']['Tables']['order_items']['Row'] & {
@@ -95,79 +92,6 @@ export default function ProfilePage() {
     }
   }
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    // Validate file size (max 2MB)
-    if (file.size > 2 * 1024 * 1024) {
-      setMessage('File size must be less than 2MB')
-      return
-    }
-
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      setMessage('Only image files are allowed')
-      return
-    }
-
-    setLoading(true)
-    setMessage('')
-
-    try {
-      // Create FormData and append file
-      const formData = new FormData()
-      formData.append('file', file)
-
-      // Upload using server action
-      const result = await uploadProfileImage(formData)
-
-      if (!result.success) {
-        throw new Error(result.error)
-      }
-
-      setImage(result.imageUrl || '')
-      setMessage('Image uploaded successfully')
-    } catch (error) {
-      console.error('Error uploading image:', error)
-      setMessage(error instanceof Error ? error.message : 'Failed to upload image')
-    } finally {
-      setLoading(false)
-      // Clear the input value to allow uploading the same file again
-      if (e.target) {
-        e.target.value = ''
-      }
-    }
-  }
-
-  const handleRemoveImage = async () => {
-    if (!image) return
-
-    setLoading(true)
-    setMessage('')
-
-    try {
-      const supabase = createClient()
-
-      // Update user metadata to remove avatar URL
-      const { error: updateError } = await supabase.auth.updateUser({
-        data: { avatar_url: null }
-      })
-
-      if (updateError) {
-        throw new Error(`Failed to update profile: ${updateError.message}`)
-      }
-
-      setImage('')
-      setMessage('Image removed successfully')
-    } catch (error) {
-      console.error('Error removing image:', error)
-      setMessage(error instanceof Error ? error.message : 'Failed to remove image')
-    } finally {
-      setLoading(false)
-    }
-  }
-
   if (!user) {
     return <div className="text-center mt-8">Please sign in to view your profile.</div>
   }
@@ -197,50 +121,23 @@ export default function ProfilePage() {
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="flex flex-col items-center gap-4">
-                  <div className="relative group">
-                    <Avatar className="w-32 h-32 relative">
-                      <AvatarImage src={image} alt={name} />
-                      <AvatarFallback className="text-4xl">
-                        {name?.charAt(0) || 'A'}
-                      </AvatarFallback>
-                      {loading && (
-                        <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center">
-                          <Skeleton className="w-32 h-32 rounded-full" />
-                        </div>
-                      )}
-                    </Avatar>
-                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <div className="flex gap-2">
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => document.getElementById('image-upload')?.click()}
-                        >
-                          <Upload className="w-4 h-4 mr-2" />
-                          Upload
-                        </Button>
-                        {image && (
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={handleRemoveImage}
-                            disabled={loading}
-                          >
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Remove
-                          </Button>
-                        )}
-                      </div>
-                    </div>
+                  <Avatar className="w-32 h-32">
+                    <AvatarImage src={image} alt={name} />
+                    <AvatarFallback className="text-4xl">
+                      {name?.charAt(0) || 'A'}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setImage('')}>
+                      Remove
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => {
+                      const url = prompt('Enter image URL:')
+                      if (url) setImage(url)
+                    }}>
+                      Change
+                    </Button>
                   </div>
-                  <input
-                    id="image-upload"
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    className="hidden"
-                    disabled={loading}
-                  />
                 </div>
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div className="grid grid-cols-2 gap-4">
@@ -252,10 +149,7 @@ export default function ProfilePage() {
                         type="text"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        placeholder="Enter your full name"
                         required
-                        className="w-full"
-                        disabled={loading}
                       />
                     </div>
                     <div className="space-y-2">
@@ -268,7 +162,6 @@ export default function ProfilePage() {
                         onChange={(e) => setEmail(e.target.value)}
                         required
                         disabled
-                        className="w-full bg-gray-50"
                       />
                     </div>
                   </div>
@@ -286,18 +179,17 @@ export default function ProfilePage() {
                     </div>
                   </div>
                   <div className="flex justify-end">
-                    <Button type="submit" disabled={loading}>
-                      {loading ? 'Saving...' : 'Save Changes'}
+                    <Button type="submit">
+                      Save Changes
                     </Button>
                   </div>
                 </form>
                 {message && (
-                  <div className={`mt-4 p-4 rounded-md ${
-                    message.includes('success')
-                      ? 'bg-green-50 text-green-600 border border-green-200'
-                      : 'bg-red-50 text-red-600 border border-red-200'
-                  }`}>
-                    <p className="text-sm font-medium">{message}</p>
+                  <div className={`mt-4 p-4 rounded-md ${message.includes('success')
+                    ? 'bg-green-50 text-green-600'
+                    : 'bg-red-50 text-red-600'
+                    }`}>
+                    <p className="text-sm">{message}</p>
                   </div>
                 )}
               </CardContent>

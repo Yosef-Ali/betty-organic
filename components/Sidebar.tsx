@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Home, ShoppingBag, ShoppingCart, Package, Users2, Users, LineChart, Settings, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { Home, ShoppingBag, ShoppingCart, Package, Users2, Users, LineChart, Settings, ChevronLeft, ChevronRight, X, IdCard, UserPen } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { Button } from './ui/button';
 import { useUser } from '@/lib/hooks/useUser';
@@ -45,8 +45,9 @@ export default function Sidebar({ expanded, onToggle, mobileMenuOpen, onMobileMe
       { href: "/dashboard/products", icon: Package, label: "Products" },
       { href: "/dashboard/customers", icon: Users2, label: "Customers" },
     ] : []),
-    { href: "/profile", icon: Users, label: "Profile" },
-    ...(isAdmin ? [{ href: "/dashboard/users", icon: Settings, label: "Users" }] : []),
+    { href: "/profile", icon: IdCard, label: "Profile" },
+    ...(isAdmin ? [{ href: "/dashboard/users", icon: UserPen, label: "Users" }] : []),
+    ...(isAdmin ? [{ href: "/dashboard/settings", icon: Settings, label: "Settings" }] : []),
     ...(isAdmin ? [{ href: "/analytics", icon: LineChart, label: "Analytics" }] : [])
   ];
 

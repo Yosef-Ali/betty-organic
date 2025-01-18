@@ -97,6 +97,7 @@ function UserTableContent({ users, isLoading, onDelete }: {
           <TableCell>
             <div className="flex items-center space-x-3">
               <Avatar>
+                <AvatarImage src={user.avatar_url} />
                 <AvatarFallback>
                   {(user.name || user.email || user.id).charAt(0).toUpperCase()}
                 </AvatarFallback>
