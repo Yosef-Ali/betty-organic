@@ -11,6 +11,7 @@ interface AuthContext {
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<boolean>;
   checkSession: () => Promise<void>;
+  isAdmin: boolean;
 }
 
 export function useAuth(): AuthContext {
@@ -24,9 +25,30 @@ export function useAuth(): AuthContext {
   const checkSession = useCallback(async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      setUser(session?.user ?? null);
+      setUser(session?.user as User ?? null);
       setIsAuthenticated(!!session?.user);
       setError(null);
+
+      if (session?.user?.id) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('role, avatar_url')
+          .eq('id', session.user.id)
+          .single()
+        if (profileData) {
+          setUser((prevUser) => {
+            if (!prevUser) return null;
+            return {
+              ...prevUser,
+              user_metadata: {
+                ...prevUser.user_metadata,
+                role: profileData.role,
+                avatar_url: profileData.avatar_url
+              }
+            };
+          });
+        }
+      }
     } catch (error) {
       console.error('Error checking session:', error);
       setError(
@@ -85,7 +107,7 @@ export function useAuth(): AuthContext {
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        setUser(session?.user ?? null);
+        setUser(session?.user as User ?? null);
         setIsAuthenticated(!!session?.user);
         setError(null);
 
@@ -108,6 +130,7 @@ export function useAuth(): AuthContext {
     error,
     login,
     logout,
-    checkSession
+    checkSession,
+    isAdmin: user?.user_metadata.role === 'admin'
   };
 }

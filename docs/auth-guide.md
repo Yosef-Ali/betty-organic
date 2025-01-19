@@ -14,155 +14,154 @@ SUPABASE_ANON_KEY=your-anon-key
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
-### 2. Providers Setup
-`app/providers.tsx` wraps the application with AuthProvider:
-```tsx
-'use client'
-import { AuthProvider } from '@/lib/hooks/useAuth'
+### 2. Authentication Context
+`contexts/auth/AuthContext.tsx` provides authentication state management:
 
-export function Providers({ children }: { children: React.ReactNode }) {
-  return <AuthProvider>{children}</AuthProvider>
+```typescript
+interface AuthContextType {
+  isAdmin: boolean;
+  isSales: boolean;
+  isCustomer: boolean;
+  loading: boolean;
+  profile: Profile | null;
 }
 ```
 
-### 3. Root Layout Integration
-`app/layout.tsx` includes the Providers:
-```tsx
-import { Providers } from './providers'
+Key features:
+- Role-based access control
+- Profile management
+- Session persistence with localStorage
+- Automatic session refresh
+- Loading state management
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
-  return (
-    <html lang="en">
-      <body>
-        <Providers>
-          {children}
-        </Providers>
-      </body>
-    </html>
-  )
+### 3. Server Actions
+`app/auth/actions/authActions.ts` implements authentication operations:
+
+#### Login
+```typescript
+export async function login(formData: LoginFormType): Promise<AuthResponse<LoginResponse>> {
+  // Handles password-based authentication
+  // Updates profile data
+  // Returns role-based redirect
 }
 ```
 
-### 4. Route Protection
-#### Server-side (Middleware)
-`middleware.ts` protects routes:
-```ts
-import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'
-import { NextResponse } from 'next/server'
+#### Signup
+```typescript
+export async function signup(formData: FormData): Promise<AuthResponse> {
+  // Handles user registration
+  // Sets default role as 'customer'
+  // Triggers email verification
+}
+```
 
-export async function middleware(req) {
-  const res = NextResponse.next()
-  const supabase = createMiddlewareClient({ req, res })
+#### Password Reset
+```typescript
+export async function resetPassword(formData: ResetFormType): Promise<AuthResponse> {
+  // Initiates password reset flow
+  // Sends reset instructions via email
+}
+```
 
-  const { data: { session } } = await supabase.auth.getSession()
+#### Sign Out
+```typescript
+export async function signOut(): Promise<void> {
+  // Clears session
+  // Redirects to login
+}
+```
 
-  if (!session) {
-    return NextResponse.redirect(new URL('/auth/login', req.url))
+### 4. Role-Based Access Control
+
+Supported roles:
+- Admin: Full system access
+- Sales: Order management capabilities
+- Customer: Basic user permissions
+
+Role enforcement:
+- Database-level through RLS policies
+- Application-level through AuthContext
+- API-level through middleware checks
+
+### 5. Security Measures
+
+1. Authentication:
+   - Password hashing (Supabase Auth)
+   - Email verification required
+   - Session-based authentication
+   - Secure password reset flow
+
+2. Data Protection:
+   - CSRF protection
+   - Secure cookie handling
+   - Role-based access control
+   - Session invalidation on logout
+
+3. Error Handling:
+   - Comprehensive error types
+   - User-friendly error messages
+   - Session expiration handling
+   - Failed authentication recovery
+
+### 6. Usage Examples
+
+Using authentication context:
+```typescript
+const { isAdmin, profile, loading } = useAuthContext();
+
+if (loading) {
+  return <LoadingSpinner />;
+}
+
+if (!profile) {
+  return <LoginRedirect />;
+}
+
+if (isAdmin) {
+  return <AdminDashboard />;
+}
+```
+
+Login form submission:
+```typescript
+const handleLogin = async (formData: LoginFormType) => {
+  const response = await login(formData);
+
+  if (response.success) {
+    // Handle successful login
+    router.push(response.redirectTo ?? '/');
+  } else {
+    // Handle error
+    setError(response.error);
   }
-
-  return res
-}
+};
 ```
 
-#### Client-side (ProtectedRouteWrapper)
-`components/authentication/protected-route-wrapper.tsx`:
-```tsx
-'use client'
-import { useRouter } from 'next/navigation'
-import { useEffect } from 'react'
-import { useAuth } from '@/lib/hooks/useAuth'
+### 7. Troubleshooting
 
-export default function ProtectedRouteWrapper({
-  children,
-}: {
-  children: React.ReactNode
-}) {
-  const { session } = useAuth()
-  const router = useRouter()
+Common issues and solutions:
 
-  useEffect(() => {
-    if (!session) {
-      router.push('/auth/login')
-    }
-  }, [session, router])
+1. Session Issues:
+   - Clear browser storage
+   - Verify environment variables
+   - Check Supabase project settings
 
-  return <>{children}</>
-}
-```
+2. Role Access Problems:
+   - Verify profile data in Supabase
+   - Check AuthContext state
+   - Review middleware configuration
 
-### 5. Auth Hook
-`lib/hooks/useAuth.tsx` manages auth state:
-```tsx
-'use client'
-import { createContext, useContext, useEffect, useState } from 'react'
-import { Session } from '@supabase/supabase-js'
-import { supabase } from '../supabase/client'
+3. Authentication Errors:
+   - Validate form data
+   - Check network requests
+   - Review server logs
+   - Verify email configuration
 
-const AuthContext = createContext<{
-  session: Session | null
-}>({ session: null })
+## Best Practices
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [session, setSession] = useState<Session | null>(null)
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-    })
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session)
-      }
-    )
-
-    return () => subscription.unsubscribe()
-  }, [])
-
-  return (
-    <AuthContext.Provider value={{ session }}>
-      {children}
-    </AuthContext.Provider>
-  )
-}
-
-export const useAuth = () => useContext(AuthContext)
-```
-
-### 6. OAuth Callback
-`app/auth/callback/route.ts` handles OAuth redirects:
-```ts
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
-import { NextResponse } from 'next/server'
-
-export async function GET(request: Request) {
-  const requestUrl = new URL(request.url)
-  const code = requestUrl.searchParams.get('code')
-
-  if (code) {
-    const supabase = createRouteHandlerClient({ cookies })
-    await supabase.auth.exchangeCodeForSession(code)
-  }
-
-  return NextResponse.redirect(requestUrl.origin)
-}
-```
-
-## Usage
-
-1. Protect pages by wrapping them with ProtectedRouteWrapper
-2. Access auth state using useAuth hook
-3. Login/Logout using supabase.auth methods
-4. Middleware will automatically protect server-side routes
-
-## Troubleshooting
-
-- Ensure environment variables are set correctly
-- Verify Supabase project configuration
-- Check network requests in browser devtools
-- Validate session state in useAuth hook
+1. Always use server actions for authentication operations
+2. Implement proper error handling
+3. Follow role-based access patterns
+4. Keep authentication state in context
+5. Use type-safe interfaces
+6. Maintain secure session management

@@ -30,11 +30,11 @@ export async function updateUserRole(id: string, role: 'customer' | 'admin' | 's
       .from('profiles')
       .update({ role })
       .eq('id', id)
-    if (error) throw error
     revalidatePath('/dashboard/users')
+    return { error }
   } catch (error) {
     console.error('Error updating user role:', error)
-    throw new Error('Failed to update user role')
+    return { error: error as Error }
   }
 }
 
@@ -82,5 +82,26 @@ export async function deleteUser(id: string) {
   } catch (error) {
     console.error('Error deleting user:', error);
     throw new Error('Failed to delete user');
+  }
+}
+
+export async function getUserById(id: string) {
+  const supabase = await createClient();
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      console.error('Supabase error:', JSON.stringify(error, null, 2));
+      throw new Error(error.message || 'An error occurred while fetching user');
+    }
+
+    return data;
+  } catch (error: any) {
+    console.error('Unexpected error:', JSON.stringify(error, null, 2));
+    throw new Error(error.message || 'An unexpected error occurred');
   }
 }

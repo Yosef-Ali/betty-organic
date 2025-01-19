@@ -3,10 +3,10 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Home, ShoppingBag, ShoppingCart, Package, Users2, Users, LineChart, Settings, ChevronLeft, ChevronRight, X, IdCard, UserPen } from "lucide-react";
+import { Home, ShoppingBag, ShoppingCart, Package, Users2, Users, LineChart, Settings, ChevronLeft, ChevronRight, X, IdCard, UserPen, User, LayoutDashboard } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { Button } from './ui/button';
-import { useUser } from '@/lib/hooks/useUser';
+import { useAuthContext } from '@/contexts/auth/AuthContext';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 
 interface SidebarProps {
@@ -17,13 +17,7 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ expanded, onToggle, mobileMenuOpen, onMobileMenuClose }: SidebarProps) {
-  const { isAdmin, isSales, user } = useUser();
-  console.log('User details:', {
-    isAdmin,
-    role: user?.user_metadata?.role,
-    metadata: user?.user_metadata,
-    user
-  });
+  const { isAdmin, isSales, loading, profile } = useAuthContext();  // Changed here
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -33,23 +27,79 @@ export default function Sidebar({ expanded, onToggle, mobileMenuOpen, onMobileMe
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  console.log('🎯 Sidebar auth state:', {
+    isAdmin,
+    isSales,
+    loading,
+    userRole: profile?.role  // Changed here
+  });
+
+  // Show loading state
+  if (loading) {
+    return null;
+  }
+
+  const commonItems = [
+    {
+      label: 'Profile',
+      icon: <UserPen className="h-4 w-4" />,
+      href: '/dashboard/profile',
+    },
+    {
+      label: 'Orders',
+      icon: <ShoppingCart className="h-4 w-4" />,
+      href: '/dashboard/orders',
+    },
+  ];
+
+  const adminSalesItems = [
+    {
+      label: 'Dashboard',
+      icon: <LayoutDashboard className="h-4 w-4" />,
+      href: '/dashboard',
+    },
+    {
+      label: 'Products',
+      icon: <Package className="h-4 w-4" />,
+      href: '/dashboard/products',
+    },
+    {
+      label: 'Orders',
+      icon: <ShoppingCart className="h-4 w-4" />,
+      href: '/dashboard/orders',
+    },
+  ];
+
+  const adminOnlyItems = [
+    {
+      label: 'Settings',
+      icon: <Settings className="h-4 w-4" />,
+      href: '/dashboard/settings',
+    },
+    {
+      label: 'Users',
+      icon: <Users className="h-4 w-4" />,
+      href: '/dashboard/users',
+    },
+  ];
+
+  const navItems = [
+    ...commonItems,
+    ...(isAdmin || isSales ? adminSalesItems : []),
+    ...(isAdmin ? adminOnlyItems : []),
+  ];
+
+  console.log('📋 Sidebar nav items:', {
+    total: navItems.length,
+    items: navItems.map(item => item.label),
+    isAdmin,
+    isSales,
+    role: profile?.role  // Changed here
+  });
+
   const toggleSidebar = () => {
     onToggle(!expanded);
   };
-
-  const navItems = [
-    ...(isAdmin || isSales ? [
-      { href: "/dashboard", icon: Home, label: "Dashboard" },
-      { href: "/dashboard/sales", icon: ShoppingBag, label: "Sales" },
-      { href: "/dashboard/orders", icon: ShoppingCart, label: "Orders" },
-      { href: "/dashboard/products", icon: Package, label: "Products" },
-      { href: "/dashboard/customers", icon: Users2, label: "Customers" },
-    ] : []),
-    { href: "/profile", icon: IdCard, label: "Profile" },
-    ...(isAdmin ? [{ href: "/dashboard/users", icon: UserPen, label: "Users" }] : []),
-    ...(isAdmin ? [{ href: "/dashboard/settings", icon: Settings, label: "Settings" }] : []),
-    ...(isAdmin ? [{ href: "/analytics", icon: LineChart, label: "Analytics" }] : [])
-  ];
 
   const sidebarContent = (
     <>
@@ -83,7 +133,7 @@ export default function Sidebar({ expanded, onToggle, mobileMenuOpen, onMobileMe
         {isAdmin && (
           <SidebarLink
             href="/dashboard/settings"
-            icon={Settings}
+            icon={<Settings className="h-4 w-4" />}
             label="Settings"
             expanded={expanded || isMobile}
             onClick={isMobile ? onMobileMenuClose : undefined}
@@ -113,13 +163,13 @@ export default function Sidebar({ expanded, onToggle, mobileMenuOpen, onMobileMe
 
 interface SidebarLinkProps {
   href: string;
-  icon: React.ElementType;
+  icon: React.ReactNode;
   label: string;
   expanded: boolean;
   onClick?: () => void;
 }
 
-function SidebarLink({ href, icon: Icon, label, expanded, onClick }: SidebarLinkProps) {
+function SidebarLink({ href, icon, label, expanded, onClick }: SidebarLinkProps) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -128,7 +178,7 @@ function SidebarLink({ href, icon: Icon, label, expanded, onClick }: SidebarLink
           className={`flex items-center ${expanded ? 'justify-start px-4' : 'justify-center'} h-10 w-full rounded-md transition-colors hover:bg-accent hover:text-accent-foreground`}
           onClick={onClick}
         >
-          <Icon className="h-5 w-5 flex-shrink-0" />
+          {icon}
           {expanded && <span className="ml-3 text-sm">{label}</span>}
         </Link>
       </TooltipTrigger>

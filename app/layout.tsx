@@ -5,6 +5,7 @@ import { Inter } from 'next/font/google'
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { Toaster } from "@/components/ui/toaster"
 import { Providers } from './providers'
+import { AuthProvider } from '@/contexts/auth/AuthContext'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -26,9 +27,11 @@ export default function RootLayout({
       <body className={cn("min-h-screen bg-background font-sans antialiased", inter.className)}>
         <TooltipProvider>
           <Providers>
-            {children}
+            <AuthProvider>
+              {children}
+            </AuthProvider>
+            <Toaster />
           </Providers>
-          <Toaster />
         </TooltipProvider>
       </body>
     </html>

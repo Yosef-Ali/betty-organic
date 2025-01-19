@@ -64,7 +64,7 @@ export async function signup(formData: FormData): Promise<AuthResponse> {
       success: true,
       data: signupData,
       message: 'Please check your email to verify your account',
-      redirectTo: '/auth/verify'
+      redirectTo: '/'
     }
   } catch (error) {
     return {
@@ -73,11 +73,19 @@ export async function signup(formData: FormData): Promise<AuthResponse> {
       data: null
     }
   }
+
+  return {
+    error: 'Authentication failed',
+    success: false,
+    data: null
+  }
 }
 
 export type LoginResponse = {
   role?: 'admin' | 'customer' | 'sales'
 }
+
+import { useAuthStore } from '@/store/auth/authStore'
 
 export async function login(formData: LoginFormType): Promise<AuthResponse<LoginResponse>> {
   const supabase = await createClient()
@@ -88,30 +96,44 @@ export async function login(formData: LoginFormType): Promise<AuthResponse<Login
       password: formData.password,
     })
 
-    if (error) {
+    if (error || !session?.user) {
       return {
-        error: error.message,
+        error: error?.message ?? 'No user session found',
         success: false,
         data: null
       }
     }
 
-    if (!session?.user) {
+    // Fetch profile data
+    const { data: profileData, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', session.user.id)
+      .single()
+
+    if (profileError || !profileData) {
       return {
-        error: 'No user session found',
+        error: profileError?.message ?? 'Profile not found',
         success: false,
         data: null
       }
     }
 
-    const userRole = session.user.user_metadata?.role || 'customer'
+    // Update auth store with profile data
+    useAuthStore.getState().login({
+      id: profileData.id,
+      email: session.user.email ?? '',
+      name: profileData.name,
+      role: profileData.role,
+      status: profileData.status || 'active',
+      avatar_url: profileData.avatar_url,
+      created_at: profileData.created_at
+    })
 
     return {
       error: null,
       success: true,
-      data: {
-        role: userRole as 'admin' | 'customer' | 'sales'
-      },
+      data: { role: profileData.role },
       redirectTo: '/'
     }
   } catch (error) {

@@ -1,49 +1,77 @@
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { useEffect, useState } from 'react'
-import { User as SupabaseUser } from '@supabase/supabase-js'
-
-export interface UserMetadata {
-  role: 'admin' | 'sales' | 'customer'
-  avatar_url?: string
-}
-
-export type User = Omit<SupabaseUser, 'user_metadata'> & {
-  user_metadata: UserMetadata
-}
+import type { User } from '@/types/user'
 
 export function useUser() {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const [role, setRole] = useState<string | null>(null)
   const supabase = createClientComponentClient()
 
   useEffect(() => {
-    // Immediately check for an existing session
-    const getInitialSession = async () => {
+    let mounted = true
+
+    const loadUserData = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession()
-        setUser(session?.user as User ?? null)
+        // Get session
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+        if (sessionError) throw sessionError
+
+        if (!session?.user) {
+          if (mounted) {
+            setUser(null)
+            setRole(null)
+            setLoading(false)
+          }
+          return
+        }
+
+        // Get profile data
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('role, avatar_url')
+          .eq('id', session.user.id)
+          .single()
+
+        if (profileError) throw profileError
+
+        if (mounted) {
+          setUser({
+            ...session.user,
+            user_metadata: {
+              ...session.user.user_metadata,
+              role: profile?.role,
+              avatar_url: profile?.avatar_url
+            }
+          })
+          setRole(profile?.role)
+        }
       } catch (error) {
-        console.error('Error getting initial session:', error)
+        console.error('Error loading user data:', error)
       } finally {
-        setLoading(false)
+        if (mounted) {
+          setLoading(false)
+        }
       }
     }
 
-    getInitialSession()
+    loadUserData()
 
-    // Set up the auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user as User ?? null)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+      loadUserData()
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
   }, [supabase])
 
   return {
     user,
     loading,
-    isAdmin: true, // Temporarily set to true
-    isSales: user?.user_metadata.role === 'sales',
-    isCustomer: user?.user_metadata.role === 'customer',
+    isAdmin: role === 'admin',
+    isSales: role === 'sales',
+    isCustomer: role === 'customer',
   }
 }

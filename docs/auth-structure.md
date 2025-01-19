@@ -1,57 +1,109 @@
+# Authentication System Structure
+
+```
 betty-organic-app/
 ├── app/
-│ ├── auth/
-│ │ ├── login/
-│ │ │ └── page.tsx
-│ │ ├── signup/
-│ │ │ └── page.tsx
-│ │ └── ...existing code...
-│ ├── layout.tsx
-│ └── ...existing code...
+│   ├── auth/
+│   │   ├── actions/
+│   │   │   └── authActions.ts (Server actions for auth operations)
+│   │   ├── login/
+│   │   │   └── page.tsx (Login page)
+│   │   └── callback/
+│   │       └── route.ts (OAuth callback handler)
+│   └── layout.tsx
 ├── components/
-│ ├── authentication/
-│ │ ├── auth-forms.tsx
-│ │ ├── login-form.tsx
-│ │ ├── signup-form.tsx
-│ │ └── protected-route.tsx
-│ └── ...existing code...
+│   ├── authentication/
+│   │   └── login-form.tsx (Login form component with validation)
+├── contexts/
+│   └── auth/
+│       └── AuthContext.tsx (Authentication context provider)
 ├── lib/
-│ ├── contexts/
-│ │ └── auth-context.tsx (Manages authentication state including user, role, and loading states)
-│ │ ├── AuthContext (Provides user, role, isLoading, isAdmin, isSales)
-│ │ ├── AuthProvider (Handles auth state management and profile fetching)
-│ │ └── useAuth (Custom hook for accessing auth context)
-│ ├── hooks/
-│ │ └── useAuthForm.ts
-│ └── ...existing code...
-└── ...existing code...
+│   ├── supabase/
+│   │   ├── client.ts (Supabase client configuration)
+│   │   └── server.ts (Server-side Supabase client)
+│   └── types/
+│       └── auth.ts (Authentication type definitions)
+└── types/
+    └── supabase.ts (Supabase type definitions)
+```
 
-Key Components:
+## Key Components
 
-1. AuthContext (lib/contexts/auth-context.tsx)
+### 1. Authentication Context (contexts/auth/AuthContext.tsx)
+- Manages global authentication state
+- Provides:
+  ```typescript
+  interface AuthContextType {
+    isAdmin: boolean;
+    isSales: boolean;
+    isCustomer: boolean;
+    loading: boolean;
+    profile: Profile | null;
+  }
+  ```
+- Handles:
+  - Session persistence
+  - Profile management
+  - Role-based access control
+  - Loading states
 
-   - Manages global authentication state
-   - Provides:
-     - user: Current authenticated user
-     - role: User role (admin, sales, customer)
-     - isLoading: Loading state for auth operations
-     - isAdmin: Boolean for admin role check
-     - isSales: Boolean for sales role check
+### 2. Server Actions (app/auth/actions/authActions.ts)
+```typescript
+export async function login(formData: LoginFormType): Promise<AuthResponse>
+export async function signup(formData: FormData): Promise<AuthResponse>
+export async function resetPassword(formData: ResetFormType): Promise<AuthResponse>
+export async function signOut(): Promise<void>
+```
+- Handles all authentication operations
+- Manages user sessions
+- Handles role assignment
+- Processes form submissions
 
-2. AuthProvider
+### 3. Login Form (components/authentication/login-form.tsx)
+- Client-side form component
+- Form validation using Zod
+- Error handling
+- Loading states
+- Submission handling
 
-   - Handles authentication state management
-   - Manages user sessions with Supabase
-   - Fetches and updates user profiles
-   - Handles role-based redirections
-   - Manages loading states during auth operations
+### 4. Auth Pages (app/auth/)
+- login/: User authentication
+- callback/: OAuth handling
+- Protected routes managed by middleware
 
-3. Authentication Forms (components/authentication/)
+### 5. Database Structure
+```sql
+public.profiles (
+    id UUID PRIMARY KEY,
+    role TEXT CHECK (role in ('admin', 'sales', 'customer')),
+    status TEXT CHECK (status in ('active', 'inactive')),
+    created_at TIMESTAMPTZ,
+    updated_at TIMESTAMPTZ
+)
 
-   - login-form.tsx: Handles user login
-   - signup-form.tsx: Handles user registration
-   - protected-route.tsx: Route protection based on auth state
+public.users (
+    id UUID PRIMARY KEY,
+    email TEXT UNIQUE,
+    name TEXT,
+    avatar_url TEXT,
+    created_at TIMESTAMPTZ,
+    updated_at TIMESTAMPTZ
+)
+```
 
-4. Auth Pages (app/auth/)
-   - login/: User login page
-   - signup/: User registration page
+## Authentication Flow
+
+1. User submits credentials via login-form.tsx
+2. authActions.ts processes the request server-side
+3. AuthContext updates with new session/profile
+4. Middleware enforces route protection
+5. Components render based on user role
+
+## Security Features
+
+- Server-side authentication logic
+- Type-safe operations
+- Role-based access control
+- Secure session management
+- Protected API routes
+- Database-level security policies

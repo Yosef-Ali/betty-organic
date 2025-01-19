@@ -1,41 +1,60 @@
 # Authentication Workflow Guide
 
-Below is a concise overview of how the authentication system works in this application.
+Below is a comprehensive overview of how the authentication system works in this application.
 
 ## 1. Sign Up Flow
-- The user enters name, email, and password in SignupForm.
-- SignupForm calls `signUp(email, password, name)` from `useAuthForm`.
-- Supabase creates the user, storing `full_name` in user metadata.
-- The user is then redirected or shown an error message.
+- User enters email and password through the login form
+- Server action `signup()` is called with form data
+- Supabase creates the user and initiates email verification
+- User data is stored with default 'customer' role
+- User is redirected to verification message or shown error
 
 ## 2. Sign In Flow
-1. The user supplies credentials in SignInForm.
-2. `signIn(email, password)` from `useAuthForm` checks Supabase for valid credentials.
-3. If valid, user session is created.
-4. After successful sign-in, the AuthProvider queries the “profiles” table to see if role is “admin.”
-   - If yes, user is allowed to `/dashboard` or any admin routes.
-   - If not, an “Unauthorized” status is returned.
+1. User submits credentials via login form
+2. Server action `login()` validates credentials with Supabase
+3. Upon successful authentication:
+   - Session is created
+   - Profile data is fetched from "profiles" table
+   - User role (admin/sales/customer) is verified
+   - Auth store is updated with profile data
+4. User is redirected based on role and intended destination
 
-## 3. Magic Link & OAuth (Optional)
-- SignInForm offers magic link sign-in (`signInWithOtp`) or Google sign-in (`signInWithOAuth`).
-- Supabase handles redirects.
-- On success, an authenticated session is established the same way as password sign-in.
+## 3. Role-Based Access Flow
+The system supports three roles:
+- **Admin**: Full system access
+- **Sales**: Order management access
+- **Customer**: Basic user access
 
-## 4. Protected Routes
-- “ProtectedRoute” checks:
-  1. If `loading` is over and `user` is missing, redirect to /auth/signin.
-  2. If `requireAdmin` is true but user is not admin, redirect to /unauthorized.
+Role verification occurs at multiple levels:
+1. Database level through RLS policies
+2. Application level via AuthContext
+3. API level through middleware checks
+4. UI level through conditional rendering
 
-## 5. Auth Context
-- “AuthProvider” uses `onAuthStateChange` to:
-  - Set `user`.
-  - Query “profiles” to detect if user is “admin.”
-  - Provide `isAdmin` status to the app.
+## 4. Protected Routes & Authorization
+- Middleware checks for valid session
+- AuthContext provides role-based flags:
+  - `isAdmin`
+  - `isSales`
+  - `isCustomer`
+- Components use these flags for conditional rendering
+- API routes validate permissions server-side
 
-## 6. Putting It All Together
-1. The user visits a protected route → AuthProvider and/or middleware verifies session/role.
-2. If valid session and correct role, they can access the content.
-3. If invalid session or insufficient role, they are redirected to Sign In or Unauthorized page.
+## 5. Auth Context Management
+AuthContext handles:
+- Session persistence
+- Profile management
+- Role-based access control
+- Loading states
+- Auto-refresh of sessions
+- Local storage synchronization
+
+## 6. Password Reset Flow
+1. User initiates reset through reset form
+2. Server action `resetPassword()` triggers reset email
+3. User receives email with reset link
+4. Link redirects to password update page
+5. New password is saved and session updated
 
 ## Additional Database Setup & RLS
 
@@ -141,4 +160,9 @@ CREATE TRIGGER on_auth_user_updated
     EXECUTE FUNCTION handle_auth_user_update();
 ```
 
-These changes ensure that new users automatically get entries in both “profiles” and “users.” The “profiles” table enforces user roles and RLS, while the “users” table stores additional custom fields. Admin privileges are handled via `profiles.role = 'admin'`.
+These SQL configurations ensure:
+- Automatic user profile creation
+- Role-based access control
+- Proper data synchronization
+- Secure row-level security policies
+- Automated profile updates

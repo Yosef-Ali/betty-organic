@@ -18,32 +18,52 @@ import {
 import { Badge } from "./ui/badge";
 import { MobileMenu } from "./MobileMenu";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { useAuthContext } from "@/contexts/auth/AuthContext";
+//import { useAuthContext } from '@/contexts/AuthContext';
 
 interface NavigationProps { }
 
 export default function Navigation({ }: NavigationProps) {
   const router = useRouter();
   const supabase = createClientComponentClient();
-  const { isAuthenticated, user, isLoading: loading } = useAuth(); // Use isAuthenticated, user, and loading from useAuth
+  const { isAuthenticated, user: authUser, isLoading: authLoading } = useAuth();
+  const { isAdmin, loading: contextLoading, profile } = useAuthContext();  // Changed here
   const { items } = useMarketingCartStore();
+
+  console.log('🧭 Navigation auth state:', {
+    isAuthenticated,
+    authLoading,
+    contextLoading,
+    isAdmin,
+    userRole: profile?.role,  // Changed here
+    userEmail: authUser?.email,
+    userMetadata: authUser?.user_metadata
+  });
 
   const handleSignIn = () => router.push('/auth/login');
 
   const handleSignOut = async () => {
     try {
+      console.log('Initiating sign out...');
+
+      // Sign out from Supabase
       const { error } = await supabase.auth.signOut();
+
       if (error) {
-        throw new Error(error.message);
+        throw error;
       }
-      router.push('/');
+
+      // Redirect to login page
+      router.push('/auth/login');
+      router.refresh();
     } catch (error) {
-      if (error instanceof Error) {
-        console.error('Error signing out:', error.message);
-        alert(`Logout failed: ${error.message}`);
-      } else {
-        console.error('Unknown error during logout:', error);
-        alert('An unexpected error occurred during logout');
-      }
+      console.error('Sign out error:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      });
+      // Ensure we redirect even if there's an error
+      router.push('/auth/login');
+      router.refresh();
     }
   };
 
@@ -71,7 +91,7 @@ export default function Navigation({ }: NavigationProps) {
     <nav className="fixed top-0 z-50 w-full bg-[#ffc600]/80 backdrop-blur-md border-b">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         <div className="flex items-center gap-4">
-          <MobileMenu user={user} /> {/* Changed from session to user */}
+          <MobileMenu user={authUser} /> {/* Changed from session to user */}
 
           {/* Logo */}
           <Link href="/" className="text-2xl md:text-2xl font-bold relative group flex items-center gap-2">
@@ -113,13 +133,13 @@ export default function Navigation({ }: NavigationProps) {
           </div>
 
           <div className="flex items-center gap-2">
-            {loading ? (
+            {authLoading ? (
               <Button variant="ghost" disabled>
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
               </Button>
-            ) : user ? (
+            ) : authUser ? (
               <div className="flex items-center gap-4">
-                {user.user_metadata?.role === 'admin' && (
+                {authUser && isAdmin && (
                   <Button
                     variant="ghost"
                     onClick={() => router.push('/dashboard')}
@@ -135,9 +155,9 @@ export default function Navigation({ }: NavigationProps) {
                       variant="ghost"
                       className="relative h-8 w-8 rounded-full overflow-hidden border-2 border-primary hover:bg-primary/10"
                     >
-                      {user.user_metadata?.avatar_url ? (
+                      {authUser.user_metadata?.avatar_url ? (
                         <Image
-                          src={user.user_metadata.avatar_url}
+                          src={authUser.user_metadata.avatar_url}
                           alt="User Avatar"
                           fill
                           className="object-cover"
@@ -146,16 +166,16 @@ export default function Navigation({ }: NavigationProps) {
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center bg-primary text-white text-sm font-medium">
-                          {getInitials(user.email || '')}
+                          {getInitials(authUser.email || '')}
                         </div>
                       )}
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56">
                     <div className="flex flex-col space-y-1 p-2">
-                      <p className="text-sm font-medium">{user.email}</p>
+                      <p className="text-sm font-medium">{authUser.email}</p>
                       <p className="text-xs text-muted-foreground">
-                        {user.user_metadata?.role || 'User'}
+                        {authUser.user_metadata?.role || 'User'}
                       </p>
                     </div>
                     <DropdownMenuSeparator />

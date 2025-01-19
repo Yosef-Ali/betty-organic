@@ -1,6 +1,6 @@
 'use client'
 import { useRouter } from 'next/navigation'
-import { login } from '@/app/actions/authActions'
+import { login } from '@/app/auth/actions/authActions'
 import { LoginForm } from '@/components/authentication/login-form'
 import { LoginFormType } from '@/lib/definitions'
 import Image from 'next/image'
@@ -34,7 +34,7 @@ export default function LoginPage() {
 
       if (success) {
         toast.success('Login successful')
-        
+
         // Let the page load completely before redirect
         setTimeout(() => {
           window.location.href = redirectTo || '/'

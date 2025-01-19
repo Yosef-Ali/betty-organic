@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { updateUserRole } from '@/app/actions/userActions'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import {
@@ -26,7 +27,7 @@ import * as z from 'zod'
 
 const formSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
-  email: z.string().email('Invalid email address'),
+  email: z.string().optional(),
   role: z.enum(['customer', 'admin', 'sales']),
   status: z.enum(['active', 'inactive'])
 })
@@ -59,7 +60,12 @@ export default function EditUserForm({ user }: { user: User }) {
   async function onSubmit(data: FormData) {
     try {
       setIsLoading(true)
-      // TODO: Implement update user function
+      const { error } = await updateUserRole(user.id, data.role)
+
+      if (error) {
+        throw new Error(error.message || 'Failed to update user')
+      }
+
       toast({
         title: 'Success',
         description: 'User updated successfully'
@@ -101,7 +107,7 @@ export default function EditUserForm({ user }: { user: User }) {
             <FormItem>
               <FormLabel>Email</FormLabel>
               <FormControl>
-                <Input {...field} type="email" />
+                <Input {...field} type="email" readOnly />
               </FormControl>
               <FormMessage />
             </FormItem>

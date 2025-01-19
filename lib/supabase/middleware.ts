@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'
 import { logAuthEvent } from '@/lib/utils'
-import { Database } from '@/lib/supabase/database.types'
+import { Database } from '@/types/supabase'
+
 // Define protected route patterns
 const PROTECTED_ROUTES = {
   ADMIN: /^\/admin/,
