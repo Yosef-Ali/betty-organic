@@ -1,0 +1,84 @@
+# Cline Rules Configuration
+# Version: 1.0.0
+
+[typescript]
+# TypeScript specific rules
+strict = true
+noImplicitAny = true
+strictNullChecks = true
+strictFunctionTypes = true
+strictBindCallApply = true
+strictPropertyInitialization = true
+noUnusedLocals = true
+noUnusedParameters = true
+noImplicitReturns = true
+noFallthroughCasesInSwitch = true
+forceConsistentCasingInFileNames = true
+
+[react]
+# React specific rules
+jsxRuntime = "automatic"
+jsxImportSource = "react"
+reactStrictMode = true
+reactHooks = true
+
+[nextjs]
+# Next.js specific rules
+serverComponents = true
+appDir = true
+imageOptimization = true
+fontOptimization = true
+
+[formatting]
+# Code formatting rules
+indentSize = 2
+useTabs = false
+quoteStyle = "single"
+semicolons = true
+lineLength = 100
+trailingComma = "es5"
+
+[linting]
+# Linting rules
+errorOnUnusedImports = true
+errorOnUnusedVariables = true
+errorOnUnusedFunctions = true
+errorOnUnusedTypes = true
+errorOnUnusedParameters = true
+errorOnUnusedProperties = true
+
+[security]
+# Security rules
+xssProtection = true
+csrfProtection = true
+contentSecurityPolicy = true
+strictTransportSecurity = true
+xFrameOptions = true
+xContentTypeOptions = true
+referrerPolicy = "strict-origin-when-cross-origin"
+
+[performance]
+# Performance optimization rules
+imageOptimization = true
+fontOptimization = true
+codeSplitting = true
+lazyLoading = true
+prefetching = true
+
+[documentation]
+# Documentation rules
+markdownFormatting = true
+versionControl = true
+requiredSections = ["overview", "workflow", "structure"]
+codeSnippetFormatting = true
+
+[security]
+# Security rules
+xssProtection = true
+csrfProtection = true
+contentSecurityPolicy = true
+strictTransportSecurity = true
+xFrameOptions = true
+xContentTypeOptions = true
+referrerPolicy = "strict-origin-when-cross-origin"
+readOnlyFiles = ["lib/supabase/client.ts", "types/supabase.ts"]

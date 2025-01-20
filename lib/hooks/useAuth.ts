@@ -1,136 +1,145 @@
-import { useEffect, useState, useCallback } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { useRouter } from 'next/navigation';
-import type { User } from '@/types/user';
+import { useCallback, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
+import { UserRole } from '@/app/auth/actions/authActions'
+import { useToast } from '@/components/ui/use-toast'
 
-interface AuthContext {
-  user: User | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  error: string | null;
-  login: (email: string, password: string) => Promise<void>;
-  logout: () => Promise<boolean>;
-  checkSession: () => Promise<void>;
-  isAdmin: boolean;
+interface Profile {
+  id: string
+  role: UserRole
+  status: 'active' | 'inactive'
 }
 
-export function useAuth(): AuthContext {
-  const supabase = createClientComponentClient();
-  const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+export function useAuth() {
+  const router = useRouter()
+  const { toast } = useToast()
+  const supabase = createClient()
 
-  const checkSession = useCallback(async () => {
+  const refreshProfile = useCallback(async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      setUser(session?.user as User ?? null);
-      setIsAuthenticated(!!session?.user);
-      setError(null);
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.user) return null
 
-      if (session?.user?.id) {
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('role, avatar_url')
-          .eq('id', session.user.id)
-          .single()
-        if (profileData) {
-          setUser((prevUser) => {
-            if (!prevUser) return null;
-            return {
-              ...prevUser,
-              user_metadata: {
-                ...prevUser.user_metadata,
-                role: profileData.role,
-                avatar_url: profileData.avatar_url
-              }
-            };
-          });
-        }
-      }
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .single()
+
+      if (error) throw error
+      return profile as Profile
     } catch (error) {
-      console.error('Error checking session:', error);
-      setError(
-        error instanceof Error ? error.message : 'Failed to check authentication status'
-      );
-    } finally {
-      setIsLoading(false);
+      console.error('Error refreshing profile:', error)
+      return null
     }
-  }, [supabase]);
+  }, [supabase])
 
-  const login = useCallback(async (email: string, password: string) => {
+  const signOut = useCallback(async () => {
     try {
-      setIsLoading(true);
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-
-      if (error) throw error;
-      await checkSession();
-      router.refresh();
+      const { error } = await supabase.auth.signOut()
+      if (error) throw error
+      
+      router.push('/auth/login')
+      toast({
+        title: 'Signed out successfully',
+        duration: 2000
+      })
     } catch (error) {
-      console.error('Login error:', error);
-      setError(
-        error instanceof Error ? error.message : 'Login failed'
-      );
-      throw error;
-    } finally {
-      setIsLoading(false);
+      console.error('Error signing out:', error)
+      toast({
+        title: 'Error signing out',
+        description: error instanceof Error ? error.message : 'An unexpected error occurred',
+        variant: 'destructive'
+      })
     }
-  }, [supabase, checkSession, router]);
+  }, [supabase, router, toast])
 
-  const logout = async () => {
+  const checkAuth = useCallback(async () => {
     try {
-      setIsLoading(true);
-      const { error } = await supabase.auth.signOut();
-
-      if (error) {
-        throw new Error(error.message);
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        router.push('/auth/login')
+        return
       }
 
-      setUser(null);
-      setIsAuthenticated(false);
-      router.refresh();
-      return true;
+      const profile = await refreshProfile()
+      if (!profile) {
+        toast({
+          title: 'Profile not found',
+          description: 'Please sign in again',
+          variant: 'destructive'
+        })
+        await signOut()
+        return
+      }
+
+      if (profile.status === 'inactive') {
+        toast({
+          title: 'Account inactive',
+          description: 'Your account is currently inactive. Please contact support.',
+          variant: 'destructive'
+        })
+        await signOut()
+        return
+      }
+
+      return profile
     } catch (error) {
-      console.error('Logout error:', error);
-      setError(
-        error instanceof Error ? error.message : 'Logout failed'
-      );
-      return false;
-    } finally {
-      setIsLoading(false);
+      console.error('Error checking auth:', error)
+      toast({
+        title: 'Authentication error',
+        description: error instanceof Error ? error.message : 'An unexpected error occurred',
+        variant: 'destructive'
+      })
+      return null
     }
-  };
+  }, [supabase, router, toast, refreshProfile, signOut])
+
+  const hasPermission = useCallback((requiredRole: UserRole | UserRole[]) => {
+    return async () => {
+      const profile = await checkAuth()
+      if (!profile) return false
+
+      const roles = Array.isArray(requiredRole) ? requiredRole : [requiredRole]
+      return roles.includes(profile.role)
+    }
+  }, [checkAuth])
 
   useEffect(() => {
-    checkSession();
-
-    const { data: authListener } = supabase.auth.onAuthStateChange(
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        setUser(session?.user as User ?? null);
-        setIsAuthenticated(!!session?.user);
-        setError(null);
-
-        // Refresh page on auth state changes
-        if (['SIGNED_IN', 'SIGNED_OUT'].includes(event)) {
-          router.refresh();
+        if (event === 'SIGNED_OUT') {
+          router.push('/auth/login')
+        } else if (event === 'SIGNED_IN') {
+          const profile = await refreshProfile()
+          if (profile) {
+            router.push(getRoleBasedRedirect(profile.role))
+          }
         }
       }
-    );
+    )
 
     return () => {
-      authListener.subscription.unsubscribe();
-    };
-  }, [supabase, checkSession, router]);
+      subscription.unsubscribe()
+    }
+  }, [supabase, router, refreshProfile])
 
   return {
-    user,
-    isAuthenticated,
-    isLoading,
-    error,
-    login,
-    logout,
-    checkSession,
-    isAdmin: user?.user_metadata.role === 'admin'
-  };
+    checkAuth,
+    refreshProfile,
+    signOut,
+    hasPermission
+  }
+}
+
+function getRoleBasedRedirect(role: UserRole): string {
+  switch (role) {
+    case 'admin':
+      return '/admin/dashboard'
+    case 'sales':
+      return '/sales/dashboard'
+    case 'customer':
+    default:
+      return '/dashboard'
+  }
 }

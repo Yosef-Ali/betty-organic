@@ -2,8 +2,6 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { getServerSession } from 'next-auth';
-import { Session } from 'next-auth';
 
 export async function getUsers() {
   const supabase = await createClient()
@@ -40,8 +38,8 @@ export async function updateUserRole(id: string, role: 'customer' | 'admin' | 's
 
 export async function updateProfile({ name, email, image }: { name: string, email: string, image: string }) {
   const supabase = await createClient();
-  const session = await getServerSession() as Session;
-  const userId = session?.user?.email;
+  const { data: { session } } = await supabase.auth.getSession();
+  const userId = session?.user?.id;
 
   if (!userId) {
     return { error: 'Unauthorized' };
@@ -55,7 +53,7 @@ export async function updateProfile({ name, email, image }: { name: string, emai
         email: email,
         avatar_url: image,
       })
-      .eq('email', userId);
+      .eq('id', userId);
 
     if (error) {
       console.error('Error updating profile:', error);

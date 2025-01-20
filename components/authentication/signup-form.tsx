@@ -18,30 +18,37 @@ import { useState } from 'react'
 import { Alert, AlertDescription } from '../ui/alert'
 
 const formSchema = z.object({
+  full_name: z.string().min(2, 'Name must be at least 2 characters'),
   email: z.string().email('Invalid email address'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
+  confirmPassword: z.string(),
+}).refine(data => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"]
 })
 
-export type LoginFormType = z.infer<typeof formSchema>
+export type SignupFormType = z.infer<typeof formSchema>
 
-interface LoginFormProps {
-  onSubmit: (values: LoginFormType) => Promise<void>
+interface SignupFormProps {
+  onSubmit: (values: SignupFormType) => Promise<void>
 }
 
-export function LoginForm({ onSubmit }: LoginFormProps) {
+export function SignupForm({ onSubmit }: SignupFormProps) {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
-  const form = useForm<LoginFormType>({
+  const form = useForm<SignupFormType>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      full_name: '',
       email: '',
       password: '',
+      confirmPassword: '',
     },
   })
 
-  async function handleSubmit(values: LoginFormType) {
+  async function handleSubmit(values: SignupFormType) {
     setError(null)
     setIsLoading(true)
 
@@ -70,6 +77,19 @@ export function LoginForm({ onSubmit }: LoginFormProps) {
         )}
         <FormField
           control={form.control}
+          name="full_name"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Name</FormLabel>
+              <FormControl>
+                <Input placeholder="Your name" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
           name="email"
           render={({ field }) => (
             <FormItem>
@@ -94,8 +114,21 @@ export function LoginForm({ onSubmit }: LoginFormProps) {
             </FormItem>
           )}
         />
+        <FormField
+          control={form.control}
+          name="confirmPassword"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Confirm Password</FormLabel>
+              <FormControl>
+                <Input type="password" placeholder="••••••••" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
         <Button type="submit" className="w-full" disabled={isLoading}>
-          {isLoading ? 'Signing in...' : 'Sign in'}
+          {isLoading ? 'Creating account...' : 'Sign up'}
         </Button>
       </form>
     </Form>

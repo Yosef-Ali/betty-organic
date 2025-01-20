@@ -1,168 +1,110 @@
-# Authentication Workflow Guide
+# Authentication Workflows
 
-Below is a comprehensive overview of how the authentication system works in this application.
+This guide outlines the key authentication workflows in the application.
 
 ## 1. Sign Up Flow
-- User enters email and password through the login form
-- Server action `signup()` is called with form data
-- Supabase creates the user and initiates email verification
-- User data is stored with default 'customer' role
-- User is redirected to verification message or shown error
+1. User submits email/password via signup form
+2. Server validates input and checks for existing user
+3. Supabase creates user with 'customer' role
+4. Verification email is sent
+5. User data is stored in profiles/users tables
+6. Redirect to verification message
 
 ## 2. Sign In Flow
-1. User submits credentials via login form
-2. Server action `login()` validates credentials with Supabase
-3. Upon successful authentication:
-   - Session is created
-   - Profile data is fetched from "profiles" table
-   - User role (admin/sales/customer) is verified
-   - Auth store is updated with profile data
-4. User is redirected based on role and intended destination
+1. User submits credentials
+2. Server validates with Supabase
+3. On success:
+   - Create session
+   - Fetch profile
+   - Set role flags
+   - Update auth store
+4. Redirect based on role
 
-## 3. Role-Based Access Flow
-The system supports three roles:
-- **Admin**: Full system access
-- **Sales**: Order management access
-- **Customer**: Basic user access
+## 3. Password Reset Flow
+1. User requests reset
+2. Server validates email
+3. Reset email sent
+4. User clicks reset link
+5. Server verifies token
+6. User sets new password
+7. Session updated
 
-Role verification occurs at multiple levels:
-1. Database level through RLS policies
-2. Application level via AuthContext
-3. API level through middleware checks
-4. UI level through conditional rendering
+## 4. Session Management
 
-## 4. Protected Routes & Authorization
-- Middleware checks for valid session
-- AuthContext provides role-based flags:
-  - `isAdmin`
-  - `isSales`
-  - `isCustomer`
-- Components use these flags for conditional rendering
-- API routes validate permissions server-side
+### Creation
+1. User authenticates
+2. Session token generated
+3. Token stored securely
+4. Profile data cached
 
-## 5. Auth Context Management
-AuthContext handles:
-- Session persistence
-- Profile management
-- Role-based access control
-- Loading states
-- Auto-refresh of sessions
-- Local storage synchronization
+### Validation
+1. Middleware checks token
+2. Verify expiration
+3. Validate permissions
+4. Update if needed
 
-## 6. Password Reset Flow
-1. User initiates reset through reset form
-2. Server action `resetPassword()` triggers reset email
-3. User receives email with reset link
-4. Link redirects to password update page
-5. New password is saved and session updated
+### Refresh
+1. Monitor token expiry
+2. Auto-refresh near expiry
+3. Update stored token
+4. Sync profile data
 
-## Additional Database Setup & RLS
+## 5. Role-Based Access
 
-Below SQL script sets up the profiles and users tables, creates row-level security policies, and adds triggers to handle new and updated users in Supabase:
+### Admin Flow
+1. Check admin flag
+2. Verify database role
+3. Grant full access
+4. Enable admin features
 
-```sql
--- Drop existing triggers first
-DROP TRIGGER IF EXISTS trigger_add_user_on_sign_up ON auth.users;
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+### Sales Flow
+1. Check sales flag
+2. Verify permissions
+3. Grant order access
+4. Show sales dashboard
 
--- Drop existing functions
-DROP FUNCTION IF EXISTS public.add_user_on_sign_up();
-DROP FUNCTION IF EXISTS public.handle_new_user();
+### Customer Flow
+1. Default role
+2. Basic permissions
+3. Limited features
+4. Profile management
 
--- Create or update profiles table (role can be 'admin', 'sales', or 'customer')
-CREATE TABLE IF NOT EXISTS public.profiles (
-    id UUID REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
-    role TEXT CHECK (role in ('admin', 'sales', 'customer')) DEFAULT 'customer',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
+## 6. Error Handling
 
--- Enable row-level security (RLS)
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+### Authentication Errors
+1. Invalid credentials
+2. Account locked
+3. Email unverified
+4. Session expired
 
--- Create policies
-CREATE POLICY "Users can view own profile" ON public.profiles
-    FOR SELECT USING (auth.uid() = id);
+### Authorization Errors
+1. Invalid role
+2. Missing permissions
+3. Token expired
+4. Invalid session
 
-CREATE POLICY "Admin full access profiles" ON public.profiles
-    FOR ALL USING (
-        EXISTS (
-            SELECT 1 FROM public.profiles
-            WHERE id = auth.uid() AND role = 'admin'
-        )
-    );
+### Recovery Steps
+1. Clear session
+2. Redirect to login
+3. Show error message
+4. Log for monitoring
 
--- Create or update users table
-CREATE TABLE IF NOT EXISTS public.users (
-    id UUID REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
-    email TEXT UNIQUE NOT NULL,
-    name TEXT,
-    address TEXT,
-    phone TEXT,
-    avatar TEXT DEFAULT 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    CONSTRAINT email_check CHECK (email LIKE '%_@__%.__%')
-);
+## 7. Security Measures
 
-ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+### Request Protection
+1. CSRF tokens
+2. Rate limiting
+3. Input validation
+4. Error sanitization
 
--- Create the new-user function and trigger
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
-BEGIN
-    INSERT INTO public.profiles (id)
-    VALUES (NEW.id);
+### Session Security
+1. HTTP-only cookies
+2. Secure flags
+3. SameSite policy
+4. XSS prevention
 
-    INSERT INTO public.users (
-        id,
-        email,
-        name,
-        avatar
-    ) VALUES (
-        NEW.id,
-        NEW.email,
-        COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'name', NEW.email),
-        COALESCE(NEW.raw_user_meta_data->>'avatar_url', NEW.raw_user_meta_data->>'avatar',
-                 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png')
-    );
-
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-CREATE TRIGGER on_auth_user_created
-    AFTER INSERT ON auth.users
-    FOR EACH ROW
-    EXECUTE FUNCTION public.handle_new_user();
-
--- Grant permissions
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO authenticated;
-GRANT ALL ON ALL TABLES IN SCHEMA public TO authenticated;
-GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO authenticated;
-
--- Handle auth.user updates
-CREATE OR REPLACE FUNCTION handle_auth_user_update()
-RETURNS TRIGGER AS $$
-BEGIN
-    UPDATE public.users
-    SET
-        email = NEW.email,
-        updated_at = now()
-    WHERE id = NEW.id;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-CREATE TRIGGER on_auth_user_updated
-    AFTER UPDATE ON auth.users
-    FOR EACH ROW
-    EXECUTE FUNCTION handle_auth_user_update();
-```
-
-These SQL configurations ensure:
-- Automatic user profile creation
-- Role-based access control
-- Proper data synchronization
-- Secure row-level security policies
-- Automated profile updates
+### Database Security
+1. RLS policies
+2. Prepared statements
+3. Role validation
+4. Audit logging

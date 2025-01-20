@@ -2,8 +2,6 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
-import { cookies } from "next/headers";
 import type { Order } from "@/types/order";
 import crypto from 'crypto';
 
@@ -133,7 +131,7 @@ export async function deleteOrder(orderId: string) {
   }
 }
 
-export async function getOrders() {
+export async function getOrders(customerId?: string) {
   const supabase = await createClient()
   try {
     const { data: orders, error: ordersError } = await supabase
@@ -141,17 +139,12 @@ export async function getOrders() {
       .select(`
         *,
         order_items!order_items_order_id_fkey (
-          product_id,
-          quantity,
-          price,
-          products!inner (
-            id,
-            name,
-            price
-          )
+          *,
+          products!inner (*)
         )
       `)
       .order('created_at', { ascending: false })
+      .eq(customerId ? 'customer_id' : '', customerId || '')
 
     if (ordersError) {
       console.error('Supabase error fetching orders:', {

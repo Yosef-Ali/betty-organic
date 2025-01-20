@@ -1,8 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useAuth } from '@/lib/hooks/useAuth'
-import { User } from '@supabase/supabase-js'
+import { useState } from 'react'
+import { useAuthContext } from '@/contexts/auth/AuthContext'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -10,26 +9,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { updateProfile } from '@/app/actions/userActions'
 
-type ExtendedUser = User & {
-  role?: string
-  isVerified?: boolean
-}
-
 export default function ProfilePage() {
-  const { session } = useAuth()
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
-  const [image, setImage] = useState('')
+  const { profile, isAuthenticated } = useAuthContext()
+  const [name, setName] = useState(profile?.name || '')
+  const [email, setEmail] = useState(profile?.email || '')
+  const [image, setImage] = useState(profile?.avatar_url || '')
   const [message, setMessage] = useState('')
-
-  useEffect(() => {
-    if (session?.user) {
-      const user = session.user as ExtendedUser
-      setName(user.user_metadata?.full_name || '')
-      setEmail(user.email || '')
-      setImage(user.user_metadata?.avatar_url || '')
-    }
-  }, [session])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -47,7 +32,7 @@ export default function ProfilePage() {
     }
   }
 
-  if (!session) {
+  if (!isAuthenticated || !profile) {
     return <div className="text-center mt-8">Please sign in to view your profile.</div>
   }
 
@@ -55,7 +40,7 @@ export default function ProfilePage() {
     <div className="container mx-auto px-4 py-8">
       <Card className="max-w-2xl mx-auto">
         <CardHeader>
-          <CardTitle className="text-2xl font-bold text-center">Your Atracure Profile</CardTitle>
+          <CardTitle className="text-2xl font-bold text-center">Your Betty&apos;s Organic Profile</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex justify-center mb-6">
@@ -102,9 +87,13 @@ export default function ProfilePage() {
             </Button>
           </form>
           {message && (
-            <p className={`mt-4 text-center ${message.includes('success') ? 'text-green-600' : 'text-red-600'}`}>
+            <div className={`mt-4 p-3 rounded-md text-center ${
+              message.includes('success')
+                ? 'bg-green-50 text-green-800 border border-green-200'
+                : 'bg-red-50 text-red-800 border border-red-200'
+            }`}>
               {message}
-            </p>
+            </div>
           )}
         </CardContent>
       </Card>

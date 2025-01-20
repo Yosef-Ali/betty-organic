@@ -9,8 +9,7 @@ Required environment variables in `.env.local`:
 ```env
 NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-SUPABASE_URL=your-supabase-url
-SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
@@ -24,144 +23,109 @@ interface AuthContextType {
   isCustomer: boolean;
   loading: boolean;
   profile: Profile | null;
+  refreshProfile: () => Promise<void>;
 }
 ```
 
 Key features:
 - Role-based access control
 - Profile management
-- Session persistence with localStorage
+- Session persistence
 - Automatic session refresh
 - Loading state management
 
-### 3. Server Actions
+### 3. Middleware
+`lib/supabase/middleware.ts` handles:
+- Session validation
+- Route protection
+- Role-based access
+- API authentication
+- Error responses
+
+Protected routes:
+- `/dashboard/*`: Requires authentication
+- `/api/*`: Requires valid session
+- `/admin/*`: Requires admin role
+- `/sales/*`: Requires sales role
+
+### 4. Server Actions
 `app/auth/actions/authActions.ts` implements authentication operations:
 
-#### Login
 ```typescript
-export async function login(formData: LoginFormType): Promise<AuthResponse<LoginResponse>> {
-  // Handles password-based authentication
-  // Updates profile data
-  // Returns role-based redirect
-}
+export async function login(formData: LoginFormType): Promise<AuthResponse>;
+export async function signup(formData: FormData): Promise<AuthResponse>;
+export async function resetPassword(formData: ResetFormType): Promise<AuthResponse>;
+export async function signOut(): Promise<void>;
 ```
 
-#### Signup
-```typescript
-export async function signup(formData: FormData): Promise<AuthResponse> {
-  // Handles user registration
-  // Sets default role as 'customer'
-  // Triggers email verification
-}
-```
-
-#### Password Reset
-```typescript
-export async function resetPassword(formData: ResetFormType): Promise<AuthResponse> {
-  // Initiates password reset flow
-  // Sends reset instructions via email
-}
-```
-
-#### Sign Out
-```typescript
-export async function signOut(): Promise<void> {
-  // Clears session
-  // Redirects to login
-}
-```
-
-### 4. Role-Based Access Control
+### 5. Role-Based Access Control
 
 Supported roles:
 - Admin: Full system access
-- Sales: Order management capabilities
-- Customer: Basic user permissions
+- Sales: Order management
+- Customer: Basic access
 
 Role enforcement:
-- Database-level through RLS policies
-- Application-level through AuthContext
-- API-level through middleware checks
+- Database RLS policies
+- Application middleware
+- AuthContext checks
+- API validation
 
-### 5. Security Measures
+### 6. Security Measures
 
 1. Authentication:
-   - Password hashing (Supabase Auth)
-   - Email verification required
-   - Session-based authentication
-   - Secure password reset flow
+   - Password hashing
+   - Email verification
+   - Session management
+   - Secure password reset
 
 2. Data Protection:
    - CSRF protection
-   - Secure cookie handling
-   - Role-based access control
-   - Session invalidation on logout
+   - Secure cookies
+   - RLS policies
+   - Session invalidation
 
 3. Error Handling:
-   - Comprehensive error types
-   - User-friendly error messages
-   - Session expiration handling
-   - Failed authentication recovery
+   - Type-safe errors
+   - User messages
+   - Session recovery
+   - Rate limiting
 
-### 6. Usage Examples
+### 7. Usage Examples
 
 Using authentication context:
 ```typescript
 const { isAdmin, profile, loading } = useAuthContext();
 
-if (loading) {
-  return <LoadingSpinner />;
-}
-
-if (!profile) {
-  return <LoginRedirect />;
-}
-
-if (isAdmin) {
-  return <AdminDashboard />;
-}
+if (loading) return <LoadingSpinner />;
+if (!profile) return <LoginRedirect />;
+if (isAdmin) return <AdminDashboard />;
 ```
 
-Login form submission:
-```typescript
-const handleLogin = async (formData: LoginFormType) => {
-  const response = await login(formData);
+### 8. Troubleshooting
 
-  if (response.success) {
-    // Handle successful login
-    router.push(response.redirectTo ?? '/');
-  } else {
-    // Handle error
-    setError(response.error);
-  }
-};
-```
-
-### 7. Troubleshooting
-
-Common issues and solutions:
+Common issues:
 
 1. Session Issues:
-   - Clear browser storage
-   - Verify environment variables
-   - Check Supabase project settings
+   - Clear storage
+   - Check env vars
+   - Verify Supabase settings
 
-2. Role Access Problems:
-   - Verify profile data in Supabase
-   - Check AuthContext state
-   - Review middleware configuration
+2. Role Access:
+   - Check profile data
+   - Verify middleware
+   - Review RLS policies
 
-3. Authentication Errors:
-   - Validate form data
-   - Check network requests
-   - Review server logs
-   - Verify email configuration
+3. Auth Errors:
+   - Validate input
+   - Check network
+   - Review logs
 
 ## Best Practices
 
-1. Always use server actions for authentication operations
-2. Implement proper error handling
-3. Follow role-based access patterns
-4. Keep authentication state in context
-5. Use type-safe interfaces
-6. Maintain secure session management
+1. Use server actions for auth
+2. Implement error handling
+3. Follow role-based access
+4. Keep state in context
+5. Use TypeScript
+6. Secure sessions

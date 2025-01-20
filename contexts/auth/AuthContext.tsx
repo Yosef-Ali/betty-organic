@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { logAuthEvent } from '@/lib/utils';
 
 interface Profile {
   id: string;
@@ -33,13 +34,21 @@ const AuthContext = createContext<AuthContextType>({
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(() => {
-    // Try to load from localStorage on initial mount
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('userProfile');
-      return saved ? JSON.parse(saved) : null;
+      try {
+        const savedProfile = localStorage.getItem('userProfile');
+        return savedProfile ? JSON.parse(savedProfile) : null;
+      } catch (error) {
+        logAuthEvent('Error loading saved profile', {
+          error: error instanceof Error ? error.message : 'Unknown error',
+          level: 'error'
+        });
+        return null;
+      }
     }
     return null;
   });
+
   const [loading, setLoading] = useState(true);
   const [initialized, setInitialized] = useState(false);
   const supabase = createClientComponentClient();
@@ -53,32 +62,61 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .single();
 
       if (error) {
-        console.error('Profile fetch error:', error);
+        logAuthEvent('Profile fetch error', {
+          error: error.message,
+          user: userId,
+          level: 'error'
+        });
         localStorage.removeItem('userProfile');
         return null;
       }
 
-      if (profileData) {
-        // Always save to localStorage when we get new data
-        localStorage.setItem('userProfile', JSON.stringify(profileData));
-        return profileData;
+      if (!profileData) {
+        logAuthEvent('No profile found', {
+          user: userId,
+          level: 'warn'
+        });
+        return null;
       }
-      return null;
+
+      const profile: Profile = {
+        ...profileData,
+        role: profileData.role || 'customer',
+        status: profileData.status || 'active'
+      };
+
+      localStorage.setItem('userProfile', JSON.stringify(profile));
+      return profile;
     } catch (error) {
-      console.error('Profile load error:', error);
+      logAuthEvent('Profile load error', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        user: userId,
+        level: 'error'
+      });
       localStorage.removeItem('userProfile');
       return null;
     }
   };
 
-  // Single source of truth for updating profile
-  const updateProfile = (newProfile: Profile | null) => {
-    if (newProfile) {
-      localStorage.setItem('userProfile', JSON.stringify(newProfile));
-    } else {
-      localStorage.removeItem('userProfile');
+  const updateProfile = async (newProfile: Profile | null) => {
+    try {
+      if (newProfile) {
+        localStorage.setItem('userProfile', JSON.stringify(newProfile));
+        logAuthEvent('Profile updated', {
+          user: newProfile.id,
+          level: 'info'
+        });
+      } else {
+        localStorage.removeItem('userProfile');
+        logAuthEvent('Profile cleared', { level: 'info' });
+      }
+      setProfile(newProfile);
+    } catch (error) {
+      logAuthEvent('Error updating profile', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        level: 'error'
+      });
     }
-    setProfile(newProfile);
   };
 
   useEffect(() => {
@@ -87,24 +125,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const initializeAuth = async () => {
       try {
         setLoading(true);
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session }, error } = await supabase.auth.getSession();
+
+        if (error) {
+          logAuthEvent('Session fetch error', {
+            error: error.message,
+            level: 'error'
+          });
+          throw error;
+        }
 
         if (!session?.user?.id) {
-          updateProfile(null);
+          await updateProfile(null);
         } else {
           const profileData = await loadProfile(session.user.id);
           if (mounted && profileData) {
-            updateProfile({
-              ...profileData,
-              email: session.user.email ?? '',
-              role: profileData.role,
-              status: profileData.status || 'active'
-            });
+            await updateProfile(profileData);
+          } else {
+            await updateProfile(null);
           }
         }
       } catch (error) {
-        console.error('Auth initialization error:', error);
-        updateProfile(null);
+        logAuthEvent('Auth initialization error', {
+          error: error instanceof Error ? error.message : 'Unknown error',
+          level: 'error'
+        });
+        await updateProfile(null);
       } finally {
         if (mounted) {
           setLoading(false);
@@ -117,20 +163,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        logAuthEvent('Auth state changed', {
+          event,
+          user: session?.user?.id,
+          level: 'info'
+        });
+
         if (!mounted) return;
 
-        if (session?.user?.id) {
-          const profileData = await loadProfile(session.user.id);
-          if (profileData) {
-            updateProfile({
-              ...profileData,
-              email: session.user.email ?? '',
-              role: profileData.role,
-              status: profileData.status || 'active'
-            });
+        try {
+          if (session?.user?.id) {
+            const profileData = await loadProfile(session.user.id);
+            if (profileData) {
+              await updateProfile(profileData);
+            } else {
+              await updateProfile(null);
+            }
+          } else {
+            await updateProfile(null);
           }
-        } else {
-          updateProfile(null);
+        } catch (error) {
+          logAuthEvent('Auth state change error', {
+            error: error instanceof Error ? error.message : 'Unknown error',
+            level: 'error'
+          });
+          await updateProfile(null);
         }
       }
     );
@@ -141,7 +198,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [supabase]);
 
-  // Don't render until we've completed initial load
   if (!initialized) {
     return null;
   }

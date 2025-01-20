@@ -1,4 +1,5 @@
 'use client'
+
 import { useRouter } from 'next/navigation'
 import { login } from '@/app/auth/actions/authActions'
 import { LoginForm } from '@/components/authentication/login-form'
@@ -35,10 +36,19 @@ export default function LoginPage() {
       if (success) {
         toast.success('Login successful')
 
-        // Let the page load completely before redirect
-        setTimeout(() => {
-          window.location.href = redirectTo || '/'
-        }, 500)
+        // Get stored redirect URL from cookie
+        const redirectUrl = document.cookie
+          .split('; ')
+          .find(row => row.startsWith('redirectUrl='))
+          ?.split('=')[1]
+
+        // Clear redirect URL cookie
+        if (redirectUrl) {
+          document.cookie = 'redirectUrl=; path=/; max-age=0'
+        }
+
+        // Use router.push for client-side navigation
+        router.push(redirectUrl || redirectTo || '/')
       }
     } catch (error) {
       console.error('Login error:', error)
@@ -66,9 +76,9 @@ export default function LoginPage() {
             <LoginForm onSubmit={handleSubmit} />
             <div className="mt-4 text-center text-sm">
               Don&apos;t have an account?{' '}
-              <a href="/auth/signup" className="font-medium text-primary hover:underline">
+              <Link href="/auth/signup" className="font-medium text-primary hover:underline">
                 Sign up
-              </a>
+              </Link>
             </div>
           </div>
         </div>

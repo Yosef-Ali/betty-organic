@@ -1,15 +1,14 @@
 'use server'
 
-
 import { Database } from '@/types/supabase'
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase/server'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-
-const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey)
+export async function getSupabaseClient() {
+  return await createClient<Database>()
+}
 
 export async function getKnowledgeBaseEntries(limit = 10) {
+  const supabase = await getSupabaseClient();
   const { data, error } = await supabase
     .from('knowledge_base')
     .select('*')
@@ -25,6 +24,7 @@ export async function getKnowledgeBaseEntries(limit = 10) {
 }
 
 export async function getKnowledgeBaseEntryById(id: number) {
+  const supabase = await getSupabaseClient();
   const { data, error } = await supabase
     .from('knowledge_base')
     .select('*')
@@ -40,6 +40,7 @@ export async function getKnowledgeBaseEntryById(id: number) {
 }
 
 export async function createKnowledgeBaseEntry(entry: Database['public']['Tables']['knowledge_base']['Insert']) {
+  const supabase = await getSupabaseClient();
   const { data, error } = await supabase
     .from('knowledge_base')
     .insert(entry)
@@ -54,6 +55,7 @@ export async function createKnowledgeBaseEntry(entry: Database['public']['Tables
 }
 
 export async function updateKnowledgeBaseEntry(id: number, entry: Partial<Database['public']['Tables']['knowledge_base']['Update']>) {
+  const supabase = await getSupabaseClient();
   const { data, error } = await supabase
     .from('knowledge_base')
     .update(entry)
@@ -69,6 +71,7 @@ export async function updateKnowledgeBaseEntry(id: number, entry: Partial<Databa
 }
 
 export async function deleteKnowledgeBaseEntry(id: number) {
+  const supabase = await getSupabaseClient();
   const { error } = await supabase
     .from('knowledge_base')
     .delete()

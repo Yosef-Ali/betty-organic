@@ -19,7 +19,7 @@ import { Share2 } from "lucide-react";
 import { randomUUID } from 'crypto';
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { useMarketingCartStore } from "@/store/cartStore";
-import { useAuth } from "@/lib/hooks/useAuth";
+import { useAuthContext } from "@/contexts/auth/AuthContext";
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
 interface ConfirmPurchaseDialogProps {
@@ -48,7 +48,7 @@ export function ConfirmPurchaseDialog({
 }: ConfirmPurchaseDialogProps) {
   const { toast } = useToast();
   const router = useRouter();
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { profile, isAuthenticated, loading } = useAuthContext();
   const supabase = createClientComponentClient();
   const clearCart = useMarketingCartStore(state => state.clearCart);
   const [error, setError] = useState<string | null>(null);
@@ -57,7 +57,7 @@ export function ConfirmPurchaseDialog({
     try {
       setError(null);
 
-      if (isLoading) {
+      if (loading) {
         toast({
           title: "Please wait",
           description: "Checking authentication status...",
@@ -66,7 +66,7 @@ export function ConfirmPurchaseDialog({
         return;
       }
 
-      if (!isAuthenticated || !user) {
+      if (!isAuthenticated || !profile) {
         toast({
           title: "Sign in Required",
           description: "Please sign in first to place orders. Your cart will be saved automatically.",
@@ -78,40 +78,7 @@ export function ConfirmPurchaseDialog({
       }
 
       // First, get or create customer record
-      const { data: customer, error: customerError } = await supabase
-        .from('customers')
-        .select('id')
-        .eq('id', user.id)
-        .maybeSingle();
-
-      if (customerError) {
-        throw new Error(customerError.message);
-      }
-
-      let customerId: string;
-
-      // if customer is null, create a new record
-      if (!customer) {
-        const { data: newCustomer, error: createError } = await supabase
-          .from('customers')
-          .insert({
-            id: user.id,
-            full_name: user.email?.split('@')[0] || 'Customer',
-            email: user.email || '',
-            status: 'active',
-            phone: user.phone || '',
-            image_url: user.user_metadata?.avatar_url || null
-          })
-          .select('id')
-          .single();
-
-        if (createError) {
-          throw new Error(createError.message);
-        }
-        customerId = newCustomer.id;
-      } else {
-        customerId = customer.id;
-      }
+      const customerId = profile.id;
 
       const orderData: Order = {
         id: crypto.randomUUID(),

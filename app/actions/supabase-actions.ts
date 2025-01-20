@@ -1,22 +1,14 @@
 'use server'
 
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase/server'
 import { Database } from '@/types/supabase'
 
-// Use server-side environment variables for server actions
-const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error('Missing Supabase environment variables')
+export async function getSupabaseClient() {
+  return await createClient<Database>()
 }
 
-// Create Supabase client with server-side configuration
-const supabase = createClient<Database>(supabaseUrl, supabaseKey, {
-  auth: { persistSession: false }
-})
-
 export async function getRecentOrders(limit = 5) {
+  const supabase = await getSupabaseClient();
   try {
     const { data, error } = await supabase
       .from('orders')
@@ -33,6 +25,7 @@ export async function getRecentOrders(limit = 5) {
 }
 
 export async function getRecentSales(limit = 5) {
+  const supabase = await getSupabaseClient();
   try {
     const { data, error } = await supabase
       .from('orders')
@@ -49,6 +42,7 @@ export async function getRecentSales(limit = 5) {
 }
 
 export async function getTotalRevenue() {
+  const supabase = await getSupabaseClient();
   try {
     const { data, error } = await supabase
       .from('orders')
@@ -63,6 +57,7 @@ export async function getTotalRevenue() {
 }
 
 export async function getTotalCustomers() {
+  const supabase = await getSupabaseClient();
   try {
     const { count, error } = await supabase
       .from('customers')
@@ -77,6 +72,7 @@ export async function getTotalCustomers() {
 }
 
 export async function getTotalProducts() {
+  const supabase = await getSupabaseClient();
   try {
     const { count, error } = await supabase
       .from('products')
@@ -91,6 +87,7 @@ export async function getTotalProducts() {
 }
 
 export async function getTotalOrders() {
+  const supabase = await getSupabaseClient();
   try {
     const { count, error } = await supabase
       .from('orders')

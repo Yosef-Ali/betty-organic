@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { v4 as uuidv4 } from 'uuid'
-import { useAuth } from '@/lib/hooks/useAuth'
+import { useAuthContext } from '@/contexts/auth/AuthContext'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -12,12 +12,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
 import { PackageOpen, Package, ChevronRight } from "lucide-react"
 import { updateProfile } from '@/app/actions/userActions'
-import { createClient } from '@/lib/supabase/client'
+import { getOrders } from '@/app/actions/orderActions'
 import { Database } from '@/types/supabase'
 
 // Profile Page and Order History
 export default function ProfilePage() {
-  const { user } = useAuth()
+  const { profile, loading } = useAuthContext()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [image, setImage] = useState('')
@@ -34,40 +34,25 @@ export default function ProfilePage() {
   const [loadingOrders, setLoadingOrders] = useState(false)
 
   useEffect(() => {
-    if (user) {
-      setName(user.user_metadata?.full_name || '')
-      setEmail(user.email || '')
-      setImage(user.user_metadata?.avatar_url || '')
+    if (profile) {
+      setName(profile.name || '')
+      setEmail(profile.email || '')
+      setImage(profile.avatar_url || '')
       fetchOrders()
     }
-  }, [user])
+  }, [profile])
 
   const fetchOrders = async () => {
-    if (!user) return
-
+    if (!profile) return
+    setLoadingOrders(true)
     try {
-      const supabase = createClient()
-
-      const { data: orders, error: ordersError } = await supabase
-        .from('orders')
-        .select(`
-          *,
-          order_items (
-            *,
-            products (*)
-          )
-        `)
-        .eq('customer_id', user.id)
-        .order('created_at', { ascending: false })
-
-      if (ordersError) {
-        console.error('Error fetching orders:', ordersError)
-        return
-      }
-
+      const orders = await getOrders(profile.id)
       setOrders(orders || [])
     } catch (error) {
       console.error('Error in fetchOrders:', error)
+      setMessage('Failed to load orders')
+    } finally {
+      setLoadingOrders(false)
     }
   }
 
@@ -92,7 +77,7 @@ export default function ProfilePage() {
     }
   }
 
-  if (!user) {
+  if (!profile) {
     return <div className="text-center mt-8">Please sign in to view your profile.</div>
   }
 

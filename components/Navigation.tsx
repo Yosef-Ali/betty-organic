@@ -7,7 +7,7 @@ import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { useMarketingCartStore } from '../store/cartStore';
 import { useRouter } from 'next/navigation';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { signOut } from '@/app/auth/actions/authActions';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,60 +17,38 @@ import {
 } from "./ui/dropdown-menu";
 import { Badge } from "./ui/badge";
 import { MobileMenu } from "./MobileMenu";
-import { useAuth } from "@/lib/hooks/useAuth";
 import { useAuthContext } from "@/contexts/auth/AuthContext";
-//import { useAuthContext } from '@/contexts/AuthContext';
 
 interface NavigationProps { }
 
 export default function Navigation({ }: NavigationProps) {
   const router = useRouter();
-  const supabase = createClientComponentClient();
-  const { isAuthenticated, user: authUser, isLoading: authLoading } = useAuth();
-  const { isAdmin, loading: contextLoading, profile } = useAuthContext();  // Changed here
+  const { isAdmin, loading, profile } = useAuthContext();
   const { items } = useMarketingCartStore();
 
-  console.log('🧭 Navigation auth state:', {
-    isAuthenticated,
-    authLoading,
-    contextLoading,
-    isAdmin,
-    userRole: profile?.role,  // Changed here
-    userEmail: authUser?.email,
-    userMetadata: authUser?.user_metadata
-  });
-
-  const handleSignIn = () => router.push('/auth/login');
+  const handleSignIn = () => {
+    try {
+      window.location.href = '/auth/login';
+    } catch (error) {
+      console.error('Navigation error:', error);
+    }
+  };
 
   const handleSignOut = async () => {
     try {
-      console.log('Initiating sign out...');
-
-      // Sign out from Supabase
-      const { error } = await supabase.auth.signOut();
-
-      if (error) {
-        throw error;
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('userProfile');
       }
-
-      // Redirect to login page
-      router.push('/auth/login');
-      router.refresh();
+      await signOut();
     } catch (error) {
-      console.error('Sign out error:', {
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined
-      });
-      // Ensure we redirect even if there's an error
-      router.push('/auth/login');
-      router.refresh();
+      console.error('Sign out error:', error);
     }
   };
 
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, sectionId: string) => {
     e.preventDefault();
     const element = document.getElementById(sectionId);
-    const headerOffset = 80; // height of your fixed header
+    const headerOffset = 80;
     if (element) {
       const elementPosition = element.getBoundingClientRect().top;
       const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
@@ -82,18 +60,17 @@ export default function Navigation({ }: NavigationProps) {
     }
   };
 
-  // Add this function to get the user's initials as fallback
-  const getInitials = (email: string) => {
-    return email.substring(0, 2).toUpperCase();
+  const getInitials = (name: string) => {
+    if (!name) return '??';
+    return name.substring(0, 2).toUpperCase();
   };
 
   return (
     <nav className="fixed top-0 z-50 w-full bg-[#ffc600]/80 backdrop-blur-md border-b">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         <div className="flex items-center gap-4">
-          <MobileMenu user={authUser} /> {/* Changed from session to user */}
+          <MobileMenu user={profile} />
 
-          {/* Logo */}
           <Link href="/" className="text-2xl md:text-2xl font-bold relative group flex items-center gap-2">
             <div className="relative w-8 h-8 md:w-10 md:h-10">
               <Image
@@ -133,13 +110,13 @@ export default function Navigation({ }: NavigationProps) {
           </div>
 
           <div className="flex items-center gap-2">
-            {authLoading ? (
+            {loading ? (
               <Button variant="ghost" disabled>
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
               </Button>
-            ) : authUser ? (
+            ) : profile ? (
               <div className="flex items-center gap-4">
-                {authUser && isAdmin && (
+                {isAdmin && (
                   <Button
                     variant="ghost"
                     onClick={() => router.push('/dashboard')}
@@ -155,9 +132,9 @@ export default function Navigation({ }: NavigationProps) {
                       variant="ghost"
                       className="relative h-8 w-8 rounded-full overflow-hidden border-2 border-primary hover:bg-primary/10"
                     >
-                      {authUser.user_metadata?.avatar_url ? (
+                      {profile.avatar_url ? (
                         <Image
-                          src={authUser.user_metadata.avatar_url}
+                          src={profile.avatar_url}
                           alt="User Avatar"
                           fill
                           className="object-cover"
@@ -166,25 +143,29 @@ export default function Navigation({ }: NavigationProps) {
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center bg-primary text-white text-sm font-medium">
-                          {getInitials(authUser.email || '')}
+                          {getInitials(profile.name || profile.email)}
                         </div>
                       )}
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56">
                     <div className="flex flex-col space-y-1 p-2">
-                      <p className="text-sm font-medium">{authUser.email}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {authUser.user_metadata?.role || 'User'}
+                      <p className="text-sm font-medium truncate">
+                        {profile.name || profile.email}
+                      </p>
+                      <p className="text-xs text-muted-foreground capitalize">
+                        {profile.role}
                       </p>
                     </div>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild>
-                      <Link href="/dashboard" className="w-full cursor-pointer">
-                        <LayoutDashboard className="mr-2 h-4 w-4" />
-                        Dashboard
-                      </Link>
-                    </DropdownMenuItem>
+                    {isAdmin && (
+                      <DropdownMenuItem asChild>
+                        <Link href="/dashboard" className="w-full cursor-pointer">
+                          <LayoutDashboard className="mr-2 h-4 w-4" />
+                          Dashboard
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem
                       onClick={handleSignOut}
                       className="text-red-600 cursor-pointer"
@@ -195,13 +176,15 @@ export default function Navigation({ }: NavigationProps) {
                 </DropdownMenu>
               </div>
             ) : (
-              <Button
-                variant="default"
-                onClick={handleSignIn}
-                className="hover:bg-primary/90"
-              >
-                Sign In
-              </Button>
+              <div className="relative z-50" style={{ pointerEvents: 'auto' }}>
+                <Button
+                  variant="default"
+                  onClick={handleSignIn}
+                  className="hover:bg-primary/90"
+                >
+                  Sign In
+                </Button>
+              </div>
             )}
 
             <Link href="/cart">
@@ -217,6 +200,6 @@ export default function Navigation({ }: NavigationProps) {
           </div>
         </div>
       </div>
-    </nav >
+    </nav>
   );
 }

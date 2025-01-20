@@ -5,23 +5,31 @@ import Link from 'next/link'
 import { Menu, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
-import { User } from '@supabase/supabase-js'
+
+interface Profile {
+  id: string;
+  email: string;
+  name: string;
+  role: 'admin' | 'sales' | 'customer';
+  status: 'active' | 'inactive';
+}
 
 interface MobileMenuProps {
-  user: User | null;  // Changed from session to user
+  user: Profile | null;
 }
 
 export function MobileMenu({ user }: MobileMenuProps) {
   const [open, setOpen] = useState(false)
 
   const links = [
-    { href: "#hero", label: "Home" },
+    { href: "/", label: "Home" },
     { href: "#products", label: "Products" },
     { href: "#about", label: "About" },
     { href: "#contact", label: "Contact" },
   ]
 
-  if (user) {
+  // Only show dashboard for admin users
+  if (user?.role === 'admin') {
     links.push({ href: "/dashboard", label: "Dashboard" })
   }
 
@@ -44,18 +52,17 @@ export function MobileMenu({ user }: MobileMenuProps) {
               {link.label}
             </Link>
           ))}
+          {user && (
+            <Link
+              href="/profile"
+              className="text-lg font-medium transition-colors hover:text-primary"
+              onClick={() => setOpen(false)}
+            >
+              Profile
+            </Link>
+          )}
         </nav>
-        {/* <Button
-          variant="ghost"
-          size="icon"
-          className="absolute right-4 top-4"
-          onClick={() => setOpen(false)}
-          aria-label="Close menu"
-        >
-          <X className="h-6 w-6" />
-        </Button> */}
       </SheetContent>
     </Sheet>
   )
 }
-

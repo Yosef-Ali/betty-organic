@@ -1,17 +1,22 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { signup } from '@/app/actions/authActions'
+import { signup } from '@/app/auth/actions/authActions'
+import { SignupForm, SignupFormType } from "@/components/authentication/signup-form"
 import { toast } from 'sonner'
-import { SignupForm } from "components/authentication/signup-form"
-import { GalleryVerticalEnd } from "lucide-react"
 import Image from "next/image"
+import Link from 'next/link'
 
 export default function SignupPage() {
   const router = useRouter()
 
-  const handleSubmit = async (formData: FormData) => {
+  const handleSubmit = async (values: SignupFormType) => {
     try {
+      const formData = new FormData()
+      formData.append('email', values.email)
+      formData.append('password', values.password)
+      formData.append('full_name', values.full_name)
+
       const result = await signup(formData)
 
       if (result.error) {
@@ -20,10 +25,11 @@ export default function SignupPage() {
       }
 
       if (result.success) {
-        toast.success('Successfully signed up! Welcome to Betty\'s Organic')
-        router.replace('/')  // Redirect to homepage
+        toast.success('Please check your email to verify your account')
+        router.push('/auth/verify')  // Redirect to verification page
       }
     } catch (error) {
+      console.error('Signup error:', error)
       toast.error('Signup failed. Please try again.')
     }
   }
@@ -32,7 +38,7 @@ export default function SignupPage() {
     <div className="grid h-screen lg:grid-cols-2">
       <div className="flex flex-col gap-4 p-6 md:p-10">
         <div className="flex justify-center gap-2 md:justify-start">
-          <a href="#" className="flex items-center gap-2 font-medium">
+          <Link href="/" className="flex items-center gap-2 font-medium">
             <Image
               src="/logo.jpeg"
               alt="Company Logo"
@@ -41,16 +47,16 @@ export default function SignupPage() {
               className="rounded-md"
             />
             Betty&apos;s Organic
-          </a>
+          </Link>
         </div>
         <div className="flex flex-1 items-center justify-center">
           <div className="w-full max-w-xs">
             <SignupForm onSubmit={handleSubmit} />
             <div className="mt-4 text-center text-sm">
               Already have an account?{' '}
-              <a href="/auth/login" className="font-medium text-primary hover:underline">
+              <Link href="/auth/login" className="font-medium text-primary hover:underline">
                 Log in
-              </a>
+              </Link>
             </div>
           </div>
         </div>
