@@ -7,13 +7,29 @@ import { v4 as uuidv4 } from 'uuid';
 
 export const createProduct = async (formData: FormData): Promise<Product> => {
   const supabase = await createClient();
+
+  // Get the current session
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.user) {
+    throw new Error('You must be logged in to create products');
+  }
+
+  // Get user profile to check role
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', session.user.id)
+    .single();
+
+  if (!profile || (profile.role !== 'admin' && profile.role !== 'sales')) {
+    throw new Error('Unauthorized: Insufficient permissions');
+  }
+
   try {
-    // Input validation
     const name = formData.get('name') as string;
     const description = formData.get('description') as string | null;
     const priceStr = formData.get('price') as string;
     const stockStr = formData.get('stock') as string;
-    // Get the image URL from the form data
     const imageUrl = formData.get('imageUrl') as string || '/placeholder-product.png';
     const status = formData.get('status') as string || 'active';
 
@@ -51,9 +67,8 @@ export const createProduct = async (formData: FormData): Promise<Product> => {
         createdat: now,
         updatedat: now,
         category: null,
-        created_by: null,
-        unit: null,
-        totalSales: 0
+        created_by: session.user.id,
+        unit: null
       })
       .select()
       .single();
@@ -77,6 +92,24 @@ export const createProduct = async (formData: FormData): Promise<Product> => {
 
 export async function updateProduct(id: string, formData: FormData) {
   const supabase = await createClient();
+
+  // Get the current session
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.user) {
+    throw new Error('You must be logged in to update products');
+  }
+
+  // Get user profile to check role
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', session.user.id)
+    .single();
+
+  if (!profile || (profile.role !== 'admin' && profile.role !== 'sales')) {
+    throw new Error('Unauthorized: Insufficient permissions');
+  }
+
   try {
     const name = formData.get('name') as string;
     const description = formData.get('description') as string | null;
@@ -110,7 +143,8 @@ export async function updateProduct(id: string, formData: FormData) {
       stock,
       imageUrl: imageUrl || '/placeholder-product.png',
       active: status === 'active',
-      updatedat: new Date().toISOString()
+      updatedat: new Date().toISOString(),
+      updated_by: session.user.id
     };
 
     const { data: product, error } = await supabase
@@ -144,10 +178,6 @@ export async function getProductImages(productId: string) {
   }
 
   const supabase = await createClient();
-  if (!supabase) {
-    console.error('Failed to initialize Supabase client');
-    return [];
-  }
 
   try {
     const { data: product, error } = await supabase
@@ -185,8 +215,7 @@ export async function getProducts(): Promise<Product[]> {
       const { imageUrl, ...rest } = product;
       return {
         ...rest,
-        imageUrl: imageUrl || '/placeholder.svg',
-        totalSales: product.totalSales || 0
+        imageUrl: imageUrl || '/placeholder.svg'
       };
     });
   } catch (error) {
@@ -217,6 +246,24 @@ export async function getProduct(id: string) {
 
 export async function deleteProduct(id: string) {
   const supabase = await createClient();
+
+  // Get the current session
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.user) {
+    throw new Error('You must be logged in to delete products');
+  }
+
+  // Get user profile to check role
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', session.user.id)
+    .single();
+
+  if (!profile || (profile.role !== 'admin' && profile.role !== 'sales')) {
+    throw new Error('Unauthorized: Insufficient permissions');
+  }
+
   try {
     const { error } = await supabase
       .from('products')
