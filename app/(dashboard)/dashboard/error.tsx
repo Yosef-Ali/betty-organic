@@ -14,7 +14,11 @@ export default function DashboardError({
 }) {
   useEffect(() => {
     // Log the error to an error reporting service
-    console.error('Dashboard error:', error)
+    console.error('Dashboard error:', {
+      message: error?.message || 'Unknown error',
+      stack: error?.stack,
+      digest: error?.digest
+    })
   }, [error])
 
   return (
@@ -26,7 +30,7 @@ export default function DashboardError({
           {error.message || 'An unexpected error occurred'}
         </AlertDescription>
       </Alert>
-      
+
       <Button onClick={reset} variant="outline">
         Try again
       </Button>

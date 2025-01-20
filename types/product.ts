@@ -3,21 +3,25 @@ export interface Product {
   name: string;
   description: string | null;
   price: number;
-  imageUrl: string;
   stock: number;
+  imageUrl: string;
+  category: any;
+  active: boolean;
+  created_by: string | null;
   totalSales: number;
-  createdAt: string;
-  updatedAt: string;
-  unit?: string; // Keeping this as it's used in the UI but not in DB
+  unit: string | null;
+  createdAt: string; // updated property name
+  updatedAt: string; // updated property name
 }
 
-export type CreateProductInput = Omit<Product, 'id' | 'createdAt' | 'updatedAt' | 'totalSales'>;
+export interface CreateProductInput {
+  name: string;
+  description?: string | null;
+  price: number;
+  stock: number;
+  imageUrl?: string;
+  active?: boolean;
+  status?: 'active' | 'out_of_stock';
+}
 
 export type UpdateProductInput = Partial<CreateProductInput>;
-
-export interface ProductCategory {
-  id: string;
-  name: string;
-  description?: string;
-  imageUrl?: string;
-}

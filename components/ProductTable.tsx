@@ -36,9 +36,22 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { useToast } from '@/hooks/use-toast'
-import { Product } from '@/types'; // Import Product type
+import { Product } from '@/types/product'; // Import Product type directly from product.ts
 
-import { formatDistanceToNow } from 'date-fns'
+import { formatDistanceToNow, isValid } from 'date-fns'
+
+// Helper function for safe date formatting
+const formatDate = (dateString: string | null) => {
+  if (!dateString) return 'N/A';
+  try {
+    const date = new Date(dateString);
+    if (!isValid(date)) return 'Invalid date';
+    return formatDistanceToNow(date, { addSuffix: true });
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return 'Invalid date';
+  }
+}
 
 const ProductTableContent = ({ products, isLoading, onDelete }: {
   products: Product[]
@@ -77,6 +90,10 @@ const ProductTableContent = ({ products, isLoading, onDelete }: {
           height={64}
           src={product.imageUrl || '/placeholder-product.png'}
           width={64}
+          onError={(e) => {
+            const target = e.target as HTMLImageElement;
+            target.src = '/placeholder-product.png';
+          }}
         />
       </TableCell>
       <TableCell className="font-medium">{product.name}</TableCell>
@@ -92,7 +109,7 @@ const ProductTableContent = ({ products, isLoading, onDelete }: {
         {product.totalSales} {/* Display totalSales */}
       </TableCell>
       <TableCell className="hidden md:table-cell">
-        {formatDistanceToNow(new Date(product.createdAt), { addSuffix: true })}
+        {formatDate(product.createdAt)}
       </TableCell>
       <TableCell>
         <DropdownMenu>
@@ -168,8 +185,8 @@ export function ProductTable() {
       const sortedProducts = fetchedProducts.sort((a, b) =>
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       )
-      setProducts(sortedProducts)
-      setFilteredProducts(sortedProducts)
+      setProducts(sortedProducts as Product[])
+      setFilteredProducts(sortedProducts as Product[])
     } catch (error) {
       toast({
         title: "Error",

@@ -101,10 +101,41 @@ export async function createOrder(orderData: Order) {
   }
 }
 
+export async function deleteOrder(orderId: string) {
+  const supabase = await createClient()
+  try {
+    // First delete the order items
+    const { error: itemsError } = await supabase
+      .from('order_items')
+      .delete()
+      .eq('order_id', orderId)
+
+    if (itemsError) {
+      console.error('Error deleting order items:', itemsError)
+      throw itemsError
+    }
+
+    // Then delete the order
+    const { error: orderError } = await supabase
+      .from('orders')
+      .delete()
+      .eq('id', orderId)
+
+    if (orderError) {
+      console.error('Error deleting order:', orderError)
+      throw orderError
+    }
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error in deleteOrder:', error)
+    return { success: false, error }
+  }
+}
+
 export async function getOrders() {
   const supabase = await createClient()
   try {
-    console.log('Fetching orders from Supabase');
     const { data: orders, error: ordersError } = await supabase
       .from('orders')
       .select(`

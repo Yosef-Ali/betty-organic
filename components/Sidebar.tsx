@@ -45,11 +45,6 @@ export default function Sidebar({ expanded, onToggle, mobileMenuOpen, onMobileMe
       icon: <UserPen className="h-4 w-4" />,
       href: '/dashboard/profile',
     },
-    {
-      label: 'Orders',
-      icon: <ShoppingCart className="h-4 w-4" />,
-      href: '/dashboard/orders',
-    },
   ];
 
   const adminSalesItems = [
@@ -128,18 +123,7 @@ export default function Sidebar({ expanded, onToggle, mobileMenuOpen, onMobileMe
           <SidebarLink key={item.href} {...item} expanded={expanded || isMobile} onClick={isMobile ? onMobileMenuClose : undefined} />
         ))}
       </nav>
-      <div className="px-2 py-5">
-        {/* Only show if admin: */}
-        {isAdmin && (
-          <SidebarLink
-            href="/dashboard/settings"
-            icon={<Settings className="h-4 w-4" />}
-            label="Settings"
-            expanded={expanded || isMobile}
-            onClick={isMobile ? onMobileMenuClose : undefined}
-          />
-        )}
-      </div>
+      <div className="px-2 py-5"></div>
       {!isMobile && <ToggleButton expanded={expanded} onClick={toggleSidebar} />}
     </>
   );

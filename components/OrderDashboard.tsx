@@ -265,6 +265,7 @@ const OrderDashboard: React.FC = () => {
           </div>
           <TabsContent value="week">
             <OrderTable
+              key="week-orders"
               orders={filteredOrders}
               onSelectOrder={setSelectedOrderId}
               onDeleteOrder={handleDelete}
@@ -273,6 +274,7 @@ const OrderDashboard: React.FC = () => {
           </TabsContent>
           <TabsContent value="month">
             <OrderTable
+              key="month-orders"
               orders={filteredOrders}
               onSelectOrder={setSelectedOrderId}
               onDeleteOrder={handleDelete}

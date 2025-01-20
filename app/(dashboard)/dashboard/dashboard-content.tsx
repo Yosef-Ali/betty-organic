@@ -21,34 +21,60 @@ export default function DashboardContent() {
   const { toast } = useToast();
 
   useEffect(() => {
+    let isMounted = true;
+
     async function fetchDashboardData() {
       try {
         setLoading(true);
+        setError(null);
+
         const [revenue, customers, products, orders] = await Promise.all([
-          getTotalRevenue(),
-          getTotalCustomers(),
-          getTotalProducts(),
-          getTotalOrders()
+          getTotalRevenue().catch(e => {
+            console.error('Revenue fetch error:', e);
+            return 0;
+          }),
+          getTotalCustomers().catch(e => {
+            console.error('Customers fetch error:', e);
+            return 0;
+          }),
+          getTotalProducts().catch(e => {
+            console.error('Products fetch error:', e);
+            return 0;
+          }),
+          getTotalOrders().catch(e => {
+            console.error('Orders fetch error:', e);
+            return 0;
+          })
         ]);
 
-        setTotalRevenue(revenue ?? 0);
-        setTotalCustomers(customers ?? 0);
-        setTotalProducts(products ?? 0);
-        setTotalOrders(orders ?? 0);
+        if (isMounted) {
+          setTotalRevenue(revenue);
+          setTotalCustomers(customers);
+          setTotalProducts(products);
+          setTotalOrders(orders);
+        }
       } catch (err) {
         console.error('Error fetching dashboard data:', err);
-        setError(err instanceof Error ? err.message : String(err));
-        toast({
-          title: 'Error',
-          description: 'Failed to load dashboard data',
-          variant: 'destructive',
-        });
+        if (isMounted) {
+          setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
+          toast({
+            title: 'Error',
+            description: 'Failed to load dashboard data. Please try again later.',
+            variant: 'destructive',
+          });
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     }
 
     fetchDashboardData();
+
+    return () => {
+      isMounted = false;
+    };
   }, [toast]);
 
   if (loading) {
