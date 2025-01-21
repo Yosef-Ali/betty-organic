@@ -1,7 +1,7 @@
-import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
-import { logAuthEvent } from '@/lib/utils'
+import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { logAuthEvent } from '@/lib/utils';
 
 // Routes that don't require authentication
 const PUBLIC_ROUTES = [
@@ -16,7 +16,7 @@ const PUBLIC_ROUTES = [
   '/verify',
   '/auth',
   '/login',
-]
+];
 
 // Routes that require authentication
 const PROTECTED_ROUTES = [
@@ -28,43 +28,42 @@ const PROTECTED_ROUTES = [
   '/admin',
   '/sales',
   '/api',
-]
+];
 
 export async function middleware(req: NextRequest) {
-  const res = NextResponse.next()
-  const supabase = createMiddlewareClient({ req, res })
-  const pathname = req.nextUrl.pathname
+  const pathname = req.nextUrl.pathname;
+
+  // Early return for public routes
+  if (PUBLIC_ROUTES.some(route => pathname.startsWith(route))) {
+    return NextResponse.next();
+  }
+
+  const res = NextResponse.next();
+  const supabase = createMiddlewareClient({ req, res });
 
   try {
-    // Check if it's a public route
-    if (PUBLIC_ROUTES.some(route => pathname.startsWith(route))) {
-      return res
-    }
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
-    // Refresh session
-    const { data: { session } } = await supabase.auth.getSession()
-
-    // For protected routes, check if user is authenticated
+    // Handle protected routes only
     if (PROTECTED_ROUTES.some(route => pathname.startsWith(route))) {
       if (!session) {
-        // Redirect to login if not authenticated
-        const redirectUrl = new URL('/auth/login', req.url)
-        redirectUrl.searchParams.set('redirectTo', pathname)
-        return NextResponse.redirect(redirectUrl)
+        const redirectUrl = new URL('/auth/login', req.url);
+        redirectUrl.searchParams.set('redirectTo', pathname);
+        return NextResponse.redirect(redirectUrl);
       }
     }
 
-    // User is authenticated, allow access
-    return res
+    return res;
   } catch (error) {
-    // Log any errors and redirect to login
-    logAuthEvent('Middleware error', {
-      metadata: {
-        error: error instanceof Error ? error.message : 'Unknown error'
-      },
-      level: 'error'
-    })
-    return NextResponse.redirect(new URL('/auth/login', req.url))
+    // Always allow the request to continue for non-protected routes
+    if (!PROTECTED_ROUTES.some(route => pathname.startsWith(route))) {
+      return NextResponse.next();
+    }
+
+    // Redirect to login for protected routes
+    return NextResponse.redirect(new URL('/auth/login', req.url));
   }
 }
 
@@ -79,4 +78,4 @@ export const config = {
      */
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
-}
+};

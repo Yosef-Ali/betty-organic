@@ -1,25 +1,22 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
-import { NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server';
+import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 
-export const dynamic = 'force-dynamic'
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
-  try {
-    const requestUrl = new URL(request.url)
-    const code = requestUrl.searchParams.get('code')
+  const { searchParams } = new URL(request.url);
+  const code = searchParams.get('code');
+  const next = searchParams.get('next') ?? '/dashboard';
 
-    if (!code) {
-      throw new Error('No code provided')
+  if (code) {
+    const supabase = await createClient();
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (!error) {
+      return NextResponse.redirect(new URL(next, request.url));
     }
-
-    const supabase = createRouteHandlerClient({ cookies })
-    await supabase.auth.exchangeCodeForSession(code)
-
-    return NextResponse.redirect(new URL('/dashboard', requestUrl))
-  } catch (error) {
-    console.error('Auth callback error:', error)
-    // Make sure this URL is absolute
-    return NextResponse.redirect(new URL('/auth/login?error=callback_error', request.url))
   }
+
+  // Return the user to an error page with some instructions
+  return NextResponse.redirect(new URL('/auth/auth-error', request.url));
 }

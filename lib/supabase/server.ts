@@ -1,32 +1,58 @@
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 
 export async function createClient() {
-  const cookieStore = await cookies()
-
-  // console.log('Initializing Supabase client with URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
-  // console.log('Initializing Supabase client with anon key:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+  const cookieStore = cookies();
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() {
-          return cookieStore.getAll()
-        },
-        setAll(cookiesToSet) {
+        get(name: string) {
           try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            )
+            const cookie = cookieStore.get(name);
+            return cookie?.value;
           } catch {
-            // The `setAll` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing
-            // user sessions.
+            return '';
+          }
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          // Don't set cookies for edge runtime
+          if (process.env.NEXT_RUNTIME === 'edge') return;
+
+          try {
+            cookieStore.set({
+              name,
+              value,
+              path: '/',
+              ...options,
+              // These are important for security
+              httpOnly: true,
+              secure: process.env.NODE_ENV === 'production',
+              sameSite: 'lax',
+            });
+          } catch (error) {
+            console.error('Error setting cookie:', error);
+          }
+        },
+        remove(name: string, options: CookieOptions) {
+          try {
+            cookieStore.delete({
+              name,
+              path: '/',
+              ...options,
+            });
+          } catch (error) {
+            console.error('Error removing cookie:', error);
           }
         },
       },
-    }
-  )
+      auth: {
+        detectSessionInUrl: true,
+        persistSession: true,
+        autoRefreshToken: true,
+      },
+    },
+  );
 }

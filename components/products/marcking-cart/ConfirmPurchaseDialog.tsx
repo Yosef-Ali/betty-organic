@@ -16,8 +16,6 @@ import { useState } from "react";
 import { createOrder } from '@/app/actions/orderActions';
 import type { Order } from "@/types/order";
 import { Share2 } from "lucide-react";
-import { randomUUID } from 'crypto';
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { useMarketingCartStore } from "@/store/cartStore";
 import { useAuthContext } from "@/contexts/auth/AuthContext";
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -34,12 +32,6 @@ interface ConfirmPurchaseDialogProps {
   total: number;
 }
 
-interface CustomerError {
-  message?: string;
-  code?: string;
-  details?: string;
-}
-
 export function ConfirmPurchaseDialog({
   open,
   onOpenChange,
@@ -49,7 +41,6 @@ export function ConfirmPurchaseDialog({
   const { toast } = useToast();
   const router = useRouter();
   const { profile, isAuthenticated, loading } = useAuthContext();
-  const supabase = createClientComponentClient();
   const clearCart = useMarketingCartStore(state => state.clearCart);
   const [error, setError] = useState<string | null>(null);
 
@@ -77,12 +68,10 @@ export function ConfirmPurchaseDialog({
         return;
       }
 
-      // First, get or create customer record
-      const customerId = profile.id;
-
+      // Create order data
       const orderData: Order = {
         id: crypto.randomUUID(),
-        customer_id: customerId,
+        customer_id: profile.id,
         status: "pending",
         type: "online",
         total_amount: Number(total.toFixed(2)),
@@ -95,7 +84,7 @@ export function ConfirmPurchaseDialog({
         }))
       };
 
-      // console.log('Submitting order:', JSON.stringify(orderData, null, 2));
+      // Create order
       const { data: order, error: orderError } = await createOrder(orderData);
 
       if (orderError) {
@@ -112,13 +101,11 @@ export function ConfirmPurchaseDialog({
       onOpenChange(false);
 
       // Show success message
-      setTimeout(() => {
-        toast({
-          title: "Order Confirmed!",
-          description: "Thank you for your order. We will contact you soon about delivery details.",
-          duration: 5000,
-        });
-      }, 100);
+      toast({
+        title: "Order Confirmed!",
+        description: "Thank you for your order. We will contact you soon about delivery details.",
+        duration: 5000,
+      });
 
     } catch (err: unknown) {
       const e = err as Error & {

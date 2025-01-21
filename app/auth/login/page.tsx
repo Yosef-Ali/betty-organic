@@ -1,61 +1,16 @@
-'use client'
+'use client';
 
-import { useRouter } from 'next/navigation'
-import { login } from '@/app/auth/actions/authActions'
-import { LoginForm } from '@/components/authentication/login-form'
-import { LoginFormType } from '@/lib/definitions'
-import Image from 'next/image'
-import { useEffect } from 'react'
-import { toast } from 'sonner'
-import Link from 'next/link'
+import { useRouter } from 'next/navigation';
+
+import { LoginForm } from '@/components/authentication/login-form';
+import { LoginFormType } from '@/lib/definitions';
+import Image from 'next/image';
+import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
+import Link from 'next/link';
+import { login } from '../actions/authActions';
 
 export default function LoginPage() {
-  const router = useRouter()
-
-  useEffect(() => {
-    // Store redirect URL in cookie if present in URL
-    const urlParams = new URLSearchParams(window.location.search)
-    const redirectUrl = urlParams.get('redirect')
-    if (redirectUrl) {
-      document.cookie = `redirectUrl=${redirectUrl};path=/`
-    }
-  }, [])
-
-  const handleSubmit = async (data: LoginFormType) => {
-    try {
-      const { error, success, redirectTo } = await login({
-        email: data.email,
-        password: data.password
-      })
-
-      if (error) {
-        toast.error(error)
-        return
-      }
-
-      if (success) {
-        toast.success('Login successful')
-
-        // Get stored redirect URL from cookie
-        const redirectUrl = document.cookie
-          .split('; ')
-          .find(row => row.startsWith('redirectUrl='))
-          ?.split('=')[1]
-
-        // Clear redirect URL cookie
-        if (redirectUrl) {
-          document.cookie = 'redirectUrl=; path=/; max-age=0'
-        }
-
-        // Use router.push for client-side navigation
-        router.push(redirectUrl || redirectTo || '/')
-      }
-    } catch (error) {
-      console.error('Login error:', error)
-      toast.error('Login failed. Please try again.')
-    }
-  }
-
   return (
     <div className="grid h-screen lg:grid-cols-2">
       <div className="flex flex-col gap-4 p-6 md:p-10">
@@ -73,10 +28,13 @@ export default function LoginPage() {
         </div>
         <div className="flex flex-1 items-center justify-center">
           <div className="w-full max-w-xs">
-            <LoginForm onSubmit={handleSubmit} />
+            <LoginForm onSubmit={login} />
             <div className="mt-4 text-center text-sm">
               Don&apos;t have an account?{' '}
-              <Link href="/auth/signup" className="font-medium text-primary hover:underline">
+              <Link
+                href="/auth/signup"
+                className="font-medium text-primary hover:underline"
+              >
                 Sign up
               </Link>
             </div>
@@ -94,5 +52,5 @@ export default function LoginPage() {
         />
       </div>
     </div>
-  )
+  );
 }

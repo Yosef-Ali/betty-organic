@@ -56,6 +56,7 @@ strictTransportSecurity = true
 xFrameOptions = true
 xContentTypeOptions = true
 referrerPolicy = "strict-origin-when-cross-origin"
+readOnlyFiles = ["lib/supabase/client.ts", "types/supabase.ts"]
 
 [performance]
 # Performance optimization rules
@@ -71,14 +72,3 @@ markdownFormatting = true
 versionControl = true
 requiredSections = ["overview", "workflow", "structure"]
 codeSnippetFormatting = true
-
-[security]
-# Security rules
-xssProtection = true
-csrfProtection = true
-contentSecurityPolicy = true
-strictTransportSecurity = true
-xFrameOptions = true
-xContentTypeOptions = true
-referrerPolicy = "strict-origin-when-cross-origin"
-readOnlyFiles = ["lib/supabase/client.ts", "types/supabase.ts"]

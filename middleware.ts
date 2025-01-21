@@ -1,61 +1,21 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
-import { Database } from './lib/supabase/database.types'
+import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 
-export async function middleware(request: NextRequest) {
-  const response = NextResponse.next()
-
-  const supabase = createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return request.cookies.get(name)?.value
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          request.cookies.set({ name, value, ...options })
-          response.cookies.set({ name, value, ...options })
-        },
-        remove(name: string, options: CookieOptions) {
-          request.cookies.set({ name, value: '', ...options })
-          response.cookies.set({ name, value: '', ...options })
-        }
-      }
-    }
-  )
+export async function middleware(req: NextRequest) {
+  const res = NextResponse.next();
 
   try {
-    const { data: { session } } = await supabase.auth.getSession()
-
-    // Only protect dashboard routes
-    if (request.nextUrl.pathname.startsWith('/dashboard') && !session) {
-      return NextResponse.redirect(new URL('/auth/login', request.url))
-    }
-
-    // Redirect to home if accessing auth routes with session
-    if (request.nextUrl.pathname.startsWith('/auth') && session) {
-      return NextResponse.redirect(new URL('/', request.url))
-    }
-
-    return response
+    const supabase = createMiddlewareClient({ req, res });
+    await supabase.auth.getSession();
+    return res;
   } catch (error) {
-    console.error('Middleware error:', error)
-    return NextResponse.next()
+    // If there's an error, continue without authentication
+    console.error('Auth middleware error:', error);
+    return res;
   }
 }
 
 export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public (public files)
-     * - auth/callback (auth callback route)
-     */
-    '/((?!_next/static|_next/image|favicon.ico|public|auth/callback).*)'
-  ]
-}
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+};
