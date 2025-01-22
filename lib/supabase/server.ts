@@ -1,58 +1,41 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
 export async function createClient() {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
 
-  return createServerClient(
+  const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get(name: string) {
-          try {
-            const cookie = cookieStore.get(name);
-            return cookie?.value;
-          } catch {
-            return '';
-          }
+        get: async (name: string) => {
+          const cookie = await cookieStore.get(name);
+          return cookie?.value;
         },
-        set(name: string, value: string, options: CookieOptions) {
-          // Don't set cookies for edge runtime
-          if (process.env.NEXT_RUNTIME === 'edge') return;
-
-          try {
-            cookieStore.set({
-              name,
-              value,
-              path: '/',
-              ...options,
-              // These are important for security
-              httpOnly: true,
-              secure: process.env.NODE_ENV === 'production',
-              sameSite: 'lax',
-            });
-          } catch (error) {
-            console.error('Error setting cookie:', error);
-          }
+        set: async (
+          name: string,
+          value: string,
+          options: {
+            path: string;
+            domain?: string;
+            maxAge?: number;
+            httpOnly?: boolean;
+            sameSite?: 'lax' | 'strict' | 'none';
+            secure?: boolean;
+          },
+        ) => {
+          await cookieStore.set(name, value, options);
         },
-        remove(name: string, options: CookieOptions) {
-          try {
-            cookieStore.delete({
-              name,
-              path: '/',
-              ...options,
-            });
-          } catch (error) {
-            console.error('Error removing cookie:', error);
-          }
+        remove: async (
+          name: string,
+          options: { path: string; domain?: string },
+        ) => {
+          await cookieStore.delete(name, options);
         },
-      },
-      auth: {
-        detectSessionInUrl: true,
-        persistSession: true,
-        autoRefreshToken: true,
       },
     },
   );
+
+  return supabase;
 }

@@ -5,61 +5,51 @@ import { Button } from './ui/button';
 import { ShoppingCart, LayoutDashboard } from 'lucide-react';
 import Image from 'next/image';
 import { useMarketingCartStore } from '../store/cartStore';
+import { useHydratedStore } from '@/hooks/useHydratedStore';
 import { useRouter } from 'next/navigation';
 import { signOut } from '@/app/auth/actions/authActions';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from './ui/dropdown-menu';
 import { Badge } from './ui/badge';
 import { MobileMenu } from './MobileMenu';
 import { useAuthContext } from '@/contexts/auth/AuthContext';
 import { useEffect, useState } from 'react';
+import { UserButton } from './ui/user-button';
+import { useToast } from '@/hooks/use-toast';
 
-interface NavigationProps {}
-
-export default function Navigation({}: NavigationProps) {
+export default function Navigation() {
+  const { toast } = useToast();
   const router = useRouter();
-  const { isAdmin, loading, profile } = useAuthContext();
-  const { items } = useMarketingCartStore();
-  const [mounted, setMounted] = useState(false);
+  const { isAdmin, isLoading, profile, user, error } = useAuthContext();
+  const [cartItems] = useHydratedStore(
+    useMarketingCartStore,
+    state => state.items,
+  );
 
-  // Handle hydration mismatch by only rendering after mount
+  const [isClient, setIsClient] = useState(false);
+
   useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  const handleSignIn = () => {
-    router.push('/auth/login');
-  };
+    setIsClient(true);
+  }, [profile, user, isLoading]); // Keep deps to avoid stale state
 
   const handleSignOut = async () => {
     try {
-      // Clear local storage first
-      localStorage.removeItem('userProfile');
       await signOut();
       router.push('/auth/login');
+      router.refresh(); // Ensure page state is cleared
     } catch (error) {
       console.error('Sign out error:', error);
+      // Add toast notification for error
+      toast({
+        title: 'Error signing out',
+        description: 'Please try again',
+        variant: 'destructive',
+      });
     }
   };
 
-  // Get user initials for avatar
-  const getInitials = (name: string) => {
-    if (!name) return '??';
-    return name.substring(0, 2).toUpperCase();
-  };
+  // Handle client-side rendering and loading states
+  if (!isClient) return null;
 
-  // Don't render until after mount to prevent hydration mismatch
-  if (!mounted) {
-    return null;
-  }
-
-  // Show loading state
-  if (loading) {
+  if (isLoading) {
     return (
       <nav className="fixed top-0 z-50 w-full bg-[#ffc600]/80 backdrop-blur-md border-b">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
@@ -71,11 +61,23 @@ export default function Navigation({}: NavigationProps) {
     );
   }
 
+  if (error) {
+    return (
+      <nav className="fixed top-0 z-50 w-full bg-destructive/10 backdrop-blur-md border-b border-destructive/20">
+        <div className="container mx-auto flex h-16 items-center justify-between px-4">
+          <div className="w-full flex justify-center text-destructive">
+            {error}
+          </div>
+        </div>
+      </nav>
+    );
+  }
+
   return (
     <nav className="fixed top-0 z-50 w-full bg-[#ffc600]/80 backdrop-blur-md border-b">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         <div className="flex items-center gap-4">
-          <MobileMenu user={profile} />
+          <MobileMenu />
 
           <Link
             href="/"
@@ -93,7 +95,7 @@ export default function Navigation({}: NavigationProps) {
             <span className="relative z-10 text-lg md:text-2xl">
               Betty&apos;s Organic
             </span>
-            <div className="absolute -bottom-2 left-0 w-full h-2 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwIiBoZWlnaHQ9IjgiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZD0iTTAgNGMxMCAwIDEwIDQgMjAgNHMxMC00IDIwLTQgMTAgNCAyMC00IDEwLTQgMjAtNCAxMCA0IDIwIDQgMTAtNCAyMC00IiBzdHJva2U9IiNlNjVmMDAiIGZpbGw9Im5vbmUiIHN0cm9rZS13aWR0aD0iMyIvPjwvc3ZnPg==')] opacity-0 scale-x-0 group-hover:opacity-100 group-hover:scale-x-100 transition-all duration-300 origin-left z-0 bg-repeat-x" />
+            <div className="absolute -bottom-2 left-0 w-full h-2 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwIiBoZWlnaHQ9IjgiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZD0iTTAgNGMxMCAwIDEwIDQgMjAgNHMxMC00IDIwLTQgMTAgNCAyMC00IDEwLTQgMjAtNCAxMCA0IDIwIDQgMTAtNCAyMC00IiBzdHJva2U9IiNlNjVmMDAiIGZpbGw9Im5vbmUiIHN0cm9rZS13aWR0aD0iMyIvPjwvc3ZnPg==')] opacity-0 scale-x-0 group-hover:opacity-100 group-hover:scale-x-100 transition-all duration-300 origin-left z-0 bg-repeat-x"></div>
           </Link>
         </div>
 
@@ -127,7 +129,7 @@ export default function Navigation({}: NavigationProps) {
           </div>
 
           <div className="flex items-center gap-2">
-            {profile?.email ? (
+            {user ? (
               <div className="flex items-center gap-4">
                 {isAdmin && (
                   <Button
@@ -139,57 +141,12 @@ export default function Navigation({}: NavigationProps) {
                     Dashboard
                   </Button>
                 )}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      className="relative h-8 w-8 rounded-full overflow-hidden border-2 border-primary hover:bg-primary/10"
-                    >
-                      {profile.avatar_url ? (
-                        <Image
-                          src={profile.avatar_url}
-                          alt="User Avatar"
-                          fill
-                          className="object-cover"
-                          priority
-                          sizes="32px"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-primary text-white text-sm font-medium">
-                          {getInitials(profile.name || profile.email)}
-                        </div>
-                      )}
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
-                    <div className="flex flex-col space-y-1 p-2">
-                      <p className="text-sm font-medium truncate">
-                        {profile.name || profile.email}
-                      </p>
-                      <p className="text-xs text-muted-foreground capitalize">
-                        {profile.role}
-                      </p>
-                    </div>
-                    <DropdownMenuSeparator />
-                    {isAdmin && (
-                      <DropdownMenuItem asChild>
-                        <Link
-                          href="/dashboard"
-                          className="w-full cursor-pointer"
-                        >
-                          <LayoutDashboard className="mr-2 h-4 w-4" />
-                          Dashboard
-                        </Link>
-                      </DropdownMenuItem>
-                    )}
-                    <DropdownMenuItem
-                      onClick={handleSignOut}
-                      className="text-red-600 cursor-pointer"
-                    >
-                      Sign Out
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <UserButton
+                  user={user}
+                  profile={profile}
+                  isAdmin={isAdmin}
+                  onSignOut={handleSignOut}
+                />
               </div>
             ) : (
               <Link href="/auth/login">
@@ -202,9 +159,12 @@ export default function Navigation({}: NavigationProps) {
             <Link href="/cart">
               <Button size="icon" variant="ghost" className="relative">
                 <ShoppingCart className="h-5 w-5" />
-                {items.length > 0 && (
-                  <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center">
-                    {items.length}
+                {cartItems.length > 0 && (
+                  <Badge
+                    className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center"
+                    aria-label={`${cartItems.length} items in cart`}
+                  >
+                    {cartItems.length}
                   </Badge>
                 )}
               </Button>

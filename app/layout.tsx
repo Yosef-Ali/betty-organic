@@ -1,26 +1,24 @@
-import { Inter } from "next/font/google"
-import "./globals.css"
-import { AuthProvider } from "@/contexts/auth/AuthContext"
+import './globals.css';
+import { Inter } from 'next/font/google';
+import Providers from './providers';
 
-const inter = Inter({ subsets: ["latin"] })
+const inter = Inter({ subsets: ['latin'] });
 
 export const metadata = {
-  title: "Betty Organic",
-  description: "Betty Organic - Local Natural Products",
-}
+  title: "Betty's Organic",
+  description: 'Fresh organic fruits and vegetables delivered to your door',
+};
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
     <html lang="en">
       <body className={inter.className}>
-        <AuthProvider>
-          {children}
-        </AuthProvider>
+        <Providers>{children}</Providers>
       </body>
     </html>
-  )
+  );
 }

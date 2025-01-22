@@ -1,45 +1,101 @@
 'use server';
 
-import { LoginFormType, ResetFormType } from 'lib/definitions';
 import { createClient } from '@/lib/supabase/server';
-import { redirect } from 'next/navigation';
-import { cookies } from 'next/headers';
-import { logAuthEvent } from '@/lib/utils';
+import type { RedirectType } from 'next/navigation';
 
-export type UserRole = 'admin' | 'sales' | 'customer';
-
-interface AuthResponse<T = unknown> {
-  error: string | null;
+export type AuthResponse<T = unknown> = {
+  error?: string;
   success: boolean;
-  data: T | null;
+  data?: T | null;
   message?: string;
-  redirectTo?: string;
-}
+  redirect?: {
+    destination: string;
+    type?: RedirectType;
+  };
+};
 
-interface SignupData {
-  email: string;
-  password: string;
-  full_name: string;
-}
-
-export async function signup(formData: FormData): Promise<AuthResponse> {
+export async function signIn(formData: FormData): Promise<AuthResponse> {
   const supabase = await createClient();
 
-  try {
-    const email = formData.get('email') as string;
-    const password = formData.get('password') as string;
-    const fullName = formData.get('full_name') as string;
+  const email = formData.get('email') as string;
+  const password = formData.get('password') as string;
 
-    // Validate input
-    if (!email || !password || !fullName) {
-      logAuthEvent('signup_validation_error', { email });
+  try {
+    const {
+      data: { session },
+      error: signInError,
+    } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (signInError) {
       return {
-        error: 'All fields are required',
+        error: signInError.message,
         success: false,
-        data: null,
       };
     }
 
+    if (!session) {
+      return {
+        error: 'Authentication failed',
+        success: false,
+      };
+    }
+
+    // Get user profile
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('role, status')
+      .eq('id', session.user.id)
+      .single();
+
+    if (profileError) {
+      return {
+        error: profileError.message,
+        success: false,
+      };
+    }
+
+    if (profile.status === 'inactive') {
+      return {
+        error: 'Account is inactive',
+        success: false,
+      };
+    }
+
+    // Return redirect based on role
+    const destination =
+      profile.role === 'admin'
+        ? '/dashboard/admin'
+        : profile.role === 'sales'
+        ? '/dashboard/sales'
+        : '/dashboard';
+
+    return {
+      success: true,
+      redirect: {
+        destination,
+        type: 'push',
+      },
+    };
+  } catch (error) {
+    console.error('Sign in error:', error);
+    return {
+      error: 'An unexpected error occurred',
+      success: false,
+    };
+  }
+}
+
+export async function signUp(formData: FormData): Promise<AuthResponse> {
+  const supabase = await createClient();
+
+  const email = formData.get('email') as string;
+  const password = formData.get('password') as string;
+  const fullName = formData.get('full_name') as string;
+
+  try {
     // Check if user exists
     const { data: existingUser } = await supabase
       .from('profiles')
@@ -48,189 +104,131 @@ export async function signup(formData: FormData): Promise<AuthResponse> {
       .single();
 
     if (existingUser) {
-      logAuthEvent('signup_existing_user', { email });
       return {
         error: 'User already exists',
         success: false,
-        data: null,
       };
     }
 
-    // Create user
-    const { data: signupData, error: signupError } = await supabase.auth.signUp(
-      {
-        email,
-        password,
-        options: {
-          emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
-          data: {
-            full_name: fullName,
-            role: 'customer',
-            status: 'active',
-          },
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
+        data: {
+          full_name: fullName,
+          role: 'customer',
+          status: 'active',
         },
       },
-    );
-
-    if (signupError) {
-      logAuthEvent('signup_error', { error: signupError.message, email });
-      return {
-        error: signupError.message,
-        success: false,
-        data: null,
-      };
-    }
-
-    logAuthEvent('signup_success', { userId: signupData.user?.id });
-    return {
-      error: null,
-      success: true,
-      data: signupData,
-      message: 'Please check your email to verify your account',
-      redirectTo: '/auth/verify',
-    };
-  } catch (error) {
-    logAuthEvent('signup_unexpected_error', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-    });
-    return {
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
-      success: false,
-      data: null,
-    };
-  }
-}
-
-export interface LoginResponse {
-  role: UserRole;
-  userId: string;
-}
-
-export async function login(
-  formData: LoginFormType,
-): Promise<AuthResponse<LoginResponse>> {
-  const supabase = await createClient();
-
-  try {
-    const {
-      data: { session },
-      error: signInError,
-    } = await supabase.auth.signInWithPassword({
-      email: formData.email,
-      password: formData.password,
     });
 
-    if (signInError) {
+    if (error) {
       return {
-        error: 'Invalid email or password',
+        error: error.message,
         success: false,
-        data: null,
-      };
-    }
-
-    if (!session) {
-      return {
-        error: 'Authentication failed',
-        success: false,
-        data: null,
       };
     }
 
     return {
-      error: null,
       success: true,
-      data: {
-        role: (session.user.user_metadata.role as UserRole) || 'customer',
-        userId: session.user.id,
-      },
-      redirectTo: '/dashboard',
+      message: 'Please check your email to confirm your account',
     };
   } catch (error) {
-    console.error('Login error:', error);
+    console.error('Sign up error:', error);
     return {
       error: 'An unexpected error occurred',
       success: false,
-      data: null,
     };
   }
 }
 
-export async function resetPassword(
-  formData: ResetFormType,
-): Promise<AuthResponse> {
+export async function signOut(): Promise<AuthResponse> {
   const supabase = await createClient();
 
   try {
-    if (!formData.email) {
-      return {
-        error: 'Email is required',
-        success: false,
-        data: null,
-      };
-    }
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
 
-    const { error } = await supabase.auth.resetPasswordForEmail(
-      formData.email,
-      {
-        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/update-password`,
+    return {
+      success: true,
+      redirect: {
+        destination: '/auth/login',
+        type: 'replace',
       },
-    );
+    };
+  } catch (error) {
+    console.error('Sign out error:', error);
+    return {
+      error: 'Error signing out',
+      success: false,
+      redirect: {
+        destination: '/auth/auth-error',
+        type: 'push',
+      },
+    };
+  }
+}
+
+export async function resetPassword(formData: FormData): Promise<AuthResponse> {
+  const supabase = await createClient();
+  const email = formData.get('email') as string;
+
+  try {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/update-password`,
+    });
 
     if (error) {
-      logAuthEvent('reset_password_error', {
-        error: error.message,
-        email: formData.email,
-      });
       return {
         error: error.message,
         success: false,
-        data: null,
       };
     }
 
-    logAuthEvent('reset_password_success', { email: formData.email });
     return {
-      error: null,
       success: true,
-      data: null,
       message: 'Password reset instructions sent to your email',
     };
   } catch (error) {
-    logAuthEvent('reset_password_unexpected_error', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-    });
+    console.error('Reset password error:', error);
     return {
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
+      error: 'An unexpected error occurred',
       success: false,
-      data: null,
     };
   }
 }
 
-export async function signOut(): Promise<void> {
+export async function updatePassword(
+  formData: FormData,
+): Promise<AuthResponse> {
   const supabase = await createClient();
+  const password = formData.get('password') as string;
+
   try {
-    // Clear Supabase session
-    const { error } = await supabase.auth.signOut();
+    const { error } = await supabase.auth.updateUser({
+      password,
+    });
+
     if (error) {
-      logAuthEvent('signout_error', { error: error.message });
-      throw error;
+      return {
+        error: error.message,
+        success: false,
+      };
     }
 
-    // Clear cookies
-    await cookies().delete('sb-auth-token');
-
-    logAuthEvent('signout_success');
+    return {
+      success: true,
+      redirect: {
+        destination: '/auth/login?message=Password updated successfully',
+        type: 'replace',
+      },
+    };
   } catch (error) {
-    logAuthEvent('signout_unexpected_error', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-    });
+    console.error('Update password error:', error);
+    return {
+      error: 'An unexpected error occurred',
+      success: false,
+    };
   }
-  redirect('/auth/login');
-}
-
-function getRoleBasedRedirect(role: UserRole): string {
-  return '/dashboard';
 }

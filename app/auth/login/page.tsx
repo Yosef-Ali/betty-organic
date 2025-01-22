@@ -1,55 +1,48 @@
-'use client';
-
-import { useRouter } from 'next/navigation';
-
 import { LoginForm } from '@/components/authentication/login-form';
-import { LoginFormType } from '@/lib/definitions';
+import { Metadata } from 'next';
 import Image from 'next/image';
-import { useEffect, useState } from 'react';
-import { toast } from 'sonner';
-import Link from 'next/link';
-import { login } from '../actions/authActions';
+
+export const metadata: Metadata = {
+  title: "Login | Betty's Organic",
+  description: 'Login to your account',
+};
 
 export default function LoginPage() {
   return (
-    <div className="grid h-screen lg:grid-cols-2">
-      <div className="flex flex-col gap-4 p-6 md:p-10">
-        <div className="flex justify-center gap-2 md:justify-start">
-          <Link href="/" className="flex items-center gap-2 font-medium">
-            <Image
-              src="/logo.jpeg"
-              alt="Company Logo"
-              width={24}
-              height={24}
-              className="rounded-md"
-            />
-            Betty&apos;s Organic
-          </Link>
+    <div className="container relative min-h-screen flex-col items-center justify-center grid lg:max-w-none lg:grid-cols-2 lg:px-0">
+      <div className="relative hidden h-full flex-col bg-muted p-10 text-white lg:flex dark:border-r">
+        <div className="absolute inset-0">
+          <Image
+            src="/pattern.svg"
+            alt="Authentication background"
+            fill
+            className="block dark:hidden object-cover opacity-50"
+          />
         </div>
-        <div className="flex flex-1 items-center justify-center">
-          <div className="w-full max-w-xs">
-            <LoginForm onSubmit={login} />
-            <div className="mt-4 text-center text-sm">
-              Don&apos;t have an account?{' '}
-              <Link
-                href="/auth/signup"
-                className="font-medium text-primary hover:underline"
-              >
-                Sign up
-              </Link>
-            </div>
-          </div>
+        <div className="relative z-20 flex items-center text-lg font-medium">
+          <Image
+            src="/logo.jpeg"
+            alt="Betty's Organic Logo"
+            width={40}
+            height={40}
+            className="mr-2 rounded-full"
+          />
+          Betty&apos;s Organic
+        </div>
+        <div className="relative z-20 mt-auto">
+          <blockquote className="space-y-2">
+            <p className="text-lg">
+              &ldquo;Your trusted source for fresh, organic produce delivered
+              right to your doorstep.&rdquo;
+            </p>
+            <footer className="text-sm">Betty Tadesse</footer>
+          </blockquote>
         </div>
       </div>
-      <div className="relative hidden bg-muted lg:block">
-        <Image
-          src="/fruits/orange.jpg"
-          alt="Login background"
-          width={1200}
-          height={1200}
-          priority
-          className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.2] dark:grayscale"
-        />
+      <div className="lg:p-8">
+        <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]">
+          <LoginForm />
+        </div>
       </div>
     </div>
   );

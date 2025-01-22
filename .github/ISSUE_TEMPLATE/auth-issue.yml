@@ -1,0 +1,104 @@
+name: Authentication System Issue
+description: Report an issue or request a feature related to the authentication system
+title: "[Auth]: "
+labels: ["authentication"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report an authentication issue!
+        Please fill out this form as completely as possible.
+
+  - type: dropdown
+    id: issue-type
+    attributes:
+      label: Issue Type
+      options:
+        - Bug Report
+        - Feature Request
+        - Security Concern
+        - Documentation Update
+        - Performance Issue
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - Login
+        - Signup
+        - Password Reset
+        - Email Verification
+        - Session Management
+        - Role-Based Access
+        - Profile Management
+        - Database/Migrations
+        - Types/TypeScript
+        - Documentation
+        - Tests
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear and concise description of the issue or feature request
+      placeholder: |
+        For bugs: What happened? What did you expect to happen?
+        For features: What would you like to add or change?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: For bugs, please provide detailed steps to reproduce the issue
+      placeholder: |
+        1. Go to '...'
+        2. Click on '...'
+        3. See error...
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Please provide relevant environment details
+      value: |
+        - Node Version:
+        - Next.js Version:
+        - Supabase Version:
+        - Browser (if applicable):
+        - Database Version:
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Logs
+      description: Please copy and paste any relevant logs or error messages
+      render: shell
+
+  - type: checkboxes
+    id: security-check
+    attributes:
+      label: Security Checklist
+      description: Please check if any of these apply
+      options:
+        - label: This issue involves sensitive data exposure
+        - label: This issue affects authentication/authorization
+        - label: This issue has security implications
+        - label: This issue requires immediate attention
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Code of Conduct
+      description: By submitting this issue, you agree to follow our contribution guidelines
+      options:
+        - label: I have read and agree to the project's code of conduct
+          required: true
+        - label: I have searched existing issues and this hasn't been reported before
+          required: true

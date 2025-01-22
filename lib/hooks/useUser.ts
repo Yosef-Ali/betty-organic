@@ -1,29 +1,42 @@
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { useEffect, useState } from 'react'
-import type { User } from '@/types/user'
+import { createClient } from '@supabase/ssr';
+import { useEffect, useState } from 'react';
+import type { User } from '@/types/user';
 
 export function useUser() {
-  const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [role, setRole] = useState<string | null>(null)
-  const supabase = createClientComponentClient()
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [role, setRole] = useState<string | null>(null);
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return document.cookie.match(new RegExp(`(^| )${name}=([^;]+)`))?.[2];
+        },
+      },
+    },
+  );
 
   useEffect(() => {
-    let mounted = true
+    let mounted = true;
 
     const loadUserData = async () => {
       try {
         // Get session
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-        if (sessionError) throw sessionError
+        const {
+          data: { session },
+          error: sessionError,
+        } = await supabase.auth.getSession();
+        if (sessionError) throw sessionError;
 
         if (!session?.user) {
           if (mounted) {
-            setUser(null)
-            setRole(null)
-            setLoading(false)
+            setUser(null);
+            setRole(null);
+            setLoading(false);
           }
-          return
+          return;
         }
 
         // Get profile data
@@ -31,9 +44,9 @@ export function useUser() {
           .from('profiles')
           .select('role, avatar_url')
           .eq('id', session.user.id)
-          .single()
+          .single();
 
-        if (profileError) throw profileError
+        if (profileError) throw profileError;
 
         if (mounted) {
           setUser({
@@ -41,31 +54,33 @@ export function useUser() {
             user_metadata: {
               ...session.user.user_metadata,
               role: profile?.role,
-              avatar_url: profile?.avatar_url
-            }
-          })
-          setRole(profile?.role)
+              avatar_url: profile?.avatar_url,
+            },
+          });
+          setRole(profile?.role);
         }
       } catch (error) {
-        console.error('Error loading user data:', error)
+        console.error('Error loading user data:', error);
       } finally {
         if (mounted) {
-          setLoading(false)
+          setLoading(false);
         }
       }
-    }
+    };
 
-    loadUserData()
+    loadUserData();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
-      loadUserData()
-    })
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(() => {
+      loadUserData();
+    });
 
     return () => {
-      mounted = false
-      subscription.unsubscribe()
-    }
-  }, [supabase])
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [supabase]);
 
   return {
     user,
@@ -73,5 +88,5 @@ export function useUser() {
     isAdmin: role === 'admin',
     isSales: role === 'sales',
     isCustomer: role === 'customer',
-  }
+  };
 }

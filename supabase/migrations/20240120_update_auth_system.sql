@@ -1,110 +1,124 @@
--- Drop existing triggers first
-DROP TRIGGER IF EXISTS trigger_add_user_on_sign_up ON auth.users;
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-DROP TRIGGER IF EXISTS on_auth_user_updated ON auth.users;
-
--- Drop existing functions
-DROP FUNCTION IF EXISTS public.add_user_on_sign_up();
-DROP FUNCTION IF EXISTS public.handle_new_user();
-DROP FUNCTION IF EXISTS public.handle_auth_user_update();
-
--- Create or update profiles table
-CREATE TABLE IF NOT EXISTS public.profiles (
-    id UUID REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
-    role TEXT CHECK (role in ('admin', 'sales', 'customer')) DEFAULT 'customer',
-    status TEXT CHECK (status in ('active', 'inactive')) DEFAULT 'active',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+-- Create login_attempts table for rate limiting
+CREATE TABLE IF NOT EXISTS login_attempts (
+    id BIGSERIAL PRIMARY KEY,
+    email TEXT NOT NULL UNIQUE,
+    attempts INTEGER DEFAULT 0,
+    locked_until TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Enable row-level security (RLS)
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+-- Add index for faster lookups
+CREATE INDEX IF NOT EXISTS idx_login_attempts_email ON login_attempts(email);
 
--- Create policies
-CREATE POLICY "Users can view own profile" ON public.profiles
-    FOR SELECT USING (auth.uid() = id);
-
-CREATE POLICY "Admin full access profiles" ON public.profiles
-    FOR ALL USING (
-        EXISTS (
-            SELECT 1 FROM public.profiles
-            WHERE id = auth.uid() AND role = 'admin'
-        )
-    );
-
--- Create or update users table
-CREATE TABLE IF NOT EXISTS public.users (
-    id UUID REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
-    email TEXT UNIQUE NOT NULL,
-    name TEXT,
-    avatar_url TEXT DEFAULT 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    CONSTRAINT email_check CHECK (email LIKE '%_@__%.__%')
-);
-
-ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
-
--- Create policies for users table
-CREATE POLICY "Users can view own data" ON public.users
-    FOR SELECT USING (auth.uid() = id);
-
-CREATE POLICY "Admin full access users" ON public.users
-    FOR ALL USING (
-        EXISTS (
-            SELECT 1 FROM public.profiles
-            WHERE id = auth.uid() AND role = 'admin'
-        )
-    );
-
--- Create the new-user function and trigger
-CREATE OR REPLACE FUNCTION public.handle_new_user()
+-- Add trigger to update updated_at timestamp
+CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
-    INSERT INTO public.profiles (id)
-    VALUES (NEW.id);
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
 
-    INSERT INTO public.users (
+CREATE OR REPLACE TRIGGER update_login_attempts_updated_at
+    BEFORE UPDATE ON login_attempts
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Update profiles table
+ALTER TABLE profiles
+    ADD COLUMN IF NOT EXISTS status TEXT CHECK (status IN ('active', 'inactive')) DEFAULT 'active',
+    ADD COLUMN IF NOT EXISTS role TEXT CHECK (role IN ('admin', 'sales', 'customer')) DEFAULT 'customer',
+    ADD COLUMN IF NOT EXISTS auth_provider TEXT,
+    ADD COLUMN IF NOT EXISTS last_login TIMESTAMP WITH TIME ZONE,
+    ADD COLUMN IF NOT EXISTS login_count INTEGER DEFAULT 0;
+
+-- Add RLS policies for login_attempts
+ALTER TABLE login_attempts ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow public read of own login attempts"
+    ON login_attempts FOR SELECT
+    USING (auth.email() = email);
+
+CREATE POLICY "Allow internal services to manage login attempts"
+    ON login_attempts FOR ALL
+    USING (auth.role() = 'service_role');
+
+-- Add RLS policies for profiles
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow users to read their own profile"
+    ON profiles FOR SELECT
+    USING (auth.uid() = id);
+
+CREATE POLICY "Allow users to update their own profile"
+    ON profiles FOR UPDATE
+    USING (auth.uid() = id)
+    WITH CHECK (
+        -- Prevent users from changing their role or status
+        (NEW.role = OLD.role) AND
+        (NEW.status = OLD.status)
+    );
+
+CREATE POLICY "Allow admins to manage all profiles"
+    ON profiles FOR ALL
+    USING (
+        EXISTS (
+            SELECT 1 FROM profiles
+            WHERE id = auth.uid()
+            AND role = 'admin'
+        )
+    );
+
+-- Function to auto-create profile on signup
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger AS $$
+BEGIN
+    INSERT INTO public.profiles (
         id,
         email,
         name,
-        avatar_url
-    ) VALUES (
+        role,
+        status,
+        auth_provider,
+        created_at,
+        updated_at
+    )
+    VALUES (
         NEW.id,
         NEW.email,
-        COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'name', NEW.email),
-        COALESCE(NEW.raw_user_meta_data->>'avatar_url', NEW.raw_user_meta_data->>'avatar',
-                 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png')
+        COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email),
+        COALESCE(NEW.raw_user_meta_data->>'role', 'customer'),
+        COALESCE(NEW.raw_user_meta_data->>'status', 'active'),
+        NEW.raw_user_meta_data->>'provider',
+        NEW.created_at,
+        NEW.created_at
     );
-
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ language plpgsql security definer;
 
+-- Trigger for auto-creating profile
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
-    FOR EACH ROW
-    EXECUTE FUNCTION public.handle_new_user();
+    FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
--- Handle auth.user updates
-CREATE OR REPLACE FUNCTION handle_auth_user_update()
-RETURNS TRIGGER AS $$
+-- Function to update last_login and login_count
+CREATE OR REPLACE FUNCTION public.handle_user_login()
+RETURNS trigger AS $$
 BEGIN
-    UPDATE public.users
+    UPDATE public.profiles
     SET
-        email = NEW.email,
-        updated_at = now()
+        last_login = NOW(),
+        login_count = login_count + 1
     WHERE id = NEW.id;
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ language plpgsql security definer;
 
-CREATE TRIGGER on_auth_user_updated
-    AFTER UPDATE ON auth.users
-    FOR EACH ROW
-    EXECUTE FUNCTION handle_auth_user_update();
-
--- Grant permissions
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO authenticated;
-GRANT ALL ON ALL TABLES IN SCHEMA public TO authenticated;
-GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO authenticated;
+-- Trigger for updating login stats
+DROP TRIGGER IF EXISTS on_auth_user_login ON auth.sessions;
+CREATE TRIGGER on_auth_user_login
+    AFTER INSERT ON auth.sessions
+    FOR EACH ROW EXECUTE FUNCTION public.handle_user_login();

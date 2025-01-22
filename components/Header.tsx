@@ -1,10 +1,12 @@
-import React, { useEffect, useState } from "react";
-import Image from "next/image";
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { Search, PanelLeft } from "lucide-react";
-import { Button, buttonVariants } from "components/ui/button";
-import { Input } from "components/ui/input";
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
+import { Search, PanelLeft } from 'lucide-react';
+import { Button, buttonVariants } from 'components/ui/button';
+import { Input } from 'components/ui/input';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,32 +14,38 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "components/ui/dropdown-menu";
-import { createClientComponentClient, User } from '@supabase/auth-helpers-nextjs'; // Import Supabase client
-import { Home, ShoppingBag, ShoppingCart, Package, Users2, LineChart } from "lucide-react";
-import Breadcrumb from "./Breadcrumb";
-import { useUser } from '@/lib/hooks/useUser'
+} from 'components/ui/dropdown-menu';
+import {
+  Home,
+  ShoppingBag,
+  ShoppingCart,
+  Package,
+  Users2,
+  LineChart,
+} from 'lucide-react';
+import Breadcrumb from './Breadcrumb';
+import { useAuthContext } from '@/contexts/auth/AuthContext';
+import { signOut } from '@/app/auth/actions/authActions';
 
 interface HeaderProps {
   onMobileMenuToggle: () => void;
 }
 
 const navItems = [
-  { href: "/dashboard", icon: Home, label: "Dashboard" },
-  { href: "/sales", icon: ShoppingBag, label: "Sales" },
-  { href: "/orders", icon: ShoppingCart, label: "Orders" },
-  { href: "/products", icon: Package, label: "Products" },
-  { href: "/customers", icon: Users2, label: "Customers" },
-  { href: "/profile", icon: Users2, label: "Profile" },
-  { href: "/analytics", icon: LineChart, label: "Analytics" },
-  { href: "/settings", icon: Users2, label: "Settings" },
+  { href: '/dashboard', icon: Home, label: 'Dashboard' },
+  { href: '/sales', icon: ShoppingBag, label: 'Sales' },
+  { href: '/orders', icon: ShoppingCart, label: 'Orders' },
+  { href: '/products', icon: Package, label: 'Products' },
+  { href: '/customers', icon: Users2, label: 'Customers' },
+  { href: '/profile', icon: Users2, label: 'Profile' },
+  { href: '/analytics', icon: LineChart, label: 'Analytics' },
+  { href: '/settings', icon: Users2, label: 'Settings' },
 ];
 
 export default function Header({ onMobileMenuToggle }: HeaderProps) {
-  const { user } = useUser()
+  const { profile, isAdmin } = useAuthContext();
   const pathname = usePathname();
   const router = useRouter();
-  const supabase = createClientComponentClient();
   const [clientPathname, setClientPathname] = useState('');
 
   useEffect(() => {
@@ -45,7 +53,7 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
   }, [pathname]);
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
+    await signOut();
     router.push('/auth/login');
   };
 
@@ -62,14 +70,14 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
     }
 
     return pathSegments.map((segment, index) => {
-      // Ensure the first segment (dashboard) is always lowercase in href
       const hrefSegments = rawSegments.slice(0, index + 1);
       if (index === 0 && hrefSegments[0].toLowerCase() === 'dashboard') {
         hrefSegments[0] = 'dashboard';
       }
       const href = '/' + hrefSegments.join('/');
 
-      const label = navItems.find(item => item.href === href)?.label ||
+      const label =
+        navItems.find(item => item.href === href)?.label ||
         segment
           .split(' ')
           .map(word => word.charAt(0).toUpperCase() + word.slice(1))
@@ -79,8 +87,13 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
   };
 
   return (
-    <header className="sticky top-0  z-30 flex h-14 items-center gap-4 border-b bg-background/80 px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:p-6"> {/* Added /80 for opacity */}
-      <Button size="icon" variant="outline" className="sm:hidden" onClick={onMobileMenuToggle}>
+    <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background/80 px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:p-6">
+      <Button
+        size="icon"
+        variant="outline"
+        className="sm:hidden"
+        onClick={onMobileMenuToggle}
+      >
         <PanelLeft className="h-5 w-5" />
         <span className="sr-only">Toggle Menu</span>
       </Button>
@@ -93,9 +106,9 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
           className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[336px]"
         />
       </div>
-      {user && (
-        <Link href="/dashboard" className={buttonVariants()}>
-          Dashboard
+      {isAdmin && (
+        <Link href="/dashboard/admin" className={buttonVariants()}>
+          Admin Dashboard
         </Link>
       )}
       <DropdownMenu>
@@ -106,7 +119,7 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
             className="overflow-hidden rounded-full"
           >
             <Image
-              src={user?.user_metadata?.avatar_url || "/placeholder-user.webp"}
+              src={profile?.avatar_url || '/placeholder-user.webp'}
               width={36}
               height={36}
               alt="Avatar"
@@ -116,7 +129,9 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuLabel>My Account</DropdownMenuLabel>
+          <DropdownMenuLabel>
+            {profile?.name || profile?.email}
+          </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem asChild>
             <Link href="/dashboard/profile">Profile</Link>

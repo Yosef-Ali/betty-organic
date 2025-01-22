@@ -1,0 +1,101 @@
+name: "✨ Feature Request"
+description: Suggest a new feature for the authentication system
+title: "[Feature]: "
+labels: ["enhancement", "authentication"]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for taking the time to suggest a new feature!
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Feature Area
+      description: Which area would this feature improve?
+      options:
+        - User Experience
+        - Security
+        - Performance
+        - Developer Experience
+        - Documentation
+        - Testing
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Auth Component
+      description: Which authentication component would this feature affect?
+      options:
+        - Login Flow
+        - Signup Process
+        - Password Management
+        - Email Verification
+        - Session Handling
+        - Role/Permission System
+        - Profile Management
+        - Multiple
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: What problem does this feature solve?
+      placeholder: A clear and concise description of what the problem is.
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe the solution you'd like to see
+      placeholder: A clear and concise description of what you want to happen.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Describe any alternative solutions you've considered
+      placeholder: List other approaches that could solve this problem.
+
+  - type: textarea
+    id: implementation
+    attributes:
+      label: Implementation Details
+      description: If you have specific ideas about how to implement this feature
+      placeholder: Technical details, API changes, database modifications, etc.
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Add any other context about the feature request
+      placeholder: Screenshots, diagrams, or examples from other systems.
+
+  - type: checkboxes
+    id: security
+    attributes:
+      label: Security Considerations
+      description: Does this feature have security implications?
+      options:
+        - label: This involves authentication/authorization changes
+        - label: This affects user data privacy
+        - label: This requires security review
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Contribution Guidelines
+      description: Please confirm the following
+      options:
+        - label: I have checked for existing feature requests
+          required: true
+        - label: I understand this feature may require security review
+          required: true
+        - label: I am willing to help implement this feature

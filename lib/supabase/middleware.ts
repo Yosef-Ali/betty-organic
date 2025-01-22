@@ -1,81 +1,168 @@
-import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
-import { logAuthEvent } from '@/lib/utils';
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { cookies } from 'next/headers';
+import { AuthError, type Profile } from '../types/supabase';
 
-// Routes that don't require authentication
-const PUBLIC_ROUTES = [
-  '/auth/login',
-  '/auth/signup',
-  '/auth/reset-password',
-  '/',
-  '/about',
-  '/contact',
-  '/public',
-  '/_next',
-  '/verify',
-  '/auth',
-  '/login',
-];
+export async function createMiddlewareClient() {
+  const cookieStore = cookies();
 
-// Routes that require authentication
-const PROTECTED_ROUTES = [
-  '/dashboard',
-  '/profile',
-  '/settings',
-  '/orders',
-  '/products',
-  '/admin',
-  '/sales',
-  '/api',
-];
-
-export async function middleware(req: NextRequest) {
-  const pathname = req.nextUrl.pathname;
-
-  // Early return for public routes
-  if (PUBLIC_ROUTES.some(route => pathname.startsWith(route))) {
-    return NextResponse.next();
-  }
-
-  const res = NextResponse.next();
-  const supabase = createMiddlewareClient({ req, res });
-
-  try {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    // Handle protected routes only
-    if (PROTECTED_ROUTES.some(route => pathname.startsWith(route))) {
-      if (!session) {
-        const redirectUrl = new URL('/auth/login', req.url);
-        redirectUrl.searchParams.set('redirectTo', pathname);
-        return NextResponse.redirect(redirectUrl);
-      }
-    }
-
-    return res;
-  } catch (error) {
-    // Always allow the request to continue for non-protected routes
-    if (!PROTECTED_ROUTES.some(route => pathname.startsWith(route))) {
-      return NextResponse.next();
-    }
-
-    // Redirect to login for protected routes
-    return NextResponse.redirect(new URL('/auth/login', req.url));
-  }
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        async get(name: string) {
+          const cookie = await cookieStore.get(name);
+          return cookie?.value;
+        },
+        async set(name: string, value: string, options: CookieOptions) {
+          try {
+            await cookieStore.set({ name, value, ...options });
+          } catch (error) {
+            // Handle in middleware
+          }
+        },
+        async remove(name: string, options: CookieOptions) {
+          try {
+            await cookieStore.delete(name);
+          } catch (error) {
+            // Handle in middleware
+          }
+        },
+      },
+    },
+  );
 }
 
-export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public folder
-     */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(svg|png|jpg|jpeg|gif|webp)$).*)',
-  ],
-};
+interface RouteAccess {
+  isProtected: boolean;
+  allowedRoles?: string[];
+}
+
+export function getRouteAccess(pathname: string): RouteAccess {
+  // Public routes that don't require authentication
+  if (
+    pathname.startsWith('/auth') ||
+    pathname.startsWith('/verify') ||
+    pathname.startsWith('/api/public') ||
+    pathname.includes('.') ||
+    pathname.startsWith('/_next')
+  ) {
+    return { isProtected: false };
+  }
+
+  // Role-specific routes
+  const roleRoutes: Record<string, string[]> = {
+    '/dashboard/admin': ['admin'],
+    '/dashboard/sales': ['admin', 'sales'],
+    '/dashboard/products/new': ['admin'],
+    '/dashboard/products/edit': ['admin'],
+    '/dashboard/settings': ['admin'],
+    '/dashboard/customers': ['admin', 'sales'],
+    '/dashboard/orders': ['admin', 'sales'],
+  };
+
+  // Check if the pathname matches any role-specific routes
+  for (const [route, roles] of Object.entries(roleRoutes)) {
+    if (pathname.startsWith(route)) {
+      return { isProtected: true, allowedRoles: roles };
+    }
+  }
+
+  // General protected routes accessible to all authenticated users
+  if (pathname.startsWith('/dashboard') || pathname.startsWith('/profile')) {
+    return { isProtected: true, allowedRoles: ['admin', 'sales', 'customer'] };
+  }
+
+  // Default to public access
+  return { isProtected: false };
+}
+
+export async function validateAccess(
+  pathname: string,
+  supabase: Awaited<ReturnType<typeof createMiddlewareClient>>,
+) {
+  const {
+    data: { session },
+    error: sessionError,
+  } = await supabase.auth.getSession();
+
+  if (sessionError) {
+    throw {
+      message: sessionError.message,
+      status: 401,
+    } as AuthError;
+  }
+
+  const access = getRouteAccess(pathname);
+
+  // Not a protected route, allow access
+  if (!access.isProtected) {
+    return { session, profile: null };
+  }
+
+  // Protected route but no session
+  if (!session) {
+    throw {
+      message: 'Authentication required',
+      status: 401,
+    } as AuthError;
+  }
+
+  // Get user profile for role check
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', session.user.id)
+    .single();
+
+  if (profileError || !profile) {
+    throw {
+      message: 'Profile not found',
+      status: 404,
+    } as AuthError;
+  }
+
+  // Check if user is inactive
+  if (profile.status === 'inactive') {
+    throw {
+      message: 'Account is inactive',
+      status: 403,
+    } as AuthError;
+  }
+
+  // Check role-based access
+  if (access.allowedRoles && !access.allowedRoles.includes(profile.role)) {
+    throw {
+      message: 'Access denied',
+      status: 403,
+    } as AuthError;
+  }
+
+  return { session, profile };
+}
+
+export async function getRedirectUrl(
+  profile: Profile | null,
+  error?: AuthError,
+): Promise<string> {
+  if (error) {
+    const url = new URL('/auth/auth-error', process.env.NEXT_PUBLIC_SITE_URL);
+    url.searchParams.set('code', error.status?.toString() || '500');
+    url.searchParams.set('message', encodeURIComponent(error.message));
+    return url.toString();
+  }
+
+  if (!profile) {
+    return '/auth/login';
+  }
+
+  // Role-based redirects
+  switch (profile.role) {
+    case 'admin':
+      return '/dashboard/admin';
+    case 'sales':
+      return '/dashboard/sales';
+    default:
+      return '/dashboard';
+  }
+}

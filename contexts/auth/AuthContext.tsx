@@ -1,8 +1,14 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { logAuthEvent } from '@/lib/utils';
+import {
+  createContext,
+  useContext,
+  useDebugValue,
+  useEffect,
+  useState,
+} from 'react';
+import { User } from '@supabase/supabase-js';
+import { createClient } from '@/lib/supabase/client';
 
 interface Profile {
   id: string;
@@ -16,148 +22,105 @@ interface Profile {
   updated_at?: string;
 }
 
-export interface AuthContextType {
+interface AuthContextType {
+  user: User | null;
+  profile: Profile | null;
+  isLoading: boolean;
   isAdmin: boolean;
   isSales: boolean;
   isCustomer: boolean;
-  loading: boolean;
-  profile: Profile | null;
-  isAuthenticated: boolean;
+  error: string | null;
 }
 
 const AuthContext = createContext<AuthContextType>({
+  user: null,
+  profile: null,
+  isLoading: true,
   isAdmin: false,
   isSales: false,
   isCustomer: false,
-  loading: true,
-  profile: null,
-  isAuthenticated: false,
+  error: null,
 });
 
+// Create singleton supabase client
+const supabase = createClient();
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [initialized, setInitialized] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const supabase = createClientComponentClient();
-
-  const loadProfile = async (userId: string) => {
-    try {
-      const { data: profileData, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (error) {
-        console.error('Profile fetch error:', error.message);
-        return null;
-      }
-
-      if (!profileData) {
-        console.warn('No profile found for user:', userId);
-        return null;
-      }
-
-      return profileData;
-    } catch (error) {
-      console.error('Profile load error:', error);
-      return null;
-    }
-  };
-
-  const updateProfile = async (newProfile: Profile | null) => {
-    try {
-      // Only update state if profile actually changed
-      if (JSON.stringify(newProfile) !== JSON.stringify(profile)) {
-        setProfile(newProfile);
-        setIsAuthenticated(!!newProfile);
-
-        // Update localStorage after state change
-        if (newProfile) {
-          localStorage.setItem('userProfile', JSON.stringify(newProfile));
-        } else {
-          localStorage.removeItem('userProfile');
-        }
-      }
-    } catch (error) {
-      console.error('Error updating profile:', error);
-    }
-    // Ensure loading state is cleared
-    if (loading) {
-      setLoading(false);
-    }
-  };
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
 
-    const initializeAuth = async () => {
+    const getUser = async () => {
       try {
-        setLoading(true);
-
-        // First check localStorage for profile
-        const savedProfile = localStorage.getItem('userProfile');
-        if (savedProfile) {
-          const parsedProfile = JSON.parse(savedProfile);
-          setProfile(parsedProfile);
-          setIsAuthenticated(true);
-        }
-
-        // Then verify with Supabase
+        setError(null); // Reset error state
+        // Get initial session
         const {
           data: { session },
-          error,
+          error: sessionError,
         } = await supabase.auth.getSession();
+        if (sessionError) throw sessionError;
 
-        if (error) {
-          throw error;
-        }
+        if (mounted) {
+          setUser(session?.user ?? null);
 
-        if (!session?.user?.id) {
-          await updateProfile(null);
-        } else {
-          const profileData = await loadProfile(session.user.id);
-          if (mounted && profileData) {
-            await updateProfile(profileData);
-          } else {
-            await updateProfile(null);
+          if (session?.user) {
+            // Get user profile
+            const { data: profile, error: profileError } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .single();
+
+            if (profileError) throw profileError;
+            if (mounted) setProfile(profile);
           }
         }
       } catch (error) {
-        console.error('Auth initialization error:', error);
-        await updateProfile(null);
+        const message =
+          error instanceof Error ? error.message : 'Error loading user';
+        console.error('Auth error:', error);
+        if (mounted) setError(message);
       } finally {
-        if (mounted) {
-          setLoading(false);
-          setInitialized(true);
-        }
+        if (mounted) setIsLoading(false);
       }
     };
 
-    initializeAuth();
+    // Call getUser immediately
+    getUser();
 
-    // Listen for auth changes
+    // Set up auth state listener
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mounted) return;
 
-      if (event === 'SIGNED_OUT') {
-        localStorage.removeItem('userProfile');
-        await updateProfile(null);
-        return;
-      }
+      try {
+        setError(null); // Reset error state
+        setUser(session?.user ?? null);
 
-      if (session?.user?.id) {
-        const profileData = await loadProfile(session.user.id);
-        if (profileData) {
-          await updateProfile(profileData);
+        if (session?.user) {
+          const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+
+          if (profileError) throw profileError;
+          setProfile(profile);
         } else {
-          await updateProfile(null);
+          setProfile(null);
         }
-      } else {
-        await updateProfile(null);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : 'Error updating auth state';
+        console.error('Auth state error:', error);
+        setError(message);
+      } finally {
+        setIsLoading(false);
       }
     });
 
@@ -165,30 +128,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [supabase]);
+  }, []);
 
-  if (!initialized) {
-    return null;
-  }
-
-  const contextValue = {
+  const value = {
+    user,
+    profile,
+    isLoading,
+    error,
     isAdmin: profile?.role === 'admin',
     isSales: profile?.role === 'sales',
     isCustomer: profile?.role === 'customer',
-    loading,
-    profile,
-    isAuthenticated,
   };
 
-  return (
-    <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-export const useAuthContext = () => {
+// Keep both exports for backward compatibility
+export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuthContext must be used within an AuthProvider');
+    throw new Error('useAuth must be used within an AuthProvider');
   }
+
+  // Add debug information to React DevTools
+  useDebugValue(
+    {
+      hasUser: !!context.user,
+      hasProfile: !!context.profile,
+      error: context.error,
+    },
+    status =>
+      `Auth: ${status.hasUser ? 'Logged in' : 'Logged out'}, Profile: ${
+        status.hasProfile ? 'Loaded' : 'Loading'
+      }${status.error ? `, Error: ${status.error}` : ''}`,
+  );
+
   return context;
 };
+
+export const useAuthContext = useAuth;

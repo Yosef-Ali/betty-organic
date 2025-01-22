@@ -1,11 +1,13 @@
-'use client'
+'use client';
 
-import { AuthProvider } from '@/lib/hooks/useAuth'
+import { AuthProvider } from '@/contexts/auth/AuthContext';
+import { Toaster } from 'sonner';
 
-export function Providers({ children }: { children: React.ReactNode }) {
+export default function Providers({ children }: { children: React.ReactNode }) {
   return (
     <AuthProvider>
       {children}
+      <Toaster position="top-center" expand={true} richColors />
     </AuthProvider>
-  )
+  );
 }

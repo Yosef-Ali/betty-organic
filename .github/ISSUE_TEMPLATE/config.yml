@@ -1,0 +1,21 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security Vulnerability
+    url: https://github.com/mekdesyared/betty-organic-app/security/policy
+    about: Please report security vulnerabilities following our security policy
+
+  - name: Authentication Documentation
+    url: https://github.com/mekdesyared/betty-organic-app/blob/main/docs/auth-guide.md
+    about: Check our documentation before reporting an issue
+
+  - name: Troubleshooting Guide
+    url: https://github.com/mekdesyared/betty-organic-app/blob/main/docs/auth-system-summary.md#troubleshooting
+    about: Find solutions to common authentication problems
+
+  - name: Questions & Support
+    url: https://github.com/mekdesyared/betty-organic-app/discussions
+    about: Please ask general questions in our Discussions section
+
+  - name: Contributing Guidelines
+    url: https://github.com/mekdesyared/betty-organic-app/blob/main/CONTRIBUTING.md
+    about: Review our contributing guidelines before submitting PRs
