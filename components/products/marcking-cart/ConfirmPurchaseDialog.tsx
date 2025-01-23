@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { useRouter } from "next/navigation";
+import { useRouter } from 'next/navigation';
 import {
   Dialog,
   DialogContent,
@@ -8,17 +8,17 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
-
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
+import { useState, useEffect } from 'react';
 import { createOrder } from '@/app/actions/orderActions';
-import type { Order } from "@/types/order";
-import { Share2 } from "lucide-react";
-import { useMarketingCartStore } from "@/store/cartStore";
-import { useAuthContext } from "@/contexts/auth/AuthContext";
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { createClient } from '@/lib/supabase/client';
+import type { Order } from '@/types/order';
+import { Share2 } from 'lucide-react';
+import { useMarketingCartStore } from '@/store/cartStore';
+import { useAuthContext } from '@/contexts/auth/AuthContext';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface ConfirmPurchaseDialogProps {
   open: boolean;
@@ -43,45 +43,61 @@ export function ConfirmPurchaseDialog({
   const { profile, isAuthenticated, loading } = useAuthContext();
   const clearCart = useMarketingCartStore(state => state.clearCart);
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const validateSession = async () => {
+      if (open && !loading) {
+        try {
+          const supabase = createClient();
+          const {
+            data: { session },
+            error,
+          } = await supabase.auth.getSession();
+
+          if (error) throw error;
+
+          if (!session) {
+            router.push(
+              `/auth/login?return_url=${encodeURIComponent(
+                window.location.pathname,
+              )}`,
+            );
+            onOpenChange(false);
+          }
+        } catch (error) {
+          console.error('Session validation error:', error);
+          router.push('/auth/login');
+          onOpenChange(false);
+        }
+      }
+    };
+
+    validateSession();
+  }, [open, loading, router, onOpenChange]);
 
   const handleCheckout = async () => {
     try {
       setError(null);
+      setIsSubmitting(true);
 
-      if (loading) {
-        toast({
-          title: "Please wait",
-          description: "Checking authentication status...",
-          variant: "default",
-        });
-        return;
+      if (!profile?.id) {
+        throw new Error('User profile not loaded. Please refresh the page.');
       }
 
-      if (!isAuthenticated || !profile) {
-        toast({
-          title: "Sign in Required",
-          description: "Please sign in first to place orders. Your cart will be saved automatically.",
-          variant: "default",
-        });
-        router.push('/auth/login');
-        onOpenChange(false);
-        return;
-      }
-
-      // Create order data
       const orderData: Order = {
         id: crypto.randomUUID(),
         customer_id: profile.id,
-        status: "pending",
-        type: "online",
+        status: 'pending',
+        type: 'online',
         total_amount: Number(total.toFixed(2)),
         order_items: items.map(item => ({
           id: crypto.randomUUID(),
           product_id: item.id,
           quantity: Math.max(1, Math.round(item.grams / 1000)),
-          price: Number((item.pricePerKg * item.grams / 1000).toFixed(2)),
-          product_name: item.name
-        }))
+          price: Number(((item.pricePerKg * item.grams) / 1000).toFixed(2)),
+          product_name: item.name,
+        })),
       };
 
       // Create order
@@ -102,12 +118,17 @@ export function ConfirmPurchaseDialog({
 
       // Show success message
       toast({
-        title: "Order Confirmed!",
-        description: "Thank you for your order. We will contact you soon about delivery details.",
-        duration: 5000,
+        title: 'Success',
+        description: 'Order placed successfully!',
+        variant: 'default',
       });
 
+      // Redirect to order confirmation or orders page
+      router.push('/dashboard/orders');
+
+      console.log('Order successfully created:', order);
     } catch (err: unknown) {
+      setIsSubmitting(false);
       const e = err as Error & {
         code?: string;
         details?: string;
@@ -128,15 +149,15 @@ export function ConfirmPurchaseDialog({
         message: e.message,
         code: e.code,
         details: e.details,
-        stack: e.stack
+        stack: e.stack,
       });
 
       setError(errorMessage);
 
       toast({
-        title: "Checkout Error",
+        title: 'Checkout Error',
         description: errorMessage,
-        variant: "destructive",
+        variant: 'destructive',
       });
     }
   };
@@ -169,22 +190,29 @@ export function ConfirmPurchaseDialog({
           </Alert>
         )}
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={isSubmitting}
+          >
             Cancel
           </Button>
           <Button
             variant="outline"
+            disabled={isSubmitting}
             onClick={() => {
-              const message = `I just placed an order for ${items.length} items totaling ETB ${total.toFixed(2)}!`;
+              const message = `I just placed an order for ${
+                items.length
+              } items totaling ETB ${total.toFixed(2)}!`;
               const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
-              window.open(url, "_blank");
+              window.open(url, '_blank');
             }}
           >
             <Share2 className="mr-2 h-4 w-4" />
             Share via WhatsApp
           </Button>
-          <Button onClick={handleCheckout}>
-            Confirm Order
+          <Button onClick={handleCheckout} disabled={isSubmitting}>
+            {isSubmitting ? 'Processing...' : 'Confirm Order'}
           </Button>
         </DialogFooter>
       </DialogContent>
