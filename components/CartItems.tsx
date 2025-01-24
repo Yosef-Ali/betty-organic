@@ -1,20 +1,20 @@
-import { FC } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { useCartStore } from "@/store/cartStore";
-import { CartItem } from "./CartItem";
+import { FC } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useMarketingCartStore } from '@/store/cartStore';
+import { CartItem } from './CartItem';
 
 export const CartItems: FC = () => {
-  const { items, removeFromCart, updateGrams } = useCartStore();
+  const { items, removeFromCart, updateGrams } = useMarketingCartStore();
 
   return (
     <AnimatePresence mode="wait">
       <motion.div
         key="cart-items"
-        initial={{ opacity: 0, x: "-100%" }}
-        animate={{ opacity: 1, x: "0%" }}
-        exit={{ opacity: 0, x: "100%" }}
+        initial={{ opacity: 0, x: '-100%' }}
+        animate={{ opacity: 1, x: '0%' }}
+        exit={{ opacity: 0, x: '100%' }}
         transition={{
-          type: "spring",
+          type: 'spring',
           stiffness: 300,
           damping: 30,
         }}

@@ -1,24 +1,26 @@
-import { FC } from "react";
-import { motion } from "framer-motion";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Printer, Lock, Unlock, Share2 } from "lucide-react";
+import { FC } from 'react';
+import { motion } from 'framer-motion';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Printer, Lock, Unlock, Share2 } from 'lucide-react';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from '@/components/ui/select';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
-} from "@/components/ui/dropdown-menu";
+} from '@/components/ui/dropdown-menu';
 
-import { Customer } from "@/types/customer";
+import { Customer } from '@/types/customer';
+
+import { useMarketingCartStore } from '@/store/cartStore';
 
 interface OrderSummaryProps {
   items: Array<{
@@ -28,14 +30,15 @@ interface OrderSummaryProps {
     pricePerKg: number;
     imageUrl: string;
   }>;
-  totalAmount: number;
-  customerId: string;
-  setCustomerId: (id: string) => void;
-  orderStatus: "pending" | "processing" | "completed" | "cancelled";
-  setOrderStatus: (status: "pending" | "processing" | "completed" | "cancelled") => void;
+  profileId: string;
+  setProfileId: (id: string) => void;
+  orderStatus: 'pending' | 'processing' | 'completed' | 'cancelled';
+  setOrderStatus: (
+    status: 'pending' | 'processing' | 'completed' | 'cancelled',
+  ) => void;
   isStatusVerified: boolean;
   handleToggleLock: () => void;
-  handleConfirmDialog: (action: "save" | "cancel") => void;
+  handleConfirmDialog: (action: 'save' | 'cancel') => void;
   isSaving: boolean;
   onPrintPreview: () => void;
   isOrderSaved: boolean;
@@ -44,9 +47,8 @@ interface OrderSummaryProps {
 
 export const OrderSummary: FC<OrderSummaryProps> = ({
   items,
-  totalAmount,
-  customerInfo,
-  setCustomerInfo,
+  profileId,
+  setProfileId,
   orderStatus,
   setOrderStatus,
   isStatusVerified,
@@ -57,8 +59,11 @@ export const OrderSummary: FC<OrderSummaryProps> = ({
   isOrderSaved,
   orderNumber,
 }) => {
+  const { getTotalAmount } = useMarketingCartStore();
+  const totalAmount = getTotalAmount();
   const WHATSAPP_NUMBER = '251947385509';
-  const WHATSAPP_GROUP_LINK = 'https://chat.whatsapp.com/your-group-invite-link';
+  const WHATSAPP_GROUP_LINK =
+    'https://chat.whatsapp.com/your-group-invite-link';
 
   const formatDate = () => {
     return new Date().toLocaleDateString('en-US', {
@@ -67,18 +72,21 @@ export const OrderSummary: FC<OrderSummaryProps> = ({
       month: 'long',
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
     });
   };
 
   const handleShare = async (shareType: 'direct' | 'group') => {
     try {
       const orderDetails = items
-        .map(item => (
-          `🛍️ *${item.name}*\n` +
-          `   • Quantity: ${(item.grams / 1000).toFixed(3)} kg\n` +
-          `   • Price: Br ${((item.pricePerKg * item.grams) / 1000).toFixed(2)}`
-        ))
+        .map(
+          item =>
+            `🛍️ *${item.name}*\n` +
+            `   • Quantity: ${(item.grams / 1000).toFixed(3)} kg\n` +
+            `   • Price: Br ${((item.pricePerKg * item.grams) / 1000).toFixed(
+              2,
+            )}`,
+        )
         .join('\n\n');
 
       const storeInfo = `
@@ -95,7 +103,7 @@ export const OrderSummary: FC<OrderSummaryProps> = ({
 ${orderDetails}
 
 💰 *Total Amount:* Br ${totalAmount.toFixed(2)}
-${customerId ? `\n👤 *Customer ID:* ${customerId}` : ''}
+${profileId ? `\n👤 *Profile ID:* ${profileId}` : ''}
 
 ✨ Thank you for choosing Betty Organic! ✨
 
@@ -104,7 +112,9 @@ ${storeInfo}`;
       if (shareType === 'group') {
         window.open(WHATSAPP_GROUP_LINK, '_blank');
       } else {
-        const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(shareText)}`;
+        const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
+          shareText,
+        )}`;
         window.open(whatsappUrl, '_blank');
       }
     } catch (error) {
@@ -115,16 +125,21 @@ ${storeInfo}`;
   return (
     <motion.div
       key="order-summary"
-      initial={{ opacity: 0, x: "100%" }}
-      animate={{ opacity: 1, x: "0%" }}
-      exit={{ opacity: 0, x: "-100%" }}
-      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+      initial={{ opacity: 0, x: '100%' }}
+      animate={{ opacity: 1, x: '0%' }}
+      exit={{ opacity: 0, x: '-100%' }}
+      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
       className="space-y-4"
     >
       <div className="flex justify-between items-center mb-4">
         <h3 className="font-semibold text-lg">Order Summary</h3>
         <div className="flex space-x-2">
-          <Button variant="outline" size="sm" onClick={onPrintPreview} disabled={!isOrderSaved}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onPrintPreview}
+            disabled={!isOrderSaved}
+          >
             <Printer className="h-4 w-4 mr-2" />
             Print
           </Button>
@@ -135,7 +150,11 @@ ${storeInfo}`;
                 size="sm"
                 className="bg-green-500/10 hover:bg-green-500/20 text-green-600"
               >
-                <svg className="h-4 w-4 mr-2" viewBox="0 0 24 24" fill="currentColor">
+                <svg
+                  className="h-4 w-4 mr-2"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
                   <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
                 </svg>
                 Share
@@ -153,14 +172,14 @@ ${storeInfo}`;
         </div>
       </div>
       {orderNumber && (
-        <p className="text-sm text-muted-foreground">
-          Order #: {orderNumber}
-        </p>
+        <p className="text-sm text-muted-foreground">Order #: {orderNumber}</p>
       )}
       <div className="space-y-2 mb-4">
-        {items.map((item) => (
+        {items.map(item => (
           <div key={item.id} className="flex justify-between text-sm">
-            <span>{item.name} ({item.grams}g)</span>
+            <span>
+              {item.name} ({item.grams}g)
+            </span>
             <span>Br {((item.pricePerKg * item.grams) / 1000).toFixed(2)}</span>
           </div>
         ))}
@@ -172,14 +191,14 @@ ${storeInfo}`;
       <div className="space-y-4">
         <div>
           <Label htmlFor="customer-info" className="text-sm font-medium">
-            Customer Name or Phone (Optional)
+            Profile ID
           </Label>
           <Input
             id="customer-info"
             type="text"
-            placeholder="Enter customer name or phone"
-            value={customerId}
-            onChange={(e) => setCustomerId(e.target.value)}
+            placeholder="Enter profile ID"
+            value={profileId}
+            onChange={e => setProfileId(e.target.value)}
             className="mt-1"
           />
         </div>
@@ -220,11 +239,11 @@ ${storeInfo}`;
         </div>
       </div>
       <div className="flex justify-end space-x-2">
-        <Button variant="outline" onClick={() => handleConfirmDialog("cancel")}>
+        <Button variant="outline" onClick={() => handleConfirmDialog('cancel')}>
           Cancel
         </Button>
-        <Button onClick={() => handleConfirmDialog("save")} disabled={isSaving}>
-          {isSaving ? "Saving..." : "Save Order"}
+        <Button onClick={() => handleConfirmDialog('save')} disabled={isSaving}>
+          {isSaving ? 'Saving...' : 'Save Order'}
         </Button>
       </div>
     </motion.div>
