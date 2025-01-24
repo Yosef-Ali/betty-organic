@@ -56,6 +56,22 @@ console.log('AuthContext initialized with:', {
 // Create singleton supabase client
 const supabase = createClient();
 
+async function fetchFreshProfile(userId: string): Promise<Profile | null> {
+  try {
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (error) throw error;
+    return profile;
+  } catch (error) {
+    console.error('Error fetching fresh profile:', error);
+    return null;
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -79,14 +95,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(session?.user ?? null);
 
           if (session?.user) {
-            // Get user profile
-            const { data: profile, error: profileError } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', session.user.id)
-              .single();
-
-            if (profileError) throw profileError;
+            // Get user profile using centralized function
+            const profile = await fetchFreshProfile(session.user.id);
+            if (!profile) throw new Error('Failed to fetch user profile');
             if (mounted) setProfile(profile);
           }
         }
@@ -114,13 +125,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-
-          if (profileError) throw profileError;
+          const profile = await fetchFreshProfile(session.user.id);
+          if (!profile) throw new Error('Failed to fetch user profile');
           setProfile(profile);
         } else {
           setProfile(null);

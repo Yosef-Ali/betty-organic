@@ -3,15 +3,12 @@
 import { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from '@/components/ui/skeleton';
 import { useAuthContext } from '@/contexts/auth/AuthContext';
 import { useRouter } from 'next/navigation';
 import { usePathname } from 'next/navigation';
 
-const CUSTOMER_ACCESSIBLE_ROUTES = [
-  '/dashboard/profile',
-  '/dashboard/orders'
-];
+const CUSTOMER_ACCESSIBLE_ROUTES = ['/dashboard/profile', '/dashboard/orders'];
 
 export default function DashboardLayout({
   children,
@@ -29,7 +26,7 @@ export default function DashboardLayout({
     isSales,
     loading,
     userRole: profile?.role,
-    pathname
+    pathname,
   });
 
   useEffect(() => {
@@ -38,7 +35,7 @@ export default function DashboardLayout({
       const isCustomerRoute = CUSTOMER_ACCESSIBLE_ROUTES.includes(pathname);
 
       // Restrict admin-only routes
-      const isAdminRoute = pathname.startsWith('/dashboard/admin');
+      const isAdminRoute = pathname.startsWith('/dashboard');
       if (isAdminRoute && !isAdmin) {
         console.log('🚫 Unauthorized access attempt - redirecting to profile');
         router.replace('/dashboard/profile');
@@ -78,11 +75,15 @@ export default function DashboardLayout({
         onMobileMenuClose={() => setMobileMenuOpen(false)}
       />
       <div className="flex flex-col flex-1 overflow-hidden">
-        <main className={`flex-1 overflow-y-auto transition-[margin] duration-300 ${sidebarExpanded ? 'ml-60' : 'ml-14'}`}>
-          <Header onMobileMenuToggle={() => setMobileMenuOpen(!mobileMenuOpen)} />
-          <div className="container mx-auto">
-            {children}
-          </div>
+        <main
+          className={`flex-1 overflow-y-auto transition-[margin] duration-300 ${
+            sidebarExpanded ? 'ml-60' : 'ml-14'
+          }`}
+        >
+          <Header
+            onMobileMenuToggle={() => setMobileMenuOpen(!mobileMenuOpen)}
+          />
+          <div className="container mx-auto">{children}</div>
         </main>
       </div>
     </div>
