@@ -42,6 +42,17 @@ const AuthContext = createContext<AuthContextType>({
   error: null,
 });
 
+// Add debug logging for initial context values
+console.log('AuthContext initialized with:', {
+  user: null,
+  profile: null,
+  isLoading: true,
+  isAdmin: false,
+  isSales: false,
+  isCustomer: false,
+  error: null,
+});
+
 // Create singleton supabase client
 const supabase = createClient();
 
@@ -130,15 +141,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  const [currentProfile, setCurrentProfile] = useState<Profile | null>(null);
+
+  useEffect(() => {
+    const refreshProfile = async () => {
+      if (user && !profile) {
+        const freshProfile = await fetchFreshProfile(user.id);
+        setCurrentProfile(freshProfile);
+      } else {
+        setCurrentProfile(profile);
+      }
+    };
+
+    refreshProfile();
+  }, [user, profile]);
+
   const value = {
     user,
-    profile,
+    profile: currentProfile,
     isLoading,
     error,
-    isAdmin: profile?.role === 'admin',
-    isSales: profile?.role === 'sales',
-    isCustomer: profile?.role === 'customer',
+    isAdmin: currentProfile?.role === 'admin',
+    isSales: currentProfile?.role === 'sales',
+    isCustomer: currentProfile?.role === 'customer',
   };
+
+  console.log('Final auth context value:', {
+    userId: user?.id?.substring(0, 6),
+    profileId: currentProfile?.id?.substring(0, 6),
+    role: currentProfile?.role,
+    isAdmin: value.isAdmin,
+  });
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

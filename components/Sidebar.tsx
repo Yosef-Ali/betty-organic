@@ -1,10 +1,31 @@
-'use client'
+'use client';
 
-import { useState, useEffect } from "react";
-import Link from "next/link";
-import Image from "next/image";
-import { Home, ShoppingBag, ShoppingCart, Package, Users2, Users, LineChart, Settings, ChevronLeft, ChevronRight, X, IdCard, UserPen, User, LayoutDashboard } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
+import {
+  Home,
+  ShoppingBag,
+  ShoppingCart,
+  Package,
+  Users2,
+  Users,
+  LineChart,
+  Settings,
+  ChevronLeft,
+  ChevronRight,
+  X,
+  IdCard,
+  UserPen,
+  User,
+  LayoutDashboard,
+} from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from './ui/tooltip';
 import { Button } from './ui/button';
 import { useAuthContext } from '@/contexts/auth/AuthContext';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
@@ -16,9 +37,15 @@ interface SidebarProps {
   onMobileMenuClose: () => void;
 }
 
-export default function Sidebar({ expanded, onToggle, mobileMenuOpen, onMobileMenuClose }: SidebarProps) {
-  const { isAdmin, isSales, loading, profile } = useAuthContext();  // Changed here
+export default function Sidebar({
+  expanded,
+  onToggle,
+  mobileMenuOpen,
+  onMobileMenuClose,
+}: SidebarProps) {
+  const { isAdmin, isSales, loading, profile, user } = useAuthContext();
   const [isMobile, setIsMobile] = useState(false);
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 640);
@@ -27,27 +54,35 @@ export default function Sidebar({ expanded, onToggle, mobileMenuOpen, onMobileMe
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  console.log('🎯 Sidebar auth state:', {
-    isAdmin,
-    isSales,
-    loading,
-    userRole: profile?.role  // Changed here
-  });
+  useEffect(() => {
+    setIsClient(true);
+  }, [profile, user, loading]); // Keep deps to avoid stale state
 
-  // Show loading state
-  if (loading) {
+  // Handle client-side rendering and loading states
+  if (!isClient || loading) {
     return null;
   }
 
-  const commonItems = [
+  const profileItem = {
+    label: 'Profile',
+    icon: <UserPen className="h-4 w-4" />,
+    href: '/dashboard/profile',
+  };
+
+  const salesItems = [
     {
-      label: 'Profile',
-      icon: <UserPen className="h-4 w-4" />,
-      href: '/dashboard/profile',
+      label: 'Sales',
+      icon: <ShoppingBag className="h-4 w-4" />,
+      href: '/dashboard/sales',
+    },
+    {
+      label: 'Orders',
+      icon: <ShoppingCart className="h-4 w-4" />,
+      href: '/dashboard/orders',
     },
   ];
 
-  const adminSalesItems = [
+  const adminItems = [
     {
       label: 'Dashboard',
       icon: <LayoutDashboard className="h-4 w-4" />,
@@ -59,9 +94,19 @@ export default function Sidebar({ expanded, onToggle, mobileMenuOpen, onMobileMe
       href: '/dashboard/products',
     },
     {
+      label: 'Sales',
+      icon: <ShoppingBag className="h-4 w-4" />,
+      href: '/dashboard/sales',
+    },
+    {
       label: 'Orders',
       icon: <ShoppingCart className="h-4 w-4" />,
       href: '/dashboard/orders',
+    },
+    {
+      label: 'Customers',
+      icon: <Users2 className="h-4 w-4" />,
+      href: '/dashboard/customers',
     },
   ];
 
@@ -78,18 +123,18 @@ export default function Sidebar({ expanded, onToggle, mobileMenuOpen, onMobileMe
     },
   ];
 
-  const navItems = [
-    ...commonItems,
-    ...(isAdmin || isSales ? adminSalesItems : []),
-    ...(isAdmin ? adminOnlyItems : []),
-  ];
+  const navItems = isAdmin
+    ? [profileItem, ...adminItems, ...adminOnlyItems]
+    : isSales
+    ? [profileItem, ...salesItems]
+    : [profileItem]; // Customer only sees profile
 
   console.log('📋 Sidebar nav items:', {
     total: navItems.length,
     items: navItems.map(item => item.label),
     isAdmin,
     isSales,
-    role: profile?.role  // Changed here
+    role: profile?.role,
   });
 
   const toggleSidebar = () => {
@@ -108,29 +153,47 @@ export default function Sidebar({ expanded, onToggle, mobileMenuOpen, onMobileMe
             className="w-10 h-10 object-cover cursor-pointer"
           />
           {(expanded || isMobile) && (
-            <span className="ml-3 text-lg font-bold whitespace-nowrap overflow-hidden transition-all duration-300">Betty Organic</span>
+            <span className="ml-3 text-lg font-bold whitespace-nowrap overflow-hidden transition-all duration-300">
+              Betty Organic
+            </span>
           )}
         </Link>
         {isMobile && (
-          <Button size="icon" variant="ghost" className="ml-auto" onClick={onMobileMenuClose}>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="ml-auto"
+            onClick={onMobileMenuClose}
+          >
             <X className="h-5 w-5" />
             <span className="sr-only">Close Menu</span>
           </Button>
         )}
       </div>
       <nav className="flex-1 overflow-y-auto py-5 px-2">
-        {navItems.map((item) => (
-          <SidebarLink key={item.href} {...item} expanded={expanded || isMobile} onClick={isMobile ? onMobileMenuClose : undefined} />
+        {navItems.map(item => (
+          <SidebarLink
+            key={item.href}
+            {...item}
+            expanded={expanded || isMobile}
+            onClick={isMobile ? onMobileMenuClose : undefined}
+          />
         ))}
       </nav>
       <div className="px-2 py-5"></div>
-      {!isMobile && <ToggleButton expanded={expanded} onClick={toggleSidebar} />}
+      {!isMobile && (
+        <ToggleButton expanded={expanded} onClick={toggleSidebar} />
+      )}
     </>
   );
 
   if (isMobile) {
     return (
-      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-background border-r transition-transform duration-300 ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-background border-r transition-transform duration-300 ${
+          mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
         {sidebarContent}
       </aside>
     );
@@ -138,7 +201,11 @@ export default function Sidebar({ expanded, onToggle, mobileMenuOpen, onMobileMe
 
   return (
     <TooltipProvider>
-      <aside className={`fixed inset-y-0 left-0 z-10 flex flex-col bg-background border-r transition-all duration-300 ${expanded ? 'w-60' : 'w-14'}`}>
+      <aside
+        className={`fixed inset-y-0 left-0 z-10 flex flex-col bg-background border-r transition-all duration-300 ${
+          expanded ? 'w-60' : 'w-14'
+        }`}
+      >
         {sidebarContent}
       </aside>
     </TooltipProvider>
@@ -153,13 +220,21 @@ interface SidebarLinkProps {
   onClick?: () => void;
 }
 
-function SidebarLink({ href, icon, label, expanded, onClick }: SidebarLinkProps) {
+function SidebarLink({
+  href,
+  icon,
+  label,
+  expanded,
+  onClick,
+}: SidebarLinkProps) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <Link
           href={href}
-          className={`flex items-center ${expanded ? 'justify-start px-4' : 'justify-center'} h-10 w-full rounded-md transition-colors hover:bg-accent hover:text-accent-foreground`}
+          className={`flex items-center ${
+            expanded ? 'justify-start px-4' : 'justify-center'
+          } h-10 w-full rounded-md transition-colors hover:bg-accent hover:text-accent-foreground`}
           onClick={onClick}
         >
           {icon}
@@ -182,7 +257,11 @@ function ToggleButton({ expanded, onClick }: ToggleButtonProps) {
       onClick={onClick}
       className="absolute -right-3 bottom-24 h-6 w-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center transition-transform duration-300 hover:scale-110"
     >
-      {expanded ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+      {expanded ? (
+        <ChevronLeft className="h-4 w-4" />
+      ) : (
+        <ChevronRight className="h-4 w-4" />
+      )}
     </button>
   );
 }

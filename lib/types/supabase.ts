@@ -1,28 +1,15 @@
-import { Database } from '@/types';
-import { SupabaseClient } from '@supabase/supabase-js';
+import { Database } from '@/types/supabase';
 
-export type TypedSupabaseClient = SupabaseClient<Database>;
-
-export type Profile = Database['public']['Tables']['profiles']['Row'];
-
-export interface AuthError {
-  message: string;
-  status?: number;
-}
-
-export interface SupabaseConfig {
-  auth: {
-    persistSession: boolean;
-    detectSessionInUrl: boolean;
-    flowType: 'pkce' | 'implicit';
-    autoRefreshToken: boolean;
-    debug: boolean;
+export type ExtendedOrder = Database['public']['Tables']['orders']['Row'] & {
+  profile: {
+    id: string;
+    full_name: string;
+    email: string;
   };
-  cookies: {
-    name?: string;
-    lifetime?: number;
-    domain?: string;
-    path?: string;
-    sameSite?: string;
-  };
-}
+  order_items: Array<{
+    id: string;
+    product_name: string;
+    quantity: number;
+    price: number;
+  }>;
+};

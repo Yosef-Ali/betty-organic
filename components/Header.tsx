@@ -106,11 +106,7 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
           className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[336px]"
         />
       </div>
-      {isAdmin && (
-        <Link href="/dashboard/admin" className={buttonVariants()}>
-          Admin Dashboard
-        </Link>
-      )}
+
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button

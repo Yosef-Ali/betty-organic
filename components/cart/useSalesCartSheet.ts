@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
-import { useMarketingCartStore } from '@/store/cartStore';
+import { useSalesCartStore } from '@/store/salesCartStore';
 import { usePathname } from 'next/navigation';
 import { createOrder } from '@/app/actions/orderActions';
 import { Order } from '@/types/order';
 import { Customer } from '@/types/customer';
 
-export const useCartSheet = (onOpenChange: (open: boolean) => void) => {
-  const { items, clearCart, getTotalAmount } = useMarketingCartStore();
+export const useSalesCartSheet = (onOpenChange: (open: boolean) => void) => {
+  const { items, clearCart, getTotalAmount } = useSalesCartStore();
   const [customer, setCustomer] = useState<Customer>({
     name: '',
     email: '',
@@ -119,7 +119,7 @@ export const useCartSheet = (onOpenChange: (open: boolean) => void) => {
         status: orderStatus,
         total_amount: totalAmount,
         totalAmount: totalAmount,
-        type: pathname.includes('/dashboard/sales') ? 'store' : 'online',
+        type: 'store',
         items: orderItems,
         customerInfo: customer,
         orderNumber: `ORDER-${Date.now()}`,

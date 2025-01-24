@@ -1,24 +1,23 @@
-"use client";
+'use client';
 
-import { FC, useState, useEffect, useCallback } from "react";
-import { useCartStore } from "@/store/cartStore";
-import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { FC, useState, useEffect, useCallback } from 'react';
+import { useSalesCartStore, SalesCartItem } from '@/store/salesCartStore';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
+import { ProductGrid } from './ProductGrid';
+import { SalesHeader } from './SalesHeader';
+import { SalesCartSheet } from './cart/SalesCartSheet';
+import { getProducts } from '@/app/actions/productActions';
+import { Product } from '@/types/product';
 
-import { ProductGrid } from "./ProductGrid";
-import { SalesHeader } from "./SalesHeader";
-
-import { getProducts } from "@/app/actions/productActions";
-import { CartSheet } from "./cart/CartSheet";
-
-export type ProductStatus = "Available" | "Out of Stock";
+export type ProductStatus = 'Available' | 'Out of Stock';
 export type ProductWithStatus = Product & { status: ProductStatus };
 
-const Sales: FC = () => {
+const SalesPage: FC = () => {
   const [products, setProducts] = useState<ProductWithStatus[]>([]);
   const [recentlySelectedProducts, setRecentlySelectedProducts] = useState<
     ProductWithStatus[]
   >([]);
-  const { addItem, items } = useCartStore();
+  const { addItem, items } = useSalesCartStore();
   const [isCartOpen, setIsCartOpen] = useState(false);
 
   useEffect(() => {
@@ -27,29 +26,37 @@ const Sales: FC = () => {
         const allProducts = await getProducts();
         const productsWithStatus = allProducts.map((p: Product) => ({
           ...p,
-          status: p.stock > 0 ? "Available" : ("Out of Stock" as ProductStatus),
+          status: p.stock > 0 ? 'Available' : ('Out of Stock' as ProductStatus),
         }));
 
-        setProducts(productsWithStatus.filter((p) => p.status === "Available"));
+        // Filter out inactive products and set availability status
+        setProducts(
+          productsWithStatus
+            .filter(p => p.active !== false) // Show active products only
+            .filter(p => p.status === 'Available'),
+        );
       } catch (error) {
-        console.error("Error fetching products:", error);
+        console.error('Error fetching products:', error);
       }
     }
     fetchProducts();
   }, []);
 
   const handleProductClick = (product: ProductWithStatus) => {
-    addItem({
+    const cartItem: SalesCartItem = {
       id: product.id,
       name: product.name,
-      imageUrl: product.imageUrl || "", // Provide a default value for imageUrl
+      imageUrl: product.imageUrl || '/placeholder.png',
       pricePerKg: product.price,
-      grams: 100,
-    });
+      grams: product.unit === 'kg' ? 1000 : 100, // Default to 1kg if unit is kg, else 100g
+      unit: product.unit,
+    };
+
+    addItem(cartItem);
 
     // Add selected product to recently selected list
-    setRecentlySelectedProducts((prev) => {
-      const alreadySelected = prev.some((p) => p.id === product.id);
+    setRecentlySelectedProducts(prev => {
+      const alreadySelected = prev.some(p => p.id === product.id);
       if (alreadySelected) return prev;
       return [...prev, product];
     });
@@ -71,19 +78,19 @@ const Sales: FC = () => {
         <TabsContent value="all">
           <ProductGrid
             products={products}
-            onProductClick={handleProductClick} // Pass the product click handler
+            onProductClick={handleProductClick}
           />
         </TabsContent>
         <TabsContent value="recently-selected">
           <ProductGrid
             products={recentlySelectedProducts}
-            onProductClick={handleProductClick} // Handle click for recently selected
+            onProductClick={handleProductClick}
           />
         </TabsContent>
       </Tabs>
-      <CartSheet isOpen={isCartOpen} onOpenChange={handleCartOpenChange} />
+      <SalesCartSheet isOpen={isCartOpen} onOpenChange={handleCartOpenChange} />
     </main>
   );
 };
 
-export default Sales;
+export default SalesPage;

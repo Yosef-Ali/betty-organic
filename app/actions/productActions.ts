@@ -9,7 +9,9 @@ export const createProduct = async (formData: FormData): Promise<Product> => {
   const supabase = await createClient();
 
   // Get the current session
-  const { data: { session } } = await supabase.auth.getSession();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
   if (!session?.user) {
     throw new Error('You must be logged in to create products');
   }
@@ -30,8 +32,9 @@ export const createProduct = async (formData: FormData): Promise<Product> => {
     const description = formData.get('description') as string | null;
     const priceStr = formData.get('price') as string;
     const stockStr = formData.get('stock') as string;
-    const imageUrl = formData.get('imageUrl') as string || '/placeholder-product.png';
-    const status = formData.get('status') as string || 'active';
+    const imageUrl =
+      (formData.get('imageUrl') as string) || '/placeholder-product.png';
+    const status = (formData.get('status') as string) || 'active';
 
     if (!name || typeof name !== 'string') {
       throw new Error('Name is required');
@@ -68,7 +71,7 @@ export const createProduct = async (formData: FormData): Promise<Product> => {
         updatedat: now,
         category: null,
         created_by: session.user.id,
-        unit: null
+        unit: null,
       })
       .select()
       .single();
@@ -86,7 +89,9 @@ export const createProduct = async (formData: FormData): Promise<Product> => {
     return newProduct;
   } catch (error: any) {
     console.error('Error creating product:', error);
-    throw new Error('Failed to create product: ' + (error.message || 'Unknown error'));
+    throw new Error(
+      'Failed to create product: ' + (error.message || 'Unknown error'),
+    );
   }
 };
 
@@ -94,7 +99,9 @@ export async function updateProduct(id: string, formData: FormData) {
   const supabase = await createClient();
 
   // Get the current session
-  const { data: { session } } = await supabase.auth.getSession();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
   if (!session?.user) {
     throw new Error('You must be logged in to update products');
   }
@@ -144,7 +151,7 @@ export async function updateProduct(id: string, formData: FormData) {
       imageUrl: imageUrl || '/placeholder-product.png',
       active: status === 'active',
       updatedat: new Date().toISOString(),
-      updated_by: session.user.id
+      updated_by: session.user.id,
     };
 
     const { data: product, error } = await supabase
@@ -210,17 +217,21 @@ export async function getProducts(): Promise<Product[]> {
       .select('*')
       .order('createdat', { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error fetching products:', error);
+      return [];
+    }
+
     return (data || []).map(product => {
       const { imageUrl, ...rest } = product;
       return {
         ...rest,
-        imageUrl: imageUrl || '/placeholder.svg'
+        imageUrl: imageUrl || '/placeholder.svg',
       };
     });
   } catch (error) {
     console.error('Error in getProducts:', error);
-    throw new Error('Failed to fetch products');
+    return [];
   }
 }
 
@@ -248,7 +259,9 @@ export async function deleteProduct(id: string) {
   const supabase = await createClient();
 
   // Get the current session
-  const { data: { session } } = await supabase.auth.getSession();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
   if (!session?.user) {
     throw new Error('You must be logged in to delete products');
   }
@@ -265,10 +278,7 @@ export async function deleteProduct(id: string) {
   }
 
   try {
-    const { error } = await supabase
-      .from('products')
-      .delete()
-      .eq('id', id);
+    const { error } = await supabase.from('products').delete().eq('id', id);
 
     if (error) {
       throw new Error('Failed to delete product');

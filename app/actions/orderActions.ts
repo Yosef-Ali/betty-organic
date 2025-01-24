@@ -1,7 +1,6 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
-import { revalidatePath } from 'next/cache';
 import type { Order } from '@/types/order';
 import crypto from 'crypto';
 
@@ -11,12 +10,45 @@ interface OrderItem {
   price: number;
 }
 
+export async function getOrderDetails(orderId: string) {
+  const supabase = await createClient();
+  try {
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
+      .select(
+        `
+        *,
+        order_items!order_items_order_id_fkey (
+          *,
+          product:products!inner (*)
+        ),
+        profile:profiles!orders_profile_id_fkey (
+          id,
+          name,
+          email,
+          role,
+          address
+        )
+      `,
+      )
+      .eq('id', orderId)
+      .single();
+
+    if (orderError) {
+      console.error('Error fetching order details:', orderError);
+      return { data: null, error: orderError };
+    }
+
+    return { data: order, error: null };
+  } catch (error) {
+    console.error('Error in getOrderDetails:', error);
+    return { data: null, error };
+  }
+}
+
 export async function createOrder(orderData: Order) {
   try {
-    // Create authenticated Supabase client from server context
     const supabase = await createClient();
-
-    // Get the current user from server-side auth
     const {
       data: { user },
       error: authError,
@@ -27,17 +59,13 @@ export async function createOrder(orderData: Order) {
       throw new Error('Session validation failed: Please sign in again');
     }
 
-    // Validate order data
     if (!orderData?.order_items?.length) {
       throw new Error('Invalid order data: Missing order items');
     }
 
-    // console.log('Creating order with data:', JSON.stringify(orderData, null, 2));
-
-    // Create order with server-validated user ID
     const orderToCreate = {
       id: orderData.id,
-      customer_id: user.id, // Use validated user ID from session
+      profile_id: user.id,
       total_amount: orderData.total_amount,
       status: orderData.status,
       type: orderData.type,
@@ -62,7 +90,6 @@ export async function createOrder(orderData: Order) {
       );
     }
 
-    // Then create the order items
     const orderItems = orderData.order_items.map(item => ({
       id: crypto.randomUUID(),
       order_id: order.id,
@@ -77,12 +104,7 @@ export async function createOrder(orderData: Order) {
       .insert(orderItems);
 
     if (itemsError) {
-      console.error('Database error creating order items:', {
-        code: itemsError.code,
-        message: itemsError.message,
-        details: itemsError.details,
-      });
-      // TODO: Should probably delete the order if items creation fails
+      console.error('Database error creating order items:', itemsError);
       throw itemsError;
     }
 
@@ -92,10 +114,7 @@ export async function createOrder(orderData: Order) {
     };
   } catch (err) {
     const error = err as Error;
-    console.error('Server error creating order:', {
-      message: error.message,
-      stack: error.stack,
-    });
+    console.error('Server error creating order:', error);
     return { data: null, error };
   }
 }
@@ -103,26 +122,21 @@ export async function createOrder(orderData: Order) {
 export async function deleteOrder(orderId: string) {
   const supabase = await createClient();
   try {
-    // First delete the order items
-    const { error: itemsError } = await supabase
+    const itemsError = await supabase
       .from('order_items')
       .delete()
       .eq('order_id', orderId);
 
-    if (itemsError) {
-      console.error('Error deleting order items:', itemsError);
-      throw itemsError;
+    if (itemsError.error) {
+      console.error('Error deleting order items:', itemsError.error);
+      throw itemsError.error;
     }
 
-    // Then delete the order
-    const { error: orderError } = await supabase
-      .from('orders')
-      .delete()
-      .eq('id', orderId);
+    const orderError = await supabase.from('orders').delete().eq('id', orderId);
 
-    if (orderError) {
-      console.error('Error deleting order:', orderError);
-      throw orderError;
+    if (orderError.error) {
+      console.error('Error deleting order:', orderError.error);
+      throw orderError.error;
     }
 
     return { success: true };
@@ -135,7 +149,7 @@ export async function deleteOrder(orderId: string) {
 export async function getOrders(customerId?: string) {
   const supabase = await createClient();
   try {
-    const { data: orders, error: ordersError } = await supabase
+    const ordersError = await supabase
       .from('orders')
       .select(
         `
@@ -143,25 +157,21 @@ export async function getOrders(customerId?: string) {
         order_items!order_items_order_id_fkey (
           *,
           products!inner (*)
-        )
+        ),
+        profile:profiles(id, name, email)
       `,
       )
       .order('created_at', { ascending: false })
-      .eq(customerId ? 'customer_id' : '', customerId || '');
+      .eq(customerId ? 'profile_id' : '', customerId || '');
 
-    if (ordersError) {
-      console.error('Supabase error fetching orders:', {
-        code: ordersError.code,
-        message: ordersError.message,
-        details: ordersError.details,
-      });
-      throw ordersError;
+    if (ordersError.error) {
+      console.error('Supabase error fetching orders:', ordersError.error);
+      throw ordersError.error;
     }
 
-    console.log('Orders fetched successfully:', orders);
-    return orders;
+    return ordersError.data || [];
   } catch (error) {
     console.error('Error fetching orders:', error);
-    throw error;
+    return [];
   }
 }

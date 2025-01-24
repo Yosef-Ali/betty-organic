@@ -1,18 +1,19 @@
-'use server'
+'use server';
 
-import { UTApi } from "uploadthing/server";
+import { UTApi } from 'uploadthing/server';
 import { revalidatePath } from 'next/cache';
-import { supabase } from '@/lib/supabase/client';
+import { createClient } from '@/lib/supabase/server';
 import type { Database } from '@/types/supabase';
-type Customer = Database['public']['Tables']['customers']['Row'];
+type Profile = Database['public']['Tables']['profiles']['Row'];
 import { v4 as uuidv4 } from 'uuid';
 
 const utapi = new UTApi();
 
 export async function uploadImage(data: FormData) {
-  const file = data.get("file") as File;
+  const supabase = await createClient();
+  const file = data.get('file') as File;
   if (!file) {
-    throw new Error("No file provided");
+    throw new Error('No file provided');
   }
 
   try {
@@ -24,40 +25,48 @@ export async function uploadImage(data: FormData) {
       });
 
     if (error) {
-      console.error("Error uploading image to Supabase:", error);
-      throw new Error("Failed to upload image to Supabase");
+      console.error('Error uploading image to Supabase:', error);
+      throw new Error('Failed to upload image to Supabase');
     }
 
     const fileUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/product-images/${uploadData.path}`;
     return fileUrl;
   } catch (error) {
-    console.error("Error uploading image:", error);
-    throw new Error("Failed to upload image");
+    console.error('Error uploading image:', error);
+    throw new Error('Failed to upload image');
   }
 }
 
 export async function createCustomer(formData: FormData) {
+  const supabase = await createClient();
   try {
     // Extract and validate form data
-    const fullName = formData.get('fullName');
+    const name = formData.get('fullName');
     const email = formData.get('email');
     const phone = formData.get('phone');
     const location = formData.get('location');
     const status = formData.get('status');
     const imageUrl = formData.get('imageUrl');
 
-    const customerId = uuidv4(); // Generate UUID
+    if (!name || !email) {
+      throw new Error('Name and email are required');
+    }
 
-    const { data: customer, error } = await supabase
-      .from('customers')
+    // Generate UUID
+    const profileId = uuidv4();
+
+    const { data: profile, error } = await supabase
+      .from('profiles')
       .insert({
-        id: customerId,
-        full_name: fullName,
-        email: email || '',
-        phone: phone || null,
-        location: location || null,
-        status: status || 'active',
-        image_url: imageUrl || null
+        id: profileId,
+        name: name.toString(),
+        email: email.toString(),
+        address: location?.toString() || null,
+        role: 'customer',
+        status: status?.toString() || 'active',
+        avatar_url: imageUrl?.toString() || null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       })
       .select()
       .single();
@@ -66,33 +75,42 @@ export async function createCustomer(formData: FormData) {
       console.error('Supabase error details:', {
         message: error.message,
         details: error.details,
-        hint: error.hint
+        hint: error.hint,
       });
       throw new Error(`Database error: ${error.message}`);
     }
 
     revalidatePath('/dashboard/customers');
-    return customer;
+    return profile;
   } catch (error) {
     console.error('Error creating customer:', error);
     throw error;
   }
 }
 
-export async function updateCustomer(data: Database['public']['Tables']['customers']['Update']) {
+export async function updateCustomer(data: {
+  id: string;
+  name?: string;
+  email?: string;
+  address?: string | null;
+  status?: string;
+  avatar_url?: string | null;
+}) {
+  const supabase = await createClient();
   try {
-    console.log('Updating customer with data:', data);
-    const { data: customer, error } = await supabase
-      .from('customers')
+    console.log('Updating customer profile with data:', data);
+    const { data: profile, error } = await supabase
+      .from('profiles')
       .update({
-        full_name: data.full_name,
+        name: data.name,
         email: data.email,
-        phone: data.phone,
-        location: data.location,
+        address: data.address,
         status: data.status,
-        image_url: data.image_url
+        avatar_url: data.avatar_url,
+        updated_at: new Date().toISOString(),
       })
       .eq('id', data.id)
+      .eq('role', 'customer')
       .select()
       .single();
 
@@ -102,7 +120,7 @@ export async function updateCustomer(data: Database['public']['Tables']['custome
     }
 
     revalidatePath('/dashboard/customers');
-    return customer;
+    return profile;
   } catch (error) {
     console.error('Error updating customer:', error);
     throw error;
@@ -110,19 +128,20 @@ export async function updateCustomer(data: Database['public']['Tables']['custome
 }
 
 export async function getCustomerImage(customerId: string) {
+  const supabase = await createClient();
   try {
     const { data, error } = await supabase
-      .from('customers')
-      .select('image_url')
+      .from('profiles')
+      .select('avatar_url')
       .eq('id', customerId)
       .single();
 
     if (error) {
-      console.error('Error fetching customer image:', error);
-      throw new Error('Failed to fetch customer image');
+      console.error('Error fetching customer avatar:', error);
+      throw new Error('Failed to fetch customer avatar');
     }
 
-    return data ? data.image_url : null;
+    return data ? data.avatar_url : null;
   } catch (error) {
     console.error('Error fetching customer image:', error);
     throw new Error('Failed to fetch customer image');
@@ -130,17 +149,39 @@ export async function getCustomerImage(customerId: string) {
 }
 
 export async function getCustomers() {
+  const supabase = await createClient();
   try {
-    const { data: customers, error } = await supabase
-      .from('customers')
-      .select();
+    // Fetch customers (profiles with role='customer')
+    const { data: profiles, error } = await supabase
+      .from('profiles')
+      .select(
+        `
+        id,
+        name,
+        email,
+        address,
+        avatar_url,
+        status,
+        created_at,
+        updated_at,
+        orders (
+          id,
+          total_amount,
+          status,
+          created_at,
+          updated_at
+        )
+      `,
+      )
+      .eq('role', 'customer')
+      .order('created_at', { ascending: false });
 
     if (error) {
       console.error('Error fetching customers:', error);
       throw new Error('Failed to fetch customers');
     }
 
-    return customers;
+    return profiles || [];
   } catch (error) {
     console.error('Error fetching customers:', error);
     throw new Error('Failed to fetch customers');
@@ -148,11 +189,31 @@ export async function getCustomers() {
 }
 
 export async function getCustomer(id: string) {
+  const supabase = await createClient();
   try {
-    const { data: customer, error } = await supabase
-      .from('customers')
-      .select()
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select(
+        `
+        id,
+        name,
+        email,
+        address,
+        avatar_url,
+        status,
+        created_at,
+        updated_at,
+        orders (
+          id,
+          total_amount,
+          status,
+          created_at,
+          updated_at
+        )
+      `,
+      )
       .eq('id', id)
+      .eq('role', 'customer')
       .single();
 
     if (error) {
@@ -160,7 +221,7 @@ export async function getCustomer(id: string) {
       throw new Error('Failed to fetch customer');
     }
 
-    return customer;
+    return profile;
   } catch (error) {
     console.error('Error fetching customer:', error);
     throw new Error('Failed to fetch customer');
@@ -168,16 +229,19 @@ export async function getCustomer(id: string) {
 }
 
 export async function deleteCustomer(id: string) {
+  const supabase = await createClient();
   try {
     const { error } = await supabase
-      .from('customers')
+      .from('profiles')
       .delete()
-      .eq('id', id);
+      .eq('id', id)
+      .eq('role', 'customer');
 
     if (error) {
       console.error('Failed to delete customer:', error);
       return { success: false, error: 'Failed to delete customer' };
     }
+
     revalidatePath('/dashboard/customers');
     return { success: true };
   } catch (error) {
@@ -187,9 +251,10 @@ export async function deleteCustomer(id: string) {
 }
 
 export async function getCustomerById(id: string) {
+  const supabase = await createClient();
   try {
     const { data: customer, error } = await supabase
-      .from('customers')
+      .from('profiles')
       .select()
       .eq('id', id)
       .single();
@@ -205,34 +270,23 @@ export async function searchCustomers(query: string) {
     return [];
   }
 
+  const supabase = await createClient();
   try {
-    const { data: customers, error } = await supabase
-      .from('customers')
-      .select('id, full_name, phone, image_url')
-      .or(`full_name.ilike.%${query}%,phone.ilike.%${query}%`)
+    const { data: profiles, error } = await supabase
+      .from('profiles')
+      .select('id, name, email, address, avatar_url')
+      .or(`name.ilike.%${query}%,email.ilike.%${query}%`)
+      .eq('role', 'customer')
       .limit(5);
 
     if (error) {
-      console.error('Error in searchCustomers:', error);
+      console.error('Error searching customers:', error);
       return [];
     }
 
-    if (!customers || !Array.isArray(customers)) {
-      console.error('Unexpected result from Supabase query:', customers);
-      return [];
-    }
-
-    const result = customers.map(customer => ({
-      ...customer,
-      fullName: customer.full_name.toLowerCase().includes(query.toLowerCase())
-        ? customer.full_name
-        : customer.full_name,
-    }));
-
-    console.log('Processed result:', result);
-    return result;
+    return profiles || [];
   } catch (error) {
-    console.error('Error in searchCustomers:', error);
+    console.error('Error searching customers:', error);
     return [];
   }
 }

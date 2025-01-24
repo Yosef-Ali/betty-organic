@@ -85,25 +85,16 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(errorUrl);
       }
 
-      // Handle admin routes
-      if (
-        request.nextUrl.pathname.startsWith('/dashboard/admin') &&
-        profile?.role !== 'admin'
-      ) {
-        return NextResponse.redirect(new URL('/dashboard', request.url));
-      }
-
-      // Handle sales routes
-      if (
-        request.nextUrl.pathname.startsWith('/dashboard/sales') &&
-        !['admin', 'sales'].includes(profile?.role || '')
-      ) {
-        return NextResponse.redirect(new URL('/dashboard', request.url));
-      }
-
       // Add user context to headers
       response.headers.set('x-user-id', session.user.id);
       response.headers.set('x-user-role', profile?.role || '');
+
+      // Sales route role check
+      if (request.nextUrl.pathname.startsWith('/dashboard/sales')) {
+        if (!['admin', 'sales'].includes(profile?.role || '')) {
+          return NextResponse.redirect(new URL('/dashboard', request.url));
+        }
+      }
     }
 
     // Handle auth routes redirect for authenticated users

@@ -1,21 +1,13 @@
 // OrderDashboard.tsx
-"use client"
+'use client';
 
 import React, { useEffect, useMemo, useCallback, useState } from 'react';
 import { Button } from './ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger
-} from './ui/dropdown-menu';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { File, ListFilter } from "lucide-react";
-import { OrdersOverviewCard } from "./OrdersOverviewCard";
-import { StatCard } from "./StatCard";
-import OrderDetails from "./OrderDetailsCard";
+import { File } from 'lucide-react';
+import { OrdersOverviewCard } from './OrdersOverviewCard';
+import { StatCard } from './StatCard';
+import OrderDetails from './OrderDetailsCard';
 
 import { getOrders, deleteOrder } from '../app/actions/orderActions';
 import { getCustomers } from '../app/actions/customersActions';
@@ -45,7 +37,7 @@ export const OrderType = {
   CREDIT: 'credit',
 } as const;
 
-export type OrderType = typeof OrderType[keyof typeof OrderType];
+export type OrderType = (typeof OrderType)[keyof typeof OrderType];
 
 const OrderDashboard: React.FC = () => {
   const [orders, setOrders] = useState<ExtendedOrder[]>([]);
@@ -53,7 +45,6 @@ const OrderDashboard: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
   const { toast } = useToast();
 
   const fetchData = useCallback(async () => {
@@ -66,26 +57,32 @@ const OrderDashboard: React.FC = () => {
       ]);
 
       const extendedOrders: ExtendedOrder[] = ordersData.map(order => {
-        const customer = order.customerId ? customersData.find(c => c.id === order.customerId) : null;
+        const customer = order.customerId
+          ? customersData.find(c => c.id === order.customerId)
+          : null;
         return {
           ...order,
-          customer: customer ? {
-            id: customer.id,
-            full_name: customer.full_name,
-            email: customer.email,
-            phone: customer.phone || null,
-            location: customer.location || null,
-            status: customer.status,
-            imageUrl: customer.imageUrl || null,
-            created_at: customer.created_at || null,
-            updated_at: customer.updated_at || null
-          } : null,
-          type: order.type as OrderType
+          customer: customer
+            ? {
+                id: customer.id,
+                full_name: customer.full_name,
+                email: customer.email,
+                phone: customer.phone || null,
+                location: customer.location || null,
+                status: customer.status,
+                imageUrl: customer.imageUrl || null,
+                created_at: customer.created_at || null,
+                updated_at: customer.updated_at || null,
+              }
+            : null,
+          type: order.type as OrderType,
         };
       });
 
-      const sortedOrders = extendedOrders.sort((a, b) =>
-        new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime()
+      const sortedOrders = extendedOrders.sort(
+        (a, b) =>
+          new Date(b.created_at ?? 0).getTime() -
+          new Date(a.created_at ?? 0).getTime(),
       );
 
       setOrders(sortedOrders);
@@ -98,9 +95,9 @@ const OrderDashboard: React.FC = () => {
     } catch (error) {
       console.error('Error fetching data:', error);
       toast({
-        title: "Error",
-        description: "Failed to fetch data. Please try again.",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to fetch data. Please try again.',
+        variant: 'error',
       });
     }
     setIsLoading(false);
@@ -116,31 +113,24 @@ const OrderDashboard: React.FC = () => {
       if (result.success) {
         setOrders(prevOrders => prevOrders.filter(order => order.id !== id));
         toast({
-          title: "Order deleted",
-          description: "The order has been successfully deleted.",
+          title: 'Order deleted',
+          description: 'The order has been successfully deleted.',
         });
         if (selectedOrderId === id) {
           setSelectedOrderId(orders[0]?.id || null);
         }
       } else {
-        throw new Error("Failed to delete order");
+        throw new Error('Failed to delete order');
       }
     } catch (error) {
       console.error('Error deleting order:', error);
       toast({
-        title: "Error",
-        description: "Failed to delete the order. Please try again.",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to delete the order. Please try again.',
+        variant: 'error',
       });
     }
   };
-
-  const filteredOrders = useMemo(() => {
-    return orders.filter(order =>
-      order.customer?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.id?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [orders, searchTerm]);
 
   // Helper functions for date calculations (unchanged)
   const getStartOfWeek = useCallback((date: Date): Date => {
@@ -171,7 +161,7 @@ const OrderDashboard: React.FC = () => {
     currentWeekChangePercentage,
     currentMonthTotal,
     lastMonthTotal,
-    currentMonthChangePercentage
+    currentMonthChangePercentage,
   } = useMemo(() => {
     const startOfCurrentWeek = getStartOfWeek(new Date());
     const startOfLastWeek = getStartOfLastWeek();
@@ -205,9 +195,15 @@ const OrderDashboard: React.FC = () => {
       currentWeekChangePercentage,
       currentMonthTotal,
       lastMonthTotal,
-      currentMonthChangePercentage
+      currentMonthChangePercentage,
     };
-  }, [orders, getStartOfWeek, getStartOfLastWeek, getStartOfMonth, getStartOfLastMonth]);
+  }, [
+    orders,
+    getStartOfWeek,
+    getStartOfLastWeek,
+    getStartOfMonth,
+    getStartOfLastMonth,
+  ]);
 
   return (
     <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8 lg:grid-cols-3 xl:grid-cols-3">
@@ -217,13 +213,17 @@ const OrderDashboard: React.FC = () => {
           <StatCard
             title="This Week"
             value={`Br ${currentWeekTotal.toFixed(2)}`}
-            change={`${currentWeekChangePercentage >= 0 ? '+' : ''}${currentWeekChangePercentage.toFixed(2)}% from last week`}
+            change={`${
+              currentWeekChangePercentage >= 0 ? '+' : ''
+            }${currentWeekChangePercentage.toFixed(2)}% from last week`}
             changePercentage={currentWeekChangePercentage}
           />
           <StatCard
             title="This Month"
             value={`Br ${currentMonthTotal.toFixed(2)}`}
-            change={`${currentMonthChangePercentage >= 0 ? '+' : ''}${currentMonthChangePercentage.toFixed(2)}% from last month`}
+            change={`${
+              currentMonthChangePercentage >= 0 ? '+' : ''
+            }${currentMonthChangePercentage.toFixed(2)}% from last month`}
             changePercentage={currentMonthChangePercentage}
           />
         </div>
@@ -234,39 +234,18 @@ const OrderDashboard: React.FC = () => {
               <TabsTrigger value="month">This Month</TabsTrigger>
             </TabsList>
             <div className="ml-auto flex items-center gap-2">
-              <input
-                type="search"
-                placeholder="Search orders..."
-                className="h-8 w-[150px] lg:w-[250px]"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-8 gap-1">
-                    <ListFilter className="h-3.5 w-3.5" />
-                    <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Filter</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>Filter by status</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuCheckboxItem checked>Pending</DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem checked>Processing</DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem checked>Completed</DropdownMenuCheckboxItem>
-                  <DropdownMenuCheckboxItem checked>Cancelled</DropdownMenuCheckboxItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
               <Button variant="outline" size="sm" className="h-8 gap-1">
                 <File className="h-3.5 w-3.5" />
-                <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Export</span>
+                <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+                  Export
+                </span>
               </Button>
             </div>
           </div>
           <TabsContent value="week">
             <OrderTable
               key="week-orders"
-              orders={filteredOrders}
+              orders={orders}
               onSelectOrder={setSelectedOrderId}
               onDeleteOrder={handleDelete}
               isLoading={isLoading}
@@ -275,7 +254,7 @@ const OrderDashboard: React.FC = () => {
           <TabsContent value="month">
             <OrderTable
               key="month-orders"
-              orders={filteredOrders}
+              orders={orders}
               onSelectOrder={setSelectedOrderId}
               onDeleteOrder={handleDelete}
               isLoading={isLoading}
@@ -286,6 +265,6 @@ const OrderDashboard: React.FC = () => {
       {selectedOrderId && <OrderDetails orderId={selectedOrderId} />}
     </main>
   );
-}
+};
 
 export default OrderDashboard;

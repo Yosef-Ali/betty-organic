@@ -28,32 +28,47 @@ import {
   PaginationPrevious,
 } from '@/components/ui/pagination';
 
-interface DataTableProps<TData, TValue> {
-  columns: ColumnDef<TData, TValue>[];
-  data: TData[];
-  searchKey: string;
-  meta?: Record<string, any>;
+import { Input } from '@/components/ui/input';
+import { ExtendedOrder } from '@/types';
+import { columns } from './columns';
+import { useState } from 'react';
+
+interface OrdersDataTableProps {
+  orders: ExtendedOrder[];
+  onSelectOrder: (id: string) => void;
+  onDeleteOrder: (id: string) => Promise<void>;
+  isLoading: boolean;
 }
 
-export function DataTable<TData, TValue>({
-  columns,
-  data,
-  searchKey,
-  meta,
-}: DataTableProps<TData, TValue>) {
+export function OrdersDataTable({
+  orders,
+  onSelectOrder,
+  onDeleteOrder,
+  isLoading,
+}: OrdersDataTableProps) {
+  const [globalFilter, setGlobalFilter] = useState('');
+
   const table = useReactTable({
-    data,
+    data: orders,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
+    onGlobalFilterChange: setGlobalFilter,
+    globalFilterFn: 'includesString',
+    state: {
+      globalFilter,
+    },
     initialState: {
       pagination: {
         pageSize: 12,
       },
     },
-    meta,
+    meta: {
+      onDelete: onDeleteOrder,
+      onSelect: onSelectOrder,
+    },
   });
 
   // Calculate pagination details
@@ -77,8 +92,30 @@ export function DataTable<TData, TValue>({
     return [...new Set(pages)]; // Remove duplicates
   };
 
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        <div className="h-4 w-[250px] animate-pulse rounded-lg bg-muted"></div>
+        <div className="h-8 w-full animate-pulse rounded-lg bg-muted"></div>
+        <div className="h-8 w-full animate-pulse rounded-lg bg-muted"></div>
+        <div className="h-8 w-full animate-pulse rounded-lg bg-muted"></div>
+      </div>
+    );
+  }
+
   return (
-    <div>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <Input
+          placeholder="Search orders..."
+          value={globalFilter ?? ''}
+          onChange={event => {
+            setGlobalFilter(event.target.value);
+          }}
+          className="max-w-sm"
+        />
+      </div>
+
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -115,13 +152,14 @@ export function DataTable<TData, TValue>({
                   colSpan={columns.length}
                   className="h-24 text-center"
                 >
-                  No results.
+                  No orders found.
                 </TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
       </div>
+
       <div className="mt-4">
         <Pagination>
           <PaginationContent>
