@@ -22,6 +22,8 @@ import {
   Package,
   Users2,
   LineChart,
+  Settings,
+  Users,
 } from 'lucide-react';
 import Breadcrumb from './Breadcrumb';
 import { useAuthContext } from '@/contexts/auth/AuthContext';
@@ -31,19 +33,50 @@ interface HeaderProps {
   onMobileMenuToggle: () => void;
 }
 
-const navItems = [
-  { href: '/dashboard', icon: Home, label: 'Dashboard' },
-  { href: '/sales', icon: ShoppingBag, label: 'Sales' },
-  { href: '/orders', icon: ShoppingCart, label: 'Orders' },
-  { href: '/products', icon: Package, label: 'Products' },
-  { href: '/customers', icon: Users2, label: 'Customers' },
-  { href: '/profile', icon: Users2, label: 'Profile' },
-  { href: '/analytics', icon: LineChart, label: 'Analytics' },
-  { href: '/settings', icon: Users2, label: 'Settings' },
+const allNavItems = [
+  {
+    href: '/dashboard/sales',
+    icon: ShoppingBag,
+    label: 'Sales',
+    roles: ['sales'],
+  },
+  {
+    href: '/dashboard/orders',
+    icon: ShoppingCart,
+    label: 'Orders',
+    roles: ['sales'],
+  },
+  {
+    href: '/dashboard/customers',
+    icon: Users2,
+    label: 'Customers',
+    roles: ['sales'],
+  },
+  {
+    href: '/dashboard/profile',
+    icon: Users2,
+    label: 'Profile',
+    roles: ['admin', 'sales', 'customer'],
+  },
+  {
+    href: '/dashboard/settings',
+    icon: Settings,
+    label: 'Settings',
+    roles: ['admin'],
+  },
+  {
+    href: '/dashboard/users',
+    icon: Users,
+    label: 'Users',
+    roles: ['admin'],
+  },
 ];
 
 export default function Header({ onMobileMenuToggle }: HeaderProps) {
-  const { profile, isAdmin } = useAuthContext();
+  const { profile } = useAuthContext();
+  const filteredNavItems = allNavItems.filter(item =>
+    item.roles.some(role => role === (profile?.role || 'customer')),
+  );
   const pathname = usePathname();
   const router = useRouter();
   const [clientPathname, setClientPathname] = useState('');
@@ -54,7 +87,8 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
 
   const handleSignOut = async () => {
     await signOut();
-    router.push('/auth/login');
+    // Full page reload to clear client-side state
+    window.location.assign('/auth/login');
   };
 
   const generateBreadcrumbs = () => {
@@ -77,7 +111,7 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
       const href = '/' + hrefSegments.join('/');
 
       const label =
-        navItems.find(item => item.href === href)?.label ||
+        filteredNavItems.find(item => item.href === href)?.label ||
         segment
           .split(' ')
           .map(word => word.charAt(0).toUpperCase() + word.slice(1))
@@ -132,7 +166,6 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
           <DropdownMenuItem asChild>
             <Link href="/dashboard/profile">Profile</Link>
           </DropdownMenuItem>
-          <DropdownMenuItem>Support</DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={handleSignOut}>Logout</DropdownMenuItem>
         </DropdownMenuContent>

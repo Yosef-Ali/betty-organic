@@ -52,13 +52,13 @@ export function getRouteAccess(pathname: string): RouteAccess {
 
   // Role-specific routes
   const roleRoutes: Record<string, string[]> = {
-    '/dashboard/admin': ['admin'],
-    '/dashboard/sales': ['admin', 'sales'],
-    '/dashboard/products/new': ['admin'],
-    '/dashboard/products/edit': ['admin'],
-    '/dashboard/settings': ['admin'],
-    '/dashboard/customers': ['admin', 'sales'],
-    '/dashboard/orders': ['admin', 'sales'],
+    '/dashboard/sales': ['sales'],
+    '/dashboard/products/new': ['sales'],
+    '/dashboard/products/edit': ['sales'],
+    '/dashboard/settings': ['sales'],
+    '/dashboard/customers': ['sales'],
+    '/dashboard/orders': ['sales'],
+    '/dashboard/profile': ['sales', 'customer'],
   };
 
   // Check if the pathname matches any role-specific routes
@@ -70,7 +70,7 @@ export function getRouteAccess(pathname: string): RouteAccess {
 
   // General protected routes accessible to all authenticated users
   if (pathname.startsWith('/dashboard') || pathname.startsWith('/profile')) {
-    return { isProtected: true, allowedRoles: ['admin', 'sales', 'customer'] };
+    return { isProtected: true, allowedRoles: ['admin', 'sales'] };
   }
 
   // Default to public access
@@ -156,13 +156,6 @@ export async function getRedirectUrl(
     return '/auth/login';
   }
 
-  // Role-based redirects
-  switch (profile.role) {
-    case 'admin':
-      return '/dashboard/admin';
-    case 'sales':
-      return '/dashboard/sales';
-    default:
-      return '/dashboard';
-  }
+  // Default dashboard for all roles (access controlled by middleware)
+  return '/dashboard';
 }

@@ -14,21 +14,34 @@ import { useAuthContext } from '@/contexts/auth/AuthContext';
 import { useEffect, useState } from 'react';
 import { UserButton } from './ui/user-button';
 import { useToast } from '@/hooks/use-toast';
+import { User } from '@supabase/supabase-js';
+import { Profile } from '@/lib/types/supabase';
 
-export default function Navigation() {
+interface NavigationClientProps {
+  initialSession: { user: User } | null;
+  initialProfile: Profile | null;
+}
+
+export function NavigationClient({
+  initialSession,
+  initialProfile,
+}: NavigationClientProps) {
   const { toast } = useToast();
   const router = useRouter();
-  const { isLoading, profile, user, error } = useAuthContext();
+  const { user, profile, isLoading, error } = useAuthContext();
   const [cartItems] = useHydratedStore(
     useMarketingCartStore,
     state => state.items,
   );
 
+  // Use initial data while auth context loads
+  const currentUser = user || initialSession?.user;
+  const currentProfile = profile || initialProfile;
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
-  }, [profile, user, isLoading]); // Keep deps to avoid stale state
+  }, []);
 
   const handleSignOut = async () => {
     try {
@@ -37,7 +50,6 @@ export default function Navigation() {
       router.refresh(); // Ensure page state is cleared
     } catch (error) {
       console.error('Sign out error:', error);
-      // Add toast notification for error
       toast({
         title: 'Error signing out',
         description: 'Please try again',
@@ -77,7 +89,10 @@ export default function Navigation() {
     <nav className="fixed top-0 z-50 w-full bg-[#ffc600]/80 backdrop-blur-md border-b">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         <div className="flex items-center gap-4">
-          <MobileMenu />
+          <MobileMenu
+            initialSession={initialSession}
+            initialProfile={initialProfile}
+          />
 
           <Link
             href="/"
@@ -129,9 +144,10 @@ export default function Navigation() {
           </div>
 
           <div className="flex items-center gap-2">
-            {user ? (
+            {currentUser ? (
               <div className="flex items-center gap-4">
-                {(profile?.role === 'admin' || profile?.role === 'sales') && (
+                {(currentProfile?.role === 'admin' ||
+                  currentProfile?.role === 'sales') && (
                   <Button
                     variant="ghost"
                     onClick={() => router.push('/dashboard')}
@@ -142,8 +158,8 @@ export default function Navigation() {
                   </Button>
                 )}
                 <UserButton
-                  user={user}
-                  profile={profile}
+                  user={currentUser}
+                  profile={currentProfile}
                   onSignOut={handleSignOut}
                 />
               </div>

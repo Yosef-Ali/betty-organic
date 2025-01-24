@@ -1,17 +1,18 @@
-import { TooltipProvider } from "@/components/ui/tooltip"
-import { Toaster } from "@/components/ui/toaster"
+import NavigationServer from '@/components/NavigationServer';
+
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
 
 export default function MarketingLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
-   <>
-      <TooltipProvider>
-        {children}
-      </TooltipProvider>
-      <Toaster />
-     </>
-  )
+    <div className="flex min-h-screen flex-col">
+      <NavigationServer />
+      <main className="flex-1">{children}</main>
+    </div>
+  );
 }

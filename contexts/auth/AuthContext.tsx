@@ -141,15 +141,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const [currentProfile, setCurrentProfile] = useState<Profile | null>(null);
+  // Add profile refresh capability
+  const fetchFreshProfile = async (userId: string) => {
+    try {
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error) throw error;
+      return profile;
+    } catch (error) {
+      console.error('Profile refresh failed:', error);
+      return null;
+    }
+  };
 
   useEffect(() => {
     const refreshProfile = async () => {
       if (user && !profile) {
         const freshProfile = await fetchFreshProfile(user.id);
-        setCurrentProfile(freshProfile);
-      } else {
-        setCurrentProfile(profile);
+        setProfile(freshProfile);
       }
     };
 
@@ -158,19 +171,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const value = {
     user,
-    profile: currentProfile,
+    profile,
     isLoading,
     error,
-    isAdmin: currentProfile?.role === 'admin',
-    isSales: currentProfile?.role === 'sales',
-    isCustomer: currentProfile?.role === 'customer',
+    isAdmin: profile?.role === 'admin',
+    isSales: profile?.role === 'sales',
+    isCustomer: profile?.role === 'customer',
   };
 
   console.log('Final auth context value:', {
     userId: user?.id?.substring(0, 6),
-    profileId: currentProfile?.id?.substring(0, 6),
-    role: currentProfile?.role,
-    isAdmin: value.isAdmin,
+    profileId: profile?.id?.substring(0, 6),
+    role: profile?.role,
   });
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -21,9 +21,9 @@ export interface UserButtonProps {
     name?: string | null;
     email?: string | null;
     avatar_url?: string | null;
-    role?: string | null;
+    role?: 'admin' | 'sales' | 'customer' | null;
   };
-  isAdmin?: boolean;
+  onSignOut: () => Promise<void>;
 }
 
 const getInitials = (name: string) =>
@@ -33,12 +33,7 @@ const getInitials = (name: string) =>
     .join('')
     .toUpperCase();
 
-export function UserButton({ user, profile, isAdmin }: UserButtonProps) {
-  const handleSignOut = async () => {
-    const { signOut } = await import('@/app/auth/actions/authActions');
-    await signOut();
-  };
-
+export function UserButton({ user, profile, onSignOut }: UserButtonProps) {
   return (
     <div className="relative">
       <DropdownMenu>
@@ -68,7 +63,7 @@ export function UserButton({ user, profile, isAdmin }: UserButtonProps) {
             </p>
           </div>
           <DropdownMenuSeparator />
-          {isAdmin && (
+          {(profile?.role === 'admin' || profile?.role === 'sales') && (
             <DropdownMenuItem asChild>
               <Link href="/dashboard" className="w-full cursor-pointer">
                 <LayoutDashboard className="mr-2 h-4 w-4" />
@@ -87,7 +82,7 @@ export function UserButton({ user, profile, isAdmin }: UserButtonProps) {
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
-            onClick={handleSignOut}
+            onClick={onSignOut}
             className="text-red-600 cursor-pointer"
           >
             <LogOut className="mr-2 h-4 w-4" />

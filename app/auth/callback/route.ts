@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
         // Determine redirect based on role
         const redirectTo =
           profile?.role === 'admin'
-            ? '/dashboard/admin'
+            ? '/dashboard'
             : profile?.role === 'sales'
             ? '/dashboard/sales'
             : '/dashboard';

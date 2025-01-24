@@ -5,11 +5,18 @@ import Link from 'next/link';
 import { Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Profile } from '@/lib/types/supabase';
+import { User } from '@supabase/supabase-js';
 
-import { useAuthContext } from '@/contexts/auth/AuthContext';
+interface MobileMenuProps {
+  initialSession?: { user: User } | null;
+  initialProfile?: Profile | null;
+}
 
-export function MobileMenu() {
-  const { user, profile, isLoading, error } = useAuthContext();
+export function MobileMenu({
+  initialSession,
+  initialProfile,
+}: MobileMenuProps) {
   const [open, setOpen] = useState(false);
   const [isClient, setIsClient] = useState(false);
 
@@ -17,13 +24,8 @@ export function MobileMenu() {
     setIsClient(true);
   }, []);
 
-  // Don't render during server-side rendering or loading
+  // Don't render during server-side rendering
   if (!isClient) return null;
-
-  // Don't show menu during loading or error states
-  if (isLoading || error) {
-    return null;
-  }
 
   const links = [
     { href: '/', label: 'Home' },
@@ -32,9 +34,17 @@ export function MobileMenu() {
     { href: '#contact', label: 'Contact' },
   ];
 
-  // Only show dashboard for admin users
-  if (profile?.role === 'admin') {
+  // Show dashboard for admin and sales roles
+  if (initialProfile?.role === 'admin' || initialProfile?.role === 'sales') {
     links.push({ href: '/dashboard', label: 'Dashboard' });
+  }
+
+  // Profile link is available to all authenticated users
+  if (initialSession?.user) {
+    links.push({
+      href: `/dashboard/profile?id=${initialProfile?.id}`,
+      label: 'Profile',
+    });
   }
 
   return (
@@ -61,15 +71,6 @@ export function MobileMenu() {
               {link.label}
             </Link>
           ))}
-          {user && (
-            <Link
-              href="/profile"
-              className="text-lg font-medium transition-colors hover:text-primary"
-              onClick={() => setOpen(false)}
-            >
-              Profile
-            </Link>
-          )}
         </nav>
       </SheetContent>
     </Sheet>

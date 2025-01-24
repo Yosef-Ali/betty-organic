@@ -65,12 +65,7 @@ export async function signIn(formData: FormData): Promise<AuthResponse> {
     }
 
     // Return redirect based on role
-    const destination =
-      profile.role === 'admin'
-        ? '/dashboard/admin'
-        : profile.role === 'sales'
-        ? '/dashboard/sales'
-        : '/dashboard';
+    const destination = '/';
 
     return {
       success: true,
