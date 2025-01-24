@@ -40,18 +40,6 @@ export default function DashboardLayout({
         console.log('🚫 Unauthorized access attempt - redirecting to profile');
         router.replace('/dashboard/profile');
       }
-
-      // Restrict sales-only routes
-      const isSalesRoute = pathname.startsWith('/dashboard/sales');
-      if (isSalesRoute && !isSales) {
-        console.log('🚫 Unauthorized access attempt - redirecting to profile');
-        router.replace('/dashboard/profile');
-      }
-
-      // Redirect from main dashboard to profile for customers
-      if (pathname === '/dashboard' && !isAdmin && !isSales) {
-        router.replace('/dashboard/profile');
-      }
     }
   }, [isAdmin, isSales, loading, pathname, router]);
 

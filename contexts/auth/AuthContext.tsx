@@ -6,6 +6,7 @@ import {
   useDebugValue,
   useEffect,
   useState,
+  useCallback,
 } from 'react';
 import { User } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
@@ -56,27 +57,30 @@ console.log('AuthContext initialized with:', {
 // Create singleton supabase client
 const supabase = createClient();
 
-async function fetchFreshProfile(userId: string): Promise<Profile | null> {
-  try {
-    const { data: profile, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
-
-    if (error) throw error;
-    return profile;
-  } catch (error) {
-    console.error('Error fetching fresh profile:', error);
-    return null;
-  }
-}
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const fetchFreshProfile = useCallback(async (userId: string) => {
+    try {
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error) throw error;
+      return profile;
+    } catch (error) {
+      console.error('Error fetching fresh profile:', error);
+      setError(
+        error instanceof Error ? error.message : 'Failed to fetch user profile',
+      );
+      return null;
+    }
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -147,33 +151,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Add profile refresh capability
-  const fetchFreshProfile = async (userId: string) => {
-    try {
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (error) throw error;
-      return profile;
-    } catch (error) {
-      console.error('Profile refresh failed:', error);
-      return null;
-    }
-  };
-
   useEffect(() => {
     const refreshProfile = async () => {
       if (user && !profile) {
         const freshProfile = await fetchFreshProfile(user.id);
-        setProfile(freshProfile);
+        if (freshProfile) {
+          setProfile(freshProfile);
+        }
       }
     };
 
     refreshProfile();
-  }, [user, profile]);
+  }, [user, profile, fetchFreshProfile]);
 
   const value = {
     user,
