@@ -1,6 +1,4 @@
-// components/ConfirmDialog.tsx
-
-import React from 'react';
+import React, { useState } from 'react';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -10,38 +8,97 @@ import {
   AlertDialogFooter,
   AlertDialogCancel,
   AlertDialogAction,
-} from '@/components/ui/alert-dialog'; // Adjust the import path based on your project structure
+} from '@/components/ui/alert-dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 interface ConfirmDialogProps {
-  isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
+  isConfirmDialogOpen: boolean;
+  setIsConfirmDialogOpen: (open: boolean) => void;
   confirmAction: 'save' | 'cancel';
-  onConfirmAction: () => void;
+  handleConfirmAction: (customerData: { name: string; email: string }) => void;
 }
 
 const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
-  isOpen,
-  onOpenChange,
+  isConfirmDialogOpen,
+  setIsConfirmDialogOpen,
   confirmAction,
-  onConfirmAction,
+  handleConfirmAction,
 }) => {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (confirmAction === 'save') {
+      if (!name || !email) {
+        alert('Please fill in all required fields');
+        return;
+      }
+      handleConfirmAction({ name, email });
+    } else {
+      handleConfirmAction({ name: '', email: '' });
+    }
+
+    setName('');
+    setEmail('');
+    setIsConfirmDialogOpen(false);
+  };
+
   return (
-    <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
+    <AlertDialog
+      open={isConfirmDialogOpen}
+      onOpenChange={setIsConfirmDialogOpen}
+    >
       <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>
-            {confirmAction === 'save' ? 'Confirm Save Order' : 'Confirm Cancel Order'}
-          </AlertDialogTitle>
-          <AlertDialogDescription>
-            {confirmAction === 'save'
-              ? 'Are you sure you want to save this order? This action cannot be undone.'
-              : 'Are you sure you want to cancel this order? All changes will be lost.'}
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>No</AlertDialogCancel>
-          <AlertDialogAction onClick={onConfirmAction}>Yes</AlertDialogAction>
-        </AlertDialogFooter>
+        <form onSubmit={handleSubmit}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirmAction === 'save'
+                ? 'Provide Your Details to Save'
+                : 'Confirm Order Cancellation'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmAction === 'save'
+                ? 'Please enter your name and email to proceed with the order'
+                : 'Are you sure you want to cancel this order? All changes will be lost.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {confirmAction === 'save' && (
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Full Name</Label>
+                <Input
+                  id="name"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  placeholder="John Doe"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="john@example.com"
+                  required
+                />
+              </div>
+            </div>
+          )}
+
+          <AlertDialogFooter>
+            <AlertDialogCancel type="button">Cancel</AlertDialogCancel>
+            <AlertDialogAction type="submit">
+              {confirmAction === 'save' ? 'Confirm Order' : 'Cancel Order'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </form>
       </AlertDialogContent>
     </AlertDialog>
   );

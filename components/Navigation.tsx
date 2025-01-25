@@ -28,7 +28,7 @@ export default function Navigation() {
 
   useEffect(() => {
     setIsClient(true);
-  }, [profile, user, isLoading]); // Keep deps to avoid stale state
+  }, []); // Run once on mount
 
   const handleSignOut = async () => {
     try {

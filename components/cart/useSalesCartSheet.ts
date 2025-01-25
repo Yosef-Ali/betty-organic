@@ -4,8 +4,15 @@ import { usePathname } from 'next/navigation';
 import { createOrder } from '@/app/actions/orderActions';
 import { Order } from '@/types/order';
 import { Customer } from '@/types/customer';
+import { createClient } from '@/lib/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+
+import { useAuth } from '@/contexts/auth/AuthContext';
 
 export const useSalesCartSheet = (onOpenChange: (open: boolean) => void) => {
+  const supabase = createClient();
+  const { toast } = useToast();
+  const { profile } = useAuth();
   const { items, clearCart, getTotalAmount } = useSalesCartStore();
   const [customer, setCustomer] = useState<Customer>({
     name: '',
@@ -16,8 +23,6 @@ export const useSalesCartSheet = (onOpenChange: (open: boolean) => void) => {
     useState(false);
   const [isOrderConfirmed, setIsOrderConfirmed] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
-  const [confirmAction, setConfirmAction] = useState<'save' | 'cancel'>('save');
   const [isStatusVerified, setIsStatusVerified] = useState<boolean | undefined>(
     false,
   );
@@ -97,9 +102,21 @@ export const useSalesCartSheet = (onOpenChange: (open: boolean) => void) => {
     setHasToggledLock(false);
   };
 
-  const handleSaveOrder = async () => {
-    if (!customer.name.trim() || !customer.email.trim()) {
-      alert('Please provide your name and email to proceed with the order.');
+  const handleSaveOrder = async (customerData: any) => {
+    console.log('Starting handleSaveOrder with:', {
+      customerData,
+      items,
+      profile,
+    });
+
+    if (!customerData?.id || !customerData?.name) {
+      const error = 'Please select a customer';
+      console.error('Save failed:', error, { customerData });
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error,
+      });
       return;
     }
 
@@ -113,25 +130,102 @@ export const useSalesCartSheet = (onOpenChange: (open: boolean) => void) => {
         name: item.name,
       }));
 
-      const orderData: Order = {
-        customer_id: 'guest',
-        customerId: 'guest',
+      const orderNumber = `ORDER-${Date.now()}`;
+
+      // Check auth state
+      if (!profile?.id || !profile?.name) {
+        console.error('Auth state:', {
+          profile,
+          isLoading: profile === undefined,
+        });
+        throw new Error('You must be logged in to create orders');
+      }
+
+      // Create order data
+      const orderData = {
+        profile_id: profile.id, // seller's profile ID
         status: orderStatus,
         total_amount: totalAmount,
-        totalAmount: totalAmount,
         type: 'store',
-        items: orderItems,
-        customerInfo: customer,
-        orderNumber: `ORDER-${Date.now()}`,
       };
 
-      await createOrder(orderData);
-      setOrderNumber(orderData.orderNumber);
+      console.log('Attempting to save order:', {
+        orderNumber,
+        customerId: customerData.id,
+        sellerId: profile.id,
+        itemCount: orderItems.length,
+        total: totalAmount,
+      });
+
+      // Start a transaction
+      const { data: order, error: orderError } = await supabase
+        .from('orders')
+        .insert(orderData)
+        .select()
+        .single();
+
+      if (orderError) {
+        console.error('Supabase order error:', orderError);
+        throw new Error('Failed to save order to database');
+      }
+
+      // Log the order insert result
+      console.log('Order saved:', order);
+
+      // Insert order items with correct schema
+      const orderItemsData = [];
+      for (const item of items) {
+        console.log('Processing item:', item);
+        try {
+          const itemData = {
+            order_id: order.id,
+            product_id: item.id,
+            quantity: Math.round(item.grams),
+            price: (item.pricePerKg * item.grams) / 1000,
+            product_name: item.name,
+          };
+          orderItemsData.push(itemData);
+        } catch (error) {
+          console.error('Error processing item:', item, error);
+          throw new Error(
+            `Failed to process item ${item.name}: ${error.message}`,
+          );
+        }
+      }
+
+      console.log('Order items to insert:', orderItemsData);
+
+      let { error: itemsError } = await supabase
+        .from('order_items')
+        .insert(orderItemsData);
+
+      if (itemsError) {
+        console.error('Supabase items error:', itemsError);
+        // Delete the order if items failed to save
+        await supabase.from('orders').delete().eq('id', order.id);
+        throw new Error(`Failed to save order items: ${itemsError.message}`);
+      }
+
+      console.log('Order items saved successfully');
+
+      setOrderNumber(orderNumber);
       setIsOrderSaved(true);
+      setCustomer(customerData);
       clearCart();
-    } catch (error) {
+      onOpenChange(false);
+
+      // Show success message
+      toast({
+        title: 'Success',
+        description: 'Order saved successfully!',
+      });
+    } catch (error: any) {
       console.error('Failed to save order:', error);
-      alert('Failed to save order. Please try again.');
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message || 'Failed to save order. Please try again.',
+      });
     } finally {
       setIsSaving(false);
     }
@@ -139,30 +233,31 @@ export const useSalesCartSheet = (onOpenChange: (open: boolean) => void) => {
 
   const handleCloseCart = () => {
     if (items.length > 0) {
-      setConfirmAction('cancel');
-      if (confirmAction) {
-        setIsConfirmDialogOpen(true);
-      }
+      handleConfirmDialog('cancel');
     } else {
       onOpenChange(false);
     }
   };
 
-  const handleConfirmDialog = (action: 'save' | 'cancel') => {
-    if (action === 'save' || action === 'cancel') {
-      setConfirmAction(action);
-      setIsConfirmDialogOpen(true);
-    }
-  };
+  const handleConfirmDialog = (
+    action: 'save' | 'cancel',
+    selectedCustomer: any = null,
+  ) => {
+    console.log('handleConfirmDialog called with:', {
+      action,
+      selectedCustomer,
+    });
 
-  const handleConfirmAction = () => {
-    if (confirmAction === 'save') {
-      handleSaveOrder();
-    } else if (confirmAction === 'cancel') {
-      clearCart();
-      onOpenChange(false);
+    if (action === 'save') {
+      // Save order directly without confirmation dialog
+      handleSaveOrder(selectedCustomer);
+    } else if (action === 'cancel') {
+      // Just clear cart and close
+      if (!isOrderSaved) {
+        clearCart();
+        onOpenChange(false);
+      }
     }
-    setIsConfirmDialogOpen(false);
   };
 
   return {
@@ -177,10 +272,6 @@ export const useSalesCartSheet = (onOpenChange: (open: boolean) => void) => {
     setIsOrderConfirmed,
     isSaving,
     setIsSaving,
-    isConfirmDialogOpen,
-    setIsConfirmDialogOpen,
-    confirmAction,
-    setConfirmAction,
     isStatusVerified,
     setIsStatusVerified,
     isOtpDialogOpen,
@@ -204,6 +295,5 @@ export const useSalesCartSheet = (onOpenChange: (open: boolean) => void) => {
     handleSaveOrder,
     handleCloseCart,
     handleConfirmDialog,
-    handleConfirmAction,
   };
 };

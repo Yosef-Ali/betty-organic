@@ -2,21 +2,41 @@
 
 import { useEffect, useState } from 'react';
 import { useToast } from 'hooks/use-toast';
-import { OverviewCard } from "components/OverviewCard";
-import { RecentSales } from "components/RecentSales";
-import { RecentOrders } from "components/RecentOrders";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "components/ui/tabs";
-import { Skeleton } from "components/ui/skeleton";
+import { OverviewCard } from 'components/OverviewCard';
+import { RecentSales } from 'components/RecentSales';
+import { RecentOrders } from 'components/RecentOrders';
+import { useAuthContext } from '@/contexts/auth/AuthContext';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from 'components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from 'components/ui/tabs';
+import { Skeleton } from 'components/ui/skeleton';
 import { CreditCard, DollarSign, Package, Users } from 'lucide-react';
-import { getTotalRevenue, getTotalCustomers, getTotalProducts, getTotalOrders } from 'app/actions/supabase-actions';
+import {
+  getTotalRevenue,
+  getTotalCustomers,
+  getTotalProducts,
+  getTotalOrders,
+} from 'app/actions/supabase-actions';
 
 export default function DashboardContent() {
+  const { isAdmin, isSales, loading: authLoading, profile } = useAuthContext();
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [totalCustomers, setTotalCustomers] = useState(0);
   const [totalProducts, setTotalProducts] = useState(0);
   const [totalOrders, setTotalOrders] = useState(0);
   const [loading, setLoading] = useState(true);
+
+  console.log('📊 DashboardContent Auth State:', {
+    isAdmin,
+    isSales,
+    authLoading,
+    userRole: profile?.role,
+  });
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -44,7 +64,7 @@ export default function DashboardContent() {
           getTotalOrders().catch(e => {
             console.error('Orders fetch error:', e);
             return 0;
-          })
+          }),
         ]);
 
         if (isMounted) {
@@ -56,10 +76,15 @@ export default function DashboardContent() {
       } catch (err) {
         console.error('Error fetching dashboard data:', err);
         if (isMounted) {
-          setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
+          setError(
+            err instanceof Error
+              ? err.message
+              : 'Failed to load dashboard data',
+          );
           toast({
             title: 'Error',
-            description: 'Failed to load dashboard data. Please try again later.',
+            description:
+              'Failed to load dashboard data. Please try again later.',
             variant: 'destructive',
           });
         }

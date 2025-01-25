@@ -18,9 +18,6 @@ export const useCartSheet = (onOpenChange: (open: boolean) => void) => {
   const [isSaving, setIsSaving] = useState(false);
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<'save' | 'cancel'>('save');
-  const [isStatusVerified, setIsStatusVerified] = useState<boolean | undefined>(
-    false,
-  );
   const [isOtpDialogOpen, setIsOtpDialogOpen] = useState(false);
   const [otp, setOtp] = useState(['', '', '', '']);
   const [hasToggledLock, setHasToggledLock] = useState(false);
@@ -42,7 +39,6 @@ export const useCartSheet = (onOpenChange: (open: boolean) => void) => {
   useEffect(() => {
     if (items.length === 0) {
       setIsOrderConfirmed(false);
-      setIsStatusVerified(false);
       setHasToggledLock(false);
     }
   }, [items]);
@@ -93,16 +89,10 @@ export const useCartSheet = (onOpenChange: (open: boolean) => void) => {
 
   const handleBackToCart = () => {
     setIsOrderConfirmed(false);
-    setIsStatusVerified(false);
     setHasToggledLock(false);
   };
 
   const handleSaveOrder = async () => {
-    if (!customer.name.trim() || !customer.email.trim()) {
-      alert('Please provide your name and email to proceed with the order.');
-      return;
-    }
-
     setIsSaving(true);
     try {
       const totalAmount = getTotalAmount();
@@ -149,16 +139,18 @@ export const useCartSheet = (onOpenChange: (open: boolean) => void) => {
   };
 
   const handleConfirmDialog = (action: 'save' | 'cancel') => {
-    if (action === 'save' || action === 'cancel') {
-      setConfirmAction(action);
-      setIsConfirmDialogOpen(true);
-    }
+    setConfirmAction(action);
+    setIsConfirmDialogOpen(true);
   };
 
-  const handleConfirmAction = () => {
-    if (confirmAction === 'save') {
+  const handleConfirmAction = (
+    action: 'save' | 'cancel',
+    customerData?: { name: string; email: string },
+  ) => {
+    if (action === 'save' && customerData) {
+      setCustomer(customerData);
       handleSaveOrder();
-    } else if (confirmAction === 'cancel') {
+    } else if (action === 'cancel') {
       clearCart();
       onOpenChange(false);
     }
@@ -181,8 +173,6 @@ export const useCartSheet = (onOpenChange: (open: boolean) => void) => {
     setIsConfirmDialogOpen,
     confirmAction,
     setConfirmAction,
-    isStatusVerified,
-    setIsStatusVerified,
     isOtpDialogOpen,
     setIsOtpDialogOpen,
     otp,

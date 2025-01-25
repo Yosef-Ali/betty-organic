@@ -1,16 +1,16 @@
-import { FC, useState } from "react";
-import { Printer, Tag, ArrowRight, X, Loader2, Share2 } from "lucide-react";
-import { CardFooter } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { FC, useState } from 'react';
+import { Printer, Tag, ArrowRight, X, Loader2, Share2 } from 'lucide-react';
+import { CardFooter } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { motion, AnimatePresence } from "framer-motion";
+} from '@/components/ui/tooltip';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export interface CartFooterProps {
   getTotalAmount: () => number;
@@ -31,20 +31,20 @@ export const CartFooter: FC<CartFooterProps> = ({
   isOrderConfirmed,
   onCancel, // Add to destructuring
 }) => {
-  const [coupon, setCoupon] = useState("");
-  const [appliedCoupon, setAppliedCoupon] = useState("");
+  const [coupon, setCoupon] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const handleApplyCoupon = () => {
     if (coupon.trim()) {
-      console.log("Applying coupon:", coupon);
+      console.log('Applying coupon:', coupon);
       setAppliedCoupon(coupon);
-      setCoupon("");
+      setCoupon('');
     }
   };
 
   const handleRemoveCoupon = () => {
-    setAppliedCoupon("");
+    setAppliedCoupon('');
   };
 
   const handleConfirmOrder = async () => {
@@ -52,7 +52,7 @@ export const CartFooter: FC<CartFooterProps> = ({
     try {
       await onConfirmOrder();
     } catch (error) {
-      console.error("Failed to confirm order:", error);
+      console.error('Failed to confirm order:', error);
       // Handle error (e.g., show error message to user)
     } finally {
       setIsLoading(false);
@@ -65,7 +65,7 @@ export const CartFooter: FC<CartFooterProps> = ({
       <div className="flex justify-between items-center">
         <span className="font-semibold text-lg">Total:</span>
         <span className="font-bold text-2xl">
-          ${getTotalAmount().toFixed(2)}
+          Br {getTotalAmount().toFixed(2)}
         </span>
       </div>
       <AnimatePresence mode="wait">
@@ -102,7 +102,7 @@ export const CartFooter: FC<CartFooterProps> = ({
                     type="text"
                     placeholder="Enter coupon code"
                     value={coupon}
-                    onChange={(e) => setCoupon(e.target.value)}
+                    onChange={e => setCoupon(e.target.value)}
                     className="pr-10"
                   />
                   <TooltipProvider>
@@ -137,7 +137,7 @@ export const CartFooter: FC<CartFooterProps> = ({
                   Confirming Order...
                 </>
               ) : (
-                "Confirm Order"
+                'Confirm Order'
               )}
             </Button>
           </motion.div>

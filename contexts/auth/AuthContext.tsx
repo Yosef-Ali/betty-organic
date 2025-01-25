@@ -111,7 +111,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.error('Auth error:', error);
         if (mounted) setError(message);
       } finally {
-        if (mounted) setIsLoading(false);
+        if (mounted) {
+          setIsLoading(false);
+        }
       }
     };
 
@@ -141,7 +143,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.error('Auth state error:', error);
         setError(message);
       } finally {
-        setIsLoading(false);
+        if (mounted) {
+          setIsLoading(false);
+        }
       }
     });
 
@@ -172,6 +176,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isAdmin: profile?.role === 'admin',
     isSales: profile?.role === 'sales',
     isCustomer: profile?.role === 'customer',
+    // Add explicit status flags for devtools visibility
+    status: {
+      isInitialized: !isLoading,
+      hasProfile: !!profile,
+      role: profile?.role || 'unknown',
+    },
   };
 
   console.log('Final auth context value:', {
