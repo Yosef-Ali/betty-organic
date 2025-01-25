@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-import { FC } from 'react';
-=======
 import { FC, useState, useEffect } from 'react';
->>>>>>> 718b3c6 (feat: add navigation skeleton, refactor navigation logic, and implement customer list fetching)
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,15 +17,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from '@/components/ui/dropdown-menu';
-<<<<<<< HEAD
-
-import { Customer } from '@/types/customer';
-
-import { useMarketingCartStore } from '@/store/cartStore';
-=======
 import { getCustomerList } from '@/app/actions/customerActions';
 import { useAuth } from '@/contexts/auth/AuthContext';
->>>>>>> 718b3c6 (feat: add navigation skeleton, refactor navigation logic, and implement customer list fetching)
 
 interface OrderSummaryProps {
   items: Array<{
@@ -39,28 +28,19 @@ interface OrderSummaryProps {
     pricePerKg: number;
     imageUrl: string;
   }>;
-<<<<<<< HEAD
-  profileId: string;
-  setProfileId: (id: string) => void;
-=======
   totalAmount: number;
   customerId: string;
   setCustomerId: (id: string) => void;
->>>>>>> 718b3c6 (feat: add navigation skeleton, refactor navigation logic, and implement customer list fetching)
   orderStatus: 'pending' | 'processing' | 'completed' | 'cancelled';
   setOrderStatus: (
     status: 'pending' | 'processing' | 'completed' | 'cancelled',
   ) => void;
   isStatusVerified: boolean;
   handleToggleLock: () => void;
-<<<<<<< HEAD
-  handleConfirmDialog: (action: 'save' | 'cancel') => void;
-=======
   handleConfirmDialog: (
     action: 'save' | 'cancel',
     selectedCustomer: any,
   ) => void;
->>>>>>> 718b3c6 (feat: add navigation skeleton, refactor navigation logic, and implement customer list fetching)
   isSaving: boolean;
   onPrintPreview: () => void;
   isOrderSaved: boolean;
@@ -74,8 +54,9 @@ interface OrderSummaryProps {
 
 export const OrderSummary: FC<OrderSummaryProps> = ({
   items,
-  profileId,
-  setProfileId,
+  totalAmount,
+  customerId,
+  setCustomerId,
   orderStatus,
   setOrderStatus,
   isStatusVerified,
@@ -86,10 +67,6 @@ export const OrderSummary: FC<OrderSummaryProps> = ({
   isOrderSaved,
   orderNumber,
 }) => {
-<<<<<<< HEAD
-  const { getTotalAmount } = useMarketingCartStore();
-  const totalAmount = getTotalAmount();
-=======
   const { profile } = useAuth();
   const isAdmin = profile?.role === 'admin';
   const [customerList, setCustomerList] = useState([]);
@@ -103,7 +80,6 @@ export const OrderSummary: FC<OrderSummaryProps> = ({
     fetchCustomers();
   }, []);
 
->>>>>>> 718b3c6 (feat: add navigation skeleton, refactor navigation logic, and implement customer list fetching)
   const WHATSAPP_NUMBER = '251947385509';
   const WHATSAPP_GROUP_LINK =
     'https://chat.whatsapp.com/your-group-invite-link';
@@ -146,7 +122,7 @@ export const OrderSummary: FC<OrderSummaryProps> = ({
 ${orderDetails}
 
 💰 *Total Amount:* Br ${totalAmount.toFixed(2)}
-${profileId ? `\n👤 *Profile ID:* ${profileId}` : ''}
+${customerId ? `\n👤 *Customer ID:* ${customerId}` : ''}
 
 ✨ Thank you for choosing Betty Organic! ✨
 
@@ -177,16 +153,7 @@ ${storeInfo}`;
       <div className="flex justify-between items-center mb-4">
         <h3 className="font-semibold text-lg">Order Summary</h3>
         <div className="flex space-x-2">
-<<<<<<< HEAD
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onPrintPreview}
-            disabled={!isOrderSaved}
-          >
-=======
           <Button variant="outline" size="sm" onClick={onPrintPreview}>
->>>>>>> 718b3c6 (feat: add navigation skeleton, refactor navigation logic, and implement customer list fetching)
             <Printer className="h-4 w-4 mr-2" />
             Print
           </Button>
@@ -227,13 +194,9 @@ ${storeInfo}`;
             <span>
               {item.name} ({item.grams}g)
             </span>
-<<<<<<< HEAD
-            <span>Br {((item.pricePerKg * item.grams) / 1000).toFixed(2)}</span>
-=======
             <span>
               Br. {((item.pricePerKg * item.grams) / 1000).toFixed(2)}
             </span>
->>>>>>> 718b3c6 (feat: add navigation skeleton, refactor navigation logic, and implement customer list fetching)
           </div>
         ))}
         <div className="flex justify-between font-bold">
@@ -242,41 +205,6 @@ ${storeInfo}`;
         </div>
       </div>
       <div className="space-y-4">
-<<<<<<< HEAD
-        <div>
-          <Label htmlFor="customer-info" className="text-sm font-medium">
-            Profile ID
-          </Label>
-          <Input
-            id="customer-info"
-            type="text"
-            placeholder="Enter profile ID"
-            value={profileId}
-            onChange={e => setProfileId(e.target.value)}
-            className="mt-1"
-          />
-        </div>
-        <div className="flex items-center space-x-2">
-          <div className="flex-grow">
-            <Label htmlFor="order-status" className="text-sm font-medium">
-              Order Status
-            </Label>
-            <Select
-              value={orderStatus}
-              onValueChange={setOrderStatus}
-              disabled={!isStatusVerified}
-            >
-              <SelectTrigger id="order-status" className="mt-1">
-                <SelectValue placeholder="Select order status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="processing">Processing</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="cancelled">Cancelled</SelectItem>
-              </SelectContent>
-            </Select>
-=======
         <div className="border rounded-lg p-4 bg-muted/30">
           <h4 className="font-semibold mb-3">Customer Information</h4>
           <div className="grid grid-cols-2 gap-4">
@@ -301,7 +229,6 @@ ${storeInfo}`;
                 </SelectContent>
               </Select>
             </div>
->>>>>>> 718b3c6 (feat: add navigation skeleton, refactor navigation logic, and implement customer list fetching)
           </div>
         </div>
 
@@ -342,14 +269,10 @@ ${storeInfo}`;
         <Button variant="outline" onClick={() => handleConfirmDialog('cancel')}>
           Cancel
         </Button>
-<<<<<<< HEAD
-        <Button onClick={() => handleConfirmDialog('save')} disabled={isSaving}>
-=======
         <Button
           onClick={() => handleConfirmDialog('save', selectedCustomer)}
           disabled={isSaving || !selectedCustomer || isOrderSaved}
         >
->>>>>>> 718b3c6 (feat: add navigation skeleton, refactor navigation logic, and implement customer list fetching)
           {isSaving ? 'Saving...' : 'Save Order'}
         </Button>
       </div>

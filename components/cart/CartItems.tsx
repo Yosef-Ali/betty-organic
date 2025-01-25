@@ -1,11 +1,7 @@
 import { FC } from 'react';
 import { motion } from 'framer-motion';
 import { CartItem } from './CartItem';
-<<<<<<< HEAD
-import { useMarketingCartStore } from '@/store/cartStore';
-=======
 import { useSalesCartStore as useCartStore } from '@/store/salesCartStore';
->>>>>>> 718b3c6 (feat: add navigation skeleton, refactor navigation logic, and implement customer list fetching)
 
 interface CartItemsProps {
   items: Array<{
@@ -18,11 +14,7 @@ interface CartItemsProps {
 }
 
 export const CartItems: FC<CartItemsProps> = ({ items }) => {
-<<<<<<< HEAD
-  const { removeFromCart, updateItemQuantity } = useMarketingCartStore();
-=======
   const { removeFromCart, updateItemQuantity } = useCartStore();
->>>>>>> 718b3c6 (feat: add navigation skeleton, refactor navigation logic, and implement customer list fetching)
 
   return (
     <motion.div
