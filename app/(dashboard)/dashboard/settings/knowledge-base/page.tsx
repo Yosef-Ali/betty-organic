@@ -3,7 +3,7 @@
 import {
   useKnowledgeBase,
   KnowledgeBaseEntry,
-  NewKnowledgeBaseEntry
+  NewKnowledgeBaseEntry,
 } from '@/app/actions/useKnowledgeBase';
 import { useState, useEffect, useCallback } from 'react';
 
@@ -15,14 +15,17 @@ export default function SettingsKnowledgeBase() {
     question: '',
     response: '',
     suggestions: [],
-    links: []
+    links: [],
   });
   const knowledgeBase = useKnowledgeBase();
+  const [user, setUser] = useState(null); // Add user state
 
   const fetchEntries = useCallback(async () => {
     try {
-      const data = await knowledgeBase.fetchEntries();
-      setEntries(data as KnowledgeBaseEntry[]);
+      const { entries: kbEntries, user: kbUser } =
+        await knowledgeBase.fetchEntries(); // Fetch user from useKnowledgeBase
+      setEntries(kbEntries);
+      setUser(kbUser); // Set user state
     } catch (err) {
       console.error('Error:', err);
       setError(err instanceof Error ? err.message : 'Failed to load entries');
@@ -36,14 +39,18 @@ export default function SettingsKnowledgeBase() {
   }, [fetchEntries]);
 
   const handleAddEntry = async () => {
+    if (!user?.id) {
+      setError('User ID not found. Please refresh the page and try again.');
+      return;
+    }
     try {
-      await knowledgeBase.addEntry(newEntry);
+      await knowledgeBase.addEntry({ ...newEntry, user_id: user.id }); // Include user_id when adding entry
       await fetchEntries();
       setNewEntry({
         question: '',
         response: '',
         suggestions: [],
-        links: []
+        links: [],
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add entry');
@@ -77,13 +84,17 @@ export default function SettingsKnowledgeBase() {
             type="text"
             placeholder="Question"
             value={newEntry.question}
-            onChange={(e) => setNewEntry({ ...newEntry, question: e.target.value })}
+            onChange={e =>
+              setNewEntry({ ...newEntry, question: e.target.value })
+            }
             className="w-full p-2 border rounded"
           />
           <textarea
             placeholder="Response"
             value={newEntry.response}
-            onChange={(e) => setNewEntry({ ...newEntry, response: e.target.value })}
+            onChange={e =>
+              setNewEntry({ ...newEntry, response: e.target.value })
+            }
             className="w-full p-2 border rounded"
             rows={3}
           />
@@ -105,7 +116,7 @@ export default function SettingsKnowledgeBase() {
           <div className="text-center py-4 text-gray-500">No entries found</div>
         ) : (
           <div className="space-y-4">
-            {entries.map((entry) => (
+            {entries.map(entry => (
               <div key={entry.id} className="border p-4 rounded-lg">
                 <div className="flex justify-between items-start">
                   <div>

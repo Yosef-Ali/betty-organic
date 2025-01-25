@@ -5,7 +5,13 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
 import { useRouter } from 'next/navigation';
 
-export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[];
 
 export interface Link {
   text: string;
@@ -28,6 +34,7 @@ export interface NewKnowledgeBaseEntry {
   response: string;
   suggestions: string[];
   links: Link[];
+  user_id?: string; // user_id is now optional here
 }
 
 export const useKnowledgeBase = () => {
@@ -39,7 +46,7 @@ export const useKnowledgeBase = () => {
       if (Array.isArray(rawLinks)) {
         return rawLinks.map(link => ({
           text: String(link.text || ''),
-          url: String(link.url || '')
+          url: String(link.url || ''),
         }));
       }
       return [];
@@ -51,31 +58,35 @@ export const useKnowledgeBase = () => {
 
   const fetchEntries = async () => {
     try {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
       if (authError || !user) {
         throw new Error('Not authenticated');
       }
-
-      const { data, error } = await supabase
-        .from('knowledge_base')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      const transformedData: KnowledgeBaseEntry[] = (data || []).map(entry => ({
-        id: entry.id,
-        question: entry.question,
-        response: entry.response,
-        suggestions: Array.isArray(entry.suggestions) ? entry.suggestions : [],
-        links: parseLinks(entry.links),
-        user_id: entry.user_id || '',
-        created_at: entry.created_at,
-        updated_at: entry.updated_at
-      }));
-
-      return transformedData;
+      return {
+        entries: await supabase
+          .from('knowledge_base')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .then(({ data }) => {
+            return (data || []).map(entry => ({
+              id: entry.id,
+              question: entry.question,
+              response: entry.response,
+              suggestions: Array.isArray(entry.suggestions)
+                ? entry.suggestions
+                : [],
+              links: parseLinks(entry.links),
+              user_id: entry.user_id || '',
+              created_at: entry.created_at,
+              updated_at: entry.updated_at,
+            })) as KnowledgeBaseEntry[];
+          }),
+        user,
+      };
     } catch (error) {
       console.error('Error in fetchEntries:', error);
       throw error;
@@ -84,19 +95,16 @@ export const useKnowledgeBase = () => {
 
   const addEntry = async (entry: NewKnowledgeBaseEntry) => {
     try {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError || !user) {
-        throw new Error('Not authenticated');
-      }
+      const { user } = await fetchEntries();
 
       const jsonEntry = {
         question: entry.question,
         response: entry.response,
         suggestions: entry.suggestions,
         links: entry.links as unknown as Json, // Convert Link[] to Json
-        user_id: user.id,
+        user_id: user?.id, // Include user_id here
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       };
 
       const { error } = await supabase
@@ -113,7 +121,10 @@ export const useKnowledgeBase = () => {
 
   const deleteEntry = async (id: number) => {
     try {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
       if (authError || !user) {
         throw new Error('Not authenticated');
       }

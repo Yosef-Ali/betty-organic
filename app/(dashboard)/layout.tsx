@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Toaster } from '@/components/ui/toaster';
 import { useAuthContext } from '@/contexts/auth/AuthContext';
 import { useRouter } from 'next/navigation';
 import { usePathname } from 'next/navigation';
@@ -71,7 +72,10 @@ export default function DashboardLayout({
           <Header
             onMobileMenuToggle={() => setMobileMenuOpen(!mobileMenuOpen)}
           />
-          <div className="container mx-auto">{children}</div>
+          <div className="container mx-auto">
+            {children}
+            <Toaster />
+          </div>
         </main>
       </div>
     </div>
