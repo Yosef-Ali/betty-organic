@@ -1,14 +1,10 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { SettingsGeneral } from '@/components/settings/SettingsGeneral';
 import { SettingsKnowledgeBase } from '@/components/settings/SettingsKnowledgeBase';
-import { getKnowledgeBaseEntries, deleteKnowledgeBaseEntry } from '@/app/actions/knowledge-base-actions';
-import { Database } from '@/types/supabase';
-
-
-type KnowledgeBaseEntryType = Database['public']['Tables']['knowledge_base']['Row']
+import { SettingsTestimonials } from '@/components/settings/SettingsTestimonials';
 
 export default function SettingsPage() {
   return (
@@ -21,6 +17,7 @@ export default function SettingsPage() {
             <TabsList>
               <TabsTrigger value="general">General</TabsTrigger>
               <TabsTrigger value="knowledge-base">Knowledge Base</TabsTrigger>
+              <TabsTrigger value="testimonials">Testimonials</TabsTrigger>
             </TabsList>
 
             <TabsContent value="general">
@@ -29,6 +26,10 @@ export default function SettingsPage() {
 
             <TabsContent value="knowledge-base">
               <SettingsKnowledgeBase />
+            </TabsContent>
+
+            <TabsContent value="testimonials">
+              <SettingsTestimonials />
             </TabsContent>
           </Tabs>
         </div>

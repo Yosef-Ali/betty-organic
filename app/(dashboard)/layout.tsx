@@ -35,12 +35,8 @@ export default function DashboardLayout({
       // Allow all authenticated users to access customer routes
       const isCustomerRoute = CUSTOMER_ACCESSIBLE_ROUTES.includes(pathname);
 
-      // Restrict admin-only routes
-      const isAdminRoute = pathname.startsWith('/dashboard');
-      if (isAdminRoute && !isAdmin) {
-        console.log('🚫 Unauthorized access attempt - redirecting to profile');
-        router.replace('/dashboard/profile');
-      }
+      // Respect middleware role checks - only handle UI state
+      // Middleware already enforces role-based access at the route level
     }
   }, [isAdmin, isSales, loading, pathname, router]);
 

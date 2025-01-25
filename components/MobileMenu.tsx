@@ -9,13 +9,13 @@ import { Profile } from '@/lib/types/supabase';
 import { User } from '@supabase/supabase-js';
 
 interface MobileMenuProps {
-  initialSession?: { user: User } | null;
-  initialProfile?: Profile | null;
+  user?: User | null;
+  profile?: Profile | null;
 }
 
 export function MobileMenu({
-  initialSession,
-  initialProfile,
+  user,
+  profile,
 }: MobileMenuProps) {
   const [open, setOpen] = useState(false);
   const [isClient, setIsClient] = useState(false);
@@ -35,14 +35,14 @@ export function MobileMenu({
   ];
 
   // Show dashboard for admin and sales roles
-  if (initialProfile?.role === 'admin' || initialProfile?.role === 'sales') {
+  if (profile?.role === 'admin' || profile?.role === 'sales') {
     links.push({ href: '/dashboard', label: 'Dashboard' });
   }
 
   // Profile link is available to all authenticated users
-  if (initialSession?.user) {
+  if (user) {
     links.push({
-      href: `/dashboard/profile?id=${initialProfile?.id}`,
+      href: `/dashboard/profile?id=${profile?.id}`,
       label: 'Profile',
     });
   }

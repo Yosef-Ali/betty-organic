@@ -52,13 +52,14 @@ export function getRouteAccess(pathname: string): RouteAccess {
 
   // Role-specific routes
   const roleRoutes: Record<string, string[]> = {
-    '/dashboard/sales': ['sales'],
-    '/dashboard/products/new': ['sales'],
-    '/dashboard/products/edit': ['sales'],
-    '/dashboard/settings': ['sales'],
-    '/dashboard/customers': ['sales'],
-    '/dashboard/orders': ['sales'],
-    '/dashboard/profile': ['sales', 'customer'],
+    '/dashboard/settings/testimonials': ['admin'],
+    '/dashboard/settings': ['admin'], // Settings should be admin-only
+    '/dashboard/sales': ['admin', 'sales'],
+    '/dashboard/products/new': ['admin', 'sales'],
+    '/dashboard/products/edit': ['admin', 'sales'],
+    '/dashboard/customers': ['admin', 'sales'],
+    '/dashboard/orders': ['admin', 'sales'],
+    '/dashboard/profile': ['admin', 'sales', 'customer'],
   };
 
   // Check if the pathname matches any role-specific routes
@@ -111,7 +112,7 @@ export async function validateAccess(
   // Get user profile for role check
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
-    .select('*')
+    .select('*, is_admin')
     .eq('id', session.user.id)
     .single();
 

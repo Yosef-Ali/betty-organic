@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/ssr';
+import { createBrowserClient } from '@supabase/ssr';
 import { useEffect, useState } from 'react';
 import type { User } from '@/types/user';
 
@@ -6,7 +6,7 @@ export function useUser() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState<string | null>(null);
-  const supabase = createClient(
+  const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {

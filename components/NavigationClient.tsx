@@ -10,44 +10,99 @@ import { useRouter } from 'next/navigation';
 import { signOut } from '@/app/auth/actions/authActions';
 import { Badge } from './ui/badge';
 import { MobileMenu } from './MobileMenu';
-import { useAuthContext } from '@/contexts/auth/AuthContext';
 import { useEffect, useState } from 'react';
 import { UserButton } from './ui/user-button';
 import { useToast } from '@/hooks/use-toast';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { User } from '@supabase/supabase-js';
 import { Profile } from '@/lib/types/supabase';
 
-interface NavigationClientProps {
-  initialSession: { user: User } | null;
-  initialProfile: Profile | null;
-}
-
-export function NavigationClient({
-  initialSession,
-  initialProfile,
-}: NavigationClientProps) {
+export function NavigationClient() {
   const { toast } = useToast();
   const router = useRouter();
-  const { user, profile, isLoading, error } = useAuthContext();
   const [cartItems] = useHydratedStore(
     useMarketingCartStore,
     state => state.items,
   );
 
-  // Use initial data while auth context loads
-  const currentUser = user || initialSession?.user;
-  const currentProfile = profile || initialProfile;
-  const [isClient, setIsClient] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+
+  // Initialize Supabase client
+  const supabase = createClientComponentClient();
 
   useEffect(() => {
-    setIsClient(true);
+    const initAuth = async () => {
+      try {
+        // Get initial session
+        const {
+          data: { session },
+          error: sessionError,
+        } = await supabase.auth.getSession();
+
+        if (sessionError) {
+          console.error('Session error:', sessionError);
+          return;
+        }
+
+        if (session?.user) {
+          setUser(session.user);
+          // Get user profile
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+
+          if (profileError) {
+            console.error('Profile error:', profileError);
+          } else {
+            setProfile(profileData);
+          }
+        }
+
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Auth initialization error:', error);
+        setIsLoading(false);
+      }
+    };
+
+    // Set up auth state change listener
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      setUser(session?.user ?? null);
+
+      if (session?.user) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+
+        setProfile(profileData);
+      } else {
+        setProfile(null);
+      }
+    });
+
+    initAuth();
+
+    // Cleanup subscription when component unmounts
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const handleSignOut = async () => {
     try {
-      await signOut();
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+
       router.push('/auth/login');
-      router.refresh(); // Ensure page state is cleared
+      router.refresh();
     } catch (error) {
       console.error('Sign out error:', error);
       toast({
@@ -57,9 +112,6 @@ export function NavigationClient({
       });
     }
   };
-
-  // Handle client-side rendering and loading states
-  if (!isClient) return null;
 
   if (isLoading) {
     return (
@@ -73,26 +125,11 @@ export function NavigationClient({
     );
   }
 
-  if (error) {
-    return (
-      <nav className="fixed top-0 z-50 w-full bg-destructive/10 backdrop-blur-md border-b border-destructive/20">
-        <div className="container mx-auto flex h-16 items-center justify-between px-4">
-          <div className="w-full flex justify-center text-destructive">
-            {error}
-          </div>
-        </div>
-      </nav>
-    );
-  }
-
   return (
     <nav className="fixed top-0 z-50 w-full bg-[#ffc600]/80 backdrop-blur-md border-b">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         <div className="flex items-center gap-4">
-          <MobileMenu
-            initialSession={initialSession}
-            initialProfile={initialProfile}
-          />
+          <MobileMenu user={user} profile={profile} />
 
           <Link
             href="/"
@@ -105,12 +142,13 @@ export function NavigationClient({
                 fill
                 className="rounded-full object-cover"
                 sizes="(max-width: 768px) 32px, 40px"
+                priority
               />
             </div>
             <span className="relative z-10 text-lg md:text-2xl">
               Betty&apos;s Organic
             </span>
-            <div className="absolute -bottom-2 left-0 w-full h-2 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwIiBoZWlnaHQ9IjgiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZD0iTTAgNGMxMCAwIDEwIDQgMjAgNHMxMC00IDIwLTQgMTAgNCAyMC00IDEwLTQgMjAtNCAxMCA0IDIwIDQgMTAtNCAyMC00IiBzdHJva2U9IiNlNjVmMDAiIGZpbGw9Im5vbmUiIHN0cm9rZS13aWR0aD0iMyIvPjwvc3ZnPg==')] opacity-0 scale-x-0 group-hover:opacity-100 group-hover:scale-x-100 transition-all duration-300 origin-left z-0 bg-repeat-x"></div>
+            <div className="absolute -bottom-2 left-0 w-full h-2 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwIiBoZWlnaHQ9IjgiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZD0iTTAgNGMxMCAwIDEwIDQgMjAgNHMxMC00IDIwLTQgMTAgNCAyMC00IDEwLTQgMjAtNCAxMCA0IDIwIDQgMTAtNCAyMC00IiBzdHJva2U9IiNlNjVmMDAiIGZpbGw9Im5vbmUiIHN0cm9rZS13aWR0aD0iMyIvPjwvc3Zn>')] opacity-0 scale-x-0 group-hover:opacity-100 group-hover:scale-x-100 transition-all duration-300 origin-left z-0 bg-repeat-x" />
           </Link>
         </div>
 
@@ -144,10 +182,9 @@ export function NavigationClient({
           </div>
 
           <div className="flex items-center gap-2">
-            {currentUser ? (
+            {user ? (
               <div className="flex items-center gap-4">
-                {(currentProfile?.role === 'admin' ||
-                  currentProfile?.role === 'sales') && (
+                {(profile?.role === 'admin' || profile?.role === 'sales') && (
                   <Button
                     variant="ghost"
                     onClick={() => router.push('/dashboard')}
@@ -158,8 +195,8 @@ export function NavigationClient({
                   </Button>
                 )}
                 <UserButton
-                  user={currentUser}
-                  profile={currentProfile}
+                  user={user}
+                  profile={profile}
                   onSignOut={handleSignOut}
                 />
               </div>

@@ -49,22 +49,30 @@ export default function DashboardContent() {
         setError(null);
 
         const [revenue, customers, products, orders] = await Promise.all([
-          getTotalRevenue().catch(e => {
-            console.error('Revenue fetch error:', e);
-            return 0;
-          }),
-          getTotalCustomers().catch(e => {
-            console.error('Customers fetch error:', e);
-            return 0;
-          }),
-          getTotalProducts().catch(e => {
-            console.error('Products fetch error:', e);
-            return 0;
-          }),
-          getTotalOrders().catch(e => {
-            console.error('Orders fetch error:', e);
-            return 0;
-          }),
+          getTotalRevenue()
+            .catch(e => {
+              console.error('Revenue fetch error:', e);
+              return 0;
+            })
+            .then(res => Number(res) || 0),
+          getTotalCustomers()
+            .catch(e => {
+              console.error('Customers fetch error:', e);
+              return 0;
+            })
+            .then(res => Number(res) || 0),
+          getTotalProducts()
+            .catch(e => {
+              console.error('Products fetch error:', e);
+              return 0;
+            })
+            .then(res => Number(res) || 0),
+          getTotalOrders()
+            .catch(e => {
+              console.error('Orders fetch error:', e);
+              return 0;
+            })
+            .then(res => Number(res) || 0),
         ]);
 
         if (isMounted) {
@@ -164,17 +172,17 @@ export default function DashboardContent() {
             />
             <OverviewCard
               title="Total Customers"
-              value={totalCustomers.toString()}
+              value={`${totalCustomers.toLocaleString()}`}
               icon={<Users />}
             />
             <OverviewCard
               title="Total Products"
-              value={totalProducts.toString()}
+              value={`${totalProducts.toLocaleString()}`}
               icon={<Package />}
             />
             <OverviewCard
               title="Total Orders"
-              value={totalOrders.toString()}
+              value={`${totalOrders.toLocaleString()}`}
               icon={<CreditCard />}
             />
           </div>
@@ -183,7 +191,8 @@ export default function DashboardContent() {
               <CardHeader>
                 <CardTitle>Recent Sales</CardTitle>
                 <CardDescription>
-                  You made {totalOrders} sales this month.
+                  You made {(totalOrders ?? 0).toLocaleString()} sales this
+                  month.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -194,7 +203,7 @@ export default function DashboardContent() {
               <CardHeader>
                 <CardTitle>Recent Orders</CardTitle>
                 <CardDescription>
-                  You have {totalOrders} total orders.
+                  You have {(totalOrders ?? 0).toLocaleString()} total orders.
                 </CardDescription>
               </CardHeader>
               <CardContent>
