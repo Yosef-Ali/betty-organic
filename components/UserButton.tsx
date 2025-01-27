@@ -10,11 +10,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { signOut } from '@/app/actions/auth';
+import { createClient } from '@/lib/supabase/client';
 import { LogOut, Settings, User as UserIcon } from 'lucide-react';
 import { User } from '@supabase/supabase-js';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface UserButtonProps {
   user: User;
@@ -24,11 +26,14 @@ interface UserButtonProps {
 export function UserButton({ user, profile }: UserButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const router = useRouter();
 
   const handleSignOut = async () => {
     try {
       setIsLoading(true);
-      await signOut();
+      const supabase = createClient();
+      await supabase.auth.signOut();
+      router.push('/auth/login');
     } catch (error) {
       console.error('Sign out error:', error);
       toast({
@@ -36,8 +41,12 @@ export function UserButton({ user, profile }: UserButtonProps) {
         description: 'Please try again',
         variant: 'destructive',
       });
+    } finally {
+      setIsLoading(false);
     }
   };
+
+  const isAdmin = profile?.role === 'admin';
 
   return (
     <DropdownMenu>
@@ -61,19 +70,31 @@ export function UserButton({ user, profile }: UserButtonProps) {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem>
-          <UserIcon className="mr-2 h-4 w-4" />
-          <span>Profile</span>
+        <DropdownMenuItem asChild>
+          <Link
+            href="/dashboard/profile"
+            className="w-full flex items-center cursor-pointer"
+          >
+            <UserIcon className="mr-2 h-4 w-4" />
+            <span>Profile</span>
+          </Link>
         </DropdownMenuItem>
-        <DropdownMenuItem>
-          <Settings className="mr-2 h-4 w-4" />
-          <span>Settings</span>
-        </DropdownMenuItem>
+        {isAdmin && (
+          <DropdownMenuItem asChild>
+            <Link
+              href="/dashboard/settings"
+              className="w-full flex items-center cursor-pointer"
+            >
+              <Settings className="mr-2 h-4 w-4" />
+              <span>Settings</span>
+            </Link>
+          </DropdownMenuItem>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onClick={handleSignOut}
           disabled={isLoading}
-          className="text-red-600"
+          className="text-red-600 cursor-pointer"
         >
           <LogOut className="mr-2 h-4 w-4" />
           <span>{isLoading ? 'Signing out...' : 'Log out'}</span>

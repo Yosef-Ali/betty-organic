@@ -40,7 +40,9 @@ export default function ResetPasswordPage() {
   const onSubmit = async (data: ResetFormType) => {
     try {
       setIsSubmitting(true)
-      const { error, success, message } = await resetPassword(data)
+      const formData = new FormData()
+      formData.append('email', data.email)
+      const { error, success, message } = await resetPassword(formData)
 
       if (error) {
         toast.error(error)

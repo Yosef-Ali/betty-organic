@@ -1,7 +1,36 @@
-// lib/auth.ts
-import { getCurrentUser as getCurrentUserServer } from '@/app/actions/auth';
+import { createClient } from '@/lib/supabase/server';
+import { redirect } from 'next/navigation';
+import { cache } from 'react';
+import { AuthError, AuthState, Profile } from '@/lib/types/auth';
+import { User } from '@supabase/supabase-js';
 
-// Client-side wrapper for server action
-export async function getCurrentUser() {
-  return await getCurrentUserServer();
+// Cache user data to avoid repeated database queries
+export const getCurrentUser = cache(async () => {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { user: null, profile: null };
+  }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', user.id)
+    .single();
+
+  return { user, profile };
+});
+
+export async function signOut() {
+  try {
+    const supabase = await createClient();
+    await supabase.auth.signOut();
+    return redirect('/auth/login');
+  } catch (error) {
+    console.error('Sign out error:', error);
+    return redirect('/auth/login');
+  }
 }

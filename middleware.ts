@@ -1,63 +1,60 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { createMiddlewareClient } from '@/lib/supabase/middleware';
 import { NextResponse, type NextRequest } from 'next/server';
 
+const DASHBOARD_PATHS = [
+  '/dashboard',
+  '/dashboard/orders',
+  '/dashboard/sales',
+  '/dashboard/users',
+  '/dashboard/products',
+  '/dashboard/settings',
+];
+
 export async function middleware(request: NextRequest) {
-  const response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
-  });
+  const { supabase, response } = createMiddlewareClient(request);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return request.cookies.get(name)?.value;
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          request.cookies.set({
-            name,
-            value,
-            ...options,
-          });
-          response.cookies.set({
-            name,
-            value,
-            ...options,
-          });
-        },
-        remove(name: string, options: CookieOptions) {
-          request.cookies.set({
-            name,
-            value: '',
-            ...options,
-          });
-          response.cookies.set({
-            name,
-            value: '',
-            ...options,
-          });
-        },
-      },
-    },
-  );
+  // Redirect unauthenticated users from dashboard
+  if (DASHBOARD_PATHS.some(path => request.nextUrl.pathname.startsWith(path))) {
+    if (!user) {
+      return NextResponse.redirect(new URL('/signin', request.url));
+    }
 
-  await supabase.auth.getSession();
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    // Role-based access control
+    const path = request.nextUrl.pathname;
+
+    // Path-based role checks
+    const pathRoles = {
+      '/dashboard/settings': ['admin'],
+      '/dashboard/users': ['admin'],
+      '/dashboard/sales': ['admin', 'sales'],
+      '/dashboard/orders': ['admin', 'sales'],
+      '/dashboard/products': ['admin', 'sales'],
+    };
+
+    // Check if the current path requires specific roles
+    for (const [protectedPath, allowedRoles] of Object.entries(pathRoles)) {
+      if (
+        path.startsWith(protectedPath) &&
+        !allowedRoles.includes(profile?.role || '')
+      ) {
+        console.log(`Access denied to ${path} for role ${profile?.role}`);
+        return NextResponse.redirect(new URL('/dashboard', request.url));
+      }
+    }
+  }
 
   return response;
 }
 
 export const config = {
-  matcher: [
-    /*
-     * Match all request paths except:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public folder
-     */
-    '/((?!_next/static|_next/image|favicon.ico|public/).*)',
-  ],
+  matcher: ['/dashboard/:path*'],
 };

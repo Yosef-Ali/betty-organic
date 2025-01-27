@@ -12,11 +12,13 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default async function ProfilePage() {
-  const { user, profile } = await getCurrentUser();
+  const authData = await getCurrentUser();
 
-  if (!user || !profile) {
-    redirect('/auth/signin');
+  if (!authData) {
+    redirect('/auth/login');
   }
+
+  const { user, profile } = authData;
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-64px)]">

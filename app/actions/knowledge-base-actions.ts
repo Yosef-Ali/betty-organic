@@ -1,32 +1,10 @@
 'use server';
 
 import { Database } from '@/types/supabase';
-import { cookies } from 'next/headers';
-import { createServerClient } from '@supabase/ssr';
-
-export async function getSupabaseClient() {
-  const cookieStore = cookies();
-  return createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-        set(name: string, value: string, options: any) {
-          cookieStore.set({ name, value, ...options });
-        },
-        remove(name: string, options: any) {
-          cookieStore.delete(name);
-        },
-      },
-    },
-  );
-}
+import { createClient } from '@/lib/supabase/server';
 
 export async function getKnowledgeBaseEntries(limit = 10) {
-  const supabase = await getSupabaseClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from('knowledge_base')
     .select('*')
@@ -42,7 +20,7 @@ export async function getKnowledgeBaseEntries(limit = 10) {
 }
 
 export async function getKnowledgeBaseEntryById(id: number) {
-  const supabase = await getSupabaseClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from('knowledge_base')
     .select('*')
@@ -63,22 +41,10 @@ export async function createKnowledgeBaseEntry(
     'user_id'
   >,
 ) {
-  const supabase = await getSupabaseClient();
-
-  // Get current user's session
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (!session?.user.id) {
-    throw new Error('Not authenticated');
-  }
-
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from('knowledge_base')
-    .insert({
-      ...entry,
-      user_id: session.user.id,
-    })
+    .insert(entry)
     .select();
 
   if (error) {
@@ -93,7 +59,7 @@ export async function updateKnowledgeBaseEntry(
   id: number,
   entry: Partial<Database['public']['Tables']['knowledge_base']['Update']>,
 ) {
-  const supabase = await getSupabaseClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from('knowledge_base')
     .update(entry)
@@ -109,7 +75,7 @@ export async function updateKnowledgeBaseEntry(
 }
 
 export async function deleteKnowledgeBaseEntry(id: number) {
-  const supabase = await getSupabaseClient();
+  const supabase = await createClient();
   console.log('Server: Attempting to delete entry:', id);
 
   const { error } = await supabase.from('knowledge_base').delete().eq('id', id);

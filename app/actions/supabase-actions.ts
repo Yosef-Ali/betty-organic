@@ -1,10 +1,10 @@
-'use server'
+'use server';
 
-import { createClient } from '@/lib/supabase/server'
-import { Database } from '@/types/supabase'
+import { createClient } from '@/lib/supabase/server';
+import { Database } from '@/types/supabase';
 
 export async function getSupabaseClient() {
-  return await createClient<Database>()
+  return await createClient<Database>();
 }
 
 export async function getRecentOrders(limit = 5) {
@@ -12,15 +12,15 @@ export async function getRecentOrders(limit = 5) {
   try {
     const { data, error } = await supabase
       .from('orders')
-      .select('*, customers!orders_customer_id_fkey(full_name)')
+      .select('*, profiles!orders_profile_id_fkey(name)')
       .order('created_at', { ascending: false })
-      .limit(limit)
+      .limit(limit);
 
-    if (error) throw error
-    return data
+    if (error) throw error;
+    return data;
   } catch (error) {
-    console.error('Error fetching recent orders:', error)
-    return []
+    console.error('Error fetching recent orders:', error);
+    return [];
   }
 }
 
@@ -29,15 +29,15 @@ export async function getRecentSales(limit = 5) {
   try {
     const { data, error } = await supabase
       .from('orders')
-      .select('*, customers!orders_customer_id_fkey(full_name, email)')
+      .select('*, profiles!orders_profile_id_fkey(name, email)')
       .order('created_at', { ascending: false })
-      .limit(limit)
+      .limit(limit);
 
-    if (error) throw error
-    return data
+    if (error) throw error;
+    return data;
   } catch (error) {
-    console.error('Error fetching recent sales:', error)
-    return []
+    console.error('Error fetching recent sales:', error);
+    return [];
   }
 }
 
@@ -46,13 +46,13 @@ export async function getTotalRevenue() {
   try {
     const { data, error } = await supabase
       .from('orders')
-      .select('total_amount')
+      .select('total_amount');
 
-    if (error) throw error
-    return data.reduce((sum, order) => sum + order.total_amount, 0)
+    if (error) throw error;
+    return data.reduce((sum, order) => sum + order.total_amount, 0);
   } catch (error) {
-    console.error('Error fetching total revenue:', error)
-    return 0
+    console.error('Error fetching total revenue:', error);
+    return 0;
   }
 }
 
@@ -61,13 +61,13 @@ export async function getTotalCustomers() {
   try {
     const { count, error } = await supabase
       .from('customers')
-      .select('*', { count: 'exact', head: true })
+      .select('*', { count: 'exact', head: true });
 
-    if (error) throw error
-    return count ?? 0
+    if (error) throw error;
+    return count ?? 0;
   } catch (error) {
-    console.error('Error fetching total customers:', error)
-    return 0
+    console.error('Error fetching total customers:', error);
+    return 0;
   }
 }
 
@@ -76,13 +76,13 @@ export async function getTotalProducts() {
   try {
     const { count, error } = await supabase
       .from('products')
-      .select('*', { count: 'exact', head: true })
+      .select('*', { count: 'exact', head: true });
 
-    if (error) throw error
-    return count ?? 0
+    if (error) throw error;
+    return count ?? 0;
   } catch (error) {
-    console.error('Error fetching total products:', error)
-    return 0
+    console.error('Error fetching total products:', error);
+    return 0;
   }
 }
 
@@ -91,12 +91,12 @@ export async function getTotalOrders() {
   try {
     const { count, error } = await supabase
       .from('orders')
-      .select('*', { count: 'exact', head: true })
+      .select('*', { count: 'exact', head: true });
 
-    if (error) throw error
-    return count ?? 0
+    if (error) throw error;
+    return count ?? 0;
   } catch (error) {
-    console.error('Error fetching total orders:', error)
-    return 0
+    console.error('Error fetching total orders:', error);
+    return 0;
   }
 }

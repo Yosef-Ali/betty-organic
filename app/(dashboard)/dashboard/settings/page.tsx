@@ -12,12 +12,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default async function SettingsPage() {
-  const { user, isAdmin } = await getCurrentUser();
-
-  if (!user || !isAdmin) {
-    redirect('/dashboard');
-  }
-
   return (
     <div className="flex flex-col min-h-[calc(100vh-64px)]">
       <div className="flex-1 space-y-4 p-8 pt-6">
@@ -45,7 +39,8 @@ export default async function SettingsPage() {
               <CardHeader>
                 <CardTitle>Testimonials Management</CardTitle>
                 <CardDescription>
-                  Manage customer testimonials and reviews that appear on your website
+                  Manage customer testimonials and reviews that appear on your
+                  website
                 </CardDescription>
               </CardHeader>
               <CardContent>

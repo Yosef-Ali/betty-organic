@@ -7,27 +7,30 @@ export async function createClient() {
   const { cookies } = await import('next/headers');
   const cookieStore = cookies();
 
+  // Ensure cookie store is initialized
+  await new Promise(resolve => resolve(cookieStore));
+
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
         get(name: string) {
-          const cookie = cookieStore.get(name);
-          return cookie?.value;
+          const value = cookieStore.get(name)?.value;
+          return value;
         },
         set(name: string, value: string, options: CookieOptionsWithName) {
           try {
             cookieStore.set({ name, value, ...options });
           } catch (error) {
-            // Handle error if needed
+            console.error('Cookie set error:', error);
           }
         },
         remove(name: string, options: CookieOptionsWithName) {
           try {
             cookieStore.delete({ name, ...options });
           } catch (error) {
-            // Handle error if needed
+            console.error('Cookie remove error:', error);
           }
         },
       },

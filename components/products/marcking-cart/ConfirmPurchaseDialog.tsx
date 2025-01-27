@@ -12,13 +12,12 @@ import {
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
-import { createOrder } from '@/app/actions/orderActions';
+import { handlePurchaseOrder } from '@/app/actions/purchaseActions';
 import { createClient } from '@/lib/supabase/client';
 import type { Order } from '@/types/order';
 import { Share2 } from 'lucide-react';
 import { useMarketingCartStore } from '@/store/cartStore';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { getCurrentUser } from '@/lib/auth';
 
 interface ConfirmPurchaseDialogProps {
   open: boolean;
@@ -49,38 +48,18 @@ export function ConfirmPurchaseDialog({
       setError(null);
       setIsSubmitting(true);
 
-      const { user, profile } = await getCurrentUser();
+      const { data: order, error, status } = await handlePurchaseOrder(items, total);
 
-      if (!user || !profile?.id) {
-        router.push(
-          `/auth/login?return_url=${encodeURIComponent(
-            window.location.pathname,
-          )}`,
-        );
-        return;
-      }
-
-      const orderData: Order = {
-        id: crypto.randomUUID(),
-        customer_id: profile.id,
-        status: 'pending',
-        type: 'online',
-        total_amount: Number(total.toFixed(2)),
-        order_items: items.map(item => ({
-          id: crypto.randomUUID(),
-          product_id: item.id,
-          quantity: Math.max(1, Math.round(item.grams / 1000)),
-          price: Number(((item.pricePerKg * item.grams) / 1000).toFixed(2)),
-          product_name: item.name,
-        })),
-      };
-
-      // Create order
-      const { data: order, error: orderError } = await createOrder(orderData);
-
-      if (orderError) {
-        console.error('Order creation failed:', orderError);
-        throw new Error(orderError.message || 'Failed to create order');
+      if (error) {
+        if (status === 401) {
+          router.push(
+            `/auth/login?return_url=${encodeURIComponent(
+              window.location.pathname,
+            )}`,
+          );
+          return;
+        }
+        throw new Error(error);
       }
 
       if (!order) {
@@ -116,6 +95,8 @@ export function ConfirmPurchaseDialog({
         errorMessage = e.message;
       } else if (e.code) {
         errorMessage = `Error ${e.code}: ${e.details || 'Unknown error'}`;
+      } else if (err instanceof Error) {
+        errorMessage = err.message || 'Unknown error occurred';
       } else if (typeof err === 'object' && err !== null) {
         errorMessage = JSON.stringify(err, null, 2);
       }

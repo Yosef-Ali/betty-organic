@@ -1,29 +1,36 @@
-'use client'
+'use client';
 
-import { useEffect, useState } from 'react'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { getRecentOrders } from '@/app/actions/supabase-actions'
+import { useEffect, useState } from 'react';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { getRecentOrders } from '@/app/actions/supabase-actions';
 
 type RecentOrder = {
-  id: string
-  status: string
-  total_amount: number
-  type: string
-  customers: {
-    full_name: string
-  }
-}
+  id: string;
+  status: string;
+  total_amount: number;
+  type: string;
+  profiles: {
+    name: string;
+  };
+};
 
 export function RecentOrders() {
-  const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([])
+  const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
 
   useEffect(() => {
     async function fetchRecentOrders() {
-      const orders = await getRecentOrders()
-      setRecentOrders(orders)
+      const orders = await getRecentOrders();
+      setRecentOrders(orders);
     }
-    fetchRecentOrders()
-  }, [])
+    fetchRecentOrders();
+  }, []);
 
   return (
     <Table>
@@ -37,16 +44,20 @@ export function RecentOrders() {
         </TableRow>
       </TableHeader>
       <TableBody>
-        {recentOrders.map((order) => (
+        {recentOrders.map(order => (
           <TableRow key={order.id}>
-            <TableCell className="font-medium">{order.id.slice(0, 8)}</TableCell>
-            <TableCell>{order.customers.full_name}</TableCell>
+            <TableCell className="font-medium">
+              {order.id.slice(0, 8)}
+            </TableCell>
+            <TableCell>{order.profiles.name}</TableCell>
             <TableCell>{order.status}</TableCell>
             <TableCell>{order.type}</TableCell>
-            <TableCell className="text-right">${order.total_amount.toFixed(2)}</TableCell>
+            <TableCell className="text-right">
+              ${order.total_amount.toFixed(2)}
+            </TableCell>
           </TableRow>
         ))}
       </TableBody>
     </Table>
-  )
+  );
 }

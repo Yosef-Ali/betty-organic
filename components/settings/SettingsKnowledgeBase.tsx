@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useAuth } from '@/contexts/auth/AuthContext';
+import { getCurrentUser } from '@/app/actions/auth';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -19,7 +19,6 @@ type KnowledgeBaseEntryType =
   Database['public']['Tables']['knowledge_base']['Row'];
 
 export function SettingsKnowledgeBase() {
-  const { user } = useAuth();
   const { toast } = useToast();
   const [entries, setEntries] = useState<KnowledgeBaseEntryType[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -27,7 +26,6 @@ export function SettingsKnowledgeBase() {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
-
   useEffect(() => {
     fetchEntries().catch(err =>
       toast({

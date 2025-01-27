@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server';
 import type { Order } from '@/types/order';
 import crypto from 'crypto';
+import { getCurrentUser } from './auth';
 
 interface OrderItem {
   product_id: string;
@@ -49,15 +50,13 @@ export async function getOrderDetails(orderId: string) {
 export async function createOrder(orderData: Order) {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const authData = await getCurrentUser();
 
-    if (authError || !user) {
-      console.error('Session validation failed:', authError);
+    if (!authData?.user) {
       throw new Error('Session validation failed: Please sign in again');
     }
+
+    const user = authData.user;
 
     if (!orderData?.order_items?.length) {
       throw new Error('Invalid order data: Missing order items');

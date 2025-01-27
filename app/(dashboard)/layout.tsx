@@ -9,18 +9,13 @@ interface DashboardLayoutProps {
 export default async function DashboardLayout({
   children,
 }: DashboardLayoutProps) {
-  const { user, isAdmin, profile } = await getCurrentUser();
+  const authData = await getCurrentUser();
 
-  if (!user) {
-    redirect('/auth/signin');
+  if (!authData) {
+    redirect('/auth/login');
   }
 
-  const isSales = profile?.role === 'sales';
-  const isCustomer = profile?.role === 'customer';
-
   return (
-    <DashboardShell isAdmin={isAdmin} isSales={isSales} isCustomer={isCustomer}>
-      {children}
-    </DashboardShell>
+    <DashboardShell role={authData.profile.role}>{children}</DashboardShell>
   );
 }

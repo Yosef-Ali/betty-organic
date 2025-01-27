@@ -1,17 +1,17 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { getCurrentUser } from '@/lib/auth';
+import { getCurrentUser } from '@/app/actions/auth';
 import { NavbarUserSection } from './NavbarUserSection';
 import { MobileMenu } from './MobileMenu';
 
 export async function Navigation() {
-  const auth = await getCurrentUser();
+  const authData = await getCurrentUser();
 
   return (
     <nav className="fixed top-0 z-50 w-full bg-[#ffc600]/80 backdrop-blur-md border-b">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         <div className="flex items-center gap-4">
-          <MobileMenu user={auth?.user} profile={auth?.profile} />
+          <MobileMenu user={authData?.user} profile={authData?.profile} />
           <Link
             href="/"
             className="text-2xl md:text-2xl font-bold relative group flex items-center gap-2"
@@ -60,7 +60,10 @@ export async function Navigation() {
               <div className="absolute -bottom-1 left-0 w-full h-0.5 bg-black opacity-0 group-hover:opacity-100 transition-opacity" />
             </Link>
           </div>
-          <NavbarUserSection user={auth?.user} profile={auth?.profile} />
+          <NavbarUserSection
+            user={authData?.user}
+            profile={authData?.profile}
+          />
         </div>
       </div>
     </nav>

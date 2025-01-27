@@ -37,9 +37,10 @@ const nextConfig = {
   },
   experimental: {
     serverActions: {
-      allowedOrigins: ['localhost:3001', '127.0.0.1:*'],
-      allowedForwardedHosts: ['localhost:3001', '127.0.0.1:*'],
-      bypassOriginAndHostValidation: process.env.NODE_ENV === 'development',
+      allowedOrigins: ['localhost:*', '127.0.0.1:*', 'http://localhost:*', 'http://127.0.0.1:*'],
+      allowedForwardedHosts: ['localhost:*', '127.0.0.1:*', 'http://localhost:*', 'http://127.0.0.1:*'],
+      bypassOriginAndHostValidation: true,
+      allowedHeaders: ['x-forwarded-host', 'origin'],
     },
   },
 };

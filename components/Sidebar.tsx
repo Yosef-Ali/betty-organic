@@ -29,9 +29,7 @@ interface SidebarProps {
   onToggle: (expanded: boolean) => void;
   mobileMenuOpen: boolean;
   onMobileMenuClose: () => void;
-  isAdmin: boolean;
-  isSales: boolean;
-  isCustomer: boolean;
+  role?: string;
 }
 
 export default function Sidebar({
@@ -39,9 +37,7 @@ export default function Sidebar({
   onToggle,
   mobileMenuOpen,
   onMobileMenuClose,
-  isAdmin,
-  isSales,
-  isCustomer,
+  role,
 }: SidebarProps) {
   const [isMobile, setIsMobile] = useState(false);
   const [isClient, setIsClient] = useState(false);
@@ -61,11 +57,13 @@ export default function Sidebar({
     return null;
   }
 
-  const profileItem = {
-    label: 'Profile',
-    icon: <UserPen className="h-4 w-4" />,
-    href: '/dashboard/profile',
-  };
+  const baseItems = [
+    {
+      label: 'Profile',
+      icon: <UserPen className="h-4 w-4" />,
+      href: '/dashboard/profile',
+    },
+  ];
 
   const salesItems = [
     {
@@ -78,6 +76,11 @@ export default function Sidebar({
       icon: <ShoppingCart className="h-4 w-4" />,
       href: '/dashboard/orders',
     },
+    {
+      label: 'Products',
+      icon: <Package className="h-4 w-4" />,
+      href: '/dashboard/products',
+    },
   ];
 
   const adminItems = [
@@ -86,47 +89,37 @@ export default function Sidebar({
       icon: <LayoutDashboard className="h-4 w-4" />,
       href: '/dashboard',
     },
-    {
-      label: 'Products',
-      icon: <Package className="h-4 w-4" />,
-      href: '/dashboard/products',
-    },
-    {
-      label: 'Sales',
-      icon: <ShoppingBag className="h-4 w-4" />,
-      href: '/dashboard/sales',
-    },
-    {
-      label: 'Orders',
-      icon: <ShoppingCart className="h-4 w-4" />,
-      href: '/dashboard/orders',
-    },
+    ...salesItems,
     {
       label: 'Customers',
       icon: <Users2 className="h-4 w-4" />,
       href: '/dashboard/customers',
-    },
-  ];
-
-  const adminOnlyItems = [
-    {
-      label: 'Settings',
-      icon: <Settings className="h-4 w-4" />,
-      href: '/dashboard/settings',
     },
     {
       label: 'Users',
       icon: <Users className="h-4 w-4" />,
       href: '/dashboard/users',
     },
+    {
+      label: 'Settings',
+      icon: <Settings className="h-4 w-4" />,
+      href: '/dashboard/settings',
+    },
   ];
 
-  // All roles see profile, with additional items based on role
-  const navItems = isAdmin
-    ? [profileItem, ...adminItems, ...adminOnlyItems]
-    : isSales
-    ? [profileItem, ...salesItems]
-    : [profileItem]; // Customer sees profile only
+  const getNavItems = () => {
+    switch (role) {
+      case 'admin':
+        return [...baseItems, ...adminItems];
+      case 'sales':
+        return [...baseItems, ...salesItems];
+      default:
+        return baseItems;
+    }
+  };
+
+  const navItems = getNavItems();
+  const isCustomer = role === 'customer';
 
   const toggleSidebar = () => {
     onToggle(!expanded);
@@ -178,7 +171,6 @@ export default function Sidebar({
     </>
   );
 
-  // Wrap all sidebar variants in TooltipProvider
   const wrappedContent = (
     <TooltipProvider>
       <aside
@@ -193,7 +185,6 @@ export default function Sidebar({
     </TooltipProvider>
   );
 
-  // For mobile menu, render in a portal to avoid z-index issues
   if (isMobile) {
     return (
       <aside

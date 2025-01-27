@@ -7,26 +7,16 @@ import { Toaster } from '@/components/ui/toaster';
 
 interface DashboardShellProps {
   children: React.ReactNode;
-  isAdmin: boolean;
-  isSales: boolean;
-  isCustomer: boolean;
-  profile?: {
-    role?: string;
-    name?: string;
-    email?: string;
-    avatar_url?: string;
-  };
+  role?: string;
 }
 
-export function DashboardShell({
-  children,
-  isAdmin,
-  isSales,
-  isCustomer,
-  profile,
-}: DashboardShellProps) {
+export function DashboardShell({ children, role }: DashboardShellProps) {
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const isAdmin = role === 'admin';
+  const isSales = role === 'sales';
+  const isCustomer = role === 'customer';
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -35,18 +25,16 @@ export function DashboardShell({
         onToggle={setSidebarExpanded}
         mobileMenuOpen={mobileMenuOpen}
         onMobileMenuClose={() => setMobileMenuOpen(false)}
-        isAdmin={isAdmin}
-        isSales={isSales}
-        isCustomer={isCustomer}
+        role={role}
       />
       <div className="flex flex-col flex-1 overflow-hidden">
         <main
-          className={`flex-1 overflow-y-auto transition-[margin] duration-300 ${isCustomer ? 'ml-60' : sidebarExpanded ? 'ml-60' : 'ml-14'
-            }`}
+          className={`flex-1 overflow-y-auto transition-[margin] duration-300 ${
+            isCustomer ? 'ml-60' : sidebarExpanded ? 'ml-60' : 'ml-14'
+          }`}
         >
           <Header
             onMobileMenuToggle={() => setMobileMenuOpen(!mobileMenuOpen)}
-            profile={profile}
           />
           <div className="container mx-auto">
             {children}

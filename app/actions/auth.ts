@@ -4,8 +4,14 @@ import { cache } from 'react';
 import { AuthError, AuthState, Profile } from '@/lib/types/auth';
 import { User } from '@supabase/supabase-js';
 
+type AuthData = {
+  user: User;
+  profile: Profile;
+  isAdmin: boolean;
+} | null;
+
 // Cache user data to avoid repeated database queries
-export const getCurrentUser = cache(async () => {
+export const getCurrentUser = cache(async (): Promise<AuthData> => {
   const supabase = await createClient();
 
   try {
@@ -36,21 +42,38 @@ export const getCurrentUser = cache(async () => {
       aud: supabaseUser.aud || '',
       created_at: supabaseUser.created_at || '',
       updated_at: supabaseUser.updated_at || '',
-      // Include any other User properties from supabaseUser
-      ...supabaseUser,
+      phone: supabaseUser.phone || '',
+      confirmed_at: supabaseUser.confirmed_at || '',
+      confirmation_sent_at: supabaseUser.confirmation_sent_at || '',
+      recovery_sent_at: supabaseUser.recovery_sent_at || '',
+      last_sign_in_at: supabaseUser.last_sign_in_at || '',
+      factors: supabaseUser.factors || [],
+      identities: supabaseUser.identities || [],
     };
 
-    return { user, profile };
+    const isAdmin = profile?.role === 'admin';
+    return { user, profile, isAdmin };
   } catch (error) {
     console.error('Auth error:', error);
-    const authError: AuthError = {
-      type: 'UnexpectedError',
-      message: 'An unexpected error occurred during authentication',
-      details: { error },
-    };
-    throw authError;
+    return null;
   }
 });
+
+// Helper functions for role checks
+export async function isUserAdmin() {
+  const authData = await getCurrentUser();
+  return authData?.isAdmin || false;
+}
+
+export async function isSalesUser() {
+  const authData = await getCurrentUser();
+  return authData?.profile?.role === 'sales' || authData?.isAdmin || false;
+}
+
+export async function isCustomerUser() {
+  const authData = await getCurrentUser();
+  return authData?.profile?.role === 'customer' || false;
+}
 
 export async function signOut() {
   try {
