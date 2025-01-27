@@ -2,38 +2,31 @@
 
 import { User } from '@supabase/supabase-js';
 import { UserButton } from './UserButton';
-import { cn } from '@/lib/utils';
+import { Button } from './ui/button';
+import Link from 'next/link';
 
 interface NavbarUserSectionProps {
-  user: User | null;
+  user: User | null | undefined;
   profile?: { role?: string } | null;
 }
 
 export function NavbarUserSection({ user, profile }: NavbarUserSectionProps) {
+  if (user === undefined) {
+    return null;
+  }
+
   return (
-    <nav
-      className={cn(
-        'flex items-center gap-4',
-        'transition-opacity duration-200',
-        user === undefined && 'opacity-0',
-      )}
-    >
+    <nav className="flex items-center gap-4">
       {user ? (
         <UserButton user={user} profile={profile} />
       ) : (
         <div className="flex items-center gap-4">
-          <a
-            href="/auth/login"
-            className="text-sm font-medium hover:text-primary transition-colors"
-          >
-            Sign In
-          </a>
-          <a
-            href="/auth/signup"
-            className="text-sm font-medium px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg transition-all duration-200 active:scale-95"
-          >
-            Sign Up
-          </a>
+          <Link href="/auth/login">
+            <Button variant="ghost">Sign In</Button>
+          </Link>
+          <Link href="/auth/signup">
+            <Button>Sign Up</Button>
+          </Link>
         </div>
       )}
     </nav>

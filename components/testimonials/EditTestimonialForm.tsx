@@ -15,13 +15,14 @@ import {
 import {
   TestimonialFormValues,
   testimonialFormSchema,
-  TestimonialData,
 } from './TestimonialFormSchema';
-import { TestimonialMediaForm } from './TestimonialMediaForm';
 import { TestimonialDetailsForm } from './TestimonialDetailsForm';
+import { AvatarUpload } from '@/components/ui/avatar-upload';
+import { StarRating } from './StarRating';
+import { Testimonial } from '@/lib/types/supabase';
 
 interface EditTestimonialFormProps {
-  initialData?: TestimonialData;
+  initialData?: Testimonial;
 }
 
 export function EditTestimonialForm({ initialData }: EditTestimonialFormProps) {
@@ -33,18 +34,20 @@ export function EditTestimonialForm({ initialData }: EditTestimonialFormProps) {
     resolver: zodResolver(testimonialFormSchema),
     defaultValues: initialData
       ? {
-          name: initialData.name,
+          name: initialData.author,
           role: initialData.role,
           content: initialData.content,
-          imageUrl: initialData.imageUrl || '',
-          status: initialData.active ? 'active' : 'inactive',
+          status: initialData.approved ? 'active' : 'inactive',
+          image_url: initialData.image_url || '',
+          rating: initialData.rating,
         }
       : {
           name: '',
           role: '',
           content: '',
-          imageUrl: '',
           status: 'active',
+          image_url: '',
+          rating: 5,
         },
   });
 
@@ -115,12 +118,22 @@ export function EditTestimonialForm({ initialData }: EditTestimonialFormProps) {
         </div>
 
         <div className="grid gap-8">
-          <TestimonialDetailsForm form={form} />
-          <TestimonialMediaForm
-            form={form}
-            isLoading={isLoading}
-            initialData={initialData}
-          />
+          <div className="flex gap-8">
+            <div className="flex-1">
+              <TestimonialDetailsForm form={form} />
+            </div>
+            <div className="w-72 space-y-8">
+              <AvatarUpload
+                form={form}
+                name="image_url"
+                label="Profile Picture"
+                bucketName="testimonials"
+                entityId={initialData?.id}
+                size="lg"
+              />
+              <StarRating form={form} />
+            </div>
+          </div>
         </div>
 
         <div className="flex items-center gap-4">

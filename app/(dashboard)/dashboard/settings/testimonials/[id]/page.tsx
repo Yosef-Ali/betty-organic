@@ -30,7 +30,7 @@ export default async function EditTestimonialPage({
   if (!testimonial) {
     return (
       <Card>
-        <CardContent className="pt-6">
+        <CardContent className="pt-8">
           <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
             <h2 className="text-2xl font-semibold tracking-tight">
               Testimonial not found

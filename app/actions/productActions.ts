@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { v4 as uuidv4 } from 'uuid';
 
-export const createProduct = async (formData: FormData): Promise<Product> => {
+export async function createProduct(formData: FormData): Promise<Product> {
   const supabase = await createClient();
 
   // Get the current session
@@ -93,9 +93,12 @@ export const createProduct = async (formData: FormData): Promise<Product> => {
       'Failed to create product: ' + (error.message || 'Unknown error'),
     );
   }
-};
+}
 
-export async function updateProduct(id: string, formData: FormData) {
+export async function updateProduct(
+  id: string,
+  formData: FormData,
+): Promise<Product> {
   const supabase = await createClient();
 
   // Get the current session
@@ -178,7 +181,7 @@ export async function updateProduct(id: string, formData: FormData) {
   }
 }
 
-export async function getProductImages(productId: string) {
+export async function getProductImages(productId: string): Promise<string[]> {
   if (!productId) {
     console.warn('No product ID provided to getProductImages');
     return [];
@@ -235,7 +238,7 @@ export async function getProducts(): Promise<Product[]> {
   }
 }
 
-export async function getProduct(id: string) {
+export async function getProduct(id: string): Promise<Product | null> {
   const supabase = await createClient();
   try {
     const { data: product, error } = await supabase
@@ -255,7 +258,9 @@ export async function getProduct(id: string) {
   }
 }
 
-export async function deleteProduct(id: string) {
+export async function deleteProduct(
+  id: string,
+): Promise<{ success: boolean; error?: string | undefined }> {
   const supabase = await createClient();
 
   // Get the current session

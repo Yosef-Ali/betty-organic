@@ -148,7 +148,7 @@ export async function deleteOrder(orderId: string) {
 export async function getOrders(customerId?: string) {
   const supabase = await createClient();
   try {
-    const ordersError = await supabase
+    let query = supabase
       .from('orders')
       .select(
         `
@@ -160,8 +160,13 @@ export async function getOrders(customerId?: string) {
         profile:profiles(id, name, email)
       `,
       )
-      .order('created_at', { ascending: false })
-      .eq(customerId ? 'profile_id' : '', customerId || '');
+      .order('created_at', { ascending: false });
+
+    if (customerId) {
+      query = query.eq('profile_id', customerId);
+    }
+
+    const ordersError = await query;
 
     if (ordersError.error) {
       console.error('Supabase error fetching orders:', ordersError.error);

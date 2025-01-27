@@ -4,17 +4,14 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
 export async function getCustomerList() {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
         get(name: string) {
-          if (typeof cookies.get === 'function') {
-            return cookies.get(name)?.value;
-          }
-          return undefined;
+          return cookieStore.get(name)?.value;
         },
       },
     },

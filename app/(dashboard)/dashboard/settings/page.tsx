@@ -54,7 +54,7 @@ export default async function SettingsPage() {
               <CardHeader>
                 <CardTitle>Knowledge Base</CardTitle>
                 <CardDescription>
-                  Manage your website's knowledge base content
+                  Manage your website&apos;s knowledge base content
                 </CardDescription>
               </CardHeader>
               <CardContent>

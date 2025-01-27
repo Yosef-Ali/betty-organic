@@ -3,19 +3,24 @@
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { v4 as uuidv4 } from 'uuid';
-import { TestimonialData } from '@/components/testimonials/TestimonialFormSchema';
 import { getCurrentUser } from './auth';
 import { redirect } from 'next/navigation';
+import { Tables } from '@/lib/supabase/database.types';
+
+// Replace TestimonialData with the correct type
+type TestimonialData = Tables<'testimonials'>;
 
 export async function createTestimonial(
   formData: FormData,
 ): Promise<TestimonialData> {
-  const { user, isAdmin } = await getCurrentUser();
+  const authData = await getCurrentUser();
 
-  if (!user || !isAdmin) {
-    redirect('/dashboard');
+  if (!authData?.user) {
+    redirect('/auth/login');
   }
 
+  const { user, profile, isAdmin } = authData;
+  const isSales = profile?.role === 'sales';
   const supabase = await createClient();
 
   try {
@@ -23,6 +28,8 @@ export async function createTestimonial(
     const role = formData.get('role') as string;
     const content = formData.get('content') as string;
     const status = formData.get('status') as string;
+    const image_url = formData.get('image_url') as string;
+    const rating = parseInt(formData.get('rating') as string, 10);
 
     if (!name || typeof name !== 'string') {
       throw new Error('Name is required');
@@ -42,11 +49,16 @@ export async function createTestimonial(
         author: name,
         role: role || '',
         content,
-        approved: status === 'active',
+        approved: isAdmin ? (status === 'active') : false,
+        image_url: image_url || null,
+        rating: rating || 5,
         created_at: now,
         updated_at: now,
+        created_by: user.id,
       })
-      .select('id, author, role, content, approved, created_at, updated_at')
+      .select(
+        'id, author, role, content, approved, image_url, rating, created_at, updated_at',
+      )
       .single();
 
     if (insertError) {
@@ -72,19 +84,34 @@ export async function updateTestimonial(
   id: string,
   formData: FormData,
 ): Promise<TestimonialData> {
-  const { user, isAdmin } = await getCurrentUser();
+  const authData = await getCurrentUser();
 
-  if (!user || !isAdmin) {
-    redirect('/dashboard');
+  if (!authData?.user) {
+    redirect('/auth/login');
   }
 
+  const { user, profile, isAdmin } = authData;
+  const isSales = profile?.role === 'sales';
+
+  // Only allow admins and the original creator (if they're sales) to update
   const supabase = await createClient();
+  const { data: testimonial } = await supabase
+    .from('testimonials')
+    .select('created_by')
+    .eq('id', id)
+    .single();
+
+  if (!isAdmin && (!isSales || testimonial?.created_by !== user.id)) {
+    throw new Error('Unauthorized to update this testimonial');
+  }
 
   try {
     const name = formData.get('name') as string;
     const role = formData.get('role') as string;
     const content = formData.get('content') as string;
     const status = formData.get('status') as string;
+    const image_url = formData.get('image_url') as string;
+    const rating = parseInt(formData.get('rating') as string, 10);
 
     if (!name || !content) {
       throw new Error('Name and content are required');
@@ -95,6 +122,8 @@ export async function updateTestimonial(
       role: role || '',
       content,
       approved: status === 'active',
+      image_url: image_url || null,
+      rating: rating || 5,
       updated_at: new Date().toISOString(),
     };
 
@@ -102,7 +131,9 @@ export async function updateTestimonial(
       .from('testimonials')
       .update(updates)
       .eq('id', id)
-      .select('id, author, role, content, approved, created_at, updated_at')
+      .select(
+        'id, author, role, content, approved, image_url, rating, created_at, updated_at',
+      )
       .single();
 
     if (error) {
@@ -123,7 +154,12 @@ export async function updateTestimonial(
 }
 
 export async function deleteTestimonial(id: string) {
-  const { user, isAdmin } = await getCurrentUser();
+  const authData = await getCurrentUser();
+  if (!authData?.user) {
+    redirect('/auth/login');
+  }
+  const { user } = authData;
+  const isAdmin = authData.profile?.role === 'admin';
 
   if (!user || !isAdmin) {
     redirect('/dashboard');
@@ -132,6 +168,24 @@ export async function deleteTestimonial(id: string) {
   const supabase = await createClient();
 
   try {
+    // Get testimonial data to delete image if exists
+    const { data: testimonial } = await supabase
+      .from('testimonials')
+      .select('image_url')
+      .eq('id', id)
+      .single();
+
+    // Delete image from storage if exists
+    if (testimonial?.image_url) {
+      const path = testimonial.image_url.split('/').pop(); // Get filename from URL
+      if (path) {
+        await supabase.storage
+          .from('testimonials')
+          .remove([`testimonials/${path}`]);
+      }
+    }
+
+    // Delete testimonial record
     const { error } = await supabase.from('testimonials').delete().eq('id', id);
 
     if (error) {
@@ -153,7 +207,9 @@ export async function getTestimonials(): Promise<TestimonialData[]> {
   try {
     const { data, error } = await supabase
       .from('testimonials')
-      .select('id, author, role, content, approved, created_at, updated_at')
+      .select(
+        'id, author, role, content, approved, image_url, rating, created_at, updated_at',
+      )
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -175,7 +231,9 @@ export async function getTestimonial(
   try {
     const { data: testimonial, error } = await supabase
       .from('testimonials')
-      .select('id, author, role, content, approved, created_at, updated_at')
+      .select(
+        'id, author, role, content, approved, image_url, rating, created_at, updated_at',
+      )
       .eq('id', id)
       .single();
 
@@ -187,6 +245,6 @@ export async function getTestimonial(
     return testimonial;
   } catch (error) {
     console.error('Error fetching testimonial:', error);
-    throw error; // Let the page handle the error
+    throw error;
   }
 }

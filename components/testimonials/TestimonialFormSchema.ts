@@ -14,12 +14,8 @@ export const testimonialFormSchema = z.object({
     .min(10, 'Content must be at least 10 characters')
     .max(1000, 'Content cannot be longer than 1000 characters'),
   status: z.enum(['active', 'inactive']).default('active'),
+  image_url: z.string().optional(),
+  rating: z.number().min(1).max(5).default(5),
 });
 
 export type TestimonialFormValues = z.infer<typeof testimonialFormSchema>;
-
-export interface ImageUploadResponse {
-  success: boolean;
-  imageUrl?: string;
-  error?: string;
-}

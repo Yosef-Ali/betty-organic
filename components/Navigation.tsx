@@ -28,7 +28,7 @@ export async function Navigation() {
             <span className="relative z-10 text-lg md:text-2xl">
               Betty&apos;s Organic
             </span>
-            <div className="absolute -bottom-2 left-0 w-full h-2 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwIiBoZWlnaHQ9IjgiIHhtbG5zPSJodHRwOi8vd3d3LmczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZD0iTTAgNGMxMCAwIDEwIDQgMjAgNHMxMC00IDIwLTQgMTAgNCAyMCA0IDEwLTQgMjAtNCAxMCA0IDIwIDQgMTAtNCAyMC00IiBzdHJva2U9IiNlNjVmMDAiIGZpbGw9Im5vbmUiIHN0cm9rZS13aWR0aD0iMyIvPjwvc3Zn>')] opacity-0 scale-x-0 group-hover:opacity-100 group-hover:scale-x-100 transition-all duration-300 origin-left z-0 bg-repeat-x"></div>
+            <div className="absolute -bottom-2 left-0 w-full h-2 bg-[#e65f00] opacity-0 scale-x-0 group-hover:opacity-100 group-hover:scale-x-100 transition-all duration-300 origin-left z-0"></div>
           </Link>
         </div>
 
@@ -61,7 +61,7 @@ export async function Navigation() {
             </Link>
           </div>
           <NavbarUserSection
-            user={authData?.user}
+            user={authData?.user ?? null}
             profile={authData?.profile}
           />
         </div>

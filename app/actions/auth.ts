@@ -19,43 +19,36 @@ export const getCurrentUser = cache(async (): Promise<AuthData> => {
 
   try {
     const {
-      data: { user: supabaseUser },
-      error,
-    } = await supabase.auth.getUser();
+      data: { session },
+      error: sessionError,
+    } = await supabase.auth.getSession();
 
-    if (error || !supabaseUser) {
-      console.error('Authentication error:', error);
+    if (sessionError) {
+      console.error('Session error:', sessionError);
       return null;
     }
 
-    // Get profile data
-    const { data: profile } = await supabase
+    if (!session?.user) {
+      return null;
+    }
+
+    // Get the user's profile
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('*')
-      .eq('id', supabaseUser.id)
+      .eq('id', session.user.id)
       .single();
 
-    // Create a proper User object
-    const user: User = {
-      id: supabaseUser.id,
-      email: supabaseUser.email || '',
-      role: supabaseUser.role || '',
-      app_metadata: supabaseUser.app_metadata || {},
-      user_metadata: supabaseUser.user_metadata || {},
-      aud: supabaseUser.aud || '',
-      created_at: supabaseUser.created_at || '',
-      updated_at: supabaseUser.updated_at || '',
-      phone: supabaseUser.phone || '',
-      confirmed_at: supabaseUser.confirmed_at || '',
-      confirmation_sent_at: supabaseUser.confirmation_sent_at || '',
-      recovery_sent_at: supabaseUser.recovery_sent_at || '',
-      last_sign_in_at: supabaseUser.last_sign_in_at || '',
-      factors: supabaseUser.factors || [],
-      identities: supabaseUser.identities || [],
-    };
+    if (profileError) {
+      console.error('Profile error:', profileError);
+      return null;
+    }
 
-    const isAdmin = profile?.role === 'admin';
-    return { user, profile, isAdmin };
+    return {
+      user: session.user,
+      profile,
+      isAdmin: profile.role === 'admin',
+    };
   } catch (error) {
     console.error('Auth error:', error);
     return null;

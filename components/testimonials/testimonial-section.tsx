@@ -1,7 +1,9 @@
-"use client";
+'use client';
 
-import { motion } from "framer-motion";
-import Image from "next/image";
+import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
+import Image from 'next/image';
+import { createClient } from '@/lib/supabase/client';
 import {
   Carousel,
   CarouselContent,
@@ -9,53 +11,37 @@ import {
   CarouselNext,
   CarouselPrevious,
   type CarouselApi,
-} from "@/components/ui/carousel";
-import { Card, CardContent } from "@/components/ui/card";
-import { Star } from "lucide-react";
-import { useEffect, useState } from "react";
-
-const testimonials = [
-  {
-    name: "Sarah Johnson",
-    role: "Food Enthusiast",
-    image: "https://i.pravatar.cc/150?img=1",
-    content: "The quality of fruits from FruitMart is exceptional. Every delivery feels like it's picked fresh from the garden!",
-    rating: 5
-  },
-  {
-    name: "Michael Chen",
-    role: "Health Coach",
-    image: "https://i.pravatar.cc/150?img=2",
-    content: "I recommend FruitMart to all my clients. Their organic selection is unmatched, and the delivery is always on time.",
-    rating: 5
-  },
-  {
-    name: "Emma Davis",
-    role: "Restaurant Owner",
-    image: "https://i.pravatar.cc/150?img=3",
-    content: "As a restaurant owner, quality is everything. FruitMart consistently delivers the freshest fruits for our dishes.",
-    rating: 5
-  },
-  {
-    name: "Alex Thompson",
-    role: "Fitness Trainer",
-    image: "https://i.pravatar.cc/150?img=4",
-    content: "The variety and quality of fruits available at FruitMart is amazing. My post-workout smoothies have never been better!",
-    rating: 5
-  },
-  {
-    name: "Sophia Martinez",
-    role: "Nutrition Expert",
-    image: "https://i.pravatar.cc/150?img=5",
-    content: "I love how FruitMart sources locally when possible. The seasonal fruit boxes are a fantastic way to eat healthy!",
-    rating: 5
-  }
-];
+} from '@/components/ui/carousel';
+import { Card, CardContent } from '@/components/ui/card';
+import { Star } from 'lucide-react';
+import { Testimonial } from '@/lib/types/supabase';
 
 export function TestimonialSection() {
   const [api, setApi] = useState<CarouselApi>();
   const [current, setCurrent] = useState(0);
   const [count, setCount] = useState(0);
+  const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchTestimonials = async () => {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from('testimonials')
+        .select('*')
+        .eq('approved', true)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching testimonials:', error);
+      } else {
+        setTestimonials(data || []);
+      }
+      setIsLoading(false);
+    };
+
+    fetchTestimonials();
+  }, []);
 
   useEffect(() => {
     if (!api) return;
@@ -63,7 +49,7 @@ export function TestimonialSection() {
     setCount(api.scrollSnapList().length);
     setCurrent(api.selectedScrollSnap() + 1);
 
-    api.on("select", () => {
+    api.on('select', () => {
       setCurrent(api.selectedScrollSnap() + 1);
     });
   }, [api]);
@@ -74,6 +60,14 @@ export function TestimonialSection() {
 
   // Calculate number of dots based on screen size and total items
   const numDots = Math.ceil(testimonials.length / 4); // 4 items per view on xl screens
+
+  if (isLoading) {
+    return <div>Loading testimonials...</div>;
+  }
+
+  if (testimonials.length === 0) {
+    return null; // Don't show the section if there are no testimonials
+  }
 
   return (
     <section id="testimonials" className="w-full py-8 md:py-16 lg:py-24">
@@ -86,7 +80,8 @@ export function TestimonialSection() {
         >
           <h2 className="mb-4 text-4xl font-bold">What Our Customers Say</h2>
           <p className="mx-auto max-w-2xl text-lg text-gray-700">
-            Don&apos;t just take our word for it - hear from our satisfied customers about their experience with FruitMart.
+            Don&apos;t just take our word for it - hear from our satisfied
+            customers about their experience with FruitMart.
           </p>
         </motion.div>
 
@@ -94,37 +89,50 @@ export function TestimonialSection() {
           <Carousel
             setApi={setApi}
             opts={{
-              align: "start",
+              align: 'start',
               loop: true,
             }}
             className="w-full"
           >
             <CarouselContent className="-ml-2 md:-ml-4">
               {testimonials.map((testimonial, index) => (
-                <CarouselItem key={index} className="pl-2 md:pl-4 md:basis-1/2 lg:basis-1/3 xl:basis-1/4">
+                <CarouselItem
+                  key={testimonial.id}
+                  className="pl-2 md:pl-4 md:basis-1/2 lg:basis-1/3 xl:basis-1/4"
+                >
                   <Card className="border-none bg-white/80 shadow-lg">
                     <CardContent className="flex flex-col gap-4 p-6">
                       <div className="flex items-center gap-4">
                         <div className="relative h-12 w-12 overflow-hidden rounded-full">
-                          <Image
-                            src={testimonial.image}
-                            alt={testimonial.name}
-                            fill
-                            className="object-cover"
-                          />
+                          {testimonial.image_url ? (
+                            <Image
+                              src={testimonial.image_url}
+                              alt={testimonial.author}
+                              fill
+                              className="object-cover"
+                            />
+                          ) : (
+                            <div className="h-full w-full bg-gray-200" />
+                          )}
                         </div>
                         <div>
-                          <h3 className="font-semibold">{testimonial.name}</h3>
-                          <p className="text-sm text-gray-600">{testimonial.role}</p>
+                          <h3 className="font-semibold">
+                            {testimonial.author}
+                          </h3>
+                          <p className="text-sm text-gray-600">
+                            {testimonial.role}
+                          </p>
                         </div>
                       </div>
                       <div className="flex gap-0.5">
-                        {Array.from({ length: testimonial.rating }).map((_, i) => (
-                          <Star
-                            key={i}
-                            className="h-4 w-4 fill-yellow-400 text-yellow-400"
-                          />
-                        ))}
+                        {Array.from({ length: testimonial.rating }).map(
+                          (_, i) => (
+                            <Star
+                              key={i}
+                              className="h-4 w-4 fill-yellow-400 text-yellow-400"
+                            />
+                          ),
+                        )}
                       </div>
                       <p className="text-gray-700">{testimonial.content}</p>
                     </CardContent>
@@ -142,10 +150,11 @@ export function TestimonialSection() {
               <button
                 key={index}
                 onClick={() => scrollTo(index)}
-                className={`h-3 w-3 rounded-full transition-all duration-300 ${current === index
-                  ? 'bg-[#e6b000] w-6'
-                  : 'bg-[#ffd966] hover:bg-[#e6b000]'
-                  }`}
+                className={`h-3 w-3 rounded-full transition-all duration-300 ${
+                  current === index + 1
+                    ? 'bg-[#e6b000] w-6'
+                    : 'bg-[#ffd966] hover:bg-[#e6b000]'
+                }`}
                 aria-label={`Go to slide ${index + 1}`}
               />
             ))}

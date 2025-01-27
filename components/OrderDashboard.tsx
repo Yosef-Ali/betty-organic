@@ -58,23 +58,25 @@ const OrderDashboard: React.FC = () => {
 
       const extendedOrders: ExtendedOrder[] = ordersData.map(order => {
         const customer = order.customerId
-          ? customersData.find(c => c.id === order.customerId)
+          ? customersData?.find(c => c.id === order.customerId)
           : null;
+
+        // Handle potential undefined customer properties
+        const customerData = customer && {
+          id: customer.id,
+          full_name: customer.full_name || '',
+          email: customer.email || '',
+          phone: customer.phone || null,
+          location: customer.location || null,
+          status: customer.status || 'inactive',
+          imageUrl: customer.imageUrl || null,
+          created_at: customer.created_at || null,
+          updated_at: customer.updated_at || null,
+        };
+
         return {
           ...order,
-          customer: customer
-            ? {
-                id: customer.id,
-                full_name: customer.full_name,
-                email: customer.email,
-                phone: customer.phone || null,
-                location: customer.location || null,
-                status: customer.status,
-                imageUrl: customer.imageUrl || null,
-                created_at: customer.created_at || null,
-                updated_at: customer.updated_at || null,
-              }
-            : null,
+          customer: customerData || null,
           type: order.type as OrderType,
         };
       });

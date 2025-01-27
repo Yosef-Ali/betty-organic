@@ -1,105 +1,96 @@
-'use server'
+'use server';
 
-import { createClient } from '@/lib/supabase/server'
-import { revalidatePath } from 'next/cache'
+import { createClient } from '@/lib/supabase/server';
+import { revalidatePath } from 'next/cache';
+import { getCurrentUser } from './auth';
 
-export async function getUsers() {
-  const supabase = await createClient()
+interface UpdateProfileData {
+  name: string;
+  email: string;
+  avatar_url?: string | null;
+}
+
+export async function updateProfile(data: UpdateProfileData) {
   try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .order('name', { ascending: true })
-    if (error) {
-      console.error('Supabase error:', JSON.stringify(error, null, 2))
-      throw new Error(error.message || 'An error occurred while fetching users')
+    const { user } = await getCurrentUser();
+    if (!user) {
+      throw new Error('Not authenticated');
     }
-    return data
-  } catch (error: any) {
-    console.error('Unexpected error:', JSON.stringify(error, null, 2))
-    throw new Error(error.message || 'An unexpected error occurred')
-  }
-}
 
-export async function updateUserRole(id: string, role: 'customer' | 'admin' | 'sales') {
-  const supabase = await createClient()
-  try {
-    const { error } = await supabase
-      .from('profiles')
-      .update({ role })
-      .eq('id', id)
-    revalidatePath('/dashboard/users')
-    return { error }
-  } catch (error) {
-    console.error('Error updating user role:', error)
-    return { error: error as Error }
-  }
-}
+    const supabase = createClient();
 
-export async function updateProfile({ name, email, image }: { name: string, email: string, image: string }) {
-  const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  const userId = session?.user?.id;
-
-  if (!userId) {
-    return { error: 'Unauthorized' };
-  }
-
-  try {
-    const { error } = await supabase
+    const { error: updateError } = await supabase
       .from('profiles')
       .update({
-        name: name,
-        email: email,
-        avatar_url: image,
+        full_name: data.name,
+        avatar_url: data.avatar_url || null,
+        updated_at: new Date().toISOString(),
       })
-      .eq('id', userId);
+      .eq('id', user.id);
 
-    if (error) {
-      console.error('Error updating profile:', error);
-      return { error: error.message };
+    if (updateError) {
+      console.error('Error updating profile:', updateError);
+      return {
+        success: false,
+        error: updateError.message,
+      };
     }
 
     revalidatePath('/dashboard/profile');
     return { success: true };
   } catch (error) {
-    console.error('Unexpected error updating profile:', error);
-    return { error: 'Failed to update profile' };
+    console.error('Error in updateProfile:', error);
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'Failed to update profile',
+    };
   }
 }
 
-export async function deleteUser(id: string) {
-  const supabase = await createClient();
+export async function deleteUserAvatar(userId: string) {
   try {
-    const { error } = await supabase
-      .from('profiles')
-      .delete()
-      .eq('id', id);
-    if (error) throw error;
-    revalidatePath('/dashboard/users');
-  } catch (error) {
-    console.error('Error deleting user:', error);
-    throw new Error('Failed to delete user');
-  }
-}
+    const supabase = createClient();
 
-export async function getUserById(id: string) {
-  const supabase = await createClient();
-  try {
-    const { data, error } = await supabase
+    // Get current avatar URL
+    const { data: profile } = await supabase
       .from('profiles')
-      .select('*')
-      .eq('id', id)
+      .select('avatar_url')
+      .eq('id', userId)
       .single();
 
-    if (error) {
-      console.error('Supabase error:', JSON.stringify(error, null, 2));
-      throw new Error(error.message || 'An error occurred while fetching user');
+    if (profile?.avatar_url) {
+      // Extract filename from URL
+      const path = profile.avatar_url.split('/').pop();
+      if (path) {
+        // Delete file from storage
+        const { error: deleteError } = await supabase.storage
+          .from('profiles')
+          .remove([`profiles/${path}`]);
+
+        if (deleteError) {
+          throw deleteError;
+        }
+      }
+
+      // Update profile
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: null })
+        .eq('id', userId);
+
+      if (updateError) {
+        throw updateError;
+      }
     }
 
-    return data;
-  } catch (error: any) {
-    console.error('Unexpected error:', JSON.stringify(error, null, 2));
-    throw new Error(error.message || 'An unexpected error occurred');
+    revalidatePath('/dashboard/profile');
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting avatar:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to delete avatar',
+    };
   }
 }

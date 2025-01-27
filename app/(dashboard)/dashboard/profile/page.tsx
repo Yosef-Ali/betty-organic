@@ -31,13 +31,13 @@ export default async function ProfilePage() {
             </p>
           </div>
         </div>
-        <Tabs defaultValue="orders" className="w-full">
+        <Tabs defaultValue="profile" className="w-full">
           <TabsList className="w-[400px]">
-            <TabsTrigger value="orders" className="w-1/2">
-              Order History
-            </TabsTrigger>
             <TabsTrigger value="profile" className="w-1/2">
               Profile
+            </TabsTrigger>
+            <TabsTrigger value="orders" className="w-1/2">
+              Order History
             </TabsTrigger>
           </TabsList>
 
@@ -51,9 +51,10 @@ export default async function ProfilePage() {
               </CardHeader>
               <CardContent>
                 <ProfileForm
-                  initialName={profile.name || ''}
-                  initialEmail={profile.email || ''}
-                  initialImage={profile.avatar_url || ''}
+                  initialName={profile?.full_name || ''}
+                  initialEmail={profile?.email || ''}
+                  initialImage={profile?.avatar_url || ''}
+                  userId={user.id}
                 />
               </CardContent>
             </Card>
