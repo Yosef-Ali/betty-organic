@@ -1,7 +1,12 @@
 import { createClient } from '@/lib/supabase/server';
 import { CustomerTable } from '@/components/CustomerTable';
+import { getCurrentUser } from '@/app/actions/auth';
+import { redirect } from 'next/navigation';
 
 export default async function CustomersPage() {
+  // Get current user for role-based access
+  const { isAdmin } = await getCurrentUser();
+
   const supabase = await createClient();
 
   // Fetch customers (profiles with role='customer')
@@ -15,6 +20,7 @@ export default async function CustomersPage() {
       address,
       avatar_url,
       status,
+      role,
       created_at,
       updated_at,
       orders (
@@ -36,20 +42,26 @@ export default async function CustomersPage() {
 
   const customers = profiles.map(profile => ({
     id: profile.id,
-    fullName: profile.name,
+    full_name: profile.name,
     email: profile.email,
-    phone: '', // Not in profiles table
-    location: profile.address,
-    imageUrl: profile.avatar_url,
+    location: profile.address || null,
+    image_url: profile.avatar_url || null,
     status: profile.status || 'active',
-    orders: profile.orders || [],
-    createdAt: profile.created_at,
-    updatedAt: profile.updated_at,
+    role: profile.role || 'customer',
+    createdAt: profile.created_at || null,
+    updatedAt: profile.updated_at || null
   }));
 
   return (
-    <div>
-      <h2 className="text-2xl font-bold mb-4">Customers</h2>
+    <div className="flex-1 space-y-4 p-8 pt-6">
+      <div className="flex items-center justify-between">
+        <div className="space-y-1">
+          <h2 className="text-3xl font-bold tracking-tight">Customers</h2>
+          <p className="text-muted-foreground">
+            Manage and view customer information
+          </p>
+        </div>
+      </div>
       <CustomerTable initialCustomers={customers} />
     </div>
   );

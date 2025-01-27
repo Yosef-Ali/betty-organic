@@ -1,17 +1,17 @@
-import { Suspense } from 'react'
-import UserTable from '@/components/UserTable'
-import { getUsers } from '@/app/actions/userActions'
-import { ErrorBoundary } from 'react-error-boundary'
-import React from 'react'
-import ErrorFallbackComponent from '@/components/ErrorFallback'
+import { Suspense } from 'react';
+import UserTable from '@/components/UserTable';
+import { getUsers } from '@/app/actions/userActions';
+import { ErrorBoundary } from 'react-error-boundary';
+import React from 'react';
+import ErrorFallbackComponent from '@/components/ErrorFallback';
 
 function LoadingFallback() {
-  return <div className="p-4">Loading users...</div>
+  return <div className="p-4">Loading users...</div>;
 }
 
 export default async function UsersPage() {
   try {
-    const initialUsers = await getUsers()
+    const initialUsers = await getUsers();
 
     return (
       <div className="container mx-auto py-6">
@@ -22,12 +22,16 @@ export default async function UsersPage() {
           </Suspense>
         </ErrorBoundary>
       </div>
-    )
+    );
   } catch (error) {
     return (
       <div className="container mx-auto py-6">
-        <ErrorFallbackComponent error={error instanceof Error ? error : new Error('Failed to load users')} />
+        <ErrorFallbackComponent
+          error={
+            error instanceof Error ? error : new Error('Failed to load users')
+          }
+        />
       </div>
-    )
+    );
   }
 }

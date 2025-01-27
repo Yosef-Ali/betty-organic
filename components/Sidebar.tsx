@@ -4,20 +4,16 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
-  Home,
   ShoppingBag,
   ShoppingCart,
   Package,
   Users2,
   Users,
-  LineChart,
   Settings,
   ChevronLeft,
   ChevronRight,
   X,
-  IdCard,
   UserPen,
-  User,
   LayoutDashboard,
 } from 'lucide-react';
 import {
@@ -27,14 +23,15 @@ import {
   TooltipTrigger,
 } from './ui/tooltip';
 import { Button } from './ui/button';
-import { useAuthContext } from '@/contexts/auth/AuthContext';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 
 interface SidebarProps {
   expanded: boolean;
   onToggle: (expanded: boolean) => void;
   mobileMenuOpen: boolean;
   onMobileMenuClose: () => void;
+  isAdmin: boolean;
+  isSales: boolean;
+  isCustomer: boolean;
 }
 
 export default function Sidebar({
@@ -42,8 +39,10 @@ export default function Sidebar({
   onToggle,
   mobileMenuOpen,
   onMobileMenuClose,
+  isAdmin,
+  isSales,
+  isCustomer,
 }: SidebarProps) {
-  const { isAdmin, isSales, loading, profile, user } = useAuthContext();
   const [isMobile, setIsMobile] = useState(false);
   const [isClient, setIsClient] = useState(false);
 
@@ -56,10 +55,9 @@ export default function Sidebar({
 
   useEffect(() => {
     setIsClient(true);
-  }, [profile, user, loading]); // Keep deps to avoid stale state
+  }, []);
 
-  // Handle client-side rendering and loading states
-  if (!isClient || loading) {
+  if (!isClient) {
     return null;
   }
 
@@ -123,19 +121,12 @@ export default function Sidebar({
     },
   ];
 
+  // All roles see profile, with additional items based on role
   const navItems = isAdmin
     ? [profileItem, ...adminItems, ...adminOnlyItems]
     : isSales
     ? [profileItem, ...salesItems]
-    : [profileItem]; // Customer only sees profile
-
-  console.log('📋 Sidebar nav items:', {
-    total: navItems.length,
-    items: navItems.map(item => item.label),
-    isAdmin,
-    isSales,
-    role: profile?.role,
-  });
+    : [profileItem]; // Customer sees profile only
 
   const toggleSidebar = () => {
     onToggle(!expanded);
@@ -152,7 +143,7 @@ export default function Sidebar({
             height={40}
             className="w-10 h-10 object-cover cursor-pointer"
           />
-          {(expanded || isMobile) && (
+          {(expanded || isMobile || isCustomer) && (
             <span className="ml-3 text-lg font-bold whitespace-nowrap overflow-hidden transition-all duration-300">
               Betty Organic
             </span>
@@ -175,18 +166,34 @@ export default function Sidebar({
           <SidebarLink
             key={item.href}
             {...item}
-            expanded={expanded || isMobile}
+            expanded={expanded || isMobile || isCustomer}
             onClick={isMobile ? onMobileMenuClose : undefined}
           />
         ))}
       </nav>
       <div className="px-2 py-5"></div>
-      {!isMobile && (
+      {!isMobile && !isCustomer && (
         <ToggleButton expanded={expanded} onClick={toggleSidebar} />
       )}
     </>
   );
 
+  // Wrap all sidebar variants in TooltipProvider
+  const wrappedContent = (
+    <TooltipProvider>
+      <aside
+        className={`fixed inset-y-0 left-0 z-10 flex flex-col bg-background border-r ${
+          isCustomer
+            ? 'w-60'
+            : `transition-all duration-300 ${expanded ? 'w-60' : 'w-14'}`
+        }`}
+      >
+        {sidebarContent}
+      </aside>
+    </TooltipProvider>
+  );
+
+  // For mobile menu, render in a portal to avoid z-index issues
   if (isMobile) {
     return (
       <aside
@@ -199,17 +206,7 @@ export default function Sidebar({
     );
   }
 
-  return (
-    <TooltipProvider>
-      <aside
-        className={`fixed inset-y-0 left-0 z-10 flex flex-col bg-background border-r transition-all duration-300 ${
-          expanded ? 'w-60' : 'w-14'
-        }`}
-      >
-        {sidebarContent}
-      </aside>
-    </TooltipProvider>
-  );
+  return wrappedContent;
 }
 
 interface SidebarLinkProps {

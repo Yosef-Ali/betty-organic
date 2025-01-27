@@ -18,8 +18,6 @@ import {
   DropdownMenuItem,
 } from '@/components/ui/dropdown-menu';
 import { getCustomerList } from '@/app/actions/customerActions';
-import { useAuth } from '@/contexts/auth/AuthContext';
-
 interface OrderSummaryProps {
   items: Array<{
     id: string;
@@ -50,6 +48,7 @@ interface OrderSummaryProps {
     email?: string;
   };
   setCustomerInfo: (info: { name?: string; email?: string }) => void;
+  isAdmin: boolean;
 }
 
 export const OrderSummary: FC<OrderSummaryProps> = ({
@@ -67,8 +66,7 @@ export const OrderSummary: FC<OrderSummaryProps> = ({
   isOrderSaved,
   orderNumber,
 }) => {
-  const { profile } = useAuth();
-  const isAdmin = profile?.role === 'admin';
+
   const [customerList, setCustomerList] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
 

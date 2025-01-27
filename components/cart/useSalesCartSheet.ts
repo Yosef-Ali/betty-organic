@@ -7,16 +7,23 @@ import { Customer } from '@/types/customer';
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
-import { useAuth } from '@/contexts/auth/AuthContext';
+interface UseSalesCartSheetProps {
+  profile: any;
+  onOpenChange: (open: boolean) => void;
+}
 
-export const useSalesCartSheet = (onOpenChange: (open: boolean) => void) => {
+export const useSalesCartSheet = ({ profile, onOpenChange }: UseSalesCartSheetProps) => {
   const supabase = createClient();
   const { toast } = useToast();
-  const { profile } = useAuth();
   const { items, clearCart, getTotalAmount } = useSalesCartStore();
-  const [customer, setCustomer] = useState<Customer>({
-    name: '',
+  const [customer, setCustomer] = useState<Partial<Customer>>({
+    id: '',
     email: '',
+    full_name: '',
+    status: '',
+    role: 'customer',
+    created_at: null,
+    updated_at: null
   });
   const [orderStatus, setOrderStatus] = useState<Order['status']>('processing');
   const [isThermalPrintPreviewOpen, setIsThermalPrintPreviewOpen] =
@@ -185,10 +192,11 @@ export const useSalesCartSheet = (onOpenChange: (open: boolean) => void) => {
             product_name: item.name,
           };
           orderItemsData.push(itemData);
-        } catch (error) {
+        } catch (error: unknown) {
           console.error('Error processing item:', item, error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
           throw new Error(
-            `Failed to process item ${item.name}: ${error.message}`,
+            `Failed to process item ${item.name}: ${errorMessage}`,
           );
         }
       }
@@ -202,7 +210,10 @@ export const useSalesCartSheet = (onOpenChange: (open: boolean) => void) => {
       if (itemsError) {
         console.error('Supabase items error:', itemsError);
         // Delete the order if items failed to save
-        await supabase.from('orders').delete().eq('id', order.id);
+        await supabase
+          .from('orders')
+          .delete()
+          .eq('id', order.id as string);
         throw new Error(`Failed to save order items: ${itemsError.message}`);
       }
 

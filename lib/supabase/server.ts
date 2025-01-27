@@ -1,41 +1,51 @@
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
+import type { CookieOptionsWithName } from '@supabase/ssr';
 
+// For use in app directory (Server Components)
 export async function createClient() {
-  const cookieStore = await cookies();
+  const { cookies } = await import('next/headers');
+  const cookieStore = cookies();
 
-  const supabase = createServerClient(
+  return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get: async (name: string) => {
-          const cookie = await cookieStore.get(name);
+        get(name: string) {
+          const cookie = cookieStore.get(name);
           return cookie?.value;
         },
-        set: async (
-          name: string,
-          value: string,
-          options: {
-            path: string;
-            domain?: string;
-            maxAge?: number;
-            httpOnly?: boolean;
-            sameSite?: 'lax' | 'strict' | 'none';
-            secure?: boolean;
-          },
-        ) => {
-          await cookieStore.set(name, value, options);
+        set(name: string, value: string, options: CookieOptionsWithName) {
+          try {
+            cookieStore.set({ name, value, ...options });
+          } catch (error) {
+            // Handle error if needed
+          }
         },
-        remove: async (
-          name: string,
-          options: { path: string; domain?: string },
-        ) => {
-          await cookieStore.delete(name, options);
+        remove(name: string, options: CookieOptionsWithName) {
+          try {
+            cookieStore.delete({ name, ...options });
+          } catch (error) {
+            // Handle error if needed
+          }
         },
       },
     },
   );
+}
 
-  return supabase;
+// For use in pages directory (Pages Router)
+export function createPagesClient(req: any, res: any) {
+  return createServerComponentClient({
+    cookies: () => {
+      const cookie = req.headers.cookie;
+      return Object.fromEntries(
+        cookie?.split(';').map(c => {
+          const [key, ...v] = c.split('=');
+          return [key?.trim(), v.join('=')];
+        }) || [],
+      );
+    },
+  });
 }

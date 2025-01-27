@@ -120,7 +120,8 @@ export type AuthErrorType =
   | 'EmailNotVerified'
   | 'AccountInactive'
   | 'NetworkError'
-  | 'UnexpectedError';
+  | 'UnexpectedError'
+  | 'SignOutError';
 
 export interface AuthError {
   type: AuthErrorType;

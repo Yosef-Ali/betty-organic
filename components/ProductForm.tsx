@@ -13,17 +13,16 @@ import { createProduct, updateProduct } from '@/app/actions/productActions'
 import { ProductFormValues, productFormSchema } from './products/ProductFormSchema'
 import { ProductDetailsForm } from './products/ProductDetailsForm'
 import { ProductMediaForm } from './products/ProductMediaForm'
-import { useAuthContext } from '@/contexts/auth/AuthContext'
-
 interface ProductFormProps {
   initialData?: ProductFormValues & { id: string }
+  isAdmin: boolean
+  isSales: boolean
 }
 
-export function ProductForm({ initialData }: ProductFormProps): JSX.Element {
+export function ProductForm({ initialData, isAdmin, isSales }: ProductFormProps): JSX.Element {
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
   const { toast } = useToast()
-  const { isAdmin, isSales, loading } = useAuthContext()
 
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productFormSchema),

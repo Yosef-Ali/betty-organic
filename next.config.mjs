@@ -35,6 +35,13 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  experimental: {
+    serverActions: {
+      allowedOrigins: ['localhost:3001', '127.0.0.1:*'],
+      allowedForwardedHosts: ['localhost:3001', '127.0.0.1:*'],
+      bypassOriginAndHostValidation: process.env.NODE_ENV === 'development',
+    },
+  },
 };
 
 export default nextConfig;

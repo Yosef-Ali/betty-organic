@@ -39,17 +39,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '../ui/alert-dialog';
-
-interface Testimonial {
-  id: string;
-  author_name: string;
-  role: string;
-  content: string;
-  approved: boolean;
-  image_url: string | null;
-  created_at: string;
-  [key: string]: any;
-}
+import { Testimonial } from '@/lib/types/supabase'; // Import shared Testimonial type
 
 function TestimonialTableContent({
   testimonials,

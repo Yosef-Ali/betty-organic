@@ -1,23 +1,33 @@
-import { FC } from "react";
-import { motion } from "framer-motion";
-import { Button } from "@/components/ui/button";
-import { Printer } from "lucide-react";
+import { FC } from 'react';
+import { motion } from 'framer-motion';
+import { Button } from '@/components/ui/button';
+import { Printer } from 'lucide-react';
 
 interface OrderSummaryProps {
-  items: any[];
+  items: Array<{
+    id: string;
+    name: string;
+    grams: number;
+    pricePerKg: number;
+  }>;
   getTotalAmount: () => number;
   handlePrint: () => void;
   handleThermalPrintPreview: () => void;
 }
 
-const OrderSummary: FC<OrderSummaryProps> = ({ items, getTotalAmount, handlePrint, handleThermalPrintPreview }) => (
+const OrderSummary: FC<OrderSummaryProps> = ({
+  items,
+  getTotalAmount,
+  handlePrint,
+  handleThermalPrintPreview,
+}) => (
   <motion.div
     key="order-summary"
-    initial={{ opacity: 0, x: "100%" }}
-    animate={{ opacity: 1, x: "0%" }}
-    exit={{ opacity: 0, x: "-100%" }}
+    initial={{ opacity: 0, x: '100%' }}
+    animate={{ opacity: 1, x: '0%' }}
+    exit={{ opacity: 0, x: '-100%' }}
     transition={{
-      type: "spring",
+      type: 'spring',
       stiffness: 300,
       damping: 30,
     }}
@@ -36,15 +46,18 @@ const OrderSummary: FC<OrderSummaryProps> = ({ items, getTotalAmount, handlePrin
       </div>
     </div>
     <div className="space-y-2 mb-4">
-      {items.map((item) => (
-        <div key={item.id} className="flex justify-between text-sm">
-          <span>{item.name} ({item.grams}g)</span>
-          <span>${((item.pricePerKg * item.grams) / 1000).toFixed(2)}</span>
-        </div>
-      ))}
+      {Array.isArray(items) &&
+        items.map(item => (
+          <div key={item.id} className="flex justify-between text-sm">
+            <span>
+              {item.name} ({item.grams}g)
+            </span>
+            <span>Br {((item.pricePerKg * item.grams) / 1000).toFixed(2)}</span>
+          </div>
+        ))}
       <div className="flex justify-between font-bold">
         <span>Total:</span>
-        <span>${getTotalAmount().toFixed(2)}</span>
+        <span>Br {getTotalAmount().toFixed(2)}</span>
       </div>
     </div>
   </motion.div>

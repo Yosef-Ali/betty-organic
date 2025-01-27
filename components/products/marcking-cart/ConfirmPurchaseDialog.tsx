@@ -11,14 +11,14 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { createOrder } from '@/app/actions/orderActions';
 import { createClient } from '@/lib/supabase/client';
 import type { Order } from '@/types/order';
 import { Share2 } from 'lucide-react';
 import { useMarketingCartStore } from '@/store/cartStore';
-import { useAuthContext } from '@/contexts/auth/AuthContext';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { getCurrentUser } from '@/lib/auth';
 
 interface ConfirmPurchaseDialogProps {
   open: boolean;
@@ -40,49 +40,24 @@ export function ConfirmPurchaseDialog({
 }: ConfirmPurchaseDialogProps) {
   const { toast } = useToast();
   const router = useRouter();
-  const { profile, isAuthenticated, loading } = useAuthContext();
   const clearCart = useMarketingCartStore(state => state.clearCart);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  useEffect(() => {
-    const validateSession = async () => {
-      if (open && !loading) {
-        try {
-          const supabase = createClient();
-          const {
-            data: { session },
-            error,
-          } = await supabase.auth.getSession();
-
-          if (error) throw error;
-
-          if (!session) {
-            router.push(
-              `/auth/login?return_url=${encodeURIComponent(
-                window.location.pathname,
-              )}`,
-            );
-            onOpenChange(false);
-          }
-        } catch (error) {
-          console.error('Session validation error:', error);
-          router.push('/auth/login');
-          onOpenChange(false);
-        }
-      }
-    };
-
-    validateSession();
-  }, [open, loading, router, onOpenChange]);
 
   const handleCheckout = async () => {
     try {
       setError(null);
       setIsSubmitting(true);
 
-      if (!profile?.id) {
-        throw new Error('User profile not loaded. Please refresh the page.');
+      const { user, profile } = await getCurrentUser();
+
+      if (!user || !profile?.id) {
+        router.push(
+          `/auth/login?return_url=${encodeURIComponent(
+            window.location.pathname,
+          )}`,
+        );
+        return;
       }
 
       const orderData: Order = {
@@ -201,9 +176,7 @@ export function ConfirmPurchaseDialog({
             variant="outline"
             disabled={isSubmitting}
             onClick={() => {
-              const message = `I just placed an order for ${
-                items.length
-              } items totaling ETB ${total.toFixed(2)}!`;
+              const message = `I just placed an order for ${items.length} items totaling ETB ${total.toFixed(2)}!`;
               const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
               window.open(url, '_blank');
             }}

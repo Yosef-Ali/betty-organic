@@ -63,34 +63,15 @@
   * {
     @apply border-border;
   }
-
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
 
 html {
-  scroll-padding-top: 80px;
-  /* Same as header height */
+  scroll-padding-top: 80px; /* Same as header height */
 }
-
-/* @media print {
-  body * {
-    visibility: hidden;
-  }
-
-  .print-preview,
-  .print-preview * {
-    visibility: visible;
-  }
-
-  .print-preview {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-  }
-} */
 
 @media print {
   @page {
@@ -133,9 +114,24 @@ html {
     opacity: 0;
     transform: translateY(10px);
   }
-
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* Ensure proper z-index stacking for shadcn components */
+@layer utilities {
+  .z-modal {
+    z-index: 50;
+  }
+  .z-popover {
+    z-index: 40;
+  }
+  .z-dropdown {
+    z-index: 30;
+  }
+  .z-sticky {
+    z-index: 20;
   }
 }

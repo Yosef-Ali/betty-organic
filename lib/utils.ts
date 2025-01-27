@@ -1,54 +1,29 @@
-export function formatCurrency(amount: number) {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(amount);
-}
-import { clsx, type ClassValue } from 'clsx';
-import ms from 'ms';
+import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-interface LogAuthEventParams {
-  message: string;
-  metadata?: {
-    url?: string;
-    error?: string;
-    path?: string;
-    user?: string;
-    [key: string]: unknown;
-  };
-  level?: 'info' | 'warn' | 'error';
+export function formatDate(input: string | number): string {
+  const date = new Date(input);
+  return date.toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
 }
 
-export function logAuthEvent(
-  message: string,
-  params?: Omit<LogAuthEventParams, 'message'>,
-) {
-  const { metadata = {}, level = 'info' } = params || {};
-  const timestamp = new Date().toISOString();
-
-  const logEntry = {
-    timestamp,
-    level,
-    message,
-    ...metadata,
-  };
-
-  if (process.env.NODE_ENV === 'development') {
-    console[level](`[Auth] ${message}`, logEntry);
-  }
-
-  // In production, this could be extended to send logs to a logging service
-  // For now, we'll just use console logging
+export function absoluteUrl(path: string) {
+  return `${process.env.NEXT_PUBLIC_APP_URL}${path}`;
 }
 
-export const timeAgo = (timestamp: Date, timeOnly?: boolean): string => {
-  if (!timestamp) return 'never';
-  return `${ms(Date.now() - new Date(timestamp).getTime())}${
-    timeOnly ? '' : ' ago'
-  }`;
-};
+export function formatCurrency(amount: number): string {
+  return new Intl.NumberFormat('en-ET', {
+    style: 'currency',
+    currency: 'ETB',
+    currencyDisplay: 'narrowSymbol',
+  })
+    .format(amount)
+    .replace('ETB', 'Br.');
+}

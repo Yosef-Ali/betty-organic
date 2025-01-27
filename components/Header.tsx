@@ -26,11 +26,16 @@ import {
   Users,
 } from 'lucide-react';
 import Breadcrumb from './Breadcrumb';
-import { useAuthContext } from '@/contexts/auth/AuthContext';
 import { signOut } from '@/app/auth/actions/authActions';
 
 interface HeaderProps {
   onMobileMenuToggle: () => void;
+  profile?: {
+    role?: string;
+    name?: string;
+    email?: string;
+    avatar_url?: string;
+  };
 }
 
 const allNavItems = [
@@ -72,8 +77,7 @@ const allNavItems = [
   },
 ];
 
-export default function Header({ onMobileMenuToggle }: HeaderProps) {
-  const { profile } = useAuthContext();
+export default function Header({ onMobileMenuToggle, profile }: HeaderProps) {
   const filteredNavItems = allNavItems.filter(item =>
     item.roles.some(role => role === (profile?.role || 'customer')),
   );

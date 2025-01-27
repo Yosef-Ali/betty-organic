@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useAuthContext } from '@/contexts/auth/AuthContext'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -9,8 +8,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { updateProfile } from '@/app/actions/userActions'
 
-export default function ProfilePage() {
-  const { profile, isAuthenticated } = useAuthContext()
+interface ProfilePageProps {
+  profile: any;
+  isAuthenticated: boolean;
+}
+
+export default function ProfilePage({ profile, isAuthenticated }: ProfilePageProps) {
   const [name, setName] = useState(profile?.name || '')
   const [email, setEmail] = useState(profile?.email || '')
   const [image, setImage] = useState(profile?.avatar_url || '')
@@ -87,11 +90,10 @@ export default function ProfilePage() {
             </Button>
           </form>
           {message && (
-            <div className={`mt-4 p-3 rounded-md text-center ${
-              message.includes('success')
+            <div className={`mt-4 p-3 rounded-md text-center ${message.includes('success')
                 ? 'bg-green-50 text-green-800 border border-green-200'
                 : 'bg-red-50 text-red-800 border border-red-200'
-            }`}>
+              }`}>
               {message}
             </div>
           )}

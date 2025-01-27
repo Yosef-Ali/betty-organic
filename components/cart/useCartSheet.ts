@@ -7,9 +7,14 @@ import { Customer } from '@/types/customer';
 
 export const useCartSheet = (onOpenChange: (open: boolean) => void) => {
   const { items, clearCart, getTotalAmount } = useMarketingCartStore();
-  const [customer, setCustomer] = useState<Customer>({
-    name: '',
+  const [customer, setCustomer] = useState<Partial<Customer>>({
+    id: '',
     email: '',
+    full_name: '',
+    status: '',
+    role: 'customer',
+    created_at: null,
+    updated_at: null,
   });
   const [orderStatus, setOrderStatus] = useState<Order['status']>('processing');
   const [isThermalPrintPreviewOpen, setIsThermalPrintPreviewOpen] =
@@ -104,19 +109,15 @@ export const useCartSheet = (onOpenChange: (open: boolean) => void) => {
       }));
 
       const orderData: Order = {
-        customer_id: 'guest',
-        customerId: 'guest',
+        customer_id: 'guest', // This should be replaced with actual customer_id when available
         status: orderStatus,
         total_amount: totalAmount,
-        totalAmount: totalAmount,
-        type: pathname.includes('/dashboard/sales') ? 'store' : 'online',
-        items: orderItems,
-        customerInfo: customer,
-        orderNumber: `ORDER-${Date.now()}`,
+        type: pathname.includes('/dashboard/sales') ? 'pos' : 'online',
+        order_items: orderItems,
       };
 
-      await createOrder(orderData);
-      setOrderNumber(orderData.orderNumber);
+      const createdOrder = await createOrder(orderData);
+      setOrderNumber(createdOrder?.id?.toString() || '');
       setIsOrderSaved(true);
       clearCart();
     } catch (error) {

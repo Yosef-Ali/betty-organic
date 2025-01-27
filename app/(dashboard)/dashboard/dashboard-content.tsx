@@ -5,7 +5,7 @@ import { useToast } from 'hooks/use-toast';
 import { OverviewCard } from 'components/OverviewCard';
 import { RecentSales } from 'components/RecentSales';
 import { RecentOrders } from 'components/RecentOrders';
-import { useAuthContext } from '@/contexts/auth/AuthContext';
+
 import {
   Card,
   CardContent,
@@ -24,19 +24,12 @@ import {
 } from 'app/actions/supabase-actions';
 
 export default function DashboardContent() {
-  const { isAdmin, isSales, loading: authLoading, profile } = useAuthContext();
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [totalCustomers, setTotalCustomers] = useState(0);
   const [totalProducts, setTotalProducts] = useState(0);
   const [totalOrders, setTotalOrders] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  console.log('📊 DashboardContent Auth State:', {
-    isAdmin,
-    isSales,
-    authLoading,
-    userRole: profile?.role,
-  });
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
