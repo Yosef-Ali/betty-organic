@@ -54,7 +54,7 @@ export function TestimonialList({ initialTestimonials }: TestimonialListProps) {
 
   const columns = [
     {
-      accessorKey: 'name',
+      accessorKey: 'author',
       header: 'Name',
     },
     {
@@ -74,12 +74,12 @@ export function TestimonialList({ initialTestimonials }: TestimonialListProps) {
       cell: ({ row }) => (
         <div
           className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-            row.original.active
+            row.original.approved
               ? 'bg-green-100 text-green-800'
               : 'bg-gray-100 text-gray-800'
           }`}
         >
-          {row.original.active ? 'Active' : 'Inactive'}
+          {row.original.approved ? 'Active' : 'Inactive'}
         </div>
       ),
     },
@@ -109,7 +109,7 @@ export function TestimonialList({ initialTestimonials }: TestimonialListProps) {
 
   const filteredTestimonials = testimonials.filter(
     testimonial =>
-      testimonial.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      testimonial.author.toLowerCase().includes(searchTerm.toLowerCase()) ||
       testimonial.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
       testimonial.content.toLowerCase().includes(searchTerm.toLowerCase()),
   );

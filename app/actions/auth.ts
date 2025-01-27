@@ -1,8 +1,11 @@
+'use server';
+
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { cache } from 'react';
 import { AuthError, AuthState, Profile } from '@/lib/types/auth';
 import { User } from '@supabase/supabase-js';
+import { cookies } from 'next/headers';
 
 type AuthData = {
   user: User;
@@ -78,7 +81,11 @@ export async function isCustomerUser() {
 export async function signOut() {
   try {
     const supabase = await createClient();
+
+    // Sign out from Supabase - this will automatically handle cookie cleanup
     await supabase.auth.signOut();
+
+    // Redirect to login page
     return redirect('/auth/login');
   } catch (error) {
     console.error('Sign out error:', error);

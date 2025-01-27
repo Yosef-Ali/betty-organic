@@ -10,13 +10,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { createClient } from '@/lib/supabase/client';
+import { signOut } from '@/app/actions/auth';
 import { LogOut, Settings, User as UserIcon } from 'lucide-react';
 import { User } from '@supabase/supabase-js';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 
 interface UserButtonProps {
   user: User;
@@ -26,14 +25,13 @@ interface UserButtonProps {
 export function UserButton({ user, profile }: UserButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const router = useRouter();
 
   const handleSignOut = async () => {
+    if (isLoading) return;
+
     try {
       setIsLoading(true);
-      const supabase = createClient();
-      await supabase.auth.signOut();
-      router.push('/auth/login');
+      await signOut();
     } catch (error) {
       console.error('Sign out error:', error);
       toast({
@@ -41,7 +39,6 @@ export function UserButton({ user, profile }: UserButtonProps) {
         description: 'Please try again',
         variant: 'destructive',
       });
-    } finally {
       setIsLoading(false);
     }
   };

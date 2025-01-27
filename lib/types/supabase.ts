@@ -1,14 +1,11 @@
 export interface Testimonial {
   id: string;
-  name: string;
+  author: string;
   role: string;
   content: string;
-  imageUrl: string | null;
-  active: boolean;
-  createdat: string;
-  updatedat: string;
-  created_by?: string;
-  updated_by?: string;
+  approved: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Profile {

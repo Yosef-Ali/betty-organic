@@ -22,7 +22,6 @@ export async function createTestimonial(
     const name = formData.get('name') as string;
     const role = formData.get('role') as string;
     const content = formData.get('content') as string;
-    const imageUrl = (formData.get('imageUrl') as string) || null;
     const status = formData.get('status') as string;
 
     if (!name || typeof name !== 'string') {
@@ -40,16 +39,14 @@ export async function createTestimonial(
       .from('testimonials')
       .insert({
         id: testimonialId,
-        name,
+        author: name,
         role: role || '',
         content,
-        imageUrl,
-        active: status === 'active',
-        createdat: now,
-        updatedat: now,
-        created_by: user.id,
+        approved: status === 'active',
+        created_at: now,
+        updated_at: now,
       })
-      .select('*')
+      .select('id, author, role, content, approved, created_at, updated_at')
       .single();
 
     if (insertError) {
@@ -87,7 +84,6 @@ export async function updateTestimonial(
     const name = formData.get('name') as string;
     const role = formData.get('role') as string;
     const content = formData.get('content') as string;
-    const imageUrl = formData.get('imageUrl') as string;
     const status = formData.get('status') as string;
 
     if (!name || !content) {
@@ -95,20 +91,18 @@ export async function updateTestimonial(
     }
 
     const updates = {
-      name,
+      author: name,
       role: role || '',
       content,
-      imageUrl: imageUrl || null,
-      active: status === 'active',
-      updatedat: new Date().toISOString(),
-      updated_by: user.id,
+      approved: status === 'active',
+      updated_at: new Date().toISOString(),
     };
 
     const { data: testimonial, error } = await supabase
       .from('testimonials')
       .update(updates)
       .eq('id', id)
-      .select('*')
+      .select('id, author, role, content, approved, created_at, updated_at')
       .single();
 
     if (error) {
@@ -159,8 +153,8 @@ export async function getTestimonials(): Promise<TestimonialData[]> {
   try {
     const { data, error } = await supabase
       .from('testimonials')
-      .select('id, name, role, content, imageUrl, active, createdat, updatedat, created_by, updated_by')
-      .order('createdat', { ascending: false });
+      .select('id, author, role, content, approved, created_at, updated_at')
+      .order('created_at', { ascending: false });
 
     if (error) {
       console.error('Error fetching testimonials:', error);
@@ -181,9 +175,7 @@ export async function getTestimonial(
   try {
     const { data: testimonial, error } = await supabase
       .from('testimonials')
-      .select(
-        'id, name, role, content, imageUrl, active, createdat, updatedat, created_by, updated_by',
-      )
+      .select('id, author, role, content, approved, created_at, updated_at')
       .eq('id', id)
       .single();
 
