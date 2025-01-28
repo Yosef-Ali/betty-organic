@@ -1,4 +1,4 @@
-import { FC } from 'react';
+import { FC, useEffect, useState } from 'react';
 import {
   Sheet,
   SheetContent,
@@ -16,6 +16,7 @@ import ConfirmDialog from './ConfirmDialog';
 import { CartItems } from './CartItems';
 import { OrderSummary } from './OrderSummary';
 import { useSalesCartSheet } from './useSalesCartSheet';
+import { getCurrentUser } from '@/lib/auth';
 
 export interface SalesCartSheetProps {
   isOpen: boolean;
@@ -43,6 +44,23 @@ export const SalesCartSheet: FC<SalesCartSheetProps> = ({
   isOpen,
   onOpenChange,
 }) => {
+  const [profile, setProfile] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const { profile: userProfile } = await getCurrentUser();
+        setProfile(userProfile);
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchProfile();
+  }, []);
+
   const {
     items,
     customer,
@@ -75,7 +93,15 @@ export const SalesCartSheet: FC<SalesCartSheetProps> = ({
     setIsThermalPrintPreviewOpen,
     setIsConfirmDialogOpen,
     setIsOtpDialogOpen,
-  } = useSalesCartSheet(onOpenChange);
+  } = useSalesCartSheet({
+    profile,
+    onOpenChange,
+  });
+
+  // Show loading state while fetching profile
+  if (isLoading) {
+    return null; // Or show a loading spinner
+  }
 
   return (
     <>
@@ -117,6 +143,7 @@ export const SalesCartSheet: FC<SalesCartSheetProps> = ({
                   onPrintPreview={handleThermalPrintPreview}
                   isOrderSaved={isOrderSaved}
                   orderNumber={orderNumber}
+                  isAdmin={profile?.role === 'admin'}
                 />
               )}
             </ScrollArea>

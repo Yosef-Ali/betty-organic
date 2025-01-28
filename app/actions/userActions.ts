@@ -17,12 +17,12 @@ export async function updateProfile(data: UpdateProfileData) {
       throw new Error('Not authenticated');
     }
 
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const { error: updateError } = await supabase
       .from('profiles')
       .update({
-        full_name: data.name,
+        name: data.name,
         avatar_url: data.avatar_url || null,
         updated_at: new Date().toISOString(),
       })
@@ -50,7 +50,7 @@ export async function updateProfile(data: UpdateProfileData) {
 
 export async function deleteUserAvatar(userId: string) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Get current avatar URL
     const { data: profile } = await supabase

@@ -1,7 +1,8 @@
 'use server';
 
-import { createServerClient } from '@supabase/ssr';
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { Database } from './database.types';
 
 // For use in app directory (Server Components and Server Actions)
 export async function createClient() {

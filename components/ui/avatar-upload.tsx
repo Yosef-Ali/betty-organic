@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import Image from 'next/image';
 import { UseFormReturn } from 'react-hook-form';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -20,10 +19,8 @@ import { uploadAvatar } from '@/app/actions/upload-avatar';
 
 interface AvatarUploadProps {
   form: UseFormReturn<any>;
-  name: string; // form field name
+  name: string;
   label?: string;
-  bucketName: string; // e.g. 'profiles' or 'customers'
-  entityId?: string; // e.g. userId or customerId
   defaultImageUrl?: string;
   className?: string;
   size?: 'sm' | 'md' | 'lg';
@@ -33,13 +30,12 @@ export function AvatarUpload({
   form,
   name,
   label,
-  bucketName,
-  entityId,
   defaultImageUrl,
   className = '',
   size = 'md',
 }: AvatarUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const { toast } = useToast();
   const supabase = createClient();
 
@@ -58,72 +54,70 @@ export function AvatarUpload({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Create immediate preview URL for the selected file
+    const localPreviewUrl = URL.createObjectURL(file);
+    setPreviewUrl(localPreviewUrl);
+
     try {
       setIsUploading(true);
 
-      // Create FormData
       const formData = new FormData();
       formData.append('file', file);
 
-      // Upload using server action
       const result = await uploadAvatar(formData);
 
       if (!result.success) {
         throw new Error(result.error || 'Failed to upload image');
       }
 
-      // Update form with new image URL
-      const imageUrlWithTimestamp = `${result.imageUrl}?t=${Date.now()}`;
-      form.setValue(name, imageUrlWithTimestamp, {
+      // Update form with new image URL from server
+      const imageUrl = result.imageUrl;
+      form.setValue(name, imageUrl, {
         shouldDirty: true,
         shouldTouch: true,
-        shouldValidate: true
+        shouldValidate: true,
       });
 
       toast({
         description: 'Profile picture updated successfully',
       });
-    } catch (error: any) {
-      console.error('Image upload error:', error);
+    } catch (error) {
+      // Revert preview on error
+      setPreviewUrl(null);
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: error.message || 'Failed to upload image',
+        description: error instanceof Error ? error.message : 'Failed to upload image',
       });
     } finally {
       setIsUploading(false);
+      // Clean up the local preview URL
+      if (localPreviewUrl) {
+        URL.revokeObjectURL(localPreviewUrl);
+      }
     }
   };
 
   const handleRemoveImage = async () => {
-    const currentImageUrl = form.getValues(name);
-    if (currentImageUrl) {
-      try {
-        setIsUploading(true);
-        const path = currentImageUrl.split('/').pop()?.split('?')[0];
-        if (path) {
-          await supabase.storage
-            .from('public')
-            .remove([`profiles/${path}`]);
-        }
-        form.setValue(name, '', {
-          shouldDirty: true,
-          shouldTouch: true,
-          shouldValidate: true
-        });
-        toast({
-          description: 'Profile picture removed',
-        });
-      } catch (error: any) {
-        console.error('Error removing image:', error);
-        toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: error.message || 'Failed to remove image',
-        });
-      } finally {
-        setIsUploading(false);
-      }
+    try {
+      setIsUploading(true);
+      setPreviewUrl(null); // Clear preview URL
+      form.setValue(name, '', {
+        shouldDirty: true,
+        shouldTouch: true,
+        shouldValidate: true,
+      });
+      toast({
+        description: 'Profile picture removed',
+      });
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message || 'Failed to remove image',
+      });
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -138,12 +132,11 @@ export function AvatarUpload({
             <div className="flex flex-col items-center gap-4">
               <div className="relative">
                 <Avatar className={getAvatarSize()}>
-                  {field.value ? (
+                  {(previewUrl || field.value) ? (
                     <AvatarImage
-                      src={field.value}
+                      src={previewUrl || field.value}
                       alt="Avatar"
                       className="object-cover"
-                      key={field.value}
                     />
                   ) : defaultImageUrl ? (
                     <AvatarImage
@@ -157,7 +150,6 @@ export function AvatarUpload({
                     </AvatarFallback>
                   )}
 
-                  {/* Upload Button */}
                   <div className="absolute -bottom-2 -right-2 flex gap-2">
                     <Button
                       type="button"
@@ -188,7 +180,6 @@ export function AvatarUpload({
                   </div>
                 </Avatar>
 
-                {/* Hidden file input */}
                 <Input
                   id={`avatar-upload-${name}`}
                   type="file"

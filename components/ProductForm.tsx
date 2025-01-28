@@ -1,28 +1,43 @@
-'use client'
+'use client';
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { Button } from "@/components/ui/button"
-import { Form } from "@/components/ui/form"
-import { Badge } from "@/components/ui/badge"
-import { ChevronLeft } from 'lucide-react'
-import { useToast } from '@/hooks/use-toast'
-import { createProduct, updateProduct } from '@/app/actions/productActions'
-import { ProductFormValues, productFormSchema } from './products/ProductFormSchema'
-import { ProductDetailsForm } from './products/ProductDetailsForm'
-import { ProductMediaForm } from './products/ProductMediaForm'
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Button } from '@/components/ui/button';
+import { Form } from '@/components/ui/form';
+import { Badge } from '@/components/ui/badge';
+import { ChevronLeft } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { createProduct, updateProduct } from '@/app/actions/productActions';
+import {
+  ProductFormValues,
+  productFormSchema,
+} from './products/ProductFormSchema';
+import { ProductDetailsForm } from './products/ProductDetailsForm';
+import { ProductMediaForm } from './products/ProductMediaForm';
+
 interface ProductFormProps {
-  initialData?: ProductFormValues & { id: string }
-  isAdmin: boolean
-  isSales: boolean
+  initialData?: ProductFormValues & { id: string };
+  isAdmin: boolean;
+  isSales: boolean;
 }
 
-export function ProductForm({ initialData, isAdmin, isSales }: ProductFormProps): JSX.Element {
-  const [isLoading, setIsLoading] = useState(false)
-  const router = useRouter()
-  const { toast } = useToast()
+export function ProductForm({
+  initialData,
+  isAdmin,
+  isSales,
+}: ProductFormProps): JSX.Element {
+  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
+  const { toast } = useToast();
+
+  // Move useEffect to top level
+  useEffect(() => {
+    if (!isAdmin && !isSales) {
+      router.push('/dashboard');
+    }
+  }, [isAdmin, isSales, router]);
 
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productFormSchema),
@@ -34,30 +49,30 @@ export function ProductForm({ initialData, isAdmin, isSales }: ProductFormProps)
       imageUrl: '',
       status: 'active',
     },
-  })
+  });
 
   const validateFormData = (data: ProductFormValues): boolean => {
     if (!data.name || data.name.length < 2) {
       toast({
-        title: "Validation Error",
-        description: "Product name must be at least 2 characters long",
-        variant: "destructive",
+        title: 'Validation Error',
+        description: 'Product name must be at least 2 characters long',
+        variant: 'destructive',
       });
       return false;
     }
     if (data.price < 0) {
       toast({
-        title: "Validation Error",
-        description: "Price must be a positive number",
-        variant: "destructive",
+        title: 'Validation Error',
+        description: 'Price must be a positive number',
+        variant: 'destructive',
       });
       return false;
     }
     if (data.stock < 0) {
       toast({
-        title: "Validation Error",
-        description: "Stock must be a non-negative number",
-        variant: "destructive",
+        title: 'Validation Error',
+        description: 'Stock must be a non-negative number',
+        variant: 'destructive',
       });
       return false;
     }
@@ -69,9 +84,9 @@ export function ProductForm({ initialData, isAdmin, isSales }: ProductFormProps)
 
     if (!isAdmin && !isSales) {
       toast({
-        title: "Access Denied",
+        title: 'Access Denied',
         description: "You don't have permission to manage products",
-        variant: "destructive",
+        variant: 'destructive',
       });
       return;
     }
@@ -97,10 +112,10 @@ export function ProductForm({ initialData, isAdmin, isSales }: ProductFormProps)
       }
 
       toast({
-        title: "Success",
+        title: 'Success',
         description: initialData
-          ? "Product updated successfully"
-          : "Product created successfully",
+          ? 'Product updated successfully'
+          : 'Product created successfully',
       });
 
       router.push('/dashboard/products');
@@ -108,16 +123,16 @@ export function ProductForm({ initialData, isAdmin, isSales }: ProductFormProps)
     } catch (error: any) {
       console.error('Form submission error:', error);
       toast({
-        title: "Error",
+        title: 'Error',
         description: error.message || 'An unexpected error occurred',
-        variant: "destructive",
+        variant: 'destructive',
       });
     } finally {
       setIsLoading(false);
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
         <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
@@ -126,13 +141,15 @@ export function ProductForm({ initialData, isAdmin, isSales }: ProductFormProps)
   }
 
   if (!isAdmin && !isSales) {
-    router.push('/dashboard');
     return null;
   }
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="mx-auto max-w-5xl">
+      <form
+        onSubmit={form.handleSubmit(onSubmit)}
+        className="mx-auto max-w-5xl"
+      >
         <div className="flex items-center gap-4 mb-6">
           <Button
             type="button"
@@ -151,11 +168,20 @@ export function ProductForm({ initialData, isAdmin, isSales }: ProductFormProps)
             {form.watch('stock') > 0 ? 'In stock' : 'Out of stock'}
           </Badge>
           <div className="hidden md:flex items-center gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={() => form.reset()}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => form.reset()}
+            >
               Discard
             </Button>
             <Button type="submit" size="sm" disabled={isLoading}>
-              {isLoading ? 'Saving...' : initialData ? 'Update Product' : 'Save Product'}
+              {isLoading
+                ? 'Saving...'
+                : initialData
+                ? 'Update Product'
+                : 'Save Product'}
             </Button>
           </div>
         </div>
@@ -171,14 +197,23 @@ export function ProductForm({ initialData, isAdmin, isSales }: ProductFormProps)
 
         {/* Mobile Actions */}
         <div className="flex items-center justify-center gap-2 mt-6 md:hidden">
-          <Button type="button" variant="outline" size="sm" onClick={() => form.reset()}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => form.reset()}
+          >
             Discard
           </Button>
           <Button type="submit" size="sm" disabled={isLoading}>
-            {isLoading ? 'Saving...' : initialData ? 'Update Product' : 'Save Product'}
+            {isLoading
+              ? 'Saving...'
+              : initialData
+              ? 'Update Product'
+              : 'Save Product'}
           </Button>
         </div>
       </form>
     </Form>
-  )
+  );
 }

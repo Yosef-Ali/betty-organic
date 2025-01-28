@@ -18,6 +18,7 @@ import {
   DropdownMenuItem,
 } from '@/components/ui/dropdown-menu';
 import { getCustomerList } from '@/app/actions/customerActions';
+
 interface OrderSummaryProps {
   items: Array<{
     id: string;
@@ -65,8 +66,8 @@ export const OrderSummary: FC<OrderSummaryProps> = ({
   onPrintPreview,
   isOrderSaved,
   orderNumber,
+  isAdmin,
 }) => {
-
   const [customerList, setCustomerList] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
 
