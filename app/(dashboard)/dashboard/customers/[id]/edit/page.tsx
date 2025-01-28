@@ -1,30 +1,35 @@
-import { getCustomerById } from '@/app/actions/customersActions';
+import { getProfile } from '@/app/actions/profile';
 import { notFound } from 'next/navigation';
 import { EditCustomerForm } from '@/components/EditCustomerForm';
+import { CustomerFormValues } from '@/components/CustomerForm';
 
 type CustomerStatus = 'active' | 'inactive';
 
-export default async function EditCustomerPage({ params }: { params: { id: string } }) {
-  const customer = await getCustomerById(params.id);
+export default async function EditCustomerPage({
+  params,
+}: {
+  params: { id: string };
+}) {
+  const profile = await getProfile(params.id);
 
-  if (!customer) {
+  if (!profile || profile.role !== 'customer') {
     notFound();
   }
+
+  const initialData: CustomerFormValues = {
+    id: profile.id,
+    fullName: profile.fullName,
+    email: profile.email,
+    phone: profile.phone,
+    location: profile.location,
+    status: profile.status as CustomerStatus,
+    imageUrl: profile.imageUrl,
+  };
 
   return (
     <div className="container mx-auto px-4 py-8">
       <h2 className="text-2xl font-bold mb-4">Edit Customer</h2>
-      <EditCustomerForm
-        initialData={{
-          id: customer.id,
-          fullName: customer.full_name,
-          email: customer.email ?? undefined,
-          phone: customer.phone ?? undefined,
-          location: customer.location ?? undefined,
-          status: customer.status as CustomerStatus,
-          imageUrl: customer.imageUrl ?? undefined, // Ensure imageUrl is included
-        }}
-      />
+      <EditCustomerForm initialData={initialData} />
     </div>
   );
 }

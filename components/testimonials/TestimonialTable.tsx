@@ -41,6 +41,130 @@ import {
 } from '../ui/alert-dialog';
 import { Testimonial } from '@/lib/types/supabase'; // Import shared Testimonial type
 
+interface TestimonialTableProps {
+  initialTestimonials?: Testimonial[];
+  filterStatus?: 'pending' | 'approved';
+}
+
+export function TestimonialTable({ initialTestimonials = [], filterStatus }: TestimonialTableProps) {
+  const [testimonials, setTestimonials] = useState<Testimonial[]>(initialTestimonials);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const router = useRouter();
+  const { toast } = useToast();
+
+  const fetchTestimonials = async () => {
+    try {
+      const fetchedTestimonials = await getTestimonials();
+      let filteredTestimonials = fetchedTestimonials;
+
+      if (filterStatus) {
+        filteredTestimonials = fetchedTestimonials.filter(
+          t => (filterStatus === 'approved' ? t.approved : !t.approved)
+        );
+      }
+
+      setTestimonials(filteredTestimonials);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch testimonials',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!initialTestimonials.length) {
+      fetchTestimonials();
+    }
+  }, [filterStatus, initialTestimonials.length]);
+
+  const filteredTestimonials = useMemo(() => {
+    if (!searchTerm) return testimonials;
+    const lowerSearchTerm = searchTerm.toLowerCase();
+    return testimonials.filter(testimonial =>
+      [testimonial.author_name, testimonial.role, testimonial.content].some(
+        field => field?.toLowerCase().includes(lowerSearchTerm),
+      ),
+    );
+  }, [testimonials, searchTerm]);
+
+  const handleDelete = async (id: string) => {
+    try {
+      setIsLoading(true);
+      await deleteTestimonial(id);
+      setTestimonials(testimonials.filter(t => t.id !== id));
+      toast({
+        title: 'Success',
+        description: 'Testimonial deleted successfully',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to delete testimonial',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleToggleApproval = async (id: string, approved: boolean) => {
+    try {
+      setIsLoading(true);
+      await toggleApproval(id, approved);
+      setTestimonials(
+        testimonials.map(t => (t.id === id ? { ...t, approved } : t)),
+      );
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to toggle approval status',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <Input
+          placeholder="Search testimonials..."
+          value={searchTerm}
+          onChange={e => setSearchTerm(e.target.value)}
+          className="max-w-sm"
+        />
+      </div>
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Author</TableHead>
+              <TableHead>Content</TableHead>
+              <TableHead>Date</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="w-[70px]">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <TestimonialTableContent
+              testimonials={filteredTestimonials}
+              isLoading={isLoading}
+              onDelete={handleDelete}
+              onToggleApproval={handleToggleApproval}
+            />
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}
+
 function TestimonialTableContent({
   testimonials,
   isLoading,
@@ -118,16 +242,16 @@ function TestimonialTableContent({
       {testimonials.map(testimonial => (
         <TableRow key={testimonial.id}>
           <TableCell>
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-3 flex-wrap gap-2">
               <Avatar>
-                <AvatarImage src={testimonial.image_url || ''} />
-                <AvatarFallback>
-                  {testimonial.author_name.charAt(0).toUpperCase()}
+                <AvatarImage src={testimonial.image_url || ''} alt={testimonial.author_name || 'Testimonial author'} />
+                <AvatarFallback className="bg-muted">
+                  {testimonial.author_name ? testimonial.author_name.charAt(0).toUpperCase() : 'T'}
                 </AvatarFallback>
               </Avatar>
-              <div>
-                <div className="font-medium">{testimonial.author_name}</div>
-                <div className="text-sm text-gray-500">{testimonial.role}</div>
+              <div className="min-w-0">
+                <div className="font-medium truncate">{testimonial.author_name}</div>
+                <div className="text-sm text-gray-500 truncate">{testimonial.role}</div>
               </div>
             </div>
           </TableCell>
@@ -142,11 +266,10 @@ function TestimonialTableContent({
           <TableCell>
             <div
               className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
-              ${
-                testimonial.approved
+              ${testimonial.approved
                   ? 'bg-green-100 text-green-800'
                   : 'bg-yellow-100 text-yellow-800'
-              }`}
+                }`}
             >
               {testimonial.approved ? 'Approved' : 'Pending'}
             </div>
@@ -163,7 +286,7 @@ function TestimonialTableContent({
                 <DropdownMenuItem
                   onClick={() =>
                     router.push(
-                      '/dashboard/testimonials/' + testimonial.id + '/edit',
+                      `/dashboard/settings/testimonials/${testimonial.id}/edit`,
                     )
                   }
                 >
@@ -213,88 +336,5 @@ function TestimonialTableContent({
         </TableRow>
       ))}
     </>
-  );
-}
-
-export default function TestimonialTable({
-  initialTestimonials,
-}: {
-  initialTestimonials: Testimonial[];
-}) {
-  const [testimonials, setTestimonials] =
-    useState<Testimonial[]>(initialTestimonials);
-  const [isLoading, setIsLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-
-  const filteredTestimonials = useMemo(() => {
-    if (!searchTerm) return testimonials;
-    const lowerSearchTerm = searchTerm.toLowerCase();
-    return testimonials.filter(testimonial =>
-      [testimonial.author_name, testimonial.role, testimonial.content].some(
-        field => field?.toLowerCase().includes(lowerSearchTerm),
-      ),
-    );
-  }, [testimonials, searchTerm]);
-
-  const handleDelete = async (id: string) => {
-    try {
-      setIsLoading(true);
-      await deleteTestimonial(id);
-      setTestimonials(testimonials.filter(t => t.id !== id));
-    } catch (error) {
-      console.error('Error deleting testimonial:', error);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleToggleApproval = async (id: string, approved: boolean) => {
-    try {
-      setIsLoading(true);
-      await toggleApproval(id, approved);
-      setTestimonials(
-        testimonials.map(t => (t.id === id ? { ...t, approved } : t)),
-      );
-    } catch (error) {
-      console.error('Error toggling testimonial approval:', error);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <Input
-          placeholder="Search testimonials..."
-          value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
-          className="max-w-sm"
-        />
-      </div>
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Author</TableHead>
-              <TableHead>Content</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="w-[70px]">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TestimonialTableContent
-              testimonials={filteredTestimonials}
-              isLoading={isLoading}
-              onDelete={handleDelete}
-              onToggleApproval={handleToggleApproval}
-            />
-          </TableBody>
-        </Table>
-      </div>
-    </div>
   );
 }

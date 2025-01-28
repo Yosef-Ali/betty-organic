@@ -2,6 +2,8 @@ import { getCurrentUser } from '@/app/actions/auth';
 import { redirect } from 'next/navigation';
 import { SettingsTestimonials } from '@/components/settings/SettingsTestimonials';
 import { SettingsKnowledgeBase } from '@/components/settings/SettingsKnowledgeBase';
+import { SettingsGeneral } from '@/components/settings/SettingsGeneral';
+import { SettingsAbout } from '@/components/settings/SettingsAbout';
 import {
   Card,
   CardContent,
@@ -24,43 +26,24 @@ export default async function SettingsPage() {
           </div>
         </div>
 
-        <Tabs defaultValue="testimonials" className="w-full">
-          <TabsList className="w-[400px]">
-            <TabsTrigger value="testimonials" className="w-1/2">
-              Testimonials
-            </TabsTrigger>
-            <TabsTrigger value="knowledge-base" className="w-1/2">
-              Knowledge Base
-            </TabsTrigger>
+        <Tabs defaultValue="general" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="general">General</TabsTrigger>
+            <TabsTrigger value="about">About</TabsTrigger>
+            <TabsTrigger value="testimonials">Testimonials</TabsTrigger>
+            <TabsTrigger value="knowledge-base">Knowledge Base</TabsTrigger>
           </TabsList>
-
-          <TabsContent value="testimonials">
-            <Card>
-              <CardHeader>
-                <CardTitle>Testimonials Management</CardTitle>
-                <CardDescription>
-                  Manage customer testimonials and reviews that appear on your
-                  website
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <SettingsTestimonials />
-              </CardContent>
-            </Card>
+          <TabsContent value="general" className="space-y-4">
+            <SettingsGeneral />
           </TabsContent>
-
-          <TabsContent value="knowledge-base">
-            <Card>
-              <CardHeader>
-                <CardTitle>Knowledge Base</CardTitle>
-                <CardDescription>
-                  Manage your website&apos;s knowledge base content
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <SettingsKnowledgeBase />
-              </CardContent>
-            </Card>
+          <TabsContent value="about" className="space-y-4">
+            <SettingsAbout />
+          </TabsContent>
+          <TabsContent value="testimonials" className="space-y-4">
+            <SettingsTestimonials />
+          </TabsContent>
+          <TabsContent value="knowledge-base" className="space-y-4">
+            <SettingsKnowledgeBase />
           </TabsContent>
         </Tabs>
       </div>

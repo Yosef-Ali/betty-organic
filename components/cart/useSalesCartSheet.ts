@@ -12,7 +12,11 @@ interface UseSalesCartSheetProps {
   onOpenChange: (open: boolean) => void;
 }
 
-export const useSalesCartSheet = ({ profile, onOpenChange }: UseSalesCartSheetProps) => {
+export const useSalesCartSheet = ({
+  profile,
+  onOpenChange,
+}: UseSalesCartSheetProps) => {
+  console.log('useSalesCartSheet called with profile:', profile);
   const supabase = createClient();
   const { toast } = useToast();
   const { items, clearCart, getTotalAmount } = useSalesCartStore();
@@ -23,7 +27,7 @@ export const useSalesCartSheet = ({ profile, onOpenChange }: UseSalesCartSheetPr
     status: '',
     role: 'customer',
     created_at: null,
-    updated_at: null
+    updated_at: null,
   });
   const [orderStatus, setOrderStatus] = useState<Order['status']>('processing');
   const [isThermalPrintPreviewOpen, setIsThermalPrintPreviewOpen] =
@@ -69,45 +73,97 @@ export const useSalesCartSheet = ({ profile, onOpenChange }: UseSalesCartSheetPr
 
   const handleShare = async () => {
     try {
+      if (items.length === 0) {
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'No items to share',
+        });
+        return;
+      }
+
+      // Format order details with better spacing
       const orderDetails = items
         .map(
           item =>
-            `${item.name} (${item.grams}g): Br ${(
-              (item.pricePerKg * item.grams) /
-              1000
-            ).toFixed(2)}`,
+            `• ${item.name}\n  Quantity: ${(item.grams / 1000).toFixed(
+              2,
+            )}kg\n  Price: Br ${((item.pricePerKg * item.grams) / 1000).toFixed(
+              2,
+            )}`,
         )
-        .join('\n');
+        .join('\n\n');
 
-      const shareText = `*Betty Organic Order*\n\n${orderDetails}\n\n*Total: Br ${getTotalAmount().toFixed(
+      const shareText = `🌿 *Betty Organic Order*\n\n${orderDetails}\n\n💰 *Total: Br ${getTotalAmount().toFixed(
         2,
       )}*`;
 
-      if (navigator.share) {
-        await navigator.share({
-          title: 'Betty Organic Order',
-          text: shareText,
-        });
+      // Check if Web Share API is available and supported
+      if (typeof navigator !== 'undefined' && navigator.share) {
+        try {
+          await navigator.share({
+            title: 'Betty Organic Order',
+            text: shareText,
+          });
+          toast({
+            title: 'Success',
+            description: 'Order shared successfully',
+          });
+        } catch (shareError) {
+          // User cancelled or share failed - fallback to WhatsApp
+          if ((shareError as Error).name !== 'AbortError') {
+            throw shareError;
+          }
+        }
       } else {
+        // Fallback to WhatsApp
         const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(
           shareText,
         )}`;
-        window.open(whatsappUrl, '_blank');
+        const newWindow = window.open(whatsappUrl, '_blank');
+
+        if (newWindow) {
+          toast({
+            title: 'WhatsApp',
+            description: 'Opening WhatsApp to share order',
+          });
+        } else {
+          throw new Error(
+            'Popup blocked - please allow popups to share via WhatsApp',
+          );
+        }
       }
     } catch (error) {
       console.error('Error sharing:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description:
+          error instanceof Error ? error.message : 'Failed to share order',
+      });
     }
   };
 
   const handleConfirmOrder = async () => {
     setIsOrderConfirmed(true);
+    // Set initial order status based on user role
+    setOrderStatus(profile?.role === 'admin' ? 'processing' : 'pending');
   };
 
   const handleBackToCart = () => {
     setIsOrderConfirmed(false);
     setIsStatusVerified(false);
     setHasToggledLock(false);
+    // Reset order status when going back to cart
+    setOrderStatus('processing');
   };
+
+  // Ensure order status changes are restricted to admin
+  useEffect(() => {
+    if (profile && profile.role !== 'admin' && orderStatus !== 'pending') {
+      setOrderStatus('pending');
+    }
+  }, [profile, orderStatus]);
 
   const handleSaveOrder = async (customerData: any) => {
     console.log('Starting handleSaveOrder with:', {
@@ -194,7 +250,8 @@ export const useSalesCartSheet = ({ profile, onOpenChange }: UseSalesCartSheetPr
           orderItemsData.push(itemData);
         } catch (error: unknown) {
           console.error('Error processing item:', item, error);
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+          const errorMessage =
+            error instanceof Error ? error.message : 'Unknown error occurred';
           throw new Error(
             `Failed to process item ${item.name}: ${errorMessage}`,
           );

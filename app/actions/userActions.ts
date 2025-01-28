@@ -12,7 +12,11 @@ interface UpdateProfileData {
 
 export async function updateProfile(data: UpdateProfileData) {
   try {
-    const { user } = await getCurrentUser();
+    const authData = await getCurrentUser();
+    if (!authData) {
+      throw new Error('Not authenticated');
+    }
+    const { user } = authData;
     if (!user) {
       throw new Error('Not authenticated');
     }

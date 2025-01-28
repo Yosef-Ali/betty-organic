@@ -10,7 +10,7 @@ import { StatCard } from './StatCard';
 import OrderDetails from './OrderDetailsCard';
 
 import { getOrders, deleteOrder } from '../app/actions/orderActions';
-import { getCustomers } from '../app/actions/customersActions';
+import { getCustomers } from '../app/actions/profile';
 import { getProducts } from '../app/actions/productActions';
 import { useToast } from '../hooks/use-toast';
 import OrderTable from './OrdersTable';
@@ -19,12 +19,11 @@ import { Customer, Order, Product } from '../types';
 type ExtendedOrder = Order & {
   customer: {
     id: string;
-    full_name: string;
+    fullName: string;
     email: string;
     phone: string | null;
     location: string | null;
-    status: string;
-    imageUrl: string | null;
+    status: 'active' | 'inactive';
     created_at: string | null;
     updated_at: string | null;
   } | null;
@@ -61,17 +60,15 @@ const OrderDashboard: React.FC = () => {
           ? customersData?.find(c => c.id === order.customerId)
           : null;
 
-        // Handle potential undefined customer properties
         const customerData = customer && {
           id: customer.id,
-          full_name: customer.full_name || '',
+          fullName: customer.fullName || '',
           email: customer.email || '',
           phone: customer.phone || null,
           location: customer.location || null,
           status: customer.status || 'inactive',
-          imageUrl: customer.imageUrl || null,
-          created_at: customer.created_at || null,
-          updated_at: customer.updated_at || null,
+          created_at: customer.createdAt || null,
+          updated_at: customer.updatedAt || null,
         };
 
         return {
@@ -134,7 +131,6 @@ const OrderDashboard: React.FC = () => {
     }
   };
 
-  // Helper functions for date calculations (unchanged)
   const getStartOfWeek = useCallback((date: Date): Date => {
     const day = date.getDay();
     const diff = date.getDate() - day + (day === 0 ? -6 : 1);
@@ -156,7 +152,6 @@ const OrderDashboard: React.FC = () => {
     return new Date(date.getFullYear(), date.getMonth() - 1, 1);
   }, []);
 
-  // Compute totals using useMemo (unchanged)
   const {
     currentWeekTotal,
     lastWeekTotal,

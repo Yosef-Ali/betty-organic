@@ -37,7 +37,7 @@ export function TestimonialList({ initialTestimonials }: TestimonialListProps) {
   const { toast } = useToast();
 
   const handleEdit = (id: string) => {
-    router.push(`/dashboard/settings/testimonials/${id}`);
+    router.push(`/dashboard/settings/testimonials/${id}/edit`);
   };
 
   const handleDeleteClick = (id: string) => {
@@ -161,11 +161,10 @@ export function TestimonialList({ initialTestimonials }: TestimonialListProps) {
       header: 'Status',
       cell: ({ row }) => (
         <div
-          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-            row.original.approved
+          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${row.original.approved
               ? 'bg-green-100 text-green-800'
               : 'bg-gray-100 text-gray-800'
-          }`}
+            }`}
         >
           {row.original.approved ? 'Active' : 'Inactive'}
         </div>

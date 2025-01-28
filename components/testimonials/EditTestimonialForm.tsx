@@ -6,7 +6,6 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
 import { Form } from '@/components/ui/form';
-import { ChevronLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
   createTestimonial,
@@ -34,21 +33,21 @@ export function EditTestimonialForm({ initialData }: EditTestimonialFormProps) {
     resolver: zodResolver(testimonialFormSchema),
     defaultValues: initialData
       ? {
-          name: initialData.author,
-          role: initialData.role,
-          content: initialData.content,
-          status: initialData.approved ? 'active' : 'inactive',
-          image_url: initialData.image_url || '',
-          rating: initialData.rating,
-        }
+        name: initialData.author,
+        role: initialData.role,
+        content: initialData.content,
+        status: initialData.approved ? 'active' : 'inactive',
+        image_url: initialData.image_url || '',
+        rating: initialData.rating,
+      }
       : {
-          name: '',
-          role: '',
-          content: '',
-          status: 'active',
-          image_url: '',
-          rating: 5,
-        },
+        name: '',
+        role: '',
+        content: '',
+        status: 'active',
+        image_url: '',
+        rating: 5,
+      },
   });
 
   const onSubmit = async (data: TestimonialFormValues) => {
@@ -78,7 +77,7 @@ export function EditTestimonialForm({ initialData }: EditTestimonialFormProps) {
         });
       }
 
-      router.push('/dashboard/settings/testimonials');
+      router.back();
       router.refresh();
     } catch (error: any) {
       console.error('Form submission error:', error);
@@ -95,28 +94,6 @@ export function EditTestimonialForm({ initialData }: EditTestimonialFormProps) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        <div className="flex items-center gap-4">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => router.back()}
-          >
-            <ChevronLeft className="h-4 w-4" />
-            <span className="sr-only">Back</span>
-          </Button>
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight">
-              {initialData ? 'Edit Testimonial' : 'Add Testimonial'}
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              {initialData
-                ? 'Update the testimonial details'
-                : 'Add a new customer testimonial'}
-            </p>
-          </div>
-        </div>
-
         <div className="grid gap-8">
           <div className="flex gap-8">
             <div className="flex-1">
@@ -149,8 +126,8 @@ export function EditTestimonialForm({ initialData }: EditTestimonialFormProps) {
             {isLoading
               ? 'Saving...'
               : initialData
-              ? 'Update Testimonial'
-              : 'Create Testimonial'}
+                ? 'Update Testimonial'
+                : 'Create Testimonial'}
           </Button>
         </div>
       </form>

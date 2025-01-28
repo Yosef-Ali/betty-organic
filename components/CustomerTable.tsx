@@ -94,80 +94,84 @@ const CustomerTableContent = ({ customers, isLoading, onDelete }: {
     )
   }
 
-  return customers.map((customer: CustomerWithOrders) => (
-    <TableRow key={customer.id}>
-      <TableCell className="hidden sm:table-cell">
-        <div className="relative h-12 w-12">
-          <Image
-            alt="Customer avatar"
-            className="rounded-full object-cover"
-            fill
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            src={customer.imageUrl || customer.imageUrl || '/uploads/placeholder.svg'}
-            onError={(e) => {
-              const target = e.target as HTMLImageElement;
-              target.src = '/uploads/placeholder.svg';
-            }}
-          />
-        </div>
-      </TableCell>
-      <TableCell className="font-medium">{customer.full_name || customer.fullName}</TableCell>
-      <TableCell>{customer.email || 'N/A'}</TableCell>
-      <TableCell>{customer.phone || 'N/A'}</TableCell>
-      <TableCell>{customer.location || 'N/A'}</TableCell>
-      <TableCell>{customer.orders?.length ?? 0}</TableCell>
-      <TableCell>
-        {customer.createdAt ? formatDistanceToNow(new Date(customer.createdAt), { addSuffix: true }) : 'N/A'}
-      </TableCell>
-      <TableCell>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button aria-haspopup="true" size="icon" variant="ghost">
-              <MoreHorizontal className="h-4 w-4" />
-              <span className="sr-only">Toggle menu</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem onSelect={() => router.push(`/dashboard/customers/${customer.id}/edit`)}>
-              Edit
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => router.push(`/dashboard/customers/${customer.id}/orders`)}>
-              View Orders
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={(event) => event.preventDefault()}>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <button className="w-full text-left">Delete</button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This action cannot be undone. This will permanently delete the customer.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={async () => {
-                        setDeletingId(customer.id);
-                        await onDelete(customer.id);
-                        setDeletingId(null);
-                      }}
-                      disabled={deletingId === customer.id}
-                    >
-                      {deletingId === customer.id ? 'Deleting...' : 'Delete'}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </TableCell>
-    </TableRow>
-  ))
+  return (
+    <>
+      {customers.map((customer: CustomerWithOrders) => (
+        <TableRow key={customer.id}>
+          <TableCell className="hidden sm:table-cell">
+            <div className="relative h-12 w-12">
+              <Image
+                alt="Customer avatar"
+                className="rounded-full object-cover"
+                fill
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                src={customer.imageUrl || customer.imageUrl || '/uploads/placeholder.svg'}
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.src = '/uploads/placeholder.svg';
+                }}
+              />
+            </div>
+          </TableCell>
+          <TableCell className="font-medium">{customer.full_name || customer.fullName}</TableCell>
+          <TableCell>{customer.email || 'N/A'}</TableCell>
+          <TableCell>{customer.phone || 'N/A'}</TableCell>
+          <TableCell>{customer.location || 'N/A'}</TableCell>
+          <TableCell>{customer.orders?.length ?? 0}</TableCell>
+          <TableCell>
+            {customer.createdAt ? formatDistanceToNow(new Date(customer.createdAt), { addSuffix: true }) : 'N/A'}
+          </TableCell>
+          <TableCell>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button aria-haspopup="true" size="icon" variant="ghost">
+                  <MoreHorizontal className="h-4 w-4" />
+                  <span className="sr-only">Toggle menu</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                <DropdownMenuItem onSelect={() => router.push(`/dashboard/customers/${customer.id}/edit`)}>
+                  Edit
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => router.push(`/dashboard/customers/${customer.id}/orders`)}>
+                  View Orders
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={(event) => event.preventDefault()}>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <button className="w-full text-left">Delete</button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This action cannot be undone. This will permanently delete the customer.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={async () => {
+                            setDeletingId(customer.id);
+                            await onDelete(customer.id);
+                            setDeletingId(null);
+                          }}
+                          disabled={deletingId === customer.id}
+                        >
+                          {deletingId === customer.id ? 'Deleting...' : 'Delete'}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </TableCell>
+        </TableRow>
+      ))}
+    </>
+  )
 }
 
 interface CustomerTableProps {
@@ -179,16 +183,29 @@ export function CustomerTable({ initialCustomers }: CustomerTableProps) {
   const [filteredCustomers, setFilteredCustomers] = useState<CustomerWithOrders[]>(customers);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [filterStatus, setFilterStatus] = useState<'all' | 'with-orders' | 'no-orders'>('all');
   const router = useRouter();
   const { toast } = useToast();
 
   useEffect(() => {
-    const filtered = customers.filter(customer =>
-      customer.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (customer.email && customer.email?.toLowerCase().includes(searchTerm.toLowerCase()))
-    )
-    setFilteredCustomers(filtered)
-  }, [searchTerm, customers])
+    const filtered = customers.filter(customer => {
+      const matchesSearch =
+        customer.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        customer.email?.toLowerCase().includes(searchTerm.toLowerCase());
+
+      if (!matchesSearch) return false;
+
+      switch (filterStatus) {
+        case 'with-orders':
+          return customer.orders && customer.orders.length > 0;
+        case 'no-orders':
+          return !customer.orders || customer.orders.length === 0;
+        default:
+          return true;
+      }
+    });
+    setFilteredCustomers(filtered);
+  }, [searchTerm, customers, filterStatus]);
 
   async function fetchCustomers() {
     setIsLoading(true)
@@ -283,10 +300,26 @@ export function CustomerTable({ initialCustomers }: CustomerTableProps) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Filter by</DropdownMenuLabel>
+                <DropdownMenuLabel>Filter by Orders</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuCheckboxItem checked>With Orders</DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem>No Orders</DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={filterStatus === 'all'}
+                  onCheckedChange={() => setFilterStatus('all')}
+                >
+                  All Customers
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={filterStatus === 'with-orders'}
+                  onCheckedChange={() => setFilterStatus('with-orders')}
+                >
+                  With Orders
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={filterStatus === 'no-orders'}
+                  onCheckedChange={() => setFilterStatus('no-orders')}
+                >
+                  No Orders
+                </DropdownMenuCheckboxItem>
               </DropdownMenuContent>
             </DropdownMenu>
             <Button size="sm" variant="outline" className="h-8 gap-1">
@@ -328,5 +361,5 @@ export function CustomerTable({ initialCustomers }: CustomerTableProps) {
         </TabsContent>
       </Tabs>
     </main>
-  )
+  );
 }

@@ -248,3 +248,20 @@ export async function getTestimonial(
     throw error;
   }
 }
+
+export async function getTestimonialById(id: string) {
+  const supabase = await createClient();
+  try {
+    const { data, error } = await supabase
+      .from('testimonials')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) throw error;
+    return { success: true, data };
+  } catch (error) {
+    console.error('Error fetching testimonial:', error);
+    return { success: false, error: 'Failed to fetch testimonial' };
+  }
+}

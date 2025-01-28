@@ -48,6 +48,7 @@ export async function updateCustomer(data: CreateCustomerData) {
   const supabase = createClient();
 
   try {
+    // First update customer data
     const { error } = await supabase
       .from('customers')
       .update({

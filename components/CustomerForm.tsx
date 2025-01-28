@@ -23,7 +23,7 @@ import {
   CardDescription,
   CardContent,
 } from '@/components/ui/card';
-import { createCustomer, updateCustomer } from '@/app/actions/customersActions';
+import { updateProfile } from '@/app/actions/profile';
 import { useToast } from '@/hooks/use-toast';
 import { ChevronLeft } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -34,7 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { AvatarUpload } from '@/components/ui/avatar-upload';
+import { CustomerAvatarUpload } from '@/components/ui/customer-avatar-upload';
 import { v4 as uuidv4 } from 'uuid';
 
 const formSchema = z.object({
@@ -51,7 +51,7 @@ const formSchema = z.object({
   imageUrl: z.string().nullable().optional(),
 });
 
-type CustomerFormValues = z.infer<typeof formSchema>;
+export type CustomerFormValues = z.infer<typeof formSchema>;
 
 export function CustomerForm({
   initialData,
@@ -81,32 +81,26 @@ export function CustomerForm({
       if (!initialData?.id) {
         customerData.id = uuidv4();
       }
-      if (initialData?.id) {
-        await updateCustomer({
-          ...customerData,
-          id: initialData.id,
-          email: data.email || '',
-          fullName: data.fullName,
-        });
+      const result = await updateProfile({
+        id: initialData?.id,
+        email: data.email,
+        fullName: data.fullName,
+        phone: data.phone,
+        location: data.location,
+        imageUrl: data.imageUrl,
+        status: data.status,
+        role: 'customer',
+      });
+
+      if (result.success) {
         toast({
-          title: 'Customer updated',
-          description: 'The customer has been successfully updated.',
+          title: initialData ? 'Customer updated' : 'Customer created',
+          description: `The customer has been successfully ${
+            initialData ? 'updated' : 'created'
+          }.`,
         });
       } else {
-        const result = await createCustomer({
-          ...customerData,
-          id: customerData.id!,
-          email: data.email,
-          fullName: data.fullName,
-        });
-        if (result.success) {
-          toast({
-            title: 'Customer created',
-            description: 'The new customer has been successfully created.',
-          });
-        } else {
-          throw new Error('Failed to create customer');
-        }
+        throw new Error(result.error || 'Failed to save customer');
       }
       router.push('/dashboard/customers');
       router.refresh();
@@ -265,9 +259,30 @@ export function CustomerForm({
               <div className="grid auto-rows-max items-start gap-4 lg:gap-8">
                 <Card>
                   <CardHeader>
+                    <CardTitle>Customer Photo</CardTitle>
+                    <CardDescription>
+                      Upload a profile photo for the customer
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <CustomerAvatarUpload
+                      form={form}
+                      name="imageUrl"
+                      size="lg"
+                      className="flex flex-col items-center"
+                      defaultImageUrl={
+                        initialData?.imageUrl || '/placeholder-user.webp'
+                      }
+                      customerId={initialData?.id}
+                    />
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
                     <CardTitle>Customer Status</CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-6">
+                  <CardContent>
                     <FormField
                       control={form.control}
                       name="status"
@@ -298,14 +313,6 @@ export function CustomerForm({
                           <FormMessage />
                         </FormItem>
                       )}
-                    />
-                    <AvatarUpload
-                      form={form}
-                      name="imageUrl"
-                      label="Customer Photo"
-                      bucketName="customers"
-                      entityId={initialData?.id}
-                      size="lg"
                     />
                   </CardContent>
                 </Card>

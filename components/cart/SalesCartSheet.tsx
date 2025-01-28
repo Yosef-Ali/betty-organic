@@ -16,44 +16,56 @@ import ConfirmDialog from './ConfirmDialog';
 import { CartItems } from './CartItems';
 import { OrderSummary } from './OrderSummary';
 import { useSalesCartSheet } from './useSalesCartSheet';
-import { getCurrentUser } from '@/lib/auth';
+import { getCurrentUser } from '@/app/actions/auth';
+import { Profile } from '@/lib/types/auth';
 
 export interface SalesCartSheetProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-const CartSheetHeader: FC<{ onClose: () => void }> = ({ onClose }) => (
-  <SheetHeader className="space-y-0 pb-4">
-    <div className="flex items-center justify-between">
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={onClose}
-        className="h-8 w-8 p-0"
-      >
-        <ChevronLeftIcon className="h-4 w-4" />
-      </Button>
-      <SheetTitle>Shopping Cart</SheetTitle>
-      <div className="w-8" />
-    </div>
-  </SheetHeader>
-);
+type OrderStatus = 'processing' | 'pending' | 'completed' | 'cancelled';
+type ConfirmActionType = 'save' | 'cancel' | null;
+type CustomerData = {
+  id: string;
+  name: string;
+  email?: string;
+};
 
 export const SalesCartSheet: FC<SalesCartSheetProps> = ({
   isOpen,
   onOpenChange,
 }) => {
-  const [profile, setProfile] = useState(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [error, setError] = useState<Error | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] =
+    useState<boolean>(false);
+  const [confirmAction, setConfirmAction] = useState<ConfirmActionType>(null);
 
   useEffect(() => {
     const fetchProfile = async () => {
+      console.log('Fetching profile...');
       try {
-        const { profile: userProfile } = await getCurrentUser();
+        const authData = await getCurrentUser();
+        if (!authData?.profile) {
+          throw new Error('Profile not found');
+        }
+        const userProfile = authData.profile;
+        if (!userProfile) {
+          throw new Error('Profile not found');
+        }
+        if (!userProfile.id) {
+          throw new Error('Profile ID not found');
+        }
         setProfile(userProfile);
+        setError(null);
+        console.log('Fetched profile:', userProfile);
       } catch (error) {
         console.error('Error fetching user profile:', error);
+        setError(
+          error instanceof Error ? error : new Error('Failed to fetch profile'),
+        );
       } finally {
         setIsLoading(false);
       }
@@ -70,8 +82,6 @@ export const SalesCartSheet: FC<SalesCartSheetProps> = ({
     isThermalPrintPreviewOpen,
     isOrderConfirmed,
     isSaving,
-    isConfirmDialogOpen,
-    confirmAction,
     isStatusVerified = false,
     isOtpDialogOpen,
     otp,
@@ -91,16 +101,33 @@ export const SalesCartSheet: FC<SalesCartSheetProps> = ({
     handleConfirmDialog,
     handleConfirmAction,
     setIsThermalPrintPreviewOpen,
-    setIsConfirmDialogOpen,
     setIsOtpDialogOpen,
   } = useSalesCartSheet({
     profile,
     onOpenChange,
   });
 
-  // Show loading state while fetching profile
+  const handleConfirmDialogChange = (action: ConfirmActionType) => {
+    setConfirmAction(action);
+    setIsConfirmDialogOpen(true);
+  };
+
+  if (error) {
+    return (
+      <div className="p-4 text-center">
+        <p className="text-red-500">
+          Failed to load profile. Please try again.
+        </p>
+      </div>
+    );
+  }
+
   if (isLoading) {
-    return null; // Or show a loading spinner
+    return (
+      <div className="p-4 text-center">
+        <p>Loading...</p>
+      </div>
+    );
   }
 
   return (
@@ -133,12 +160,19 @@ export const SalesCartSheet: FC<SalesCartSheetProps> = ({
                   customerId={customer?.id || ''}
                   setCustomerId={id => setCustomer({ ...customer, id })}
                   orderStatus={orderStatus}
-                  setOrderStatus={setOrderStatus}
-                  isStatusVerified={isStatusVerified}
-                  handleToggleLock={() =>
-                    setOrderStatus(isStatusVerified ? 'pending' : 'processing')
+                  setOrderStatus={
+                    profile?.role === 'admin' ? setOrderStatus : undefined
                   }
-                  handleConfirmDialog={handleConfirmDialog}
+                  isStatusVerified={isStatusVerified}
+                  handleToggleLock={
+                    profile?.role === 'admin'
+                      ? () =>
+                          setOrderStatus(
+                            isStatusVerified ? 'pending' : 'processing',
+                          )
+                      : undefined
+                  }
+                  handleConfirmDialog={handleConfirmDialogChange}
                   isSaving={isSaving}
                   onPrintPreview={handleThermalPrintPreview}
                   isOrderSaved={isOrderSaved}
@@ -179,10 +213,10 @@ export const SalesCartSheet: FC<SalesCartSheetProps> = ({
       </AnimatePresence>
 
       <ConfirmDialog
-        isOpen={isConfirmDialogOpen}
-        onOpenChange={setIsConfirmDialogOpen}
-        confirmAction={confirmAction}
-        onConfirmAction={handleConfirmAction}
+        isConfirmDialogOpen={isConfirmDialogOpen}
+        setIsConfirmDialogOpen={setIsConfirmDialogOpen}
+        confirmAction={confirmAction || 'cancel'}
+        handleConfirmAction={handleConfirmAction}
       />
 
       <OtpDialog

@@ -1,9 +1,11 @@
 'use client';
 
-import { CustomerForm } from '@/components/CustomerForm';
+import { CustomerForm, CustomerFormValues } from '@/components/CustomerForm';
 
-export function EditCustomerForm({ initialData }: any) {
-  return (
-    <CustomerForm initialData={initialData} />
-  );
+interface EditCustomerFormProps {
+  initialData: CustomerFormValues;
+}
+
+export function EditCustomerForm({ initialData }: EditCustomerFormProps) {
+  return <CustomerForm initialData={initialData} />;
 }
