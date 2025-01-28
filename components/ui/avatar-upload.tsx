@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { ImageIcon, Camera, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { processImage, formatBytes } from '@/lib/utils/image';
+import { uploadAvatar } from '@/app/actions/upload-avatar';
 
 interface AvatarUploadProps {
   form: UseFormReturn<any>;
@@ -58,86 +58,37 @@ export function AvatarUpload({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Basic validation
-    if (!file.type.startsWith('image/')) {
-      toast({
-        title: 'Error',
-        description: 'Please upload an image file',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    // 5MB limit
-    if (file.size > 5 * 1024 * 1024) {
-      toast({
-        title: 'Error',
-        description: 'Image must be less than 5MB',
-        variant: 'destructive',
-      });
-      return;
-    }
-
     try {
       setIsUploading(true);
 
-      // Process image (convert to WebP if not already)
-      const { blob: processedBlob, isConverted } = await processImage(file);
-      const extension = isConverted
-        ? 'webp'
-        : file.name.split('.').pop()?.toLowerCase() || 'jpg';
-      const fileName = `${entityId || 'temp'}-${Date.now()}.${extension}`;
-      const filePath = `${bucketName}/${fileName}`;
+      // Create FormData
+      const formData = new FormData();
+      formData.append('file', file);
 
-      // Delete old image if exists
-      const currentImageUrl = form.getValues(name);
-      if (currentImageUrl) {
-        const oldPath = currentImageUrl.split('/').pop();
-        if (oldPath) {
-          await supabase.storage
-            .from(bucketName)
-            .remove([`${bucketName}/${oldPath}`]);
-        }
+      // Upload using server action
+      const result = await uploadAvatar(formData);
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to upload image');
       }
 
-      // Upload new image
-      const { error: uploadError } = await supabase.storage
-        .from(bucketName)
-        .upload(filePath, processedBlob, {
-          contentType: isConverted ? 'image/webp' : file.type,
-          cacheControl: '3600',
-          upsert: true,
-        });
-
-      if (uploadError) {
-        throw uploadError;
-      }
-
-      // Get public URL
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from(bucketName).getPublicUrl(filePath);
-
-      // Update form
-      form.setValue(name, publicUrl);
-
-      // Show success message with size comparison
-      const originalSize = formatBytes(file.size);
-      const processedSize = formatBytes(processedBlob.size);
-      const sizeMessage = isConverted
-        ? `Size reduced from ${originalSize} to ${processedSize}`
-        : `Size: ${processedSize} (already optimized)`;
+      // Update form with new image URL
+      const imageUrlWithTimestamp = `${result.imageUrl}?t=${Date.now()}`;
+      form.setValue(name, imageUrlWithTimestamp, {
+        shouldDirty: true,
+        shouldTouch: true,
+        shouldValidate: true
+      });
 
       toast({
-        title: 'Success',
-        description: `Image uploaded successfully! ${sizeMessage}`,
+        description: 'Profile picture updated successfully',
       });
     } catch (error: any) {
       console.error('Image upload error:', error);
       toast({
+        variant: 'destructive',
         title: 'Error',
         description: error.message || 'Failed to upload image',
-        variant: 'destructive',
       });
     } finally {
       setIsUploading(false);
@@ -149,22 +100,26 @@ export function AvatarUpload({
     if (currentImageUrl) {
       try {
         setIsUploading(true);
-        const path = currentImageUrl.split('/').pop();
+        const path = currentImageUrl.split('/').pop()?.split('?')[0];
         if (path) {
           await supabase.storage
-            .from(bucketName)
-            .remove([`${bucketName}/${path}`]);
+            .from('public')
+            .remove([`profiles/${path}`]);
         }
-        form.setValue(name, '');
+        form.setValue(name, '', {
+          shouldDirty: true,
+          shouldTouch: true,
+          shouldValidate: true
+        });
         toast({
-          description: 'Image removed successfully',
+          description: 'Profile picture removed',
         });
       } catch (error: any) {
         console.error('Error removing image:', error);
         toast({
+          variant: 'destructive',
           title: 'Error',
           description: error.message || 'Failed to remove image',
-          variant: 'destructive',
         });
       } finally {
         setIsUploading(false);
@@ -188,6 +143,7 @@ export function AvatarUpload({
                       src={field.value}
                       alt="Avatar"
                       className="object-cover"
+                      key={field.value}
                     />
                   ) : defaultImageUrl ? (
                     <AvatarImage
@@ -209,6 +165,7 @@ export function AvatarUpload({
                       size="icon"
                       className="h-8 w-8 rounded-full"
                       asChild
+                      disabled={isUploading}
                     >
                       <label htmlFor={`avatar-upload-${name}`}>
                         <Camera className="h-4 w-4" />
@@ -244,7 +201,7 @@ export function AvatarUpload({
               </div>
               {isUploading && (
                 <p className="text-sm text-muted-foreground animate-pulse">
-                  Processing and uploading image...
+                  Uploading profile picture...
                 </p>
               )}
             </div>

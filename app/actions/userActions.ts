@@ -65,7 +65,7 @@ export async function deleteUserAvatar(userId: string) {
       if (path) {
         // Delete file from storage
         const { error: deleteError } = await supabase.storage
-          .from('profiles')
+          .from('public')
           .remove([`profiles/${path}`]);
 
         if (deleteError) {
