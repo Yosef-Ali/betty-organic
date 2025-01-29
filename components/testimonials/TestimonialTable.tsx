@@ -44,12 +44,15 @@ import { Testimonial } from '@/lib/types/supabase'; // Import shared Testimonial
 interface TestimonialTableProps {
   initialTestimonials?: Testimonial[];
   filterStatus?: 'pending' | 'approved';
+  onEdit?: (testimonial: Testimonial) => void;
 }
 
-export function TestimonialTable({ initialTestimonials = [], filterStatus }: TestimonialTableProps) {
+export function TestimonialTable({ initialTestimonials = [], filterStatus, onEdit }: TestimonialTableProps) {
   const [testimonials, setTestimonials] = useState<Testimonial[]>(initialTestimonials);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingTestimonial, setEditingTestimonial] = useState<Testimonial | null>(null);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -157,6 +160,7 @@ export function TestimonialTable({ initialTestimonials = [], filterStatus }: Tes
               isLoading={isLoading}
               onDelete={handleDelete}
               onToggleApproval={handleToggleApproval}
+              onEdit={onEdit}
             />
           </TableBody>
         </Table>
@@ -170,11 +174,13 @@ function TestimonialTableContent({
   isLoading,
   onDelete,
   onToggleApproval,
+  onEdit,
 }: {
   testimonials: Testimonial[];
   isLoading: boolean;
   onDelete: (id: string) => Promise<void>;
   onToggleApproval: (id: string, approved: boolean) => Promise<void>;
+  onEdit?: (testimonial: Testimonial) => void;
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -284,11 +290,7 @@ function TestimonialTableContent({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem
-                  onClick={() =>
-                    router.push(
-                      `/dashboard/settings/testimonials/${testimonial.id}/edit`,
-                    )
-                  }
+                  onClick={() => onEdit?.(testimonial)}
                 >
                   Edit
                 </DropdownMenuItem>
