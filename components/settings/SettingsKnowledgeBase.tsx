@@ -12,8 +12,9 @@ import {
   deleteKnowledgeBaseEntry,
   createKnowledgeBaseEntry,
 } from '@/app/actions/knowledge-base-actions';
-import { Database } from '@/lib/supabase';
+
 import { useToast } from '@/hooks/use-toast';
+import { Database } from '@/lib/supabase/database.types';
 
 type KnowledgeBaseEntryType =
   Database['public']['Tables']['knowledge_base']['Row'];
@@ -26,6 +27,7 @@ export function SettingsKnowledgeBase() {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+
   useEffect(() => {
     fetchEntries().catch(err =>
       toast({

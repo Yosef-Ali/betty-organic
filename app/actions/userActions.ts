@@ -1,100 +1,151 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
-import { revalidatePath } from 'next/cache';
-import { getCurrentUser } from './auth';
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
+import { User } from '@supabase/supabase-js';
 
-interface UpdateProfileData {
-  name: string;
-  email: string;
-  avatar_url?: string | null;
-}
+const getSupabaseClient = async () => {
+  const cookieStore = await cookies();
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value;
+        },
+      },
+    }
+  );
+};
 
-export async function updateProfile(data: UpdateProfileData) {
+export async function getUsers() {
+  const supabase = await getSupabaseClient();
+
   try {
-    const authData = await getCurrentUser();
-    if (!authData) {
-      throw new Error('Not authenticated');
-    }
-    const { user } = authData;
-    if (!user) {
-      throw new Error('Not authenticated');
-    }
-
-    const supabase = await createClient();
-
-    const { error: updateError } = await supabase
+    const { data: users, error } = await supabase
       .from('profiles')
-      .update({
-        name: data.name,
-        avatar_url: data.avatar_url || null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', user.id);
+      .select('id, name, email, role, status, avatar_url')
+      .eq('role', 'admin');
 
-    if (updateError) {
-      console.error('Error updating profile:', updateError);
-      return {
-        success: false,
-        error: updateError.message,
-      };
+    if (error) {
+      console.error('Error fetching user list:', error);
+      return [];
     }
 
-    revalidatePath('/dashboard/profile');
-    return { success: true };
+    return users || [];
   } catch (error) {
-    console.error('Error in updateProfile:', error);
-    return {
-      success: false,
-      error:
-        error instanceof Error ? error.message : 'Failed to update profile',
-    };
+    console.error('Unexpected error fetching users:', error);
+    return [];
   }
 }
 
-export async function deleteUserAvatar(userId: string) {
-  try {
-    const supabase = await createClient();
+export async function getUserById(id: string) {
+  const supabase = await getSupabaseClient();
 
-    // Get current avatar URL
-    const { data: profile } = await supabase
+  try {
+    const { data: user, error } = await supabase
       .from('profiles')
-      .select('avatar_url')
-      .eq('id', userId)
+      .select('*')
+      .eq('id', id)
       .single();
 
-    if (profile?.avatar_url) {
-      // Extract filename from URL
-      const path = profile.avatar_url.split('/').pop();
-      if (path) {
-        // Delete file from storage
-        const { error: deleteError } = await supabase.storage
-          .from('public')
-          .remove([`profiles/${path}`]);
-
-        if (deleteError) {
-          throw deleteError;
-        }
-      }
-
-      // Update profile
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ avatar_url: null })
-        .eq('id', userId);
-
-      if (updateError) {
-        throw updateError;
-      }
+    if (error) {
+      console.error('Error fetching user:', error);
+      return null;
     }
 
-    revalidatePath('/dashboard/profile');
+    return user;
+  } catch (error) {
+    console.error('Unexpected error fetching user:', error);
+    return null;
+  }
+}
+
+export async function updateUser(id: string, data: Partial<User>) {
+  const supabase = await getSupabaseClient();
+
+  try {
+    const { error } = await supabase
+      .from('profiles')
+      .update(data)
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error updating user:', error);
+      return { success: false, error: error.message };
+    }
+
     return { success: true };
   } catch (error) {
-    console.error('Error deleting avatar:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to delete avatar',
-    };
+    console.error('Unexpected error updating user:', error);
+    return { success: false, error: 'Unexpected error' };
+  }
+}
+
+export async function updateUserRole(id: string, role: string) {
+  const supabase = await getSupabaseClient();
+
+  try {
+    const { error } = await supabase
+      .from('profiles')
+      .update({ role })
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error updating user role:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Unexpected error updating user role:', error);
+    return { success: false, error: 'Unexpected error updating role' };
+  }
+}
+
+export async function updateProfile(userId: string, data: {
+  name?: string;
+  email?: string;
+  avatar_url?: string;
+}) {
+  const supabase = await getSupabaseClient();
+
+  try {
+    const { error } = await supabase
+      .from('profiles')
+      .update(data)
+      .eq('id', userId);
+
+    if (error) {
+      console.error('Error updating profile:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Unexpected error updating profile:', error);
+    return { success: false, error: 'Unexpected error updating profile' };
+  }
+}
+
+export async function deleteUser(id: string) {
+  const supabase = await getSupabaseClient();
+
+  try {
+    const { error } = await supabase
+      .from('profiles')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error deleting user:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Unexpected error deleting user:', error);
+    return { success: false, error: 'Unexpected error' };
   }
 }

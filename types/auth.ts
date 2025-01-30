@@ -1,6 +1,9 @@
-import { User } from "@supabase/supabase-js";
+import { Profile } from "@/lib/types/auth";
+import { User } from "./user";
+
 
 export type AuthData = {
-  user: User | null;
+  user: User;
+  profile: Profile;
   isAdmin: boolean;
-};
+} | null;

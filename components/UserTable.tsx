@@ -1,27 +1,22 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { PlusCircle, MoreHorizontal, ListFilter, File } from 'lucide-react'
-import { formatDistanceToNow } from 'date-fns'
+import { MoreHorizontal } from 'lucide-react'
 import { getUsers, deleteUser } from '@/app/actions/userActions'
 import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
@@ -35,12 +30,15 @@ import {
 } from "@/components/ui/table"
 import { useToast } from '@/hooks/use-toast'
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import Image from 'next/image'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog'
 
 interface User {
   id: string;
-  [key: string]: any;  // Allow any additional fields
+  name?: string;
+  email?: string;
+  role?: string;
+  status?: string;
+  avatar_url?: string;
 }
 
 function UserTableContent({ users, isLoading, onDelete }: {
@@ -72,22 +70,6 @@ function UserTableContent({ users, isLoading, onDelete }: {
         </TableCell>
       </TableRow>
     )
-  }
-
-  const handleDelete = async (id: string) => {
-    try {
-      await onDelete(id)
-      toast({
-        title: "Success",
-        description: "User deleted successfully",
-      })
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to delete user",
-        variant: "destructive",
-      })
-    }
   }
 
   return (
@@ -149,7 +131,7 @@ function UserTableContent({ users, isLoading, onDelete }: {
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
                       <AlertDialogAction
-                        onClick={() => handleDelete(user.id)}
+                        onClick={() => onDelete(user.id)}
                         className="bg-red-600 hover:bg-red-700"
                       >
                         Delete
@@ -166,15 +148,37 @@ function UserTableContent({ users, isLoading, onDelete }: {
   )
 }
 
-export default function UserTable({ initialUsers }: { initialUsers: User[] }) {
-  const [users, setUsers] = useState<User[]>(initialUsers)
+export default function UserTable() {
+  const [users, setUsers] = useState<User[]>([])
+  const [filteredUsers, setFilteredUsers] = useState<User[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
+  const { toast } = useToast()
 
-  const filteredUsers = useMemo(() => {
-    if (!searchTerm) return users
-    const lowerSearchTerm = searchTerm.toLowerCase()
-    return users.filter(user => {
+  useEffect(() => {
+    const loadUsers = async () => {
+      setIsLoading(true)
+      try {
+        const fetchedUsers = await getUsers()
+        setUsers(fetchedUsers)
+        setFilteredUsers(fetchedUsers)
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to load users",
+          variant: "destructive"
+        })
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    loadUsers()
+  }, [])
+
+  useEffect(() => {
+    const filtered = users.filter(user => {
+      if (!searchTerm) return true
+      const lowerSearchTerm = searchTerm.toLowerCase()
       const searchableFields = [
         user.name,
         user.email,
@@ -182,53 +186,73 @@ export default function UserTable({ initialUsers }: { initialUsers: User[] }) {
         user.id
       ].filter(Boolean)
       return searchableFields.some(field =>
-        field.toLowerCase().includes(lowerSearchTerm)
+        field?.toString().toLowerCase().includes(lowerSearchTerm)
       )
     })
-  }, [users, searchTerm])
+    setFilteredUsers(filtered)
+  }, [searchTerm, users])
 
   const handleDelete = async (id: string) => {
     try {
       setIsLoading(true)
-      await deleteUser(id)
-      setUsers(users.filter(user => user.id !== id))
+      const result = await deleteUser(id)
+      if (result.success) {
+        setUsers(prev => prev.filter(user => user.id !== id))
+        toast({
+          title: "Success",
+          description: "User deleted successfully"
+        })
+      } else {
+        throw new Error(result.error || 'Failed to delete user')
+      }
     } catch (error) {
-      console.error('Error deleting user:', error)
-      throw error
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to delete user",
+        variant: "destructive"
+      })
     } finally {
       setIsLoading(false)
     }
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <Input
-          placeholder="Search users..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="max-w-sm"
-        />
-      </div>
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>User</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="w-[70px]">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <UserTableContent
-              users={filteredUsers}
-              isLoading={isLoading}
-              onDelete={handleDelete}
+    <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">
+      <Card>
+        <CardHeader>
+          <CardTitle>User Management</CardTitle>
+          <CardDescription>Manage system users and their permissions</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between mb-4">
+            <Input
+              placeholder="Search users..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="max-w-sm"
             />
-          </TableBody>
-        </Table>
-      </div>
-    </div>
+          </div>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>User</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="w-[70px]">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <UserTableContent
+                  users={filteredUsers}
+                  isLoading={isLoading}
+                  onDelete={handleDelete}
+                />
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+    </main>
   )
 }

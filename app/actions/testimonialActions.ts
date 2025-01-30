@@ -49,12 +49,11 @@ export async function createTestimonial(
         author: name,
         role: role || '',
         content,
-        approved: isAdmin ? (status === 'active') : false,
+        approved: status === 'active',
         image_url: image_url || null,
         rating: rating || 5,
         created_at: now,
         updated_at: now,
-        created_by: user.id,
       })
       .select(
         'id, author, role, content, approved, image_url, rating, created_at, updated_at',
@@ -97,11 +96,11 @@ export async function updateTestimonial(
   const supabase = await createClient();
   const { data: testimonial } = await supabase
     .from('testimonials')
-    .select('created_by')
+    .select('id, author, content, role, image_url, rating, approved, created_at, updated_at')
     .eq('id', id)
     .single();
 
-  if (!isAdmin && (!isSales || testimonial?.created_by !== user.id)) {
+  if (!isAdmin && !isSales) {
     throw new Error('Unauthorized to update this testimonial');
   }
 
@@ -201,15 +200,26 @@ export async function deleteTestimonial(id: string) {
   }
 }
 
+
+
 export async function getTestimonials(): Promise<TestimonialData[]> {
   const supabase = await createClient();
 
   try {
+    // Modified the select statement to explicitly include all fields
     const { data, error } = await supabase
       .from('testimonials')
-      .select(
-        'id, author, role, content, approved, image_url, rating, created_at, updated_at',
-      )
+      .select(`
+        id,
+        author,
+        role,
+        content,
+        approved,
+        image_url,
+        rating,
+        created_at,
+        updated_at
+      `)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -221,31 +231,6 @@ export async function getTestimonials(): Promise<TestimonialData[]> {
   } catch (error) {
     console.error('Error in getTestimonials:', error);
     throw new Error('Failed to fetch testimonials. Please try again later.');
-  }
-}
-
-export async function getTestimonial(
-  id: string,
-): Promise<TestimonialData | null> {
-  const supabase = await createClient();
-  try {
-    const { data: testimonial, error } = await supabase
-      .from('testimonials')
-      .select(
-        'id, author, role, content, approved, image_url, rating, created_at, updated_at',
-      )
-      .eq('id', id)
-      .single();
-
-    if (error) {
-      console.error('Error fetching testimonial:', error);
-      throw error;
-    }
-
-    return testimonial;
-  } catch (error) {
-    console.error('Error fetching testimonial:', error);
-    throw error;
   }
 }
 

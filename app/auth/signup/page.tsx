@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { signup } from '@/app/auth/actions/authActions'
+import { signUp } from '@/app/auth/actions/authActions'
 import { SignupForm, SignupFormType } from "@/components/authentication/signup-form"
 import { toast } from 'sonner'
 import Image from "next/image"
@@ -17,7 +17,7 @@ export default function SignupPage() {
       formData.append('password', values.password)
       formData.append('full_name', values.full_name)
 
-      const result = await signup(formData)
+      const result = await signUp(formData)
 
       if (result.error) {
         toast.error(result.error)

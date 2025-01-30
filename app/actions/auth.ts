@@ -7,7 +7,7 @@ import { AuthError, AuthState, Profile } from '@/lib/types/auth';
 import { User } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 
-type AuthData = {
+export type AuthData = {
   user: User;
   profile: Profile;
   isAdmin: boolean;

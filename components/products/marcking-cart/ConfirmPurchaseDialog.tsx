@@ -48,7 +48,11 @@ export function ConfirmPurchaseDialog({
       setError(null);
       setIsSubmitting(true);
 
-      const { data: order, error, status } = await handlePurchaseOrder(items, total);
+      const {
+        data: order,
+        error,
+        status,
+      } = await handlePurchaseOrder(items, total);
 
       if (error) {
         if (status === 401) {
@@ -76,9 +80,6 @@ export function ConfirmPurchaseDialog({
         description: 'Order placed successfully!',
         variant: 'default',
       });
-
-      // Redirect to order confirmation or orders page
-      router.push('/dashboard/orders');
 
       console.log('Order successfully created:', order);
     } catch (err: unknown) {
@@ -157,7 +158,9 @@ export function ConfirmPurchaseDialog({
             variant="outline"
             disabled={isSubmitting}
             onClick={() => {
-              const message = `I just placed an order for ${items.length} items totaling ETB ${total.toFixed(2)}!`;
+              const message = `I just placed an order for ${
+                items.length
+              } items totaling ETB ${total.toFixed(2)}!`;
               const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
               window.open(url, '_blank');
             }}

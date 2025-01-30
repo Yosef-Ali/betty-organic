@@ -14,7 +14,7 @@ import { PlusCircle, ChevronLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { TestimonialTable } from '../testimonials/TestimonialTable';
 import { TestimonialForm } from '../testimonials/EditTestimonialForm';
-import { Testimonial } from '@/lib/types/supabase';
+import { Testimonial } from '@/lib/types';
 
 export function SettingsTestimonials() {
   const [activeTab, setActiveTab] = useState('all');

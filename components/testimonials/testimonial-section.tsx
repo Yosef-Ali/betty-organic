@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
-import { createClient } from '@/lib/supabase/client';
 import {
   Carousel,
   CarouselContent,
@@ -14,34 +13,16 @@ import {
 } from '@/components/ui/carousel';
 import { Card, CardContent } from '@/components/ui/card';
 import { Star } from 'lucide-react';
-import { Testimonial } from '@/lib/types/supabase';
+import { Testimonial } from '@/lib/types';
 
-export function TestimonialSection() {
+interface TestimonialSectionProps {
+  testimonials: Testimonial[];
+}
+
+export function TestimonialSection({ testimonials }: TestimonialSectionProps) {
   const [api, setApi] = useState<CarouselApi>();
   const [current, setCurrent] = useState(0);
   const [count, setCount] = useState(0);
-  const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchTestimonials = async () => {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from('testimonials')
-        .select('*')
-        .eq('approved', true)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching testimonials:', error);
-      } else {
-        setTestimonials(data || []);
-      }
-      setIsLoading(false);
-    };
-
-    fetchTestimonials();
-  }, []);
 
   useEffect(() => {
     if (!api) return;
@@ -60,10 +41,6 @@ export function TestimonialSection() {
 
   // Calculate number of dots based on screen size and total items
   const numDots = Math.ceil(testimonials.length / 4); // 4 items per view on xl screens
-
-  if (isLoading) {
-    return <div>Loading testimonials...</div>;
-  }
 
   if (testimonials.length === 0) {
     return null; // Don't show the section if there are no testimonials
@@ -125,7 +102,7 @@ export function TestimonialSection() {
                         </div>
                       </div>
                       <div className="flex gap-0.5">
-                        {Array.from({ length: testimonial.rating }).map(
+                        {Array.from({ length: testimonial.rating ?? 0 }).map(
                           (_, i) => (
                             <Star
                               key={i}

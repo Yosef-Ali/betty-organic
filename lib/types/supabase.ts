@@ -426,14 +426,3 @@ export type CompositeTypes<
   : PublicCompositeTypeNameOrOptions extends keyof PublicSchema["CompositeTypes"]
   ? PublicSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
   : never
-export interface Testimonial {
-  id: string;
-  author: string;
-  content: string;
-  role: string;
-  image_url: string | null;
-  rating: number;
-  approved: boolean;
-  created_at: string | null;
-  updated_at: string | null;
-}

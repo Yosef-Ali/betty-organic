@@ -2,7 +2,7 @@ import { Metadata } from 'next';
 import { DeliveryServices } from 'components/delivery-services';
 import Footer from 'components/Footer';
 import { Hero } from 'components/Hero';
-import { TestimonialSection } from 'components/testimonials/testimonial-section';
+import { TestimonialsWrapper } from '@/components/testimonials/testimonials-wrapper';
 import { AboutSection } from 'components/AboutSection';
 import ChatWidget from 'components/ChatWidget';
 import { ProductSection } from '@/components/products/product-section';
@@ -33,7 +33,7 @@ export default function Home() {
               <DeliveryServices />
             </section>
             <section id="testimonials">
-              <TestimonialSection />
+              <TestimonialsWrapper />
             </section>
           </div>
         </div>

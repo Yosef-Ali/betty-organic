@@ -107,9 +107,21 @@ export function ProductForm({
       });
 
       if (initialData?.id) {
-        await updateProduct(initialData.id, formData);
+        const result = await updateProduct(initialData.id, formData);
+        if (!result || typeof result !== 'object') {
+          throw new Error('Failed to update product: Invalid response');
+        }
+        if ('error' in result) {
+          throw new Error(typeof result.error === 'string' ? result.error : 'Failed to update product');
+        }
       } else {
-        await createProduct(formData);
+        const result = await createProduct(formData);
+        if (!result || typeof result !== 'object') {
+          throw new Error('Failed to create product: Invalid response');
+        }
+        if ('error' in result) {
+          throw new Error(typeof result.error === 'string' ? result.error : 'Failed to create product');
+        }
       }
 
       toast({
@@ -121,11 +133,44 @@ export function ProductForm({
 
       router.push('/dashboard/products');
       router.refresh();
-    } catch (error: any) {
-      console.error('Form submission error:', error);
+    } catch (error: unknown) {
+      let errorMessage = 'An unexpected error occurred';
+      let validationErrors: string[] = [];
+
+      // Handle Fetch API errors
+      if (error instanceof Response) {
+        try {
+          const errorData = await error.json();
+          errorMessage = errorData.message || error.statusText;
+          validationErrors = errorData.errors || [];
+        } catch (e) {
+          errorMessage = `HTTP Error: ${error.status} ${error.statusText}`;
+        }
+      }
+      // Handle Zod validation errors from server
+      else if (error && typeof error === 'object' && 'errors' in error) {
+        // Handle Zod-like validation errors
+        const zodError = error as { errors: Array<{ path: string[]; message: string }> };
+        validationErrors = zodError.errors.map(e => `${e.path.join('.')}: ${e.message}`);
+        errorMessage = 'Validation failed';
+      }
+      // Handle standard Error objects
+      else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+
+      console.error('Form submission error:', JSON.stringify({
+        message: errorMessage,
+        validationErrors,
+        timestamp: new Date().toISOString(),
+        path: window.location.pathname,
+      }, null, 2));
+
       toast({
-        title: 'Error',
-        description: error.message || 'An unexpected error occurred',
+        title: 'Submission Error',
+        description: validationErrors.length > 0
+          ? validationErrors.join('\n')
+          : errorMessage,
         variant: 'destructive',
       });
     } finally {

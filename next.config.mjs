@@ -37,10 +37,21 @@ const nextConfig = {
   },
   experimental: {
     serverActions: {
-      allowedOrigins: ['localhost:*', '127.0.0.1:*', 'http://localhost:*', 'http://127.0.0.1:*'],
-      allowedForwardedHosts: ['localhost:*', '127.0.0.1:*', 'http://localhost:*', 'http://127.0.0.1:*'],
+      allowedOrigins: [
+        'localhost:*',
+        '127.0.0.1:*',
+        'http://localhost:*',
+        'http://127.0.0.1:*',
+      ],
+      allowedForwardedHosts: [
+        'localhost:*',
+        '127.0.0.1:*',
+        'http://localhost:*',
+        'http://127.0.0.1:*',
+      ],
       bypassOriginAndHostValidation: true,
       allowedHeaders: ['x-forwarded-host', 'origin'],
+      bodySizeLimit: '4mb',
     },
   },
 };

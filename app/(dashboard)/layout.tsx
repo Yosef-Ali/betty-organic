@@ -2,6 +2,8 @@ import { getCurrentUser } from '@/app/actions/auth';
 import { redirect } from 'next/navigation';
 import { DashboardShell } from '@/components/DashboardShell';
 
+export const dynamic = 'force-dynamic';
+
 interface DashboardLayoutProps {
   children: React.ReactNode;
 }

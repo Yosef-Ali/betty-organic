@@ -18,7 +18,7 @@ import {
 import { TestimonialDetailsForm } from './TestimonialDetailsForm';
 import { AvatarUpload } from '@/components/avatar-upload';
 import { StarRating } from './StarRating';
-import { Testimonial } from '@/lib/types/supabase';
+import { Testimonial } from '@/lib/types/testimonials';
 
 interface TestimonialFormProps {
   initialData?: Testimonial;
@@ -26,7 +26,11 @@ interface TestimonialFormProps {
   onSuccess?: () => void;
 }
 
-export function TestimonialForm({ initialData, mode = 'add', onSuccess }: TestimonialFormProps) {
+export function TestimonialForm({
+  initialData,
+  mode = 'add',
+  onSuccess,
+}: TestimonialFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
@@ -40,7 +44,7 @@ export function TestimonialForm({ initialData, mode = 'add', onSuccess }: Testim
         content: initialData.content,
         status: initialData.approved ? 'active' : 'inactive',
         image_url: initialData.image_url || '',
-        rating: initialData.rating,
+        rating: initialData.rating ?? 5,
       }
       : {
         name: '',
@@ -59,10 +63,10 @@ export function TestimonialForm({ initialData, mode = 'add', onSuccess }: Testim
       setIsLoading(true);
 
       const formData = new FormData();
-      formData.append('author', data.name);
+      formData.append('name', data.name);
       formData.append('role', data.role);
       formData.append('content', data.content);
-      formData.append('approved', String(data.status === 'active'));
+      formData.append('status', data.status);
       formData.append('rating', String(data.rating));
       if (data.image_url) formData.append('image_url', data.image_url);
 

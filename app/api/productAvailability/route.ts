@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { checkProductAvailability } from '../../../functions/index';
+import { checkProductAvailability } from '@/functions/supabaseFunctions';
 
 export async function POST(request: Request) {
   const { product } = await request.json();

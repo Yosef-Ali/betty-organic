@@ -153,8 +153,7 @@ export async function updateProduct(
       stock,
       imageUrl: imageUrl || '/placeholder-product.png',
       active: status === 'active',
-      updatedat: new Date().toISOString(),
-      updated_by: session.user.id,
+      updatedat: new Date().toISOString()
     };
 
     const { data: product, error } = await supabase

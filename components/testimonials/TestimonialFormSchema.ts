@@ -15,7 +15,7 @@ export const testimonialFormSchema = z.object({
     .max(1000, 'Content cannot be longer than 1000 characters'),
   status: z.enum(['active', 'inactive']).default('active'),
   image_url: z.string().optional(),
-  rating: z.number().min(1).max(5).default(5),
+  rating: z.number().min(1).max(5).nullable().default(5),
 });
 
 export type TestimonialFormValues = z.infer<typeof testimonialFormSchema>;
