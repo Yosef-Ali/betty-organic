@@ -35,26 +35,6 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  experimental: {
-    serverActions: {
-      allowedOrigins: [
-        'localhost:*',
-        '127.0.0.1:*',
-        'http://localhost:*',
-        'http://127.0.0.1:*',
-      ],
-      allowedForwardedHosts: [
-        'localhost:*',
-        '127.0.0.1:*',
-        'http://localhost:*',
-        'http://127.0.0.1:*',
-      ],
-      bypassOriginAndHostValidation: true,
-      allowedHeaders: ['x-forwarded-host', 'origin'],
-      bodySizeLimit: '4mb',
-    },
-  },
-  // Remove output and distDir to let Vercel handle build output
 };
 
 export default nextConfig;

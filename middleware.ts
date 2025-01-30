@@ -58,7 +58,12 @@ export async function middleware(request: NextRequest) {
 
     const userRole = (profile?.role || '') as Role;
 
-    // Only allow admin and sales to access dashboard
+    // Allow all authenticated users to access their profile
+    if (path === '/dashboard/profile') {
+      return response;
+    }
+
+    // Only allow admin and sales to access other dashboard routes
     if (
       path.startsWith('/dashboard') &&
       !['admin', 'sales'].includes(userRole)
