@@ -14,6 +14,7 @@ import {
 import { Card, CardContent } from '@/components/ui/card';
 import { Star } from 'lucide-react';
 import { Testimonial } from '@/lib/types';
+import React from 'react';
 
 interface TestimonialSectionProps {
   testimonials: Testimonial[];
@@ -127,11 +128,10 @@ export function TestimonialSection({ testimonials }: TestimonialSectionProps) {
               <button
                 key={index}
                 onClick={() => scrollTo(index)}
-                className={`h-3 w-3 rounded-full transition-all duration-300 ${
-                  current === index + 1
-                    ? 'bg-[#e6b000] w-6'
-                    : 'bg-[#ffd966] hover:bg-[#e6b000]'
-                }`}
+                className={`h-3 w-3 rounded-full transition-all duration-300 ${current === index + 1
+                  ? 'bg-[#e6b000] w-6'
+                  : 'bg-[#ffd966] hover:bg-[#e6b000]'
+                  }`}
                 aria-label={`Go to slide ${index + 1}`}
               />
             ))}
