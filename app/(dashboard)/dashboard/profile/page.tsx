@@ -51,7 +51,7 @@ export default async function ProfilePage() {
               </CardHeader>
               <CardContent>
                 <ProfileForm
-                  initialName={profile?.full_name || ''}
+                  initialName={profile?.name || ''}
                   initialEmail={profile?.email || ''}
                   initialImage={profile?.avatar_url || ''}
                   userId={user.id}

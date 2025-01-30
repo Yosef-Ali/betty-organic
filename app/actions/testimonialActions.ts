@@ -265,3 +265,25 @@ export async function getTestimonialById(id: string) {
     return { success: false, error: 'Failed to fetch testimonial' };
   }
 }
+
+export async function toggleApproval(id: string, approved: boolean) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('testimonials')
+    .update({ approved })
+    .eq('id', id)
+    .select('id, approved')
+    .single();
+
+  if (error) {
+    console.error('Error toggling approval:', error);
+    throw new Error('Failed to update approval status');
+  }
+
+  if (!data) {
+    throw new Error('Testimonial not found');
+  }
+
+  revalidatePath('/dashboard/settings/testimonials');
+  return data;
+}

@@ -16,15 +16,17 @@ import {
   testimonialFormSchema,
 } from './TestimonialFormSchema';
 import { TestimonialDetailsForm } from './TestimonialDetailsForm';
-import { AvatarUpload } from '@/components/ui/avatar-upload';
+import { AvatarUpload } from '@/components/avatar-upload';
 import { StarRating } from './StarRating';
 import { Testimonial } from '@/lib/types/supabase';
 
-interface EditTestimonialFormProps {
+interface TestimonialFormProps {
   initialData?: Testimonial;
+  mode?: 'add' | 'edit';
+  onSuccess?: () => void;
 }
 
-export function EditTestimonialForm({ initialData }: EditTestimonialFormProps) {
+export function TestimonialForm({ initialData, mode = 'add', onSuccess }: TestimonialFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
@@ -57,13 +59,14 @@ export function EditTestimonialForm({ initialData }: EditTestimonialFormProps) {
       setIsLoading(true);
 
       const formData = new FormData();
-      Object.entries(data).forEach(([key, value]) => {
-        if (value !== null && value !== undefined) {
-          formData.append(key, String(value));
-        }
-      });
+      formData.append('author', data.name);
+      formData.append('role', data.role);
+      formData.append('content', data.content);
+      formData.append('approved', String(data.status === 'active'));
+      formData.append('rating', String(data.rating));
+      if (data.image_url) formData.append('image_url', data.image_url);
 
-      if (initialData?.id) {
+      if (mode === 'edit' && initialData?.id) {
         await updateTestimonial(initialData.id, formData);
         toast({
           title: 'Success',
@@ -77,8 +80,7 @@ export function EditTestimonialForm({ initialData }: EditTestimonialFormProps) {
         });
       }
 
-      router.back();
-      router.refresh();
+      onSuccess?.();
     } catch (error: any) {
       console.error('Form submission error:', error);
       toast({
@@ -105,8 +107,20 @@ export function EditTestimonialForm({ initialData }: EditTestimonialFormProps) {
                 name="image_url"
                 label="Profile Picture"
                 bucketName="testimonials"
-                entityId={initialData?.id}
+                entityId={initialData?.id || ''}
                 size="lg"
+                className="flex flex-col items-center"
+                containerClassName="relative group cursor-pointer"
+                showOverlay={true}
+                overlayContent={
+                  <label
+                    htmlFor={`avatar-upload-image_url`}
+                    className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-full cursor-pointer"
+                  >
+                    <span className="text-white text-sm">Change Image</span>
+                  </label>
+                }
+                defaultImageUrl={initialData?.image_url || undefined}
               />
               <StarRating form={form} />
             </div>
@@ -125,7 +139,7 @@ export function EditTestimonialForm({ initialData }: EditTestimonialFormProps) {
           <Button type="submit" disabled={isLoading}>
             {isLoading
               ? 'Saving...'
-              : initialData
+              : mode === 'edit'
                 ? 'Update Testimonial'
                 : 'Create Testimonial'}
           </Button>

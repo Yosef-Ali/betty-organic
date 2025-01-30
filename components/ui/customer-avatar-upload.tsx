@@ -1,7 +1,10 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { UseFormReturn } from 'react-hook-form';
+import { Avatar, AvatarFallback, AvatarImage } from './avatar';
+import { Button } from './button';
+import { ImageIcon, Camera, X } from 'lucide-react';
 import {
   FormField,
   FormItem,
@@ -9,11 +12,9 @@ import {
   FormControl,
   FormMessage,
 } from '@/components/ui/form';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { ImageIcon, Camera, X } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { uploadCustomerAvatar } from '@/app/actions/upload-customer-avatar';
 import { useToast } from '@/hooks/use-toast';
-import { handleCustomerAvatarUpload } from './customer-avatar-server';
 
 interface CustomerAvatarUploadProps {
   form: UseFormReturn<any>;
@@ -37,7 +38,6 @@ export function CustomerAvatarUpload({
   const [isUploading, setIsUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const { toast } = useToast();
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const getAvatarSize = () => {
     switch (size) {
@@ -50,17 +50,11 @@ export function CustomerAvatarUpload({
     }
   };
 
-  const handleClick = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.click();
-    }
-  };
-
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Create immediate preview URL for the selected file
+    // Create immediate preview URL
     const localPreviewUrl = URL.createObjectURL(file);
     setPreviewUrl(localPreviewUrl);
 
@@ -70,49 +64,40 @@ export function CustomerAvatarUpload({
       const formData = new FormData();
       formData.append('file', file);
 
-      const result = await handleCustomerAvatarUpload(formData, customerId);
+      const result = await uploadCustomerAvatar(formData, customerId);
 
       if (!result.success) {
         throw new Error(result.error || 'Failed to upload image');
       }
 
-      if (!result.imageUrl) {
-        throw new Error('No image URL returned from server');
-      }
-
       // Update form with new image URL from server
-      form.setValue(name, result.imageUrl, {
-        shouldDirty: true,
-        shouldTouch: true,
-        shouldValidate: true,
-      });
+      const imageUrl = result.imageUrl;
+      if (imageUrl) {
+        form.setValue(name, imageUrl, {
+          shouldDirty: true,
+          shouldTouch: true,
+          shouldValidate: true,
+        });
 
-      // After successful upload, clear preview and show final image
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl);
-        setPreviewUrl(null);
+        toast({
+          description: 'Avatar updated successfully',
+        });
       }
-
-      toast({
-        title: 'Success',
-        description: 'Customer photo updated successfully',
-        variant: 'default',
-      });
     } catch (error) {
-      // Revert to previous state on error
+      // Revert preview on error
       setPreviewUrl(null);
-      if (localPreviewUrl) {
-        URL.revokeObjectURL(localPreviewUrl);
-      }
-
       toast({
         variant: 'destructive',
-        title: 'Upload failed',
+        title: 'Error',
         description:
           error instanceof Error ? error.message : 'Failed to upload image',
       });
     } finally {
       setIsUploading(false);
+      // Clean up the local preview URL
+      if (localPreviewUrl) {
+        URL.revokeObjectURL(localPreviewUrl);
+      }
     }
   };
 
@@ -126,7 +111,7 @@ export function CustomerAvatarUpload({
         shouldValidate: true,
       });
       toast({
-        description: 'Customer photo removed',
+        description: 'Avatar removed',
       });
     } catch (error: any) {
       toast({
@@ -148,77 +133,69 @@ export function CustomerAvatarUpload({
           {label && <FormLabel>{label}</FormLabel>}
           <FormControl>
             <div className="flex flex-col items-center gap-4">
-              <div className="flex flex-col items-center space-y-4">
-                <div
-                  className="relative cursor-pointer group"
-                  onClick={handleClick}
-                >
-                  <Avatar className={getAvatarSize()}>
-                    {previewUrl || field.value ? (
-                      <AvatarImage
-                        src={previewUrl || field.value}
-                        alt="Customer avatar"
-                        className="object-cover"
-                      />
-                    ) : defaultImageUrl ? (
-                      <AvatarImage
-                        src={defaultImageUrl}
-                        alt="Default avatar"
-                        className="object-cover"
-                      />
-                    ) : (
-                      <AvatarFallback>
-                        <ImageIcon className="h-8 w-8 text-muted-foreground" />
-                      </AvatarFallback>
-                    )}
-                    <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity rounded-full flex items-center justify-center">
-                      <Camera className="h-8 w-8 text-white" />
-                    </div>
-                  </Avatar>
+              <div className="relative">
+                <Avatar className={getAvatarSize()}>
+                  {previewUrl || field.value ? (
+                    <AvatarImage
+                      src={previewUrl || field.value}
+                      alt="Avatar"
+                      className="object-cover"
+                    />
+                  ) : defaultImageUrl ? (
+                    <AvatarImage
+                      src={defaultImageUrl}
+                      alt="Default avatar"
+                      className="object-cover"
+                    />
+                  ) : (
+                    <AvatarFallback>
+                      <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                    </AvatarFallback>
+                  )}
 
-                  {field.value && (
+                  <div className="absolute -bottom-2 -right-2 flex gap-2">
                     <Button
                       type="button"
-                      variant="destructive"
+                      variant="secondary"
                       size="icon"
-                      className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full"
-                      onClick={e => {
-                        e.stopPropagation();
-                        handleRemoveImage();
-                      }}
+                      className="h-8 w-8 rounded-full"
+                      asChild
                       disabled={isUploading}
                     >
-                      <X className="h-4 w-4" />
-                      <span className="sr-only">Remove photo</span>
+                      <label htmlFor={`customer-avatar-upload-${name}`}>
+                        <Camera className="h-4 w-4" />
+                        <span className="sr-only">Upload avatar</span>
+                      </label>
                     </Button>
-                  )}
-                </div>
+                    {field.value && (
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="h-8 w-8 rounded-full"
+                        onClick={handleRemoveImage}
+                        disabled={isUploading}
+                      >
+                        <X className="h-4 w-4" />
+                        <span className="sr-only">Remove avatar</span>
+                      </Button>
+                    )}
+                  </div>
+                </Avatar>
 
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="w-full"
-                  onClick={handleClick}
-                  disabled={isUploading}
-                >
-                  <Camera className="h-4 w-4 mr-2" />
-                  {field.value ? 'Change Photo' : 'Upload Photo'}
-                </Button>
-
-                <input
-                  ref={fileInputRef}
+                <Input
+                  id={`customer-avatar-upload-${name}`}
                   type="file"
                   accept="image/*"
                   onChange={handleImageUpload}
                   disabled={isUploading}
                   className="hidden"
-                  aria-label="Upload customer photo"
                 />
                 <input type="hidden" {...field} />
               </div>
               {isUploading && (
                 <p className="text-sm text-muted-foreground animate-pulse">
-                  Uploading customer photo...
+                  Uploading avatar...
                 </p>
               )}
             </div>

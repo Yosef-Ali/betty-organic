@@ -1,22 +1,31 @@
 'use client';
 
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, X } from 'lucide-react';
+import { PlusCircle, ChevronLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { TestimonialTable } from '../testimonials/TestimonialTable';
-import { EditTestimonialForm } from '../testimonials/EditTestimonialForm';
+import { TestimonialForm } from '../testimonials/EditTestimonialForm';
 import { Testimonial } from '@/lib/types/supabase';
 
 export function SettingsTestimonials() {
   const [activeTab, setActiveTab] = useState('all');
+  const [isAddingTestimonial, setIsAddingTestimonial] = useState(false);
+  const [editingTestimonial, setEditingTestimonial] =
+    useState<Testimonial | undefined>(undefined);
 
   const handleTabChange = (value: string) => {
     setActiveTab(value);
     setIsAddingTestimonial(false);
-    setEditingTestimonial(null);
+    setEditingTestimonial(undefined);
   };
 
   const handleEdit = (testimonial: Testimonial) => {
@@ -26,14 +35,19 @@ export function SettingsTestimonials() {
 
   const handleCancel = () => {
     setIsAddingTestimonial(false);
-    setEditingTestimonial(null);
+    setEditingTestimonial(undefined);
+    setActiveTab('all');
   };
 
   const isEditing = Boolean(editingTestimonial);
 
   return (
     <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">
-      <Tabs defaultValue="all" value={activeTab} onValueChange={handleTabChange}>
+      <Tabs
+        defaultValue="all"
+        value={activeTab}
+        onValueChange={handleTabChange}
+      >
         <div className="flex items-center justify-between">
           <TabsList>
             <TabsTrigger value="all">All Testimonials</TabsTrigger>
@@ -47,7 +61,9 @@ export function SettingsTestimonials() {
             disabled={isEditing}
           >
             <PlusCircle className="h-3.5 w-3.5" />
-            <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Add Testimonial</span>
+            <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+              Add Testimonial
+            </span>
           </Button>
         </div>
 
@@ -59,12 +75,12 @@ export function SettingsTestimonials() {
                   {(isAddingTestimonial || isEditing) && (
                     <Button
                       variant="ghost"
-                      size="sm"
+                      size="icon"
+                      className="h-7 w-7"
                       onClick={handleCancel}
-                      className="gap-2"
                     >
-                      <X className="h-4 w-4" />
-                      Cancel
+                      <ChevronLeft className="h-4 w-4" />
+                      <span className="sr-only">Back</span>
                     </Button>
                   )}
                   <div>
@@ -88,9 +104,13 @@ export function SettingsTestimonials() {
             </CardHeader>
             <CardContent>
               {isAddingTestimonial ? (
-                <EditTestimonialForm />
+                <TestimonialForm onSuccess={handleCancel} />
               ) : isEditing ? (
-                <EditTestimonialForm initialData={editingTestimonial} />
+                <TestimonialForm
+                  initialData={editingTestimonial}
+                  mode="edit"
+                  onSuccess={handleCancel}
+                />
               ) : (
                 <TestimonialTable onEdit={handleEdit} />
               )}
@@ -102,7 +122,9 @@ export function SettingsTestimonials() {
           <Card>
             <CardHeader>
               <CardTitle>Pending Testimonials</CardTitle>
-              <CardDescription>Review and approve new testimonials.</CardDescription>
+              <CardDescription>
+                Review and approve new testimonials.
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <TestimonialTable filterStatus="pending" onEdit={handleEdit} />
@@ -114,7 +136,9 @@ export function SettingsTestimonials() {
           <Card>
             <CardHeader>
               <CardTitle>Approved Testimonials</CardTitle>
-              <CardDescription>View and manage approved testimonials.</CardDescription>
+              <CardDescription>
+                View and manage approved testimonials.
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <TestimonialTable filterStatus="approved" onEdit={handleEdit} />

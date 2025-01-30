@@ -1,35 +1,15 @@
-import { getProfile } from '@/app/actions/profile';
-import { notFound } from 'next/navigation';
-import { EditCustomerForm } from '@/components/EditCustomerForm';
-import { CustomerFormValues } from '@/components/CustomerForm';
+import { Suspense } from 'react';
+import { CustomerData } from './CustomerData';
+import Loading from './loading';
 
-type CustomerStatus = 'active' | 'inactive';
-
-export default async function EditCustomerPage({
+export default function EditCustomerPage({
   params,
 }: {
   params: { id: string };
 }) {
-  const profile = await getProfile(params.id);
-
-  if (!profile || profile.role !== 'customer') {
-    notFound();
-  }
-
-  const initialData: CustomerFormValues = {
-    id: profile.id,
-    fullName: profile.fullName,
-    email: profile.email,
-    phone: profile.phone,
-    location: profile.location,
-    status: profile.status as CustomerStatus,
-    imageUrl: profile.imageUrl,
-  };
-
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h2 className="text-2xl font-bold mb-4">Edit Customer</h2>
-      <EditCustomerForm initialData={initialData} />
-    </div>
+    <Suspense fallback={<Loading />}>
+      <CustomerData id={params.id} />
+    </Suspense>
   );
 }

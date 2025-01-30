@@ -16,6 +16,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { ImageIcon, Camera, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { uploadAvatar } from '@/app/actions/upload-avatar';
+import { cn } from '@/lib/utils';
 
 interface AvatarUploadProps {
   form: UseFormReturn<any>;
@@ -25,7 +26,10 @@ interface AvatarUploadProps {
   className?: string;
   size?: 'sm' | 'md' | 'lg';
   bucketName: string;
-  entityId?: string;
+  entityId: string;
+  showOverlay?: boolean;
+  overlayContent?: React.ReactNode;
+  containerClassName?: string;
 }
 
 export function AvatarUpload({
@@ -34,7 +38,12 @@ export function AvatarUpload({
   label,
   defaultImageUrl,
   className = '',
+  containerClassName,
   size = 'md',
+  bucketName,
+  entityId,
+  showOverlay = false,
+  overlayContent,
 }: AvatarUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -56,7 +65,6 @@ export function AvatarUpload({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Create immediate preview URL for the selected file
     const localPreviewUrl = URL.createObjectURL(file);
     setPreviewUrl(localPreviewUrl);
 
@@ -65,6 +73,8 @@ export function AvatarUpload({
 
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('bucketName', bucketName);
+      formData.append('entityId', entityId);
 
       const result = await uploadAvatar(formData);
 
@@ -72,19 +82,16 @@ export function AvatarUpload({
         throw new Error(result.error || 'Failed to upload image');
       }
 
-      // Update form with new image URL from server
-      const imageUrl = result.imageUrl;
-      form.setValue(name, imageUrl, {
+      form.setValue(name, result.imageUrl, {
         shouldDirty: true,
         shouldTouch: true,
         shouldValidate: true,
       });
 
       toast({
-        description: 'Profile picture updated successfully',
+        description: 'Image uploaded successfully',
       });
     } catch (error) {
-      // Revert preview on error
       setPreviewUrl(null);
       toast({
         variant: 'destructive',
@@ -93,7 +100,6 @@ export function AvatarUpload({
       });
     } finally {
       setIsUploading(false);
-      // Clean up the local preview URL
       if (localPreviewUrl) {
         URL.revokeObjectURL(localPreviewUrl);
       }
@@ -103,14 +109,14 @@ export function AvatarUpload({
   const handleRemoveImage = async () => {
     try {
       setIsUploading(true);
-      setPreviewUrl(null); // Clear preview URL
+      setPreviewUrl(null);
       form.setValue(name, '', {
         shouldDirty: true,
         shouldTouch: true,
         shouldValidate: true,
       });
       toast({
-        description: 'Profile picture removed',
+        description: 'Image removed successfully',
       });
     } catch (error: any) {
       toast({
@@ -131,9 +137,9 @@ export function AvatarUpload({
         <FormItem className={className}>
           {label && <FormLabel>{label}</FormLabel>}
           <FormControl>
-            <div className="flex flex-col items-center gap-4">
-              <div className="relative">
-                <Avatar className={getAvatarSize()}>
+            <div className={cn("flex flex-col items-center gap-4", containerClassName)}>
+              <div className="relative group">
+                <Avatar className={cn(getAvatarSize(), "relative")}>
                   {(previewUrl || field.value) ? (
                     <AvatarImage
                       src={previewUrl || field.value}
@@ -150,6 +156,12 @@ export function AvatarUpload({
                     <AvatarFallback>
                       <ImageIcon className="h-8 w-8 text-muted-foreground" />
                     </AvatarFallback>
+                  )}
+
+                  {showOverlay && overlayContent && (
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      {overlayContent}
+                    </div>
                   )}
 
                   <div className="absolute -bottom-2 -right-2 flex gap-2">
@@ -194,7 +206,7 @@ export function AvatarUpload({
               </div>
               {isUploading && (
                 <p className="text-sm text-muted-foreground animate-pulse">
-                  Uploading profile picture...
+                  Uploading image...
                 </p>
               )}
             </div>

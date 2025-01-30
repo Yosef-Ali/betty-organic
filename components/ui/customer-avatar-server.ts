@@ -1,6 +1,6 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
 
 interface UploadResult {
@@ -9,12 +9,15 @@ interface UploadResult {
   error?: string;
 }
 
+// Directly create Supabase client using @supabase/supabase-js
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
 export async function handleCustomerAvatarUpload(
   formData: FormData,
   customerId?: string,
 ): Promise<UploadResult> {
-  const supabase = await createClient();
-
   try {
     // Get file from FormData
     const fileData = formData.get('file');

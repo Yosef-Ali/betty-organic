@@ -23,11 +23,12 @@ interface ProductFormProps {
   isSales: boolean;
 }
 
+// Change the return type from JSX.Element to React.ReactElement | null
 export function ProductForm({
   initialData,
   isAdmin,
   isSales,
-}: ProductFormProps): JSX.Element {
+}: ProductFormProps): React.ReactElement | null {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
@@ -180,8 +181,8 @@ export function ProductForm({
               {isLoading
                 ? 'Saving...'
                 : initialData
-                ? 'Update Product'
-                : 'Save Product'}
+                  ? 'Update Product'
+                  : 'Save Product'}
             </Button>
           </div>
         </div>
@@ -209,8 +210,8 @@ export function ProductForm({
             {isLoading
               ? 'Saving...'
               : initialData
-              ? 'Update Product'
-              : 'Save Product'}
+                ? 'Update Product'
+                : 'Save Product'}
           </Button>
         </div>
       </form>

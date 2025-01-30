@@ -22,7 +22,7 @@ export async function updateProfile(data: ProfileData) {
       .from('profiles')
       .upsert({
         id: data.id,
-        full_name: data.fullName,
+        name: data.fullName, // Changed from full_name to name
         email: data.email,
         phone: data.phone || null,
         location: data.location || null,
@@ -65,7 +65,7 @@ export async function getProfile(id: string) {
     return data
       ? {
           id: data.id,
-          fullName: data.full_name,
+          fullName: data.name, // Changed from full_name to name
           email: data.email,
           phone: data.phone || '',
           location: data.location || '',
@@ -98,7 +98,7 @@ export async function getCustomers() {
     return (
       data?.map(profile => ({
         id: profile.id,
-        fullName: profile.full_name,
+        fullName: profile.name, // Changed from full_name to name
         email: profile.email,
         phone: profile.phone || '',
         location: profile.location || '',
@@ -129,7 +129,7 @@ export async function getCustomer(id: string) {
     return data
       ? {
           id: data.id,
-          fullName: data.full_name,
+          fullName: data.name, // Changed from full_name to name
           email: data.email,
           phone: data.phone || '',
           location: data.location || '',
@@ -152,9 +152,9 @@ export async function searchCustomers(query: string) {
       .select('*')
       .eq('role', 'customer')
       .or(
-        `full_name.ilike.%${query}%,email.ilike.%${query}%,phone.ilike.%${query}%`,
+        `name.ilike.%${query}%,email.ilike.%${query}%,phone.ilike.%${query}%`, // Changed from full_name to name
       )
-      .order('full_name');
+      .order('name'); // Changed from full_name to name
 
     if (error) {
       console.error('Supabase error searching customers:', error);
@@ -164,7 +164,7 @@ export async function searchCustomers(query: string) {
     return (
       data?.map(profile => ({
         id: profile.id,
-        fullName: profile.full_name,
+        fullName: profile.name, // Changed from full_name to name
         email: profile.email,
         phone: profile.phone || '',
         location: profile.location || '',

@@ -14,7 +14,7 @@ import {
   FormControl,
   FormMessage,
 } from '@/components/ui/form';
-import { AvatarUpload } from '@/components/ui/avatar-upload';
+import { AvatarUpload } from '@/components/avatar-upload';
 import { updateProfile } from '@/app/actions/userActions';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useRouter } from 'next/navigation';

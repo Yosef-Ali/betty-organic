@@ -48,7 +48,7 @@ const formSchema = z.object({
   phone: z.string().optional(),
   location: z.string().optional(),
   status: z.enum(['active', 'inactive']),
-  imageUrl: z.string().nullable().optional(),
+  imageUrl: z.string().or(z.literal('')).default(''),
 });
 
 export type CustomerFormValues = z.infer<typeof formSchema>;
@@ -64,13 +64,13 @@ export function CustomerForm({
 
   const form = useForm<CustomerFormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: initialData || {
-      fullName: '',
-      email: '',
-      phone: '',
+    defaultValues: {
+      fullName: initialData?.fullName || '',
+      email: initialData?.email || '',
+      phone: initialData?.phone || '',
       imageUrl: '',
-      location: '',
-      status: 'active',
+      location: initialData?.location || '',
+      status: initialData?.status || 'active',
     },
   });
 

@@ -1,11 +1,10 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { MoreHorizontal } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import {
-  getTestimonials,
   deleteTestimonial,
   toggleApproval,
 } from '@/app/actions/testimonialActions';
@@ -39,7 +38,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '../ui/alert-dialog';
-import { Testimonial } from '@/lib/types/supabase'; // Import shared Testimonial type
+import { Testimonial } from '@/lib/types/supabase';
+import { useTestimonials } from '@/hooks/useTestimonials';
+import { TestimonialTableSkeleton } from './TestimonialTableSkeleton';
 
 interface TestimonialTableProps {
   initialTestimonials?: Testimonial[];
@@ -47,59 +48,28 @@ interface TestimonialTableProps {
   onEdit?: (testimonial: Testimonial) => void;
 }
 
-export function TestimonialTable({ initialTestimonials = [], filterStatus, onEdit }: TestimonialTableProps) {
-  const [testimonials, setTestimonials] = useState<Testimonial[]>(initialTestimonials);
-  const [isLoading, setIsLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isEditing, setIsEditing] = useState(false);
-  const [editingTestimonial, setEditingTestimonial] = useState<Testimonial | null>(null);
-  const router = useRouter();
-  const { toast } = useToast();
-
-  const fetchTestimonials = async () => {
-    try {
-      const fetchedTestimonials = await getTestimonials();
-      let filteredTestimonials = fetchedTestimonials;
-
-      if (filterStatus) {
-        filteredTestimonials = fetchedTestimonials.filter(
-          t => (filterStatus === 'approved' ? t.approved : !t.approved)
-        );
-      }
-
-      setTestimonials(filteredTestimonials);
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to fetch testimonials',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!initialTestimonials.length) {
-      fetchTestimonials();
-    }
-  }, [filterStatus, initialTestimonials.length]);
-
-  const filteredTestimonials = useMemo(() => {
-    if (!searchTerm) return testimonials;
-    const lowerSearchTerm = searchTerm.toLowerCase();
-    return testimonials.filter(testimonial =>
-      [testimonial.author_name, testimonial.role, testimonial.content].some(
-        field => field?.toLowerCase().includes(lowerSearchTerm),
-      ),
-    );
-  }, [testimonials, searchTerm]);
+export function TestimonialTable({
+  initialTestimonials = [],
+  filterStatus,
+  onEdit,
+}: TestimonialTableProps) {
+  const [isLoading, setIsLoading] = useState(false);
+  const {
+    testimonials: filteredTestimonials,
+    searchTerm,
+    setSearchTerm,
+    setTestimonials,
+    isLoading: isLoadingTestimonials,
+  } = useTestimonials({
+    initialTestimonials,
+    filterStatus,
+  });
 
   const handleDelete = async (id: string) => {
     try {
       setIsLoading(true);
       await deleteTestimonial(id);
-      setTestimonials(testimonials.filter(t => t.id !== id));
+      setTestimonials(prev => prev.filter(t => t.id !== id));
       toast({
         title: 'Success',
         description: 'Testimonial deleted successfully',
@@ -119,8 +89,8 @@ export function TestimonialTable({ initialTestimonials = [], filterStatus, onEdi
     try {
       setIsLoading(true);
       await toggleApproval(id, approved);
-      setTestimonials(
-        testimonials.map(t => (t.id === id ? { ...t, approved } : t)),
+      setTestimonials(prev =>
+        prev.map(t => (t.id === id ? { ...t, approved } : t)),
       );
     } catch (error) {
       toast({
@@ -155,13 +125,17 @@ export function TestimonialTable({ initialTestimonials = [], filterStatus, onEdi
             </TableRow>
           </TableHeader>
           <TableBody>
-            <TestimonialTableContent
-              testimonials={filteredTestimonials}
-              isLoading={isLoading}
-              onDelete={handleDelete}
-              onToggleApproval={handleToggleApproval}
-              onEdit={onEdit}
-            />
+            {isLoadingTestimonials ? (
+              <TestimonialTableSkeleton />
+            ) : (
+              <TestimonialTableContent
+                testimonials={filteredTestimonials}
+                isLoading={isLoading}
+                onDelete={handleDelete}
+                onToggleApproval={handleToggleApproval}
+                onEdit={onEdit}
+              />
+            )}
           </TableBody>
         </Table>
       </div>
@@ -182,21 +156,7 @@ function TestimonialTableContent({
   onToggleApproval: (id: string, approved: boolean) => Promise<void>;
   onEdit?: (testimonial: Testimonial) => void;
 }) {
-  const router = useRouter();
   const { toast } = useToast();
-
-  if (isLoading) {
-    return (
-      <TableRow>
-        <TableCell colSpan={5} className="h-24 text-center">
-          <div className="flex items-center justify-center">
-            <div className="h-6 w-6 animate-spin rounded-full border-b-2 border-gray-900"></div>
-            <span className="ml-2">Loading...</span>
-          </div>
-        </TableCell>
-      </TableRow>
-    );
-  }
 
   if (!testimonials || testimonials.length === 0) {
     return (
@@ -250,14 +210,23 @@ function TestimonialTableContent({
           <TableCell>
             <div className="flex items-center space-x-3 flex-wrap gap-2">
               <Avatar>
-                <AvatarImage src={testimonial.image_url || ''} alt={testimonial.author_name || 'Testimonial author'} />
+                <AvatarImage
+                  src={testimonial.image_url || ''}
+                  alt={testimonial.author_name || 'Testimonial author'}
+                />
                 <AvatarFallback className="bg-muted">
-                  {testimonial.author_name ? testimonial.author_name.charAt(0).toUpperCase() : 'T'}
+                  {testimonial.author_name
+                    ? testimonial.author_name.charAt(0).toUpperCase()
+                    : 'T'}
                 </AvatarFallback>
               </Avatar>
               <div className="min-w-0">
-                <div className="font-medium truncate">{testimonial.author_name}</div>
-                <div className="text-sm text-gray-500 truncate">{testimonial.role}</div>
+                <div className="font-medium truncate">
+                  {testimonial.author_name}
+                </div>
+                <div className="text-sm text-gray-500 truncate">
+                  {testimonial.role}
+                </div>
               </div>
             </div>
           </TableCell>
@@ -272,10 +241,11 @@ function TestimonialTableContent({
           <TableCell>
             <div
               className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
-              ${testimonial.approved
+              ${
+                testimonial.approved
                   ? 'bg-green-100 text-green-800'
                   : 'bg-yellow-100 text-yellow-800'
-                }`}
+              }`}
             >
               {testimonial.approved ? 'Approved' : 'Pending'}
             </div>
@@ -283,15 +253,17 @@ function TestimonialTableContent({
           <TableCell>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="h-8 w-8 p-0">
+                <Button
+                  variant="ghost"
+                  className="h-8 w-8 p-0"
+                  disabled={isLoading}
+                >
                   <span className="sr-only">Open menu</span>
                   <MoreHorizontal className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  onClick={() => onEdit?.(testimonial)}
-                >
+                <DropdownMenuItem onClick={() => onEdit?.(testimonial)}>
                   Edit
                 </DropdownMenuItem>
                 <DropdownMenuItem

@@ -162,8 +162,8 @@ export function TestimonialList({ initialTestimonials }: TestimonialListProps) {
       cell: ({ row }) => (
         <div
           className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${row.original.approved
-              ? 'bg-green-100 text-green-800'
-              : 'bg-gray-100 text-gray-800'
+            ? 'bg-green-100 text-green-800'
+            : 'bg-gray-100 text-gray-800'
             }`}
         >
           {row.original.approved ? 'Active' : 'Inactive'}

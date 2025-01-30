@@ -3,20 +3,24 @@
 import { createClient } from '@/lib/supabase/server';
 import { v4 as uuidv4 } from 'uuid';
 
-interface UploadResult {
+/**
+ * Uploads an image to the "testimonials" bucket and returns its public URL.
+ * This does NOT update any user profile info and is intended for testimonial images only.
+ *
+ * Expects formData with a "file" key containing the Blob/File to upload.
+ *
+ * Returns: { success: boolean; imageUrl?: string; error?: string }
+ */
+export async function uploadTestimonialImage(formData: FormData): Promise<{
   success: boolean;
   imageUrl?: string;
   error?: string;
-}
-
-export async function uploadCustomerAvatar(
-  formData: FormData,
-  customerId?: string,
-): Promise<UploadResult> {
+}> {
   try {
+    // Create a supabase client with an admin/service role
     const supabase = await createClient();
 
-    // Get the file from formData
+    // Extract the file
     const file = formData.get('file');
     if (!file || !(file instanceof Blob)) {
       throw new Error('No file provided');
@@ -27,20 +31,18 @@ export async function uploadCustomerAvatar(
       throw new Error('File must be an image');
     }
 
-    // Generate unique filename
+    // Generate a unique filename
     const fileExt = file.type.split('/')[1] || 'jpg';
     const fileName = `${uuidv4()}.${fileExt}`;
-    const filePath = customerId
-      ? `customers/${customerId}/${fileName}`
-      : `customers/temp/${fileName}`;
+    const filePath = `testimonials/${fileName}`;
 
-    // Convert File/Blob to ArrayBuffer
+    // Convert to ArrayBuffer -> Buffer
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Upload to Supabase Storage
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('product-images')
+    // Upload to "testimonials" bucket
+    const { error: uploadError } = await supabase.storage
+      .from('testimonials')
       .upload(filePath, buffer, {
         cacheControl: '3600',
         upsert: true,
@@ -55,24 +57,25 @@ export async function uploadCustomerAvatar(
       };
     }
 
-    // Get public URL
+    // Get the public URL to display
     const { data: urlData } = supabase.storage
-      .from('product-images')
+      .from('testimonials')
       .getPublicUrl(filePath);
 
     if (!urlData) {
       return {
         success: false,
-        error: 'Failed to get public URL',
+        error: 'Failed to get public URL for testimonial image',
       };
     }
 
+    // Return success + the public URL
     return {
       success: true,
       imageUrl: urlData.publicUrl,
     };
   } catch (error) {
-    console.error('Error handling customer avatar upload:', error);
+    console.error('Error uploading testimonial image:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to upload image',
