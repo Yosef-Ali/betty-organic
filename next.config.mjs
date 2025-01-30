@@ -1,7 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'standalone',
-  distDir: '.next',
   images: {
     remotePatterns: [
       {
@@ -56,6 +54,7 @@ const nextConfig = {
       bodySizeLimit: '4mb',
     },
   },
+  // Remove output and distDir to let Vercel handle build output
 };
 
 export default nextConfig;
