@@ -14,6 +14,7 @@ import { DataTable } from "@/components/ui/data-table"
 import { PlusCircle, Download, Pencil, Trash } from "lucide-react"
 import { useState } from "react"
 import { Product } from "@/lib/supabase/db.types"
+import { Row } from '@tanstack/react-table'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,13 +27,13 @@ import {
   AlertDialogTrigger
 } from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
-import { useToast } from "@/components/ui/use-toast"
+import { useToast } from "@/hooks/use-toast"
 import { deleteProduct } from "@/app/actions/productActions"
 
 const formatPrice = (price: number) => {
-  return new Intl.NumberFormat('en-US', {
+  return new Intl.NumberFormat('en-ET', {
     style: 'currency',
-    currency: 'USD',
+    currency: 'ETB',
   }).format(price)
 }
 
@@ -41,7 +42,7 @@ const columns = [
   {
     accessorKey: "imageUrl",
     header: "Image",
-    cell: ({ row }) => (
+    cell: ({ row }: { row: Row<Product> }) => (
       <div className="relative w-10 h-10">
         <img
           src={row.original.imageUrl || '/placeholder-product.jpg'}
@@ -61,7 +62,7 @@ const columns = [
   {
     accessorKey: "price",
     header: "Price",
-    cell: ({ row }) => formatPrice(row.original.price),
+    cell: ({ row }: { row: Row<Product> }) => formatPrice(row.original.price),
   },
   {
     accessorKey: "stock",
@@ -70,7 +71,7 @@ const columns = [
   {
     accessorKey: "status",
     header: "Status",
-    cell: ({ row }) => (
+    cell: ({ row }: { row: Row<Product> }) => (
       <Badge variant={row.original.active ? "default" : "secondary"}>
         {row.original.active ? 'Active' : 'Inactive'}
       </Badge>
@@ -79,18 +80,21 @@ const columns = [
   {
     id: "actions",
     header: "Actions",
-    cell: ({ row }) => (
-      <div className="flex items-center justify-end gap-2">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => router.push(`/dashboard/products/${row.original.id}/edit`)}
-        >
-          <Pencil className="h-4 w-4" />
-        </Button>
-        <DeleteProductButton id={row.original.id} />
-      </div>
-    ),
+    cell: ({ row }: { row: Row<Product> }) => {
+      const router = useRouter();
+      return (
+        <div className="flex items-center justify-end gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => router.push(`/dashboard/products/${row.original.id}/edit`)}
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <DeleteProductButton id={row.original.id} />
+        </div>
+      );
+    },
   },
 ]
 
