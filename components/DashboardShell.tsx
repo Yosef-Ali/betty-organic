@@ -30,7 +30,7 @@ export function DashboardShell({ children, role }: DashboardShellProps) {
       <div className="flex flex-col flex-1 overflow-hidden">
         <main
           className={`flex-1 overflow-y-auto transition-[margin] duration-300 ${
-            isCustomer ? 'ml-60' : sidebarExpanded ? 'ml-60' : 'ml-14'
+            isCustomer ? 'ml-0 md:ml-60' : sidebarExpanded ? 'ml-0 md:ml-60' : 'ml-0 md:ml-14'
           }`}
         >
           <Header
