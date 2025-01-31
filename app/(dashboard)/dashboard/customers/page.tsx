@@ -5,7 +5,11 @@ import { redirect } from 'next/navigation';
 
 export default async function CustomersPage() {
   // Get current user for role-based access
-  const { isAdmin } = await getCurrentUser();
+  const authData = await getCurrentUser();
+  if (!authData) {
+    redirect('/auth/login');
+  }
+  const { isAdmin } = authData ?? {};
 
   const supabase = await createClient();
 
@@ -53,7 +57,7 @@ export default async function CustomersPage() {
   }));
 
   return (
-    <div className="flex-1 space-y-4 p-8 pt-6">
+    <div className="flex-1 space-y-4 md:p-8 pt-6">
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <h2 className="text-3xl font-bold tracking-tight">Customers</h2>

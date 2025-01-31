@@ -41,6 +41,10 @@ interface User {
   avatar_url?: string;
 }
 
+interface UserTableProps {
+  initialUsers: User[];
+}
+
 function UserTableContent({ users, isLoading, onDelete }: {
   users: User[]
   isLoading: boolean
@@ -148,9 +152,9 @@ function UserTableContent({ users, isLoading, onDelete }: {
   )
 }
 
-export default function UserTable() {
-  const [users, setUsers] = useState<User[]>([])
-  const [filteredUsers, setFilteredUsers] = useState<User[]>([])
+export default function UserTable({ initialUsers }: UserTableProps) {
+  const [users, setUsers] = useState<User[]>(initialUsers);
+  const [filteredUsers, setFilteredUsers] = useState<User[]>(initialUsers);
   const [isLoading, setIsLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const { toast } = useToast()

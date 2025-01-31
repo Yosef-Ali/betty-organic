@@ -22,7 +22,7 @@ export default async function ProfilePage() {
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-64px)]">
-      <div className="flex-1 space-y-4 p-8 pt-6">
+      <div className="flex-1 space-y-4 md:p-8 pt-6">
         <div className="flex items-center justify-between">
           <div className="space-y-1">
             <h2 className="text-3xl font-bold tracking-tight">Profile</h2>
@@ -32,7 +32,7 @@ export default async function ProfilePage() {
           </div>
         </div>
         <Tabs defaultValue="profile" className="w-full">
-          <TabsList className="w-[400px]">
+          <TabsList className="md:w-[400px]">
             <TabsTrigger value="profile" className="w-1/2">
               Profile
             </TabsTrigger>

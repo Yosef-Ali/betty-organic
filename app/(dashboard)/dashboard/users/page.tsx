@@ -9,16 +9,25 @@ function LoadingFallback() {
   return <div className="p-4">Loading users...</div>;
 }
 
-export default async function UsersPage() {
+export default async function UsersPage({ initialUsers }: {
+  initialUsers: {
+    id: any;
+    name: any;
+    email: any;
+    role: any;
+    status: any;
+    avatar_url: any;
+  }[]
+}) {
   try {
-    const initialUsers = await getUsers();
+    const users = await getUsers();
 
     return (
       <div className="container mx-auto py-6">
         <h2 className="text-2xl font-bold mb-4">Users</h2>
         <ErrorBoundary FallbackComponent={ErrorFallbackComponent}>
           <Suspense fallback={<LoadingFallback />}>
-            <UserTable initialUsers={initialUsers} />
+            <UserTable initialUsers={users} />
           </Suspense>
         </ErrorBoundary>
       </div>
