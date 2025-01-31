@@ -1,11 +1,11 @@
 import { Suspense } from 'react';
-import { ProductTable } from '@/components/ProductTable';
+import ProductTable from '@/components/ProductTable';
 import { getCurrentUser } from '@/app/actions/auth';
 import { redirect } from 'next/navigation';
 
 export default async function ProductsPage() {
   return (
-    <div className="flex-1 space-y-4 md:p-8 pt-6">
+    <div className="flex-1 space-y-4  pt-6">
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <h2 className="text-3xl font-bold tracking-tight">Products</h2>
