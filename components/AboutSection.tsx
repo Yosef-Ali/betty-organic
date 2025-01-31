@@ -2,7 +2,7 @@ import Image from 'next/image';
 import { getAbout } from '@/app/actions/aboutActions';
 import { revalidatePath } from 'next/cache';
 
-export async function AboutSection() {
+export async function AboutSection(): Promise<JSX.Element> {
   const aboutContent = await getAbout();
 
   // Default content if no dynamic content is available

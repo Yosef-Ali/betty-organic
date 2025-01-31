@@ -1,12 +1,13 @@
-"use client";
+'use client';
 
-import { FloatingFruit } from "./floating-fruit";
-import { HeroContent } from "./hero/hero-content";
-import { HeroImage } from "./hero/hero-image";
+import { FloatingFruit } from './floating-fruit';
+import { HeroContent } from './hero/hero-content';
+import { HeroImage } from './hero/hero-image';
 
 export function Hero() {
   return (
-    <div className="relative w-full min-h-[90vh] md:min-h-screen bg-[#ffc600] mb-8 md:mb-16 overflow-hidden pt-16 md:pt-24">
+    <div className="relative w-full min-h-screen mb-8 md:mb-16 overflow-hidden pt-16 md:pt-24">
+
       <div className="absolute inset-0 w-full h-full grid grid-cols-[repeat(auto-fill,60px)] grid-rows-[repeat(auto-fit,minmax(60px,1fr))] z-0">
         {Array.from({ length: 400 }).map((_, i) => (
           <div key={i} className="border-[0.5px] border-black/10 min-h-[60px]" />

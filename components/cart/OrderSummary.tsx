@@ -68,8 +68,8 @@ export const OrderSummary: FC<OrderSummaryProps> = ({
   orderNumber,
   isAdmin,
 }) => {
-  const [customerList, setCustomerList] = useState([]);
-  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [customerList, setCustomerList] = useState<Array<{ id: string; name: string }>>([]);
+  const [selectedCustomer, setSelectedCustomer] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
     async function fetchCustomers() {

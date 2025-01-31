@@ -25,7 +25,7 @@ export async function Navigation() {
                 sizes="(max-width: 768px) 32px, 40px"
               />
             </div>
-            <span className="relative z-10 text-lg md:text-2xl">
+            <span className="relative z-10 text-base md:text-lg lg:text-2xl">
               Betty&apos;s Organic
             </span>
             <div className="absolute -bottom-2 left-0 w-full h-2 bg-[#e65f00] opacity-0 scale-x-0 group-hover:opacity-100 group-hover:scale-x-100 transition-all duration-300 origin-left z-0"></div>

@@ -17,10 +17,8 @@ export const revalidate = 0;
 export default function Home() {
   return (
     <>
-      <main className="flex flex-col items-center bg-[#ffc600] relative">
-        <section id="hero">
-          <Hero />
-        </section>
+      <main className="flex flex-col items-center bg-[#ffc600] relative border border-red-400">
+        <Hero />
         <div className="w-full max-w-[1440px] px-4 sm:px-6 lg:px-8">
           <div className="space-y-32">
             <section id="products">
