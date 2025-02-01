@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
-import { motion } from "framer-motion";
-import { FruitCard } from "./fruit-card";
-import { useState, useEffect, useCallback } from "react";
-import { Search, ShoppingCart, X } from "lucide-react";
-import { CartSheet } from "./marcking-cart/CartSheet";
+import { motion } from 'framer-motion';
+import { FruitCard } from './fruit-card';
+import { useState, useEffect, useCallback } from 'react';
+import { Search, ShoppingCart, X } from 'lucide-react';
+import { CartSheet } from './marcking-cart/CartSheet';
 import { getProducts } from '@/app/actions/productActions';
 import { Product } from '@/lib/supabase/db.types';
 import debounce from 'lodash/debounce';
@@ -13,7 +13,7 @@ export function ProductSection() {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
 
@@ -38,7 +38,7 @@ export function ProductSection() {
     debounce((query: string) => {
       setIsSearching(false);
     }, 300),
-    []
+    [],
   );
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -49,7 +49,7 @@ export function ProductSection() {
   };
 
   const clearSearch = () => {
-    setSearchQuery("");
+    setSearchQuery('');
     setIsSearching(false);
   };
 
@@ -61,21 +61,27 @@ export function ProductSection() {
       product.name,
       product.description,
       product.category,
-      product.unit
+      product.unit,
     ].map(field => (field || '').toLowerCase());
 
     return searchFields.some(field => field.includes(searchLower));
   });
 
   return (
-    <div className="w-full max-w-[1440px] px-4 sm:px-6 lg:px-8">
+    <div className="w-full max-w-[1440px] lg:px-8">
       <div className="space-y-32">
-        <section id="products" className="w-full py-8 md:py-24 pb-32 relative z-30">
-          <div className="container mx-auto px-2 md:px-6 relative z-30">
+        <section
+          id="products"
+          className="w-full py-8 md:py-24 pb-32 relative z-30"
+        >
+          <div className=" mx-auto px-2 md:px-6 relative z-30">
             <div className="mb-8 md:mb-12">
-              <h2 className="mb-4 text-3xl md:text-4xl font-bold text-center">Fresh Fruits</h2>
-              <p className="mx-auto max-w-2xl text-base md:text-lg text-gray-700 text-center">
-                Discover our handpicked selection of fresh, organic fruits delivered straight to your door.
+              <h2 className="mb-4 text-lg md:text-3xl font-bold text-center">
+                Fresh Fruits
+              </h2>
+              <p className="mx-auto max-w-2xl text-[10px] md:text-base text-gray-700 text-center">
+                Discover our handpicked selection of fresh, organic fruits
+                delivered straight to your door.
               </p>
             </div>
 
@@ -98,7 +104,11 @@ export function ProductSection() {
                   </button>
                 )}
               </div>
-              <CartSheet isOpen={isCartOpen} onOpenChange={setIsCartOpen} />
+              <div className="relative z-50">
+                <div className="relative z-[9999]">
+                  <CartSheet isOpen={isCartOpen} onOpenChange={setIsCartOpen} />
+                </div>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4 max-w-[1920px] mx-auto mb-16">
@@ -120,22 +130,30 @@ export function ProductSection() {
                 </div>
               )}
 
-              {!isLoading && !isError && filteredProducts.map((product) => {
-                const optimizedProduct = {
-                  ...product,
-                  imageUrl: product.imageUrl ? `${product.imageUrl}?w=500&q=75` : '/placeholder.svg'
-                };
-                return (
-                  <motion.div
-                    key={product.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    <FruitCard {...optimizedProduct} description={product.description || undefined} unit={product.unit || undefined} />
-                  </motion.div>
-                );
-              })}
+              {!isLoading &&
+                !isError &&
+                filteredProducts.map(product => {
+                  const optimizedProduct = {
+                    ...product,
+                    imageUrl: product.imageUrl
+                      ? `${product.imageUrl}?w=500&q=75`
+                      : '/placeholder.svg',
+                  };
+                  return (
+                    <motion.div
+                      key={product.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <FruitCard
+                        {...optimizedProduct}
+                        description={product.description || undefined}
+                        unit={product.unit || undefined}
+                      />
+                    </motion.div>
+                  );
+                })}
             </div>
           </div>
         </section>

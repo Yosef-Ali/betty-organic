@@ -1,9 +1,9 @@
-import { CartItem as CartItemType } from "../../../types/cart";
-import Image from "next/image";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Minus, Plus } from "lucide-react";
-import { useMarketingCartStore } from "@/store/cartStore";
+import { CartItem as CartItemType } from '../../../types/cart';
+import Image from 'next/image';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Minus, Plus } from 'lucide-react';
+import { useMarketingCartStore } from '@/store/cartStore';
 
 interface CartItemProps {
   item: CartItemType;
@@ -27,8 +27,8 @@ export function CartItem({ item }: CartItemProps) {
 
   return (
     <div className="flex items-center justify-between space-x-4 py-4">
-      <div className="flex items-center space-x-4">
-        <div className="relative h-16 w-16 overflow-hidden rounded-md">
+      <div className="sm:flex items-center space-x-4">
+        <div className="relative hidden sm:block h-16 w-16 overflow-hidden rounded-md">
           <Image
             src={item.imageUrl}
             alt={item.name}

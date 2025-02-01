@@ -136,7 +136,7 @@ export default function Sidebar({
             height={40}
             className="w-10 h-10 object-cover cursor-pointer"
           />
-          {(expanded || isMobile || isCustomer) && (
+          {(expanded || isMobile) && (
             <span className="ml-3 text-lg font-bold whitespace-nowrap overflow-hidden transition-all duration-300">
               Betty Organic
             </span>
@@ -159,13 +159,13 @@ export default function Sidebar({
           <SidebarLink
             key={item.href}
             {...item}
-            expanded={expanded || isMobile || isCustomer}
+            expanded={expanded || isMobile}
             onClick={isMobile ? onMobileMenuClose : undefined}
           />
         ))}
       </nav>
       <div className="px-2 py-5"></div>
-      {!isMobile && !isCustomer && (
+      {!isMobile && (
         <ToggleButton expanded={expanded} onClick={toggleSidebar} />
       )}
     </>
@@ -173,13 +173,7 @@ export default function Sidebar({
 
   const wrappedContent = (
     <TooltipProvider>
-      <aside
-        className={`fixed inset-y-0 left-0 z-10 flex flex-col bg-background border-r ${
-          isCustomer
-            ? 'w-60'
-            : `transition-all duration-300 ${expanded ? 'w-60' : 'w-14'}`
-        }`}
-      >
+      <aside className="fixed inset-y-0 left-0 z-10 flex flex-col bg-background border-r transition-all duration-300 ${expanded ? 'w-60' : 'w-14'}">
         {sidebarContent}
       </aside>
     </TooltipProvider>
