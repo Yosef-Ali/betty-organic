@@ -47,8 +47,8 @@ const formSchema = z.object({
   }),
   phone: z.string().optional(),
   location: z.string().optional(),
-  status: z.enum(['active', 'inactive']),
-  imageUrl: z.string().or(z.literal('')).default(''),
+  status: z.string(),
+  imageUrl: z.string().optional().nullable(),
 });
 
 export type CustomerFormValues = z.infer<typeof formSchema>;
@@ -77,38 +77,36 @@ export function CustomerForm({
   async function onSubmit(data: CustomerFormValues) {
     setIsLoading(true);
     try {
-      const customerData = { ...data };
-      if (!initialData?.id) {
-        customerData.id = uuidv4();
-      }
+      const customerId = initialData?.id || uuidv4();
+      
       const result = await updateProfile({
-        id: initialData?.id,
-        email: data.email,
+        id: customerId,
         fullName: data.fullName,
-        phone: data.phone,
+        email: data.email,
         location: data.location,
         imageUrl: data.imageUrl,
-        status: data.status,
+        status: data.status || 'active',
         role: 'customer',
       });
 
-      if (result.success) {
-        toast({
-          title: initialData ? 'Customer updated' : 'Customer created',
-          description: `The customer has been successfully ${
-            initialData ? 'updated' : 'created'
-          }.`,
-        });
-      } else {
+      if (!result.success) {
         throw new Error(result.error || 'Failed to save customer');
       }
+
+      toast({
+        title: initialData ? 'Customer updated' : 'Customer created',
+        description: `The customer has been successfully ${
+          initialData ? 'updated' : 'created'
+        }.`,
+      });
+
       router.push('/dashboard/customers');
       router.refresh();
     } catch (error) {
       console.error('Error saving customer:', error);
       toast({
         title: 'Error',
-        description: 'Failed to save customer. Please try again.',
+        description: error instanceof Error ? error.message : 'Failed to save customer. Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -320,7 +318,11 @@ export function CustomerForm({
             </div>
 
             <div className="flex items-center justify-center gap-2 md:hidden">
-              <Button variant="outline" size="sm" onClick={() => form.reset()}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => form.reset()}
+              >
                 Discard
               </Button>
               <Button size="sm" type="submit" disabled={isLoading}>

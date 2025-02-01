@@ -23,7 +23,7 @@ export default async function UsersPage({ initialUsers }: {
     const users = await getUsers();
 
     return (
-      <div className="container mx-auto py-6">
+      <div className="mx-auto py-6">
         <h2 className="text-2xl font-bold mb-4">Users</h2>
         <ErrorBoundary FallbackComponent={ErrorFallbackComponent}>
           <Suspense fallback={<LoadingFallback />}>

@@ -12,15 +12,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, ChevronLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { TestimonialTable } from '../testimonials/TestimonialTable';
-import { TestimonialForm } from '../testimonials/EditTestimonialForm';
 import { Testimonial } from '@/lib/types';
+import { TestimonialTable } from './TestimonialTable';
+import { TestimonialForm } from './EditTestimonialForm';
 
 export function SettingsTestimonials() {
   const [activeTab, setActiveTab] = useState('all');
   const [isAddingTestimonial, setIsAddingTestimonial] = useState(false);
-  const [editingTestimonial, setEditingTestimonial] =
-    useState<Testimonial | undefined>(undefined);
+  const [editingTestimonial, setEditingTestimonial] = useState<
+    Testimonial | undefined
+  >(undefined);
 
   const handleTabChange = (value: string) => {
     setActiveTab(value);
@@ -42,7 +43,7 @@ export function SettingsTestimonials() {
   const isEditing = Boolean(editingTestimonial);
 
   return (
-    <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">
+    <main className="grid flex-1 items-start gap-4  md:gap-8">
       <Tabs
         defaultValue="all"
         value={activeTab}
@@ -88,15 +89,15 @@ export function SettingsTestimonials() {
                       {isAddingTestimonial
                         ? 'Add Testimonial'
                         : isEditing
-                          ? 'Edit Testimonial'
-                          : 'Testimonials'}
+                        ? 'Edit Testimonial'
+                        : 'Testimonials'}
                     </CardTitle>
                     <CardDescription>
                       {isAddingTestimonial
                         ? 'Create a new testimonial'
                         : isEditing
-                          ? 'Edit existing testimonial'
-                          : 'Manage customer testimonials that appear on the marketing page.'}
+                        ? 'Edit existing testimonial'
+                        : 'Manage customer testimonials that appear on the marketing page.'}
                     </CardDescription>
                   </div>
                 </div>

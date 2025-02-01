@@ -1,25 +1,16 @@
 'use client';
 
-import { Star } from 'lucide-react';
+import React from 'react';
 import { UseFormReturn } from 'react-hook-form';
-import {
-  FormField,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormMessage,
-} from '@/components/ui/form';
-import { TestimonialFormValues } from './TestimonialFormSchema';
+import { FormField, FormItem, FormLabel } from '@/components/ui/form';
+import { cn } from '@/lib/utils';
+import { Star } from 'lucide-react';
 
 interface StarRatingProps {
-  form: UseFormReturn<TestimonialFormValues>;
+  form: UseFormReturn<any>;
 }
 
 export function StarRating({ form }: StarRatingProps) {
-  const handleRatingClick = (rating: number) => {
-    form.setValue('rating', rating);
-  };
-
   return (
     <FormField
       control={form.control}
@@ -27,27 +18,28 @@ export function StarRating({ form }: StarRatingProps) {
       render={({ field }) => (
         <FormItem>
           <FormLabel>Rating</FormLabel>
-          <FormControl>
-            <div className="flex items-center gap-1">
-              {[1, 2, 3, 4, 5].map(rating => (
-                <button
-                  key={rating}
-                  type="button"
-                  onClick={() => handleRatingClick(rating)}
-                  className="focus:outline-none"
-                >
-                  <Star
-                    className={`h-6 w-6 ${
-                      rating <= (field.value || 0)
-                        ? 'fill-yellow-400 text-yellow-400'
-                        : 'fill-none text-gray-300'
-                    } transition-colors hover:fill-yellow-400 hover:text-yellow-400`}
-                  />
-                </button>
-              ))}
-            </div>
-          </FormControl>
-          <FormMessage />
+          <div className="flex flex-wrap gap-2">
+            {[1, 2, 3, 4, 5].map(rating => (
+              <button
+                key={rating}
+                type="button"
+                className={cn(
+                  'p-2 rounded-full transition-colors hover:bg-primary/10 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2',
+                  'touch-manipulation', // Better touch target
+                  rating <= field.value && 'text-yellow-500',
+                )}
+                onClick={() => field.onChange(rating)}
+                aria-label={`Rate ${rating} stars`}
+              >
+                <Star
+                  className={cn(
+                    'w-8 h-8 md:w-6 md:h-6', // Larger on mobile
+                    rating <= field.value ? 'fill-current' : 'fill-none',
+                  )}
+                />
+              </button>
+            ))}
+          </div>
         </FormItem>
       )}
     />

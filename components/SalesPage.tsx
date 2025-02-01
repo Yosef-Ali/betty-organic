@@ -7,10 +7,38 @@ import { ProductGrid } from './ProductGrid';
 import { SalesHeader } from './SalesHeader';
 import { SalesCartSheet } from './cart/SalesCartSheet';
 import { getProducts } from '@/app/actions/productActions';
-import { Product } from '@/types/product';
 
-export type ProductStatus = 'Available' | 'Out of Stock';
-export type ProductWithStatus = Product & { status: ProductStatus };
+export interface Product {
+  id: string;
+  name: string;
+  description: string | null;
+  price: number;
+  stock: number;
+  imageUrl: string;
+  category: string;
+  active: boolean;
+  totalSales: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProductAPIResponse {
+  id: string;
+  name: string;
+  description: string | null;
+  price: number;
+  stock: number;
+  image_url: string | null;
+  category: string | null;
+  active: boolean | null;
+  total_sales: number;
+  createdat: string;
+  updated_at: string;
+}
+
+export interface ProductWithStatus extends Product {
+  status: 'Available' | 'Out of Stock';
+}
 
 const SalesPage: FC = () => {
   const [products, setProducts] = useState<ProductWithStatus[]>([]);
@@ -24,9 +52,19 @@ const SalesPage: FC = () => {
     async function fetchProducts() {
       try {
         const allProducts = await getProducts();
-        const productsWithStatus = allProducts.map((p: Product) => ({
-          ...p,
-          status: p.stock > 0 ? 'Available' : ('Out of Stock' as ProductStatus),
+        const productsWithStatus = allProducts.map((p): ProductWithStatus => ({
+          id: p.id,
+          name: p.name,
+          description: p.description,
+          price: p.price ?? 0,
+          stock: p.stock ?? 0,
+          imageUrl: p.imageUrl || '/default-product.png',
+          category: p.category || 'Uncategorized',
+          active: p.active ?? true,
+          totalSales: p.totalsales ?? 0,
+          createdAt: p.createdat ?? '',
+          updatedAt: p.updatedat ?? '',
+          status: (p.stock ?? 0) > 0 ? 'Available' : 'Out of Stock'
         }));
 
         // Filter out inactive products and set availability status
@@ -48,8 +86,8 @@ const SalesPage: FC = () => {
       name: product.name,
       imageUrl: product.imageUrl || '/placeholder.png',
       pricePerKg: product.price,
-      grams: product.unit === 'kg' ? 1000 : 100, // Default to 1kg if unit is kg, else 100g
-      unit: product.unit,
+      grams: product.stock > 0 ? 1000 : 100, // Default to 1kg if stock is available, else 100g
+      unit: 'kg',
     };
 
     addItem(cartItem);

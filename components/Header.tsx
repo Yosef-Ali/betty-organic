@@ -97,31 +97,32 @@ export default function Header({ onMobileMenuToggle, profile }: HeaderProps) {
 
   const generateBreadcrumbs = () => {
     if (!clientPathname || typeof clientPathname !== 'string') {
-      return ['Dashboard'];
+      return [{ label: 'Dashboard', href: null }];
     }
 
     const rawSegments = clientPathname.split('/').filter(Boolean);
-    const pathSegments = rawSegments.map(segment => segment.replace(/-/g, ' '));
+    const pathSegments = rawSegments.map(segment => String(segment).replace(/-/g, ' '));
 
     if (pathSegments.length === 0) {
-      return ['Dashboard'];
+      return [{ label: 'Dashboard', href: null }];
     }
 
-    return pathSegments.map((segment, index) => {
-      const hrefSegments = rawSegments.slice(0, index + 1);
-      if (index === 0 && hrefSegments[0].toLowerCase() === 'dashboard') {
-        hrefSegments[0] = 'dashboard';
-      }
-      const href = '/' + hrefSegments.join('/');
+    // For mobile view, show only first and last segments if path depth > 2
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+    if (isMobile && pathSegments.length > 2) {
+      const firstSegment = pathSegments[0];
+      const lastSegment = pathSegments[pathSegments.length - 1];
+      return [
+        { label: firstSegment, href: `/${rawSegments[0]}` },
+        { label: '...', href: null },
+        { label: lastSegment, href: `/${rawSegments.slice(0, -1).join('/')}` }
+      ];
+    }
 
-      const label =
-        filteredNavItems.find(item => item.href === href)?.label ||
-        segment
-          .split(' ')
-          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-          .join(' ');
-      return label;
-    });
+    return pathSegments.map((segment, index) => ({
+      label: segment,
+      href: index === pathSegments.length - 1 ? null : `/${pathSegments.slice(0, index + 1).join('/')}`
+    }));
   };
 
   return (

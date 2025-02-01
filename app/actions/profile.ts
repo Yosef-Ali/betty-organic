@@ -22,12 +22,11 @@ export async function updateProfile(data: ProfileData) {
       .from('profiles')
       .upsert({
         id: data.id,
-        name: data.fullName, // Changed from full_name to name
+        name: data.fullName,
         email: data.email,
-        phone: data.phone || null,
-        location: data.location || null,
-        status: data.status === 'active',
-        image_url: data.imageUrl || null,
+        address: data.location || null,
+        avatar_url: data.imageUrl || null,
+        status: data.status,
         role: data.role,
         updated_at: new Date().toISOString(),
       })
@@ -35,6 +34,7 @@ export async function updateProfile(data: ProfileData) {
       .single();
 
     if (error) {
+      console.error('Supabase error:', error);
       return { success: false, error: error.message };
     }
 
@@ -65,7 +65,7 @@ export async function getProfile(id: string) {
     return data
       ? {
           id: data.id,
-          fullName: data.name, // Changed from full_name to name
+          fullName: data.name, 
           email: data.email,
           phone: data.phone || '',
           location: data.location || '',
@@ -98,7 +98,7 @@ export async function getCustomers() {
     return (
       data?.map(profile => ({
         id: profile.id,
-        fullName: profile.name, // Changed from full_name to name
+        fullName: profile.name, 
         email: profile.email,
         phone: profile.phone || '',
         location: profile.location || '',
@@ -129,7 +129,7 @@ export async function getCustomer(id: string) {
     return data
       ? {
           id: data.id,
-          fullName: data.name, // Changed from full_name to name
+          fullName: data.name, 
           email: data.email,
           phone: data.phone || '',
           location: data.location || '',
@@ -152,9 +152,9 @@ export async function searchCustomers(query: string) {
       .select('*')
       .eq('role', 'customer')
       .or(
-        `name.ilike.%${query}%,email.ilike.%${query}%,phone.ilike.%${query}%`, // Changed from full_name to name
+        `name.ilike.%${query}%,email.ilike.%${query}%,phone.ilike.%${query}%`, 
       )
-      .order('name'); // Changed from full_name to name
+      .order('name'); 
 
     if (error) {
       console.error('Supabase error searching customers:', error);
@@ -164,7 +164,7 @@ export async function searchCustomers(query: string) {
     return (
       data?.map(profile => ({
         id: profile.id,
-        fullName: profile.name, // Changed from full_name to name
+        fullName: profile.name, 
         email: profile.email,
         phone: profile.phone || '',
         location: profile.location || '',

@@ -17,7 +17,7 @@ import {
 } from './TestimonialFormSchema';
 import { TestimonialDetailsForm } from './TestimonialDetailsForm';
 import { AvatarUpload } from '@/components/avatar-upload';
-import { StarRating } from './StarRating';
+import { StarRating } from '@/components/testimonials/StarRating';
 import { Testimonial } from '@/lib/types/testimonials';
 
 interface TestimonialFormProps {
@@ -39,21 +39,21 @@ export function TestimonialForm({
     resolver: zodResolver(testimonialFormSchema),
     defaultValues: initialData
       ? {
-        name: initialData.author,
-        role: initialData.role,
-        content: initialData.content,
-        status: initialData.approved ? 'active' : 'inactive',
-        image_url: initialData.image_url || '',
-        rating: initialData.rating ?? 5,
-      }
+          name: initialData.author,
+          role: initialData.role,
+          content: initialData.content,
+          status: initialData.approved ? 'active' : 'inactive',
+          image_url: initialData.image_url || '',
+          rating: initialData.rating ?? 5,
+        }
       : {
-        name: '',
-        role: '',
-        content: '',
-        status: 'active',
-        image_url: '',
-        rating: 5,
-      },
+          name: '',
+          role: '',
+          content: '',
+          status: 'active',
+          image_url: '',
+          rating: 5,
+        },
   });
 
   const onSubmit = async (data: TestimonialFormValues) => {
@@ -101,11 +101,11 @@ export function TestimonialForm({
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         <div className="grid gap-8">
-          <div className="flex gap-8">
-            <div className="flex-1">
+          <div className="flex flex-col md:flex-row gap-8">
+            <div className="w-full md:flex-1">
               <TestimonialDetailsForm form={form} />
             </div>
-            <div className="w-72 space-y-8">
+            <div className="w-full md:w-72 space-y-8">
               <AvatarUpload
                 form={form}
                 name="image_url"
@@ -144,8 +144,8 @@ export function TestimonialForm({
             {isLoading
               ? 'Saving...'
               : mode === 'edit'
-                ? 'Update Testimonial'
-                : 'Create Testimonial'}
+              ? 'Update Testimonial'
+              : 'Create Testimonial'}
           </Button>
         </div>
       </form>

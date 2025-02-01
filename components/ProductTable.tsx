@@ -230,62 +230,35 @@ const ProductTable = () => {
   });
 
   const renderTable = (products: Product[]) => (
-    <div className="w-full">
-      <div className="rounded-md border overflow-x-auto px-2 pb-2 sm:px-4 sm:pb-4 relative">
-        {/* Scroll indicator */}
-        <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background via-background/80 to-transparent pointer-events-none hidden sm:block" />
-        <Table className="min-w-[800px] sm:min-w-full">
-          <TableHeader>
-            <TableRow>
-              {/* Visible on ≥768px - Product preview image */}
-              <TableHead className="hidden md:table-cell">
-                Image
-                <span className="ml-1 text-muted-foreground/50 sm:hidden">*</span>
-              </TableHead>
-              
-              {/* Always visible - Essential identifier */}
-              <TableHead>Name</TableHead>
-
-              {/* Visible on ≥640px - Pricing information */}
-              <TableHead className="hidden sm:table-cell">
-                Price
-                <span className="ml-1 text-muted-foreground/50 xs:hidden">*</span>
-              </TableHead>
-
-              {/* Visible on ≥768px - Inventory tracking */}
-              <TableHead className="hidden md:table-cell">
-                Stock
-                <span className="ml-1 text-muted-foreground/50 sm:hidden">*</span>
-              </TableHead>
-
-              {/* Always visible - Availability status */}
-              <TableHead>Status</TableHead>
-
-              {/* Visible on ≥1024px - Last update time */}
-              <TableHead className="hidden lg:table-cell">
-                Updated
-                <span className="ml-1 text-muted-foreground/50 md:hidden">*</span>
-              </TableHead>
-
-              {/* Always visible - Action controls */}
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <ProductTableContent
-              products={products}
-              isLoading={isLoading}
-              onDelete={handleDelete}
-              statusFilter={activeTab}
-            />
-          </TableBody>
-        </Table>
-      </div>
-      <div className="mt-2 text-xs text-muted-foreground/60 sm:hidden">
-        * Column available on larger screens
+    <div className="w-full overflow-hidden">
+      <div className="w-full overflow-x-auto">
+        <div className="min-w-[800px] rounded-md border px-2 pb-2 sm:px-4 sm:pb-4 relative">
+          <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background via-background/80 to-transparent pointer-events-none hidden sm:block" />
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="hidden md:table-cell">Image</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead className="hidden sm:table-cell">Price</TableHead>
+                <TableHead className="hidden md:table-cell">Stock</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="hidden lg:table-cell">Updated</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <ProductTableContent
+                products={products}
+                isLoading={isLoading}
+                onDelete={handleDelete}
+                statusFilter={activeTab}
+              />
+            </TableBody>
+          </Table>
+        </div>
       </div>
     </div>
-  );
+  )
 
   return (
     <div className="h-full flex-1 flex-col space-y-8 md:p-4">
@@ -302,7 +275,7 @@ const ProductTable = () => {
               placeholder="Search products..."
               className="h-8 w-[150px] lg:w-[250px]"
               value=""
-              onChange={(e) => {}}
+              onChange={(e) => { }}
             />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
