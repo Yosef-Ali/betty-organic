@@ -14,6 +14,36 @@ export type AuthResponse<T = unknown> = {
   };
 };
 
+export async function signInWithGoogle(): Promise<AuthResponse> {
+  const supabase = await createClient();
+
+  try {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
+      },
+    });
+
+    if (error) {
+      return {
+        error: error.message,
+        success: false,
+      };
+    }
+
+    return {
+      success: true,
+    };
+  } catch (error) {
+    console.error('Google sign in error:', error);
+    return {
+      error: 'An unexpected error occurred',
+      success: false,
+    };
+  }
+}
+
 export async function signIn(formData: FormData): Promise<AuthResponse> {
   const supabase = await createClient();
 
