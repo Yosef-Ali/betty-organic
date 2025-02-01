@@ -29,6 +29,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { deleteProduct } from "@/app/actions/productActions"
+import { Image } from 'next/image'
 
 const formatPrice = (price: number) => {
   return new Intl.NumberFormat('en-ET', {
@@ -44,12 +45,15 @@ const columns = [
     header: "Image",
     cell: ({ row }: { row: Row<Product> }) => (
       <div className="relative w-10 h-10">
-        <img
+        <Image
           src={row.original.imageUrl || '/placeholder-product.jpg'}
           alt={row.original.name}
           className="w-full h-full object-cover rounded-md"
+          fill
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           onError={(e) => {
-            e.currentTarget.src = '/placeholder-product.jpg'
+            const target = e.target as HTMLImageElement;
+            target.src = '/placeholder-product.jpg';
           }}
         />
       </div>
@@ -81,7 +85,6 @@ const columns = [
     id: "actions",
     header: "Actions",
     cell: ({ row }: { row: Row<Product> }) => {
-      const router = useRouter();
       return (
         <div className="flex items-center justify-end gap-2">
           <Button

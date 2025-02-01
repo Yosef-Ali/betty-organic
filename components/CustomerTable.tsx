@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { PlusCircle, MoreHorizontal, ListFilter, File } from 'lucide-react'
-import { getCustomers, deleteCustomer } from '@/app/actions/customersActions'
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { PlusCircle, MoreHorizontal, ListFilter, File } from 'lucide-react';
+import { getCustomers, deleteCustomer } from '@/app/actions/customersActions';
 import {
   Card,
   CardContent,
@@ -11,9 +11,9 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
+} from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -22,7 +22,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from '@/components/ui/dropdown-menu';
 import {
   Table,
   TableBody,
@@ -30,13 +30,28 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
-import { useToast } from '@/hooks/use-toast'
-import { formatDistanceToNow } from 'date-fns'
-import Image from 'next/image'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+} from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { useToast } from '@/hooks/use-toast';
+import { formatDistanceToNow } from 'date-fns';
+import Image from 'next/image';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { useCustomers } from '@/hooks/useCustomers';
 import CustomerRow from './CustomerRow';
 import CustomerTableContent from './CustomerTableContent';
@@ -77,7 +92,7 @@ export function CustomerTable({ initialCustomers }: CustomerTableProps) {
     setSearchTerm,
     filterStatus,
     setFilterStatus,
-    handleDelete
+    handleDelete,
   } = useCustomers(initialCustomers);
 
   return (
@@ -107,7 +122,7 @@ export function CustomerTable({ initialCustomers }: CustomerTableProps) {
                 placeholder="Search customers..."
                 className="h-8 w-full sm:w-[250px]"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={e => setSearchTerm(e.target.value)}
               />
             </div>
 
@@ -182,7 +197,9 @@ export function CustomerTable({ initialCustomers }: CustomerTableProps) {
           <Card>
             <CardHeader>
               <CardTitle>All Customers</CardTitle>
-              <CardDescription>View and manage all your customers.</CardDescription>
+              <CardDescription>
+                View and manage all your customers.
+              </CardDescription>
             </CardHeader>
             <CardContent className="p-4">
               <CustomerTableWrapper
@@ -198,11 +215,15 @@ export function CustomerTable({ initialCustomers }: CustomerTableProps) {
           <Card>
             <CardHeader>
               <CardTitle>Customers Without Orders</CardTitle>
-              <CardDescription>View customers who haven't placed any orders yet.</CardDescription>
+              <CardDescription>
+                View customers who haven&apos;t placed any orders yet.
+              </CardDescription>
             </CardHeader>
             <CardContent className="p-0">
               <CustomerTableWrapper
-                customers={filteredCustomers.filter(customer => !customer.orders || customer.orders.length === 0)}
+                customers={filteredCustomers.filter(
+                  customer => !customer.orders || customer.orders.length === 0,
+                )}
                 isLoading={isLoading}
                 onDelete={handleDelete}
               />

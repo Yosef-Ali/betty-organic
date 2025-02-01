@@ -1,6 +1,6 @@
 import { getCurrentUser } from '@/app/actions/auth';
 import { redirect } from 'next/navigation';
-import { EditTestimonialForm } from '@/components/testimonials/EditTestimonialForm';
+import { TestimonialForm } from '@/components/settings/EditTestimonialForm';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 
@@ -24,7 +24,7 @@ export default async function NewTestimonialPage() {
 
       <Card className="mt-6">
         <CardContent className="pt-6">
-          <EditTestimonialForm />
+          <TestimonialForm />
         </CardContent>
       </Card>
     </>
