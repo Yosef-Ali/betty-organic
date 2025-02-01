@@ -16,16 +16,24 @@ export type AuthResponse<T = unknown> = {
 
 export async function signInWithGoogle(): Promise<AuthResponse> {
   const supabase = await createClient();
+  console.log('Starting Google sign in...');
 
   try {
-    const { error } = await supabase.auth.signInWithOAuth({
+    const siteUrl =
+      process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL;
+    console.log('Redirect URL:', `${siteUrl}/auth/callback`);
+
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
+        redirectTo: `${siteUrl}/auth/callback`,
       },
     });
 
+    console.log('Sign in response:', { data, error });
+
     if (error) {
+      console.error('Google sign in error:', error);
       return {
         error: error.message,
         success: false,
