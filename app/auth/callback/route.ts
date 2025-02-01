@@ -5,18 +5,56 @@ import { NextResponse } from 'next/server';
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
+  const error = requestUrl.searchParams.get('error');
+  const error_description = requestUrl.searchParams.get('error_description');
 
-  if (code) {
-    const supabase = createRouteHandlerClient({ cookies });
-    try {
-      await supabase.auth.exchangeCodeForSession(code);
-    } catch (error) {
-      console.error('Error exchanging code for session:', error);
-      return NextResponse.redirect(
-        `${requestUrl.origin}/login?error=invalid_link`,
-      );
-    }
+  // Log the incoming request details
+  console.log('Auth callback received:', {
+    url: request.url,
+    code: code ? 'present' : 'missing',
+    error,
+    error_description,
+  });
+
+  if (error || error_description) {
+    console.error('OAuth error:', { error, error_description });
+    return NextResponse.redirect(
+      `${requestUrl.origin}/auth/login?error=${
+        error || 'unknown'
+      }&error_description=${error_description || 'Authentication failed'}`,
+    );
   }
 
-  return NextResponse.redirect(requestUrl.origin);
+  if (!code) {
+    console.error('No code received in callback');
+    return NextResponse.redirect(
+      `${requestUrl.origin}/auth/login?error=no_code`,
+    );
+  }
+
+  const supabase = createRouteHandlerClient({ cookies });
+  try {
+    const { data, error: sessionError } =
+      await supabase.auth.exchangeCodeForSession(code);
+    if (sessionError) {
+      console.error('Session exchange error:', sessionError);
+      return NextResponse.redirect(
+        `${requestUrl.origin}/auth/login?error=session_exchange&error_description=${sessionError.message}`,
+      );
+    }
+
+    // Log successful authentication
+    console.log('Authentication successful:', {
+      userId: data.session?.user.id,
+      provider: data.session?.user.app_metadata.provider,
+    });
+
+    // Redirect to dashboard on success
+    return NextResponse.redirect(`${requestUrl.origin}/dashboard`);
+  } catch (error) {
+    console.error('Unexpected error in callback:', error);
+    return NextResponse.redirect(
+      `${requestUrl.origin}/auth/login?error=unexpected&error_description=An unexpected error occurred`,
+    );
+  }
 }

@@ -161,10 +161,21 @@ export function LoginForm() {
               setIsPending(true);
               const result = await signInWithGoogle();
               if (result.error) {
-                toast.error(result.error);
+                console.error('Google sign in error:', result.error);
+                toast.error(`Sign in failed: ${result.error}`);
+              }
+              if (result.redirect) {
+                if (result.redirect.type === 'replace') {
+                  router.replace(result.redirect.destination);
+                } else {
+                  router.push(result.redirect.destination);
+                }
               }
             } catch (error) {
-              toast.error('An error occurred during Google sign in');
+              console.error('Google sign in error:', error);
+              toast.error(
+                'An error occurred during Google sign in. Please try again.',
+              );
             } finally {
               setIsPending(false);
             }
