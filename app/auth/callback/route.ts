@@ -49,8 +49,8 @@ export async function GET(request: Request) {
       provider: data.session?.user.app_metadata.provider,
     });
 
-    // Redirect to dashboard on success
-    return NextResponse.redirect(`${requestUrl.origin}/dashboard`);
+    // On successful authentication, redirect to dashboard or homepage
+    return NextResponse.redirect(`${requestUrl.origin}/`);
   } catch (error) {
     console.error('Unexpected error in callback:', error);
     return NextResponse.redirect(

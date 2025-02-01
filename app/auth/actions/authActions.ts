@@ -40,8 +40,20 @@ export async function signInWithGoogle(): Promise<AuthResponse> {
       };
     }
 
+    // Return the URL to the client to handle the redirect
+    if (data?.url) {
+      return {
+        success: true,
+        redirect: {
+          destination: data.url,
+          type: 'replace',
+        },
+      };
+    }
+
     return {
-      success: true,
+      error: 'No redirect URL received from OAuth provider',
+      success: false,
     };
   } catch (error) {
     console.error('Google sign in error:', error);

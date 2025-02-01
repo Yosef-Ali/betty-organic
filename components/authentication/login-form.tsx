@@ -163,14 +163,14 @@ export function LoginForm() {
               if (result.error) {
                 console.error('Google sign in error:', result.error);
                 toast.error(`Sign in failed: ${result.error}`);
+                return;
               }
-              if (result.redirect) {
-                if (result.redirect.type === 'replace') {
-                  router.replace(result.redirect.destination);
-                } else {
-                  router.push(result.redirect.destination);
-                }
+              if (result.redirect?.destination) {
+                // For OAuth redirects, we use window.location to do a full page navigation
+                window.location.href = result.redirect.destination;
+                return;
               }
+              toast.error('No redirect URL received');
             } catch (error) {
               console.error('Google sign in error:', error);
               toast.error(
