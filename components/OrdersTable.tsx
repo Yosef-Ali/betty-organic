@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { ExtendedOrder } from '@/types';
+import { ExtendedOrder } from '@/types/order';
 import { OrdersDataTable } from '@/components/orders/orders-data-table';
 
 type OrdersTableProps = {

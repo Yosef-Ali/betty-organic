@@ -1,15 +1,7 @@
-import type {
-  DbProduct,
-  DbOrder,
-  DbOrderItem,
-  DbCustomer,
-  OrderType,
-  OrderStatus,
-  CustomerStatus
-} from '@/lib/supabase/db.types'
+
 
 // Application Product type that extends database type
-export interface Product extends DbProduct {
+export interface Product extends <DbProduct></DbProduct> {
   totalSales: number  // Make totalSales required
 }
 
@@ -57,7 +49,9 @@ export interface MappedTransaction {
 export type {
   OrderType,
   OrderStatus,
-  CustomerStatus
+  CustomerStatus,
+  OrderItem,
+  Customer
 }
 
 export interface Customer {
@@ -69,4 +63,3 @@ export interface Customer {
   status: CustomerStatus;
   imageUrl: string | null;
 }
-

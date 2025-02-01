@@ -81,7 +81,7 @@ export function CustomerTable({ initialCustomers }: CustomerTableProps) {
   } = useCustomers(initialCustomers);
 
   return (
-    <main className="grid flex-1 gap-4 p-4 md:gap-8">
+    <main className="grid flex-1 gap-4 md:p-4 md:gap-8">
       <Tabs defaultValue="all" className="w-full">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
           <TabsList className="flex flex-wrap gap-1.5 justify-start">
@@ -98,7 +98,7 @@ export function CustomerTable({ initialCustomers }: CustomerTableProps) {
               No Orders
             </TabsTrigger>
           </TabsList>
-          
+
           {/* Search and actions toolbar */}
           <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
             <div className="w-full sm:w-auto flex flex-1 sm:flex-initial">
@@ -110,7 +110,7 @@ export function CustomerTable({ initialCustomers }: CustomerTableProps) {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            
+
             <div className="flex gap-2 ml-auto sm:ml-0">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -160,8 +160,8 @@ export function CustomerTable({ initialCustomers }: CustomerTableProps) {
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button 
-                      size="sm" 
+                    <Button
+                      size="sm"
                       className="h-8"
                       onClick={() => router.push('/dashboard/customers/new')}
                     >
@@ -184,7 +184,7 @@ export function CustomerTable({ initialCustomers }: CustomerTableProps) {
               <CardTitle>All Customers</CardTitle>
               <CardDescription>View and manage all your customers.</CardDescription>
             </CardHeader>
-            <CardContent className="p-0">
+            <CardContent className="p-4">
               <CustomerTableWrapper
                 customers={filteredCustomers}
                 isLoading={isLoading}

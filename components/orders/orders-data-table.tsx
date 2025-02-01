@@ -29,9 +29,24 @@ import {
 } from '@/components/ui/pagination';
 
 import { Input } from '@/components/ui/input';
-import { ExtendedOrder } from '@/types';
 import { columns } from './columns';
-import { useState } from 'react';
+import React, { useState } from 'react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import Image from 'next/image';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { MoreHorizontal, Eye, PenLine } from 'lucide-react';
+import { format } from 'date-fns';
+import { OrderItem } from '@/types';
+import { ExtendedOrder } from '@/types/order';
 
 interface OrdersDataTableProps {
   orders: ExtendedOrder[];
@@ -39,6 +54,17 @@ interface OrdersDataTableProps {
   onDeleteOrder: (id: string) => Promise<void>;
   isLoading: boolean;
 }
+
+const formatDate = (dateString: string | null | undefined): string => {
+  if (!dateString) return 'No date available';
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'Invalid date';
+    return format(date, 'PPp');
+  } catch {
+    return 'Invalid date';
+  }
+};
 
 export function OrdersDataTable({
   orders,
@@ -89,7 +115,7 @@ export function OrdersDataTable({
         pages.push(-1); // Represents ellipsis
       }
     }
-    return [...new Set(pages)]; // Remove duplicates
+    return Array.from(new Set(pages)); // Remove duplicates
   };
 
   if (isLoading) {
@@ -116,13 +142,19 @@ export function OrdersDataTable({
         />
       </div>
 
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
+      <div className="w-full overflow-x-hidden rounded-lg border">
+        <Table className="w-full">
+          <TableHeader className="md:[_&tr]:border-b hidden md:table-header-group">
             {table.getHeaderGroups().map(headerGroup => (
-              <TableRow key={headerGroup.id}>
+              <TableRow
+                key={headerGroup.id}
+                className="border-b transition-colors hover:bg-muted/50"
+              >
                 {headerGroup.headers.map(header => (
-                  <TableHead key={header.id}>
+                  <TableHead
+                    key={header.id}
+                    className="h-12 px-2 md:px-4 text-left text-sm md:text-base font-medium text-muted-foreground w-[120px] md:w-auto"
+                  >
                     {flexRender(
                       header.column.columnDef.header,
                       header.getContext(),
@@ -132,19 +164,141 @@ export function OrdersDataTable({
               </TableRow>
             ))}
           </TableHeader>
-          <TableBody>
+          <TableBody className="[&_tr:last-child]:border-0">
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map(row => (
-                <TableRow key={row.id}>
-                  {row.getVisibleCells().map(cell => (
-                    <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext(),
-                      )}
+                <React.Fragment key={row.id + '-fragment'}>
+                  {/* Mobile TableRow wrapper */}
+                  <TableRow key={row.id + '-mobile'} className="md:hidden">
+                    <TableCell
+                      colSpan={columns.length}
+                      className="p-2 md:p-0 w-screen md:w-auto"
+                    >
+                      <div className="card p-3 shadow rounded border w-full space-y-3 mb-3 overflow-x-hidden">
+                        <div className="flex items-center gap-3">
+                          {row.original.customer && (
+                            <Avatar className="h-9 w-9">
+                              <AvatarImage
+                                src={
+                                  row.original.customer?.imageUrl ||
+                                  '/placeholder-customer.png'
+                                }
+                              />
+                              <AvatarFallback>
+                                {row.original.customer?.name?.charAt(0) || '?'}
+                              </AvatarFallback>
+                            </Avatar>
+                          )}
+                          <div className="space-y-2">
+                            <p className="text-sm font-medium">
+                              {row.original.customer?.name ||
+                                'Unknown Customer'}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Order #{row.original.id || 'N/A'}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-muted-foreground">
+                              Status:
+                            </span>
+                            <Badge variant="outline">
+                              {row.original.status}
+                            </Badge>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-muted-foreground">
+                              Amount:
+                            </span>
+                            <span>${row.original.amount}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-muted-foreground">
+                              Created:
+                            </span>
+                            <span className="text-sm">
+                              {formatDate(row.original.createdAt)}
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {row.original.items
+                              ?.filter(
+                                (item: OrderItem | null): item is OrderItem =>
+                                  item !== null && item.product !== null,
+                              )
+                              ?.map((item: OrderItem) => (
+                                <div
+                                  key={`${row.id}-product-${item.product.id}`}
+                                >
+                                  <Image
+                                    src={
+                                      item.product.imageUrl ||
+                                      '/placeholder-product.png'
+                                    }
+                                    alt={item.product.name || 'Unknown product'}
+                                    width={48}
+                                    height={48}
+                                    className="rounded-full object-cover border"
+                                  />
+                                </div>
+                              ))}
+                            {(!row.original.items ||
+                              !row.original.items.length) && (
+                              <div className="text-muted-foreground text-sm">
+                                No products
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex justify-end">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                <span className="sr-only">Open menu</span>
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <DropdownMenuItem
+                                onClick={() => onSelectOrder(row.original.id)}
+                              >
+                                <Eye className="mr-2 h-4 w-4" />
+                                View details
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem>
+                                <PenLine className="mr-2 h-4 w-4" />
+                                Edit status
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </div>
                     </TableCell>
-                  ))}
-                </TableRow>
+                  </TableRow>
+                  {/* Desktop Table Row */}
+                  <TableRow
+                    key={row.id}
+                    className="hidden md:table-row border-b transition-colors hover:bg-muted/50"
+                  >
+                    {row.getVisibleCells().map(cell => (
+                      <TableCell
+                        key={cell.id}
+                        className="p-2 md:p-4 align-middle text-sm md:text-base font-medium"
+                      >
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext(),
+                        )}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                </React.Fragment>
               ))
             ) : (
               <TableRow>
@@ -152,7 +306,7 @@ export function OrdersDataTable({
                   colSpan={columns.length}
                   className="h-24 text-center"
                 >
-                  No orders found.
+                  No results.
                 </TableCell>
               </TableRow>
             )}
