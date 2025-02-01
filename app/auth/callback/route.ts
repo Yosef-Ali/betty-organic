@@ -36,6 +36,9 @@ export async function GET(request: Request) {
   try {
     const { data, error: sessionError } =
       await supabase.auth.exchangeCodeForSession(code);
+
+    console.log('exchangeCodeForSession response:', { data, sessionError });
+
     if (sessionError) {
       console.error('Session exchange error:', sessionError);
       return NextResponse.redirect(
@@ -43,14 +46,31 @@ export async function GET(request: Request) {
       );
     }
 
-    // Log successful authentication
+    // Set secure cookies for session
+    const response = NextResponse.redirect(`${requestUrl.origin}/`);
+    response.cookies.set({
+      name: 'sb-access-token',
+      value: data.session?.access_token || '',
+      path: '/',
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: data.session?.expires_in || 3600,
+    });
+    response.cookies.set({
+      name: 'sb-refresh-token',
+      value: data.session?.refresh_token || '',
+      path: '/',
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: data.session?.expires_in || 3600,
+    });
+
     console.log('Authentication successful:', {
       userId: data.session?.user.id,
       provider: data.session?.user.app_metadata.provider,
     });
 
-    // On successful authentication, redirect to dashboard or homepage
-    return NextResponse.redirect(`${requestUrl.origin}/`);
+    return response;
   } catch (error) {
     console.error('Unexpected error in callback:', error);
     return NextResponse.redirect(

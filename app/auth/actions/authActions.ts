@@ -30,10 +30,10 @@ export async function signInWithGoogle(): Promise<AuthResponse> {
       },
     });
 
-    console.log('Sign in response:', { data, error });
+    console.log('signInWithOAuth response:', { data, error });
 
     if (error) {
-      console.error('Google sign in error:', error);
+      console.error('signInWithOAuth error:', error);
       return {
         error: error.message,
         success: false,

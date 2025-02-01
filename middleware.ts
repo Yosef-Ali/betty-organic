@@ -77,6 +77,39 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!api/auth/callback|_next/static|_next/image|favicon.ico|auth/login).*)',
   ],
 };
+
+export async function middleware(request: NextRequest) {
+  const response = NextResponse.next();
+  const supabase = createMiddlewareClient({ req: request, res: response });
+
+  // Refresh session if expired
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  // Handle Google OAuth session
+  if (session?.provider === 'google') {
+    response.cookies.set({
+      name: 'sb-access-token',
+      value: session.access_token,
+      path: '/',
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: session.expires_in,
+    });
+
+    response.cookies.set({
+      name: 'sb-refresh-token',
+      value: session.refresh_token,
+      path: '/',
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: session.expires_in,
+    });
+  }
+
+  return response;
+}
