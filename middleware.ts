@@ -1,4 +1,4 @@
-import { createServerClient } from '@supabase/ssr';
+import { createServerClient, createMiddlewareClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
 type Role = 'admin' | 'sales' | 'customer' | '';
@@ -72,6 +72,37 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // Handle Google OAuth session
+  if (supabase.auth.getSession().provider === 'google') {
+    // directly use supabase instance
+    const {
+      data: { session },
+    } = await createMiddlewareClient({
+      req: request,
+      res: response,
+    }).auth.getSession(); // get session here
+
+    if (session?.provider === 'google') {
+      response.cookies.set({
+        name: 'sb-access-token',
+        value: session.access_token,
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: session.expires_in,
+      });
+
+      response.cookies.set({
+        name: 'sb-refresh-token',
+        value: session.refresh_token,
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: session.expires_in,
+      });
+    }
+  }
+
   return response;
 }
 
@@ -80,36 +111,3 @@ export const config = {
     '/((?!api/auth/callback|_next/static|_next/image|favicon.ico|auth/login).*)',
   ],
 };
-
-export async function middleware(request: NextRequest) {
-  const response = NextResponse.next();
-  const supabase = createMiddlewareClient({ req: request, res: response });
-
-  // Refresh session if expired
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  // Handle Google OAuth session
-  if (session?.provider === 'google') {
-    response.cookies.set({
-      name: 'sb-access-token',
-      value: session.access_token,
-      path: '/',
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: session.expires_in,
-    });
-
-    response.cookies.set({
-      name: 'sb-refresh-token',
-      value: session.refresh_token,
-      path: '/',
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: session.expires_in,
-    });
-  }
-
-  return response;
-}
