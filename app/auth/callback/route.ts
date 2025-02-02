@@ -1,6 +1,7 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+import { createGoogleUserProfile } from '../actions/authActions';
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
@@ -32,7 +33,23 @@ export async function GET(request: Request) {
     );
   }
 
-  const supabase = createRouteHandlerClient({ cookies });
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookies().get(name)?.value;
+        },
+        set(name: string, value: string, options: any) {
+          cookies().set(name, value, options);
+        },
+        remove(name: string, options: any) {
+          cookies().set(name, '', { ...options, maxAge: 0 });
+        },
+      },
+    },
+  );
   try {
     const { data, error: sessionError } =
       await supabase.auth.exchangeCodeForSession(code);
@@ -44,6 +61,16 @@ export async function GET(request: Request) {
       return NextResponse.redirect(
         `${requestUrl.origin}/auth/login?error=session_exchange&error_description=${sessionError.message}`,
       );
+    }
+
+    // Handle Google login profile creation
+    if (data.session?.user.app_metadata.provider === 'google') {
+      const { error: profileError } = await createGoogleUserProfile(
+        data.session.user,
+      );
+      if (profileError) {
+        console.error('Profile creation failed:', profileError);
+      }
     }
 
     // Set secure cookies for session

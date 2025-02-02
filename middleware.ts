@@ -1,4 +1,4 @@
-import { createServerClient, createMiddlewareClient } from '@supabase/ssr';
+import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
 type Role = 'admin' | 'sales' | 'customer' | '';
@@ -72,33 +72,33 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Handle Google OAuth session
-  if (supabase.auth.getSession().provider === 'google') {
-    // directly use supabase instance
+  // For /auth/callback, get the session here since we need to
+  // handle Google OAuth callback specifically
+  if (request.nextUrl.pathname === '/auth/callback') {
     const {
       data: { session },
-    } = await createMiddlewareClient({
-      req: request,
-      res: response,
-    }).auth.getSession(); // get session here
+    } = await supabase.auth.getSession();
 
     if (session?.provider === 'google') {
+      const { access_token, refresh_token, expires_in } = session;
+
+      // Set tokens as cookies
       response.cookies.set({
         name: 'sb-access-token',
-        value: session.access_token,
+        value: access_token,
         path: '/',
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
-        maxAge: session.expires_in,
+        maxAge: expires_in,
       });
 
       response.cookies.set({
         name: 'sb-refresh-token',
-        value: session.refresh_token,
+        value: refresh_token,
         path: '/',
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
-        maxAge: session.expires_in,
+        maxAge: expires_in,
       });
     }
   }
@@ -109,5 +109,6 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     '/((?!api/auth/callback|_next/static|_next/image|favicon.ico|auth/login).*)',
+    '/auth/callback',
   ],
 };

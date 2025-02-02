@@ -1,279 +1,122 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
-import type { RedirectType } from 'next/navigation';
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 
-export type AuthResponse<T = unknown> = {
-  error?: string;
-  success: boolean;
-  data?: T | null;
-  message?: string;
-  redirect?: {
-    destination: string;
-    type?: RedirectType;
-  };
-};
-
-export async function signInWithGoogle(): Promise<AuthResponse> {
-  const supabase = await createClient();
-  console.log('Starting Google sign in...');
-
-  try {
-    const siteUrl =
-      process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL;
-    console.log('Redirect URL:', `${siteUrl}/auth/callback`);
-
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${siteUrl}/auth/callback`,
-      },
-    });
-
-    console.log('signInWithOAuth response:', { data, error });
-
-    if (error) {
-      console.error('signInWithOAuth error:', error);
-      return {
-        error: error.message,
-        success: false,
-      };
-    }
-
-    // Return the URL to the client to handle the redirect
-    if (data?.url) {
-      return {
-        success: true,
-        redirect: {
-          destination: data.url,
-          type: 'replace',
+// Helper function to create Supabase client
+function createClient() {
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookies().get(name)?.value;
         },
-      };
-    }
-
-    return {
-      error: 'No redirect URL received from OAuth provider',
-      success: false,
-    };
-  } catch (error) {
-    console.error('Google sign in error:', error);
-    return {
-      error: 'An unexpected error occurred',
-      success: false,
-    };
-  }
-}
-
-export async function signIn(formData: FormData): Promise<AuthResponse> {
-  const supabase = await createClient();
-
-  const email = formData.get('email') as string;
-  const password = formData.get('password') as string;
-
-  try {
-    const {
-      data: { session },
-      error: signInError,
-    } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (signInError) {
-      return {
-        error: signInError.message,
-        success: false,
-      };
-    }
-
-    if (!session) {
-      return {
-        error: 'Authentication failed',
-        success: false,
-      };
-    }
-
-    // Get user profile
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('role, status')
-      .eq('id', session.user.id)
-      .single();
-
-    if (profileError) {
-      return {
-        error: profileError.message,
-        success: false,
-      };
-    }
-
-    if (profile.status === 'inactive') {
-      return {
-        error: 'Account is inactive',
-        success: false,
-      };
-    }
-
-    // Return redirect based on role
-    const destination = '/';
-
-    return {
-      success: true,
-      redirect: {
-        destination,
-        type: 'push',
-      },
-    };
-  } catch (error) {
-    console.error('Sign in error:', error);
-    return {
-      error: 'An unexpected error occurred',
-      success: false,
-    };
-  }
-}
-
-export async function signUp(formData: FormData): Promise<AuthResponse> {
-  const supabase = await createClient();
-
-  const email = formData.get('email') as string;
-  const password = formData.get('password') as string;
-  const fullName = formData.get('full_name') as string;
-
-  try {
-    // Check if user exists
-    const { data: existingUser } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('email', email)
-      .single();
-
-    if (existingUser) {
-      return {
-        error: 'User already exists',
-        success: false,
-      };
-    }
-
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
-        data: {
-          full_name: fullName,
-          role: 'customer',
-          status: 'active',
+        set(name: string, value: string, options: CookieOptions) {
+          cookies().set(name, value, options);
+        },
+        remove(name: string, options: CookieOptions) {
+          cookies().set(name, '', { ...options, maxAge: 0 });
         },
       },
-    });
-
-    if (error) {
-      return {
-        error: error.message,
-        success: false,
-      };
-    }
-
-    return {
-      success: true,
-      message: 'Please check your email to confirm your account',
-    };
-  } catch (error) {
-    console.error('Sign up error:', error);
-    return {
-      error: 'An unexpected error occurred',
-      success: false,
-    };
-  }
+    },
+  );
 }
 
-export async function signOut(): Promise<AuthResponse> {
-  const supabase = await createClient();
-
-  try {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
-
-    return {
-      success: true,
-      redirect: {
-        destination: '/auth/login',
-        type: 'replace',
-      },
-    };
-  } catch (error) {
-    console.error('Sign out error:', error);
-    return {
-      error: 'Error signing out',
-      success: false,
-      redirect: {
-        destination: '/auth/auth-error',
-        type: 'push',
-      },
-    };
-  }
+export async function signIn(email: string, password: string) {
+  const supabase = createClient();
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+  return { data, error };
 }
 
-export async function resetPassword(formData: FormData): Promise<AuthResponse> {
-  const supabase = await createClient();
-  const email = formData.get('email') as string;
-
-  try {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/update-password`,
-    });
-
-    if (error) {
-      return {
-        error: error.message,
-        success: false,
-      };
-    }
-
-    return {
-      success: true,
-      message: 'Password reset instructions sent to your email',
-    };
-  } catch (error) {
-    console.error('Reset password error:', error);
-    return {
-      error: 'An unexpected error occurred',
-      success: false,
-    };
-  }
+export async function signUp(email: string, password: string) {
+  const supabase = createClient();
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+  });
+  return { data, error };
 }
 
-export async function updatePassword(
-  formData: FormData,
-): Promise<AuthResponse> {
-  const supabase = await createClient();
-  const password = formData.get('password') as string;
+export async function signInWithGoogle() {
+  const supabase = createClient();
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
+    },
+  });
+  return { data, error };
+}
 
-  try {
-    const { error } = await supabase.auth.updateUser({
-      password,
-    });
+export async function signOut() {
+  const supabase = createClient();
+  const { error } = await supabase.auth.signOut();
+  return { error };
+}
 
-    if (error) {
-      return {
-        error: error.message,
-        success: false,
-      };
-    }
+export async function resetPassword(email: string) {
+  const supabase = createClient();
+  const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/update-password`,
+  });
+  return { data, error };
+}
 
-    return {
-      success: true,
-      redirect: {
-        destination: '/auth/login?message=Password updated successfully',
-        type: 'replace',
+export async function createGoogleUserProfile(user: any) {
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookies().get(name)?.value;
+        },
+        set(name: string, value: string, options: any) {
+          cookies().set(name, value, options);
+        },
+        remove(name: string, options: any) {
+          cookies().set(name, '', { ...options, maxAge: 0 });
+        },
       },
-    };
-  } catch (error) {
-    console.error('Update password error:', error);
-    return {
-      error: 'An unexpected error occurred',
-      success: false,
-    };
+    },
+  );
+
+  // Check for existing profile
+  const { data: profile, error } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+
+  if (error && error.code !== 'PGRST116') {
+    // 'PGRST116' = no rows found
+    console.error('Profile lookup error:', error);
+    return { error };
   }
+
+  // Create profile if missing or update if role is missing
+  if (!profile || !profile.role) {
+    const { error: upsertError } = await supabase.from('profiles').upsert(
+      {
+        id: user.id,
+        email: user.email,
+        role: 'customer',
+      },
+      {
+        onConflict: 'id',
+      },
+    );
+
+    if (upsertError) {
+      console.error('Profile upsert error:', upsertError);
+      return { error: upsertError };
+    }
+  }
+
+  return { error: null };
 }
