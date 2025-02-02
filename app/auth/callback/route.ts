@@ -1,4 +1,4 @@
-import { createServerClient } from '@supabase/ssr';
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { createGoogleUserProfile } from '../actions/authActions';
@@ -33,28 +33,29 @@ export async function GET(request: Request) {
     );
   }
 
+  const cookieStore = cookies();
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
         get(name: string) {
-          return cookies().get(name)?.value;
+          return cookieStore.get(name)?.value;
         },
-        set(name: string, value: string, options: any) {
-          cookies().set(name, value, options);
+        set(name: string, value: string, options: CookieOptions) {
+          cookieStore.set(name, value, options);
         },
-        remove(name: string, options: any) {
-          cookies().set(name, '', { ...options, maxAge: 0 });
+        remove(name: string, options: CookieOptions) {
+          cookieStore.set(name, '', { ...options, maxAge: 0 });
         },
       },
     },
   );
+
   try {
     const { data, error: sessionError } =
       await supabase.auth.exchangeCodeForSession(code);
-
-    console.log('exchangeCodeForSession response:', { data, sessionError });
 
     if (sessionError) {
       console.error('Session exchange error:', sessionError);
@@ -63,38 +64,49 @@ export async function GET(request: Request) {
       );
     }
 
+    if (!data.session) {
+      console.error('No session data received');
+      return NextResponse.redirect(
+        `${requestUrl.origin}/auth/login?error=no_session`,
+      );
+    }
+
     // Handle Google login profile creation
-    if (data.session?.user.app_metadata.provider === 'google') {
+    if (data.session.user.app_metadata.provider === 'google') {
       const { error: profileError } = await createGoogleUserProfile(
         data.session.user,
       );
       if (profileError) {
         console.error('Profile creation failed:', profileError);
+        // Continue anyway since auth was successful
       }
     }
 
+    // Redirect to dashboard after successful authentication
+    const response = NextResponse.redirect(`${requestUrl.origin}/dashboard`);
+
     // Set secure cookies for session
-    const response = NextResponse.redirect(`${requestUrl.origin}/`);
     response.cookies.set({
       name: 'sb-access-token',
-      value: data.session?.access_token || '',
+      value: data.session.access_token,
       path: '/',
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: data.session?.expires_in || 3600,
+      maxAge: data.session.expires_in,
     });
+
     response.cookies.set({
       name: 'sb-refresh-token',
-      value: data.session?.refresh_token || '',
+      value: data.session.refresh_token,
       path: '/',
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: data.session?.expires_in || 3600,
+      maxAge: data.session.expires_in,
     });
 
     console.log('Authentication successful:', {
-      userId: data.session?.user.id,
-      provider: data.session?.user.app_metadata.provider,
+      userId: data.session.user.id,
+      provider: data.session.user.app_metadata.provider,
     });
 
     return response;

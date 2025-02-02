@@ -24,13 +24,26 @@ function createClient() {
   );
 }
 
-export async function signIn(email: string, password: string) {
+export async function signIn(formData: FormData) {
+  const email = formData.get('email') as string;
+  const password = formData.get('password') as string;
+
   const supabase = createClient();
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
   });
-  return { data, error };
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  return {
+    redirect: {
+      destination: '/dashboard',
+      type: 'replace',
+    },
+  };
 }
 
 export async function signUp(email: string, password: string) {
@@ -48,9 +61,27 @@ export async function signInWithGoogle() {
     provider: 'google',
     options: {
       redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
+      queryParams: {
+        access_type: 'offline',
+        prompt: 'consent',
+      },
     },
   });
-  return { data, error };
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  if (data?.url) {
+    return {
+      redirect: {
+        destination: data.url,
+        type: 'replace',
+      },
+    };
+  }
+
+  return { error: 'No redirect URL received from OAuth provider' };
 }
 
 export async function signOut() {

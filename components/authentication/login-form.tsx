@@ -49,20 +49,17 @@ export function LoginForm() {
       formData.append('email', data.email);
       formData.append('password', data.password);
 
-      const result = await signIn(formData);
+      const { error, redirect } = await signIn(formData);
 
-      if (result.error) {
-        toast.error(result.error);
+      if (error) {
+        toast.error(error);
         return;
       }
 
-      if (result.redirect) {
-        // Use router.push or router.replace based on the redirect type
-        if (result.redirect.type === 'replace') {
-          router.replace(result.redirect.destination);
-        } else {
-          router.push(result.redirect.destination);
-        }
+      if (redirect) {
+        router.replace(redirect.destination);
+      } else {
+        router.replace('/dashboard');
       }
     } catch (error) {
       toast.error('An error occurred. Please try again.');
@@ -165,12 +162,11 @@ export function LoginForm() {
                 toast.error(`Sign in failed: ${result.error}`);
                 return;
               }
-              if (result.redirect?.destination) {
-                // For OAuth redirects, we use window.location to do a full page navigation
+              if (result.redirect) {
                 window.location.href = result.redirect.destination;
-                return;
+              } else {
+                toast.error('No redirect URL received');
               }
-              toast.error('No redirect URL received');
             } catch (error) {
               console.error('Google sign in error:', error);
               toast.error(
