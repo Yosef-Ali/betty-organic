@@ -216,6 +216,3 @@ export default function CustomerRow({
     </TableRow>
   );
 }
-{
-  `Don&apos;t have any orders yet`;
-}

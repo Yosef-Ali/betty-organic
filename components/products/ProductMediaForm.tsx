@@ -1,10 +1,10 @@
-'use client'
+'use client';
 
-import { useState } from 'react'
-import Image from 'next/image'
-import { UseFormReturn } from 'react-hook-form'
-import { uploadImage } from '@/app/actions/upload-image'
-import { ImageSelector } from "@/components/ImageSelector"
+import { useState } from 'react';
+import Image from 'next/image';
+import { UseFormReturn } from 'react-hook-form';
+import { uploadImage } from '@/app/actions/upload-image';
+import { ImageSelector } from '@/components/ImageSelector';
 import {
   FormField,
   FormItem,
@@ -12,83 +12,112 @@ import {
   FormControl,
   FormDescription,
   FormMessage,
-} from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+} from '@/components/ui/card';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { useToast } from '@/hooks/use-toast'
-import { ProductFormValues, ImageUploadResponse } from './ProductFormSchema'
+} from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
+import { ProductFormValues, ImageUploadResponse } from './ProductFormSchema';
 
-const DEFAULT_PRODUCT_IMAGE = '/placeholder-product.jpg'
+const DEFAULT_PRODUCT_IMAGE = '/placeholder-product.jpg';
 
 interface ProductMediaFormProps {
-  form: UseFormReturn<ProductFormValues>
-  isLoading: boolean
-  initialData?: ProductFormValues & { id: string }
+  form: UseFormReturn<ProductFormValues>;
+  isLoading: boolean;
+  initialData?: ProductFormValues & { id: string };
 }
 
-export function ProductMediaForm({ form, isLoading, initialData }: ProductMediaFormProps) {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [previewUrl, setPreviewUrl] = useState<string>('')
-  const { toast } = useToast()
+export function ProductMediaForm({
+  form,
+  isLoading,
+  initialData,
+}: ProductMediaFormProps) {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string>('');
+  const { toast } = useToast();
 
-  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
+  const handleImageUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
 
+    // Clean up previous preview URL if it exists
     if (previewUrl) {
-      URL.revokeObjectURL(previewUrl)
+      URL.revokeObjectURL(previewUrl);
     }
-    const newPreviewUrl = URL.createObjectURL(file)
-    setPreviewUrl(newPreviewUrl)
-    form.setValue('imageUrl', newPreviewUrl)
 
-    setSelectedFile(file)
+    // Create new preview URL
+    const newPreviewUrl = URL.createObjectURL(file);
+    setPreviewUrl(newPreviewUrl);
+    setSelectedFile(file);
 
-    if (initialData?.id) {
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('productId', initialData.id)
+    // Create form data for upload
+    const formData = new FormData();
+    formData.append('file', file);
 
-      try {
-        const uploadResponse = await uploadImage(formData) as ImageUploadResponse
-        if (!uploadResponse.success) {
-          throw new Error(uploadResponse.error || 'Failed to upload image')
-        }
-
-        if (uploadResponse.imageUrl) {
-          form.setValue('imageUrl', uploadResponse.imageUrl)
-          setPreviewUrl('')
-          form.trigger('imageUrl')
-          toast({
-            title: "Success",
-            description: "Image uploaded successfully.",
-          })
-        } else {
-          throw new Error('No image URL received from upload')
-        }
-      } catch (error) {
-        console.error('Error in handleImageUpload:', error)
-        toast({
-          title: "Error",
-          description: error instanceof Error ? error.message : "Failed to upload image",
-          variant: "destructive",
-        })
+    try {
+      const uploadResponse = (await uploadImage(
+        formData,
+      )) as ImageUploadResponse;
+      if (!uploadResponse.success) {
+        throw new Error(uploadResponse.error || 'Failed to upload image');
       }
+
+      if (uploadResponse.imageUrl) {
+        // Update form with the new image URL
+        form.setValue('imageUrl', uploadResponse.imageUrl);
+        // Clean up preview URL after successful upload
+        URL.revokeObjectURL(newPreviewUrl);
+        setPreviewUrl('');
+        // Trigger validation
+        form.trigger('imageUrl');
+        // Show success message
+        toast({
+          title: 'Success',
+          description: 'Image uploaded successfully.',
+        });
+      } else {
+        throw new Error('No image URL received from upload');
+      }
+    } catch (error) {
+      console.error('Error in handleImageUpload:', error);
+      // Show error message
+      toast({
+        title: 'Error',
+        description:
+          error instanceof Error ? error.message : 'Failed to upload image',
+        variant: 'destructive',
+      });
+      // Clean up preview URL on error
+      URL.revokeObjectURL(newPreviewUrl);
+      setPreviewUrl('');
+      // Reset form to previous value
+      form.setValue('imageUrl', initialData?.imageUrl || '');
+    } finally {
+      setSelectedFile(null);
     }
-  }
+  };
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>Product Image</CardTitle>
-        <CardDescription>Upload or select an image for your product</CardDescription>
+        <CardDescription>
+          Upload or select an image for your product
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <FormField
@@ -146,11 +175,16 @@ export function ProductMediaForm({ form, isLoading, initialData }: ProductMediaF
 
                   {/* Image Selector Grid */}
                   <div className="space-y-2">
-                    <FormLabel className="text-sm">Select from library</FormLabel>
+                    <FormLabel className="text-sm">
+                      Select from library
+                    </FormLabel>
                     <ImageSelector
                       value={field.value}
-                      onChange={(url) => {
-                        setPreviewUrl('');
+                      onChange={url => {
+                        if (previewUrl) {
+                          URL.revokeObjectURL(previewUrl);
+                          setPreviewUrl('');
+                        }
                         field.onChange(url);
                       }}
                     />
@@ -166,5 +200,5 @@ export function ProductMediaForm({ form, isLoading, initialData }: ProductMediaF
         />
       </CardContent>
     </Card>
-  )
+  );
 }

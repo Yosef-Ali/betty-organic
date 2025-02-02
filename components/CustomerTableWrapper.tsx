@@ -1,12 +1,7 @@
-"use client";
+'use client';
 
 import { type CustomerWithOrders } from '@/types/customer';
-import {
-  Table,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import CustomerTableContent from './CustomerTableContent';
 
 interface CustomerTableWrapperProps {
@@ -15,7 +10,11 @@ interface CustomerTableWrapperProps {
   onDelete: (id: string) => Promise<void>;
 }
 
-const CustomerTableWrapper = ({ customers, isLoading, onDelete }: CustomerTableWrapperProps) => (
+const CustomerTableWrapper = ({
+  customers,
+  isLoading,
+  onDelete,
+}: CustomerTableWrapperProps) => (
   <div className="w-full">
     {/* Mobile view - cards layout */}
     <div className="block sm:hidden w-full">
@@ -23,6 +22,7 @@ const CustomerTableWrapper = ({ customers, isLoading, onDelete }: CustomerTableW
         customers={customers}
         isLoading={isLoading}
         onDelete={onDelete}
+        view="mobile"
       />
     </div>
 
@@ -40,7 +40,9 @@ const CustomerTableWrapper = ({ customers, isLoading, onDelete }: CustomerTableW
                 <TableHead className="hidden lg:table-cell">Phone</TableHead>
                 <TableHead className="hidden xl:table-cell">Location</TableHead>
                 <TableHead className="hidden md:table-cell">Orders</TableHead>
-                <TableHead className="hidden lg:table-cell">Last Active</TableHead>
+                <TableHead className="hidden lg:table-cell">
+                  Last Active
+                </TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -48,6 +50,7 @@ const CustomerTableWrapper = ({ customers, isLoading, onDelete }: CustomerTableW
               customers={customers}
               isLoading={isLoading}
               onDelete={onDelete}
+              view="desktop"
             />
           </Table>
         </div>

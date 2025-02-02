@@ -19,7 +19,7 @@ export default function LoginPage() {
             className="block dark:hidden object-cover opacity-50"
           />
         </div>
-        <div className="relative z-20 flex items-center text-lg font-medium">
+        <div className="relative z-20 flex items-center text-lg font-medium text-black dark:text-white">
           <Image
             src="/logo.jpeg"
             alt="Betty's Organic Logo"
@@ -31,11 +31,13 @@ export default function LoginPage() {
         </div>
         <div className="relative z-20 mt-auto">
           <blockquote className="space-y-2">
-            <p className="text-lg">
+            <p className="text-lg  text-black dark:text-white">
               &ldquo;Your trusted source for fresh, organic produce delivered
               right to your doorstep.&rdquo;
             </p>
-            <footer className="text-sm">Betty Tadesse</footer>
+            <footer className="text-sm text-muted-foreground">
+              Betty Tadesse
+            </footer>
           </blockquote>
         </div>
       </div>

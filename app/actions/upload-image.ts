@@ -2,79 +2,56 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { v4 as uuidv4 } from 'uuid';
-import { getCurrentUser } from './auth';
-import { redirect } from 'next/navigation';
 
-export async function uploadImage(formData: FormData) {
-  const currentUser = await getCurrentUser();
-  const user = currentUser?.user;
-
-  if (!user) {
-    redirect('/login');
-  }
-
-  const supabase = await createClient();
-
-  try {
-    const file = formData.get('file') as File;
-    if (!file) {
-      throw new Error('No file provided');
-    }
-
-    if (!file.type.startsWith('image/')) {
-      throw new Error('File must be an image');
-    }
-
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${uuidv4()}.${fileExt}`;
-    const { error } = await supabase.storage
-      .from('images')
-      .upload(fileName, file);
-
-    if (error) throw error;
-
-    return fileName;
-  } catch (error) {
-    console.error('Error uploading image:', error);
-    throw error;
-  }
+export interface ImageUploadResponse {
+  success: boolean;
+  imageUrl?: string;
+  error?: string;
 }
 
-export async function uploadTestimonialImage(formData: FormData) {
-  const currentUser = await getCurrentUser();
-  const user = currentUser?.user;
-  const isAdmin = currentUser?.isAdmin;
-
-  if (!user || !isAdmin) {
-    redirect('/dashboard');
-  }
-
-  const supabase = await createClient();
-
+export async function uploadImage(
+  formData: FormData,
+): Promise<ImageUploadResponse> {
   try {
     const file = formData.get('file') as File;
-    const testimonialId = formData.get('testimonialId') as string;
-
     if (!file) {
-      throw new Error('No file provided');
+      return { success: false, error: 'No file provided' };
     }
 
     if (!file.type.startsWith('image/')) {
-      throw new Error('File must be an image');
+      return { success: false, error: 'File must be an image' };
     }
 
-    const fileExt = file.name.split('.').pop();
-    const fileName = `testimonials/${testimonialId}/${uuidv4()}.${fileExt}`;
+    const supabase = await createClient();
 
-    const { error } = await supabase.storage
-      .from('images')
+    // Generate unique file name
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${uuidv4()}.${fileExt}`;
+
+    // Upload to Supabase Storage
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('product-images')
       .upload(fileName, file);
 
-    if (error) throw error;
+    if (uploadError) {
+      console.error('Upload error:', uploadError);
+      return { success: false, error: uploadError.message };
+    }
 
-    return fileName;
+    // Get public URL
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from('product-images').getPublicUrl(uploadData.path);
+
+    return {
+      success: true,
+      imageUrl: publicUrl,
+    };
   } catch (error) {
-    console.error('Error uploading testimonial image:', error);
-    throw error;
+    console.error('Error in uploadImage:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to upload image',
+    };
   }
 }
