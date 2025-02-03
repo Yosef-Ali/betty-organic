@@ -1,22 +1,79 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+'use client';
 
-export default function VerifyPage() {
+import { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { verifyEmail } from '../actions/authActions';
+
+export default function VerifyEmail() {
+  const [verificationStatus, setVerificationStatus] = useState<{
+    success?: boolean;
+    message?: string;
+    error?: string;
+  }>({});
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const code = searchParams.get('code');
+  const email = searchParams.get('email');
+
+  useEffect(() => {
+    async function verify() {
+      if (!code || !email) {
+        setVerificationStatus({
+          success: false,
+          error: 'Invalid verification link',
+        });
+        return;
+      }
+
+      const result = await verifyEmail(email, code);
+
+      if (result.error) {
+        setVerificationStatus({
+          success: false,
+          error: result.error,
+        });
+      } else {
+        setVerificationStatus({
+          success: true,
+          message: result.message,
+        });
+        // Redirect to login page after successful verification
+        setTimeout(() => {
+          router.push('/auth/login');
+        }, 3000);
+      }
+    }
+
+    verify();
+  }, [code, email, router]);
+
   return (
-    <Card className="w-full max-w-lg mx-auto mt-16">
-      <CardHeader>
-        <CardTitle>Check your email</CardTitle>
-        <CardDescription>
-          A verification link has been sent to your email address.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <p className="text-sm text-muted-foreground">
-          Please click the link in the email to verify your account. If you don&apos;t see the email, check your spam folder.
-        </p>
-        <p className="text-sm text-muted-foreground">
-          Once verified, you will be automatically redirected to sign in.
-        </p>
-      </CardContent>
-    </Card>
-  )
+    <div className="flex min-h-screen flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <div className="w-full max-w-md space-y-8">
+        <div className="text-center">
+          <h2 className="mt-6 text-3xl font-bold tracking-tight text-gray-900">
+            Email Verification
+          </h2>
+        </div>
+        <div className="mt-8 text-center">
+          {verificationStatus.error ? (
+            <div className="rounded-md bg-red-50 p-4">
+              <div className="text-sm text-red-700">
+                {verificationStatus.error}
+              </div>
+            </div>
+          ) : verificationStatus.success ? (
+            <div className="rounded-md bg-green-50 p-4">
+              <div className="text-sm text-green-700">
+                {verificationStatus.message}
+                <p className="mt-2">Redirecting to login page...</p>
+              </div>
+            </div>
+          ) : (
+            <div className="text-gray-600">Verifying your email...</div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }

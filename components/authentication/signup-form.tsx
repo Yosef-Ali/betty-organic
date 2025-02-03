@@ -1,9 +1,9 @@
-'use client'
+'use client';
 
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useForm } from 'react-hook-form'
-import * as z from 'zod'
-import { Button } from '../ui/button'
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
+import * as z from 'zod';
+import { Button } from '../ui/button';
 import {
   Form,
   FormControl,
@@ -11,32 +11,34 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '../ui/form'
-import { Input } from '../ui/input'
-import { useRouter } from 'next/navigation'
-import { useState } from 'react'
-import { Alert, AlertDescription } from '../ui/alert'
+} from '../ui/form';
+import { Input } from '../ui/input';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { Alert, AlertDescription } from '../ui/alert';
 
-const formSchema = z.object({
-  full_name: z.string().min(2, 'Name must be at least 2 characters'),
-  email: z.string().email('Invalid email address'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
-  confirmPassword: z.string(),
-}).refine(data => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"]
-})
+const formSchema = z
+  .object({
+    full_name: z.string().min(2, 'Name must be at least 2 characters'),
+    email: z.string().email('Invalid email address'),
+    password: z.string().min(8, 'Password must be at least 8 characters'),
+    confirmPassword: z.string(),
+  })
+  .refine(data => data.password === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ['confirmPassword'],
+  });
 
-export type SignupFormType = z.infer<typeof formSchema>
+export type SignupFormType = z.infer<typeof formSchema>;
 
 interface SignupFormProps {
-  onSubmit: (values: SignupFormType) => Promise<void>
+  onSubmit: (values: SignupFormType) => Promise<void>;
 }
 
 export function SignupForm({ onSubmit }: SignupFormProps) {
-  const router = useRouter()
-  const [error, setError] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
+  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<SignupFormType>({
     resolver: zodResolver(formSchema),
@@ -46,24 +48,23 @@ export function SignupForm({ onSubmit }: SignupFormProps) {
       password: '',
       confirmPassword: '',
     },
-  })
+  });
 
   async function handleSubmit(values: SignupFormType) {
-    setError(null)
-    setIsLoading(true)
+    setError(null);
+    setIsLoading(true);
 
     try {
-      const result = await onSubmit(values)
-
-      if (result?.error) {
-        setError(result.error)
-      } else if (result?.redirectTo) {
-        router.push(result.redirectTo)
-      }
-    } catch (err) {
-      setError('An unexpected error occurred')
+      // Remove confirmPassword before submitting
+      const { confirmPassword, ...submitData } = values;
+      await onSubmit(submitData);
+    } catch (err: any) {
+      setError(
+        err?.message || 'An unexpected error occurred. Please try again.',
+      );
+      console.error('Form submission error:', err);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
   }
 
@@ -132,5 +133,5 @@ export function SignupForm({ onSubmit }: SignupFormProps) {
         </Button>
       </form>
     </Form>
-  )
+  );
 }
