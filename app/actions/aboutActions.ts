@@ -24,8 +24,9 @@ export async function getAbout() {
 
   if (error) {
     console.error('Error fetching about content:', error);
-    return null;
+    throw new Error(`Failed to fetch about content: ${error.message}`);
   }
+
   return data;
 }
 

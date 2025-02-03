@@ -86,6 +86,9 @@ importers:
       '@types/node':
         specifier: 20.8.3
         version: 20.8.3
+      '@types/nodemailer':
+        specifier: ^6.4.17
+        version: 6.4.17
       '@types/react':
         specifier: 18.2.0
         version: 18.2.0
@@ -142,10 +145,13 @@ importers:
         version: 15.0.3(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
       next-auth:
         specifier: ^4.24.8
-        version: 4.24.8(next@15.0.3(react-dom@18.2.0(react@18.2.0))(react@18.2.0))(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
+        version: 4.24.8(next@15.0.3(react-dom@18.2.0(react@18.2.0))(react@18.2.0))(nodemailer@6.10.0)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
       next-themes:
         specifier: ^0.4.4
         version: 0.4.4(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
+      nodemailer:
+        specifier: ^6.10.0
+        version: 6.10.0
       postcss:
         specifier: 8.4.31
         version: 8.4.31
@@ -210,9 +216,6 @@ importers:
       dotenv:
         specifier: ^16.4.7
         version: 16.4.7
-      pnpm:
-        specifier: 7.5.0
-        version: 7.5.0
       ts-node:
         specifier: ^10.9.1
         version: 10.9.1(@types/node@20.8.3)(typescript@5.2.2)
@@ -1402,6 +1405,9 @@ packages:
 
   '@types/node@20.8.3':
     resolution: {integrity: sha512-jxiZQFpb+NlH5kjW49vXxvxTjeeqlbsnTAdBTKpzEdPs9itay7MscYXz3Fo9VYFEsfQ6LJFitHad3faerLAjCw==}
+
+  '@types/nodemailer@6.4.17':
+    resolution: {integrity: sha512-I9CCaIp6DTldEg7vyUTZi8+9Vo0hi1/T8gv3C89yk1rSAAzoKQ8H8ki/jBYJSFoH/BisgLP8tkZMlQ91CIquww==}
 
   '@types/phoenix@1.6.6':
     resolution: {integrity: sha512-PIzZZlEppgrpoT2QgbnDU+MMzuR6BbCjllj0bM70lWoejMeNJAxCchxnv7J3XFkI8MpygtRpzXrIlmWUBclP5A==}
@@ -2594,6 +2600,10 @@ packages:
   node-releases@2.0.13:
     resolution: {integrity: sha512-uYr7J37ae/ORWdZeQ1xxMJe3NtdmqMC/JZK+geofDrkLUApKRHPd18/TxtBOJ4A0/+uUIliorNrfYV6s1b02eQ==}
 
+  nodemailer@6.10.0:
+    resolution: {integrity: sha512-SQ3wZCExjeSatLE/HBaXS5vqUOQk6GtBdIIKxiFdmm01mOQZX/POJkO3SUX1wDiYcwUOJwT23scFSC9fY2H8IA==}
+    engines: {node: '>=6.0.0'}
+
   nopt@5.0.0:
     resolution: {integrity: sha512-Tbj67rffqceeLpcRXrT7vKAN8CwfPeIBgM7E6iBkmKLV7bEMwpGgYLGv0jACUsECaa/vuxP0IjEont6umdMgtQ==}
     engines: {node: '>=6'}
@@ -2734,11 +2744,6 @@ packages:
   pirates@4.0.6:
     resolution: {integrity: sha512-saLsH7WeYYPiD25LDuLRRY/i+6HaPYr6G1OUlN39otzkSTxKnubR9RTxS3/Kk50s1g2JTgFwWQDQyplC5/SHZg==}
     engines: {node: '>= 6'}
-
-  pnpm@7.5.0:
-    resolution: {integrity: sha512-sb9wJNyx/d8l3Gze2jI1y8BGNbb/ga+JT3SrGNiH+C5KbtZ4wmgePBWGjaiGugcpT9+vQ5MO//+QlVWhMCpedQ==}
-    engines: {node: '>=14.6'}
-    hasBin: true
 
   postcss-import@15.1.0:
     resolution: {integrity: sha512-hpr+J05B2FVYUAXHeK1YyI267J/dDDhMU6B6civm8hSY1jYJnBXxzKDKDswzJmtLHryrjhnDjqqp/49t8FALew==}
@@ -4438,6 +4443,10 @@ snapshots:
 
   '@types/node@20.8.3': {}
 
+  '@types/nodemailer@6.4.17':
+    dependencies:
+      '@types/node': 20.8.3
+
   '@types/phoenix@1.6.6': {}
 
   '@types/prop-types@15.7.8': {}
@@ -5717,7 +5726,7 @@ snapshots:
 
   natural-compare@1.4.0: {}
 
-  next-auth@4.24.8(next@15.0.3(react-dom@18.2.0(react@18.2.0))(react@18.2.0))(react-dom@18.2.0(react@18.2.0))(react@18.2.0):
+  next-auth@4.24.8(next@15.0.3(react-dom@18.2.0(react@18.2.0))(react@18.2.0))(nodemailer@6.10.0)(react-dom@18.2.0(react@18.2.0))(react@18.2.0):
     dependencies:
       '@babel/runtime': 7.23.1
       '@panva/hkdf': 1.2.1
@@ -5731,6 +5740,8 @@ snapshots:
       react: 18.2.0
       react-dom: 18.2.0(react@18.2.0)
       uuid: 8.3.2
+    optionalDependencies:
+      nodemailer: 6.10.0
 
   next-themes@0.4.4(react-dom@18.2.0(react@18.2.0))(react@18.2.0):
     dependencies:
@@ -5777,6 +5788,8 @@ snapshots:
       formdata-polyfill: 4.0.10
 
   node-releases@2.0.13: {}
+
+  nodemailer@6.10.0: {}
 
   nopt@5.0.0:
     dependencies:
@@ -5919,8 +5932,6 @@ snapshots:
   pify@2.3.0: {}
 
   pirates@4.0.6: {}
-
-  pnpm@7.5.0: {}
 
   postcss-import@15.1.0(postcss@8.4.31):
     dependencies:

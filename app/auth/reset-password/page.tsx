@@ -55,7 +55,7 @@ export default function ResetPasswordPage() {
       }
     } catch (error) {
       console.error('Password reset error:', error)
-      toast.error('Failed to send reset instructions. Please try again.')
+      toast.error(error?.message || 'Failed to send reset instructions. Please try again.');
     } finally {
       setIsSubmitting(false)
     }

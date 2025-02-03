@@ -42,31 +42,57 @@ export function LoginForm() {
     },
   });
 
-  async function onSubmit(data: FormData) {
+  const onSubmit = async (formData: FormData) => {
+    setIsPending(true);
+
     try {
-      setIsPending(true);
-      const formData = new FormData();
-      formData.append('email', data.email);
-      formData.append('password', data.password);
+      const data = new FormData();
+      data.append('email', formData.email);
+      data.append('password', formData.password);
+      const result = await signIn(data);
 
-      const { error, redirect } = await signIn(formData);
-
-      if (error) {
-        toast.error(error);
+      if (result.error) {
+        toast.error(result.error);
         return;
       }
 
-      if (redirect) {
-        router.replace(redirect.destination);
+      if (result.redirect) {
+        router.push(result.redirect.destination);
       } else {
-        router.replace('/dashboard');
+        toast.error('No redirect URL received');
       }
     } catch (error) {
-      toast.error('An error occurred. Please try again.');
+      let errorMessage = 'An unexpected error occurred';
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'object' && error !== null) {
+        // Enhanced error object handling
+        if ('message' in error) {
+          errorMessage = String(error.message);
+        } else if (Object.keys(error).length === 0) {
+          // Handle empty error object case
+          errorMessage = 'Authentication failed. Please check your credentials and try again.';
+        } else {
+          // If error object has content but no message property
+          errorMessage = `Authentication failed: ${JSON.stringify(error)}`;
+        }
+      }
+
+      toast.error(errorMessage);
+      // Enhanced error logging with more context
+      console.error('Login error:', {
+        error,
+        errorMessage,
+        timestamp: new Date().toISOString(),
+        path: window.location.pathname,
+        type: typeof error,
+        isEmpty: error instanceof Object ? Object.keys(error).length === 0 : false
+      });
     } finally {
       setIsPending(false);
     }
-  }
+  };
 
   return (
     <div className="p-6 space-y-4 bg-card rounded-lg border shadow-sm">
@@ -159,7 +185,7 @@ export function LoginForm() {
               const result = await signInWithGoogle();
               if (result.error) {
                 console.error('Google sign in error:', result.error);
-                toast.error(`Sign in failed: ${result.error}`);
+                toast.error(`Sign in failed: ${result.error.message}`);
                 return;
               }
               if (result.redirect) {

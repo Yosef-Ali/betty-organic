@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import { useRouter } from 'next/navigation';
-import Image from 'next/image';
-import { MoreHorizontal } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
-import { Button } from '@/components/ui/button';
+import { useRouter } from "next/navigation";
+import Image from "next/image";
+import { MoreHorizontal } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,7 +12,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+} from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,9 +23,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import { TableCell, TableRow } from '@/components/ui/table';
-import type { CustomerWithOrders } from '@/types/customer';
+} from "@/components/ui/alert-dialog";
+import { TableCell, TableRow } from "@/components/ui/table";
+import type { CustomerWithOrders } from "@/types/customer";
 
 interface CustomerRowProps {
   customer: CustomerWithOrders;
@@ -52,27 +52,16 @@ export default function CustomerRow({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-        <DropdownMenuItem
-          onClick={() =>
-            router.push(`/dashboard/customers/${customer.id}/edit`)
-          }
-        >
+        <DropdownMenuItem onClick={() => router.push(`/dashboard/customers/${customer.id}/edit`)}>
           Edit customer
         </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() =>
-            router.push(`/dashboard/customers/${customer.id}/orders`)
-          }
-        >
+        <DropdownMenuItem onClick={() => router.push(`/dashboard/customers/${customer.id}/orders`)}>
           View orders
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <AlertDialog>
           <AlertDialogTrigger asChild>
-            <DropdownMenuItem
-              className="text-destructive"
-              onSelect={e => e.preventDefault()}
-            >
+            <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
               Delete
             </DropdownMenuItem>
           </AlertDialogTrigger>
@@ -80,8 +69,7 @@ export default function CustomerRow({
             <AlertDialogHeader>
               <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
               <AlertDialogDescription>
-                This action cannot be undone. This will permanently delete the
-                customer&apos;s account and remove their data from our servers.
+                This action cannot be undone. This will permanently delete the customer's account and remove their data from our servers.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -93,7 +81,7 @@ export default function CustomerRow({
                 disabled={deletingId === customer.id}
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
-                {deletingId === customer.id ? 'Deleting...' : 'Delete'}
+                {deletingId === customer.id ? "Deleting..." : "Delete"}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -113,20 +101,16 @@ export default function CustomerRow({
                 className="rounded-full object-cover"
                 fill
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                src={customer.imageUrl || '/uploads/placeholder.svg'}
-                onError={e => {
+                src={customer.imageUrl || "/uploads/placeholder.svg"}
+                onError={(e) => {
                   const target = e.target as HTMLImageElement;
-                  target.src = '/uploads/placeholder.svg';
+                  target.src = "/uploads/placeholder.svg";
                 }}
               />
             </div>
             <div className="space-y-1">
-              <div className="font-medium">
-                {customer.full_name || customer.fullName}
-              </div>
-              <div className="text-sm text-muted-foreground">
-                {customer.email || 'N/A'}
-              </div>
+              <div className="font-medium">{customer.full_name || customer.fullName}</div>
+              <div className="text-sm text-muted-foreground">{customer.email || "N/A"}</div>
             </div>
           </div>
           <ActionMenu />
@@ -138,11 +122,11 @@ export default function CustomerRow({
           <div className="grid grid-cols-2 gap-2">
             <div>
               <div className="text-sm font-medium">Phone</div>
-              <div className="text-sm">{customer.phone || 'N/A'}</div>
+              <div className="text-sm">{customer.phone || "N/A"}</div>
             </div>
             <div>
               <div className="text-sm font-medium">Location</div>
-              <div className="text-sm">{customer.location || 'N/A'}</div>
+              <div className="text-sm">{customer.location || "N/A"}</div>
             </div>
           </div>
         </div>
@@ -159,10 +143,8 @@ export default function CustomerRow({
               <div className="text-sm font-medium">Last Active</div>
               <div className="text-sm">
                 {customer.createdAt
-                  ? formatDistanceToNow(new Date(customer.createdAt), {
-                      addSuffix: true,
-                    })
-                  : 'N/A'}
+                  ? formatDistanceToNow(new Date(customer.createdAt), { addSuffix: true })
+                  : "N/A"}
               </div>
             </div>
           </div>
@@ -180,10 +162,10 @@ export default function CustomerRow({
             className="rounded-full object-cover"
             fill
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            src={customer.imageUrl || '/uploads/placeholder.svg'}
-            onError={e => {
+            src={customer.imageUrl || "/uploads/placeholder.svg"}
+            onError={(e) => {
               const target = e.target as HTMLImageElement;
-              target.src = '/uploads/placeholder.svg';
+              target.src = "/uploads/placeholder.svg";
             }}
           />
         </div>
@@ -191,24 +173,14 @@ export default function CustomerRow({
       <TableCell className="font-medium">
         {customer.full_name || customer.fullName}
       </TableCell>
-      <TableCell className="hidden md:table-cell">
-        {customer.email || 'N/A'}
-      </TableCell>
-      <TableCell className="hidden lg:table-cell">
-        {customer.phone || 'N/A'}
-      </TableCell>
-      <TableCell className="hidden xl:table-cell">
-        {customer.location || 'N/A'}
-      </TableCell>
-      <TableCell className="hidden md:table-cell">
-        {customer.orders?.length ?? 0}
-      </TableCell>
+      <TableCell className="hidden md:table-cell">{customer.email || "N/A"}</TableCell>
+      <TableCell className="hidden lg:table-cell">{customer.phone || "N/A"}</TableCell>
+      <TableCell className="hidden xl:table-cell">{customer.location || "N/A"}</TableCell>
+      <TableCell className="hidden md:table-cell">{customer.orders?.length ?? 0}</TableCell>
       <TableCell className="hidden lg:table-cell">
         {customer.createdAt
-          ? formatDistanceToNow(new Date(customer.createdAt), {
-              addSuffix: true,
-            })
-          : 'N/A'}
+          ? formatDistanceToNow(new Date(customer.createdAt), { addSuffix: true })
+          : "N/A"}
       </TableCell>
       <TableCell className="text-right">
         <ActionMenu />

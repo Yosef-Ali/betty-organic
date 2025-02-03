@@ -18,18 +18,24 @@ export async function updateProfile(data: ProfileData) {
   const supabase = await createClient();
 
   try {
+    if (!data || !data.fullName || !data.email) {
+      throw new Error('Name and email are required');
+    }
+
+    const updateData = {
+      id: data.id || undefined,
+      name: data.fullName.trim(),
+      email: data.email.trim(),
+      address: data.location?.trim() || null,
+      avatar_url: data.imageUrl || null,
+      status: data.status || 'active',
+      role: data.role,
+      updated_at: new Date().toISOString(),
+    };
+
     const { error } = await supabase
       .from('profiles')
-      .upsert({
-        id: data.id,
-        name: data.fullName,
-        email: data.email,
-        address: data.location || null,
-        avatar_url: data.imageUrl || null,
-        status: data.status,
-        role: data.role,
-        updated_at: new Date().toISOString(),
-      })
+      .upsert(updateData)
       .select()
       .single();
 

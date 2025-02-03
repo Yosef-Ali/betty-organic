@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -13,6 +14,23 @@ import {
 import { MailCheck } from 'lucide-react';
 
 export default function VerifyEmailPage() {
+  const [countdown, setCountdown] = useState(10);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          window.location.href = '/auth/login';
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
   return (
     <div className="container flex items-center justify-center min-h-screen py-10">
       <Card className="max-w-md w-full">
@@ -32,6 +50,9 @@ export default function VerifyEmailPage() {
             <p className="mb-2">
               Click the link in the email we sent you to verify your account. If
               you don&apos;t see it, check your spam folder.
+            </p>
+            <p className="mb-2">
+              For demo purposes, you will be redirected to login in {countdown} seconds.
             </p>
             <p>
               The link will expire in 24 hours. If you need a new verification

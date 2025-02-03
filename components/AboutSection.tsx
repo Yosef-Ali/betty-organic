@@ -3,8 +3,6 @@ import { getAbout } from '@/app/actions/aboutActions';
 import { revalidatePath } from 'next/cache';
 
 export async function AboutSection(): Promise<JSX.Element> {
-  const aboutContent = await getAbout();
-
   // Default content if no dynamic content is available
   const defaultContent = {
     title: "About Betty's Organic",
@@ -16,44 +14,57 @@ export async function AboutSection(): Promise<JSX.Element> {
     ],
   };
 
-  const { title, content, images } = aboutContent ?? defaultContent;
-  const paragraphs = content.split('\n\n');
+  try {
+    const aboutContent = await getAbout();
+    const { title, content, images } = aboutContent ?? defaultContent;
+    const paragraphs = content.split('\n\n');
 
-  return (
-    <section className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-      {/* Text Content Column */}
-      <div className="space-y-6">
-        <h2 className="text-4xl font-bold">{title}</h2>
-        {paragraphs.map((paragraph: string, index: number) => (
-          <p key={index} className="text-lg">
-            {paragraph}
-          </p>
-        ))}
-      </div>
+    return (
+      <section className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+        {/* Text Content Column */}
+        <div className="space-y-6">
+          <h2 className="text-4xl font-bold">{title}</h2>
+          {paragraphs.map((paragraph: string, index: number) => (
+            <p key={index} className="text-lg">
+              {paragraph}
+            </p>
+          ))}
+        </div>
 
-      {/* Image Gallery Column */}
-      <div className="grid grid-cols-2 gap-4">
-        {images.slice(0, 2).map((image: string, index: number) => (
-          <div key={index} className="relative h-64 rounded-lg overflow-hidden">
-            <Image
-              src={image}
-              alt={`About image ${index + 1}`}
-              fill
-              className="object-cover"
-            />
-          </div>
-        ))}
-        {images[2] && (
-          <div className="relative h-64 rounded-lg overflow-hidden col-span-2">
-            <Image
-              src={images[2]}
-              alt="About image 3"
-              fill
-              className="object-cover"
-            />
-          </div>
-        )}
-      </div>
-    </section>
-  );
+        {/* Image Gallery Column */}
+        <div className="grid grid-cols-2 gap-4">
+          {images.slice(0, 2).map((image: string, index: number) => (
+            <div key={index} className="relative h-64 rounded-lg overflow-hidden">
+              <Image
+                src={image}
+                alt={`About image ${index + 1}`}
+                fill
+                className="object-cover"
+              />
+            </div>
+          ))}
+          {images[2] && (
+            <div className="relative h-64 rounded-lg overflow-hidden col-span-2">
+              <Image
+                src={images[2]}
+                alt="About image 3"
+                fill
+                className="object-cover"
+              />
+            </div>
+          )}
+        </div>
+      </section>
+    );
+  } catch (error) {
+    console.error('Error in AboutSection:', error);
+    return (
+      <section className="p-4 text-center">
+        <div className="bg-red-50 border border-red-200 rounded-md p-4">
+          <h2 className="text-red-800 text-lg font-semibold">Temporarily Unavailable</h2>
+          <p className="text-red-600 mt-2">We're experiencing technical difficulties. Please try again later.</p>
+        </div>
+      </section>
+    );
+  }
 }
