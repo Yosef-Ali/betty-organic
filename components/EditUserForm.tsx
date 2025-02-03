@@ -1,58 +1,82 @@
-'use client'
+'use client';
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { useForm, ControllerRenderProps } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import * as z from 'zod'
-import { Button } from '@/components/ui/button'
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
-import { useToast } from '@/hooks/use-toast'
-import { ChevronLeft } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import Image from 'next/image'
-import { v4 as uuidv4 } from 'uuid'
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useForm, ControllerRenderProps } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { Button } from '@/components/ui/button';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+} from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
+import { ChevronLeft } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import Image from 'next/image';
+import { v4 as uuidv4 } from 'uuid';
 
 const formSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
   email: z.string().email({ message: 'Please enter a valid email address.' }),
-  password: z.string().min(6, { message: 'Password must be at least 6 characters.' }).optional(),
-  role: z.enum(['admin', 'user']),
+  password: z
+    .string()
+    .min(6, { message: 'Password must be at least 6 characters.' })
+    .optional(),
+  role: z.enum(['admin', 'user', 'customer']),
   status: z.enum(['active', 'inactive']),
-  imageUrl: z.string().nullable().optional()
-})
+  imageUrl: z.string().nullable().optional(),
+});
 
-type UserFormValues = z.infer<typeof formSchema>
+type UserFormValues = z.infer<typeof formSchema>;
 
 interface EditUserFormProps {
   initialData: {
     id: string;
     name: string;
     email: string;
-    role?: 'admin' | 'user';
+    role?: 'admin' | 'user' | 'customer';
     status: 'active' | 'inactive';
     imageUrl?: string;
-  }
+  };
 }
 
-const isValidRole = (role: string | undefined): role is 'admin' | 'user' => {
-  return role === 'admin' || role === 'user';
+const isValidRole = (
+  role: string | undefined,
+): role is 'admin' | 'user' | 'customer' => {
+  return role === 'admin' || role === 'user' || role === 'customer';
 };
 
 export function EditUserForm({ initialData }: EditUserFormProps) {
-  const [isLoading, setIsLoading] = useState(false)
-  const [isUploading, setIsUploading] = useState(false)
-  const router = useRouter()
-  const { toast } = useToast()
+  const [isLoading, setIsLoading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const router = useRouter();
+  const { toast } = useToast();
 
   const validatedData = {
     ...initialData,
-    role: isValidRole(initialData.role) ? initialData.role : 'user'
-  }
+    role: isValidRole(initialData.role) ? initialData.role : 'user',
+  };
 
   const form = useForm<UserFormValues>({
     resolver: zodResolver(formSchema),
@@ -62,36 +86,46 @@ export function EditUserForm({ initialData }: EditUserFormProps) {
       password: '',
       role: 'user',
       status: 'active',
-      imageUrl: ''
-    }
-  })
+      imageUrl: '',
+    },
+  });
 
   async function onSubmit(data: UserFormValues) {
-    setIsLoading(true)
+    setIsLoading(true);
     try {
-      // TODO: Implement user update logic
+      const response = await updateUser(initialData.id, {
+        name: data.name,
+        email: data.email,
+        role: data.role,
+        status: data.status,
+      });
+
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to update user');
+      }
+
       toast({
-        title: 'User updated',
-        description: 'The user has been successfully updated.'
-      })
-      router.push('/dashboard/users')
-      router.refresh()
+        title: 'Success',
+        description: 'User has been successfully updated',
+      });
+      router.push('/dashboard/users');
+      router.refresh();
     } catch (error) {
-      console.error('Error updating user:', error)
+      console.error('Error updating user:', error);
       toast({
         title: 'Error',
         description: 'Failed to update user. Please try again.',
-        variant: 'destructive'
-      })
+        variant: 'destructive',
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
   }
 
   async function handleImageUpload(file: File) {
-    setIsUploading(true)
+    setIsUploading(true);
     // TODO: Implement image upload logic
-    setIsUploading(false)
+    setIsUploading(false);
   }
 
   return (
@@ -100,7 +134,12 @@ export function EditUserForm({ initialData }: EditUserFormProps) {
         <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">
           <div className="mx-auto grid max-w-[59rem] flex-1 auto-rows-max gap-4">
             <div className="flex items-center gap-4">
-              <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => router.back()}>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => router.back()}
+              >
                 <ChevronLeft className="h-4 w-4" />
                 <span className="sr-only">Back</span>
               </Button>
@@ -111,10 +150,18 @@ export function EditUserForm({ initialData }: EditUserFormProps) {
                 {form.watch('status') === 'active' ? 'Active' : 'Inactive'}
               </Badge>
               <div className="hidden items-center gap-2 md:ml-auto md:flex">
-                <Button variant="outline" size="sm" onClick={() => form.reset()}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => form.reset()}
+                >
                   Discard
                 </Button>
-                <Button size="sm" type="submit" disabled={isLoading || isUploading}>
+                <Button
+                  size="sm"
+                  type="submit"
+                  disabled={isLoading || isUploading}
+                >
                   {isLoading ? 'Saving...' : 'Update User'}
                 </Button>
               </div>
@@ -150,7 +197,11 @@ export function EditUserForm({ initialData }: EditUserFormProps) {
                           <FormItem>
                             <FormLabel>Email</FormLabel>
                             <FormControl>
-                              <Input type="email" placeholder="user@example.com" {...field} />
+                              <Input
+                                type="email"
+                                placeholder="user@example.com"
+                                {...field}
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -172,7 +223,10 @@ export function EditUserForm({ initialData }: EditUserFormProps) {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Status</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <Select
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                          >
                             <FormControl>
                               <SelectTrigger>
                                 <SelectValue placeholder="Select status" />
@@ -193,7 +247,10 @@ export function EditUserForm({ initialData }: EditUserFormProps) {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Role</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <Select
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                          >
                             <FormControl>
                               <SelectTrigger>
                                 <SelectValue placeholder="Select role" />
@@ -202,6 +259,7 @@ export function EditUserForm({ initialData }: EditUserFormProps) {
                             <SelectContent>
                               <SelectItem value="admin">Admin</SelectItem>
                               <SelectItem value="user">User</SelectItem>
+                              <SelectItem value="customer">Customer</SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -220,16 +278,20 @@ export function EditUserForm({ initialData }: EditUserFormProps) {
                                 alt="User image"
                                 className="aspect-square w-full rounded-md object-cover"
                                 height="300"
-                                src={field.value || initialData?.imageUrl || "/uploads/placeholder.svg"}
+                                src={
+                                  field.value ||
+                                  initialData?.imageUrl ||
+                                  '/uploads/placeholder.svg'
+                                }
                                 width="300"
                               />
                               <Input
                                 type="file"
                                 accept="image/*"
-                                onChange={async (e) => {
-                                  const file = e.target.files?.[0]
+                                onChange={async e => {
+                                  const file = e.target.files?.[0];
                                   if (file) {
-                                    await handleImageUpload(file)
+                                    await handleImageUpload(file);
                                   }
                                 }}
                               />
@@ -248,7 +310,11 @@ export function EditUserForm({ initialData }: EditUserFormProps) {
               <Button variant="outline" size="sm" onClick={() => form.reset()}>
                 Discard
               </Button>
-              <Button size="sm" type="submit" disabled={isLoading || isUploading}>
+              <Button
+                size="sm"
+                type="submit"
+                disabled={isLoading || isUploading}
+              >
                 {isLoading ? 'Saving...' : 'Update User'}
               </Button>
             </div>
@@ -256,5 +322,5 @@ export function EditUserForm({ initialData }: EditUserFormProps) {
         </main>
       </form>
     </Form>
-  )
+  );
 }

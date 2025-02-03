@@ -108,7 +108,7 @@ export async function signUp(formData: FormData) {
           id: data.user.id,
           name: full_name,
           email: email,
-          role: 'customer',
+          role: data.user_metadata?.role || 'customer',
           status: 'active',
           auth_provider: 'email',
           created_at: new Date().toISOString(),

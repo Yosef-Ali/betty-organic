@@ -15,7 +15,7 @@ const getSupabaseClient = async () => {
           return cookieStore.get(name)?.value;
         },
       },
-    }
+    },
   );
 };
 
@@ -25,8 +25,7 @@ export async function getUsers() {
   try {
     const { data: users, error } = await supabase
       .from('profiles')
-      .select('id, name, email, role, status, avatar_url')
-      .eq('role', 'admin');
+      .select('id, name, email, role, status, avatar_url');
 
     if (error) {
       console.error('Error fetching user list:', error);
@@ -66,10 +65,7 @@ export async function updateUser(id: string, data: Partial<User>) {
   const supabase = await getSupabaseClient();
 
   try {
-    const { error } = await supabase
-      .from('profiles')
-      .update(data)
-      .eq('id', id);
+    const { error } = await supabase.from('profiles').update(data).eq('id', id);
 
     if (error) {
       console.error('Error updating user:', error);
@@ -104,11 +100,14 @@ export async function updateUserRole(id: string, role: string) {
   }
 }
 
-export async function updateProfile(userId: string, data: {
-  name?: string;
-  email?: string;
-  avatar_url?: string;
-}) {
+export async function updateProfile(
+  userId: string,
+  data: {
+    name?: string;
+    email?: string;
+    avatar_url?: string;
+  },
+) {
   const supabase = await getSupabaseClient();
 
   try {
@@ -133,10 +132,7 @@ export async function deleteUser(id: string) {
   const supabase = await getSupabaseClient();
 
   try {
-    const { error } = await supabase
-      .from('profiles')
-      .delete()
-      .eq('id', id);
+    const { error } = await supabase.from('profiles').delete().eq('id', id);
 
     if (error) {
       console.error('Error deleting user:', error);
