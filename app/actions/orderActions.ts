@@ -55,7 +55,7 @@ export async function createOrder(orderData: Order) {
     if (!authData?.user) {
       return {
         data: null,
-        error: new Error('Session validation failed: Please sign in again')
+        error: new Error('Session validation failed: Please sign in again'),
       };
     }
 
@@ -63,7 +63,9 @@ export async function createOrder(orderData: Order) {
     if (!['admin', 'sales'].includes(authData.profile?.role)) {
       return {
         data: null,
-        error: new Error('Unauthorized: Only admin and sales can create orders')
+        error: new Error(
+          'Unauthorized: Only admin and sales can create orders',
+        ),
       };
     }
 
@@ -71,32 +73,63 @@ export async function createOrder(orderData: Order) {
     if (!orderData?.order_items?.length) {
       return {
         data: null,
-        error: new Error('Invalid order data: Missing order items')
+        error: new Error('Invalid order data: Missing order items'),
       };
     }
 
-    // Start a transaction
-    const { data, error } = await supabase.rpc('create_order_with_items', {
-      order_data: {
-        ...orderToCreate,
-        profile_id: user.id,
-        created_by: user.id,
-        status: orderData.status || 'pending',
-      },
-      order_items: orderData.order_items
-    });
+    const user = authData.user;
 
-    if (error) {
-      console.error('Transaction error:', error);
-      return { data: null, error };
+    // Create the order
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
+      .insert({
+        profile_id: user.id,
+        customer_profile_id: orderData.customer_profile_id,
+        total_amount: orderData.total_amount,
+        status: orderData.status,
+        type: orderData.type,
+      })
+      .select()
+      .single();
+
+    if (orderError) {
+      console.error('Database error creating order:', orderError);
+      throw new Error(
+        `Database error creating order: ${
+          orderError.message || 'Unknown error'
+        }`,
+      );
     }
 
-    return { data, error: null };
+    // Create order items
+    const orderItems = orderData.order_items.map(item => ({
+      id: crypto.randomUUID(),
+      order_id: order.id,
+      product_id: item.product_id,
+      quantity: item.quantity,
+      price: item.price,
+      product_name: item.product_name,
+    }));
+
+    const { error: itemsError } = await supabase
+      .from('order_items')
+      .insert(orderItems);
+
+    if (itemsError) {
+      // If order items creation fails, delete the order
+      await supabase.from('orders').delete().eq('id', order.id);
+      throw itemsError;
+    }
+
+    return {
+      data: { ...order, order_items: orderItems },
+      error: null,
+    };
   } catch (err) {
     console.error('Server error creating order:', err);
     return {
       data: null,
-      error: new Error('Failed to create order. Please try again.')
+      error: new Error('Failed to create order. Please try again.'),
     };
   }
 }
@@ -146,7 +179,18 @@ export async function getOrders(customerId?: string) {
           *,
           products!inner (*)
         ),
-        profile:profiles(id, name, email, role)
+        customer:profiles!orders_customer_profile_id_fkey (
+          id,
+          name,
+          email,
+          role
+        ),
+        seller:profiles!orders_profile_id_fkey (
+          id,
+          name,
+          email,
+          role
+        )
       `,
       )
       .order('created_at', { ascending: false });
@@ -158,14 +202,14 @@ export async function getOrders(customerId?: string) {
       // Sales users can only see orders they created
       query = query.eq('profile_id', authData.user.id);
     } else if (userRole === 'customer') {
-      // Customers can only see their own orders
-      query = query.eq('profile_id', authData.user.id);
+      // Customers can only see orders where they are the customer
+      query = query.eq('customer_profile_id', authData.user.id);
     }
     // Admins can see all orders (no additional filtering needed)
 
-    // If customerId is provided, further filter by it
+    // If customerId is provided, further filter by customer_profile_id
     if (customerId) {
-      query = query.eq('profile_id', customerId);
+      query = query.eq('customer_profile_id', customerId);
     }
 
     const ordersError = await query;

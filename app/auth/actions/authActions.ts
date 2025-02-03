@@ -145,31 +145,44 @@ export async function signUp(formData: FormData) {
 
 export async function signInWithGoogle() {
   const supabase = await createClient();
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: {
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
-      queryParams: {
-        access_type: 'offline',
-        prompt: 'consent',
+  try {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        },
+        scopes: 'email profile',  // Ensure we request necessary scopes
       },
-    },
-  });
+    });
 
-  if (error) {
-    return { error: error.message };
-  }
+    if (error) {
+      console.error('Google sign-in error:', error);
+      return { error: error.message };
+    }
 
-  if (data?.url) {
+    if (!data?.url) {
+      console.error('No redirect URL received');
+      return { error: 'Authentication configuration error' };
+    }
+
+    // Store the provider in session storage for callback handling
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('authProvider', 'google');
+    }
+
     return {
       redirect: {
         destination: data.url,
         type: 'replace',
       },
     };
+  } catch (err) {
+    console.error('Unexpected error during Google sign-in:', err);
+    return { error: 'An unexpected error occurred' };
   }
-
-  return { error: 'No redirect URL received from OAuth provider' };
 }
 
 export async function signOut() {
@@ -280,42 +293,47 @@ export async function verifyEmail(email: string, code: string) {
 export async function createGoogleUserProfile(user: any) {
   const supabase = await createClient();
 
-  // Check for existing profile
-  const { data: profile, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single();
+  try {
+    // Check for existing profile
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
 
-  if (error && error.code !== 'PGRST116') {
-    console.error('Profile lookup error:', error);
-    return { error };
-  }
-
-  // Create profile if missing or update if needed
-  if (!profile) {
-    const { error: upsertError } = await supabase.from('profiles').upsert(
-      {
-        id: user.id,
-        name: user.user_metadata?.full_name || user.email?.split('@')[0],
-        email: user.email,
-        role: 'customer',
-        status: 'active',
-        auth_provider: 'google',
-        avatar_url: user.user_metadata?.avatar_url,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      },
-      {
-        onConflict: 'id',
-      },
-    );
-
-    if (upsertError) {
-      console.error('Profile upsert error:', upsertError);
-      return { error: upsertError };
+    if (error && error.code !== 'PGRST116') {
+      console.error('Profile lookup error:', error);
+      return { error };
     }
-  }
 
-  return { error: null };
+    // Create profile if missing or update if needed
+    if (!profile) {
+      const { error: upsertError } = await supabase.from('profiles').upsert(
+        {
+          id: user.id,
+          name: user.user_metadata?.full_name || user.email?.split('@')[0],
+          email: user.email,
+          role: 'customer', // Ensure default role is set
+          status: 'active',
+          auth_provider: 'google',
+          avatar_url: user.user_metadata?.avatar_url,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+        {
+          onConflict: 'id',
+        },
+      );
+
+      if (upsertError) {
+        console.error('Profile upsert error:', upsertError);
+        return { error: upsertError };
+      }
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.error('Error creating Google user profile:', err);
+    return { error: 'Failed to create user profile' };
+  }
 }
