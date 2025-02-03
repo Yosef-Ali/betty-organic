@@ -6,24 +6,21 @@ type FilterStatus = 'all' | 'with-orders' | 'no-orders';
 
 interface Customer {
   id: string;
-  fullName?: string;
-  full_name?: string;
+  name: string | null;
   email: string;
-  phone?: string;
-  imageUrl?: string;
-  location?: string;
-  status: string;
+  address?: string | null;
+  avatar_url?: string | null;
+  status?: string;
   orders?: Array<{
     id: string;
-    customerId: string;
-    product: string;
-    amount: number;
+    customer_profile_id: string;
+    total_amount: number;
     status: string;
-    createdAt: string;
-    updatedAt?: string;
+    created_at: string;
+    updated_at?: string;
   }>;
-  createdAt: string;
-  updatedAt?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 type CustomerWithOrders = Customer & {
@@ -33,7 +30,8 @@ type CustomerWithOrders = Customer & {
 
 export function useCustomers(initialCustomers: Customer[]) {
   const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
-  const [filteredCustomers, setFilteredCustomers] = useState<CustomerWithOrders[]>(customers);
+  const [filteredCustomers, setFilteredCustomers] =
+    useState<CustomerWithOrders[]>(customers);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
@@ -42,7 +40,7 @@ export function useCustomers(initialCustomers: Customer[]) {
   useEffect(() => {
     const filtered = customers.filter(customer => {
       const matchesSearch =
-        customer.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        customer.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         customer.email?.toLowerCase().includes(searchTerm.toLowerCase());
 
       if (!matchesSearch) return false;
@@ -62,17 +60,18 @@ export function useCustomers(initialCustomers: Customer[]) {
   const fetchCustomers = async () => {
     setIsLoading(true);
     try {
-      const fetchedCustomers = await getCustomers() as CustomerWithOrders[];
-      const sortedCustomers = fetchedCustomers.sort((a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      const fetchedCustomers = (await getCustomers()) as CustomerWithOrders[];
+      const sortedCustomers = fetchedCustomers.sort(
+        (a, b) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
       );
       setCustomers(sortedCustomers);
       setFilteredCustomers(sortedCustomers);
     } catch (error) {
       toast({
-        title: "Error",
-        description: "Failed to fetch customers",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to fetch customers',
+        variant: 'destructive',
       });
     }
     setIsLoading(false);
@@ -82,18 +81,20 @@ export function useCustomers(initialCustomers: Customer[]) {
     try {
       const result = await deleteCustomer(id);
       if (result.success) {
-        setCustomers(prevCustomers => prevCustomers.filter(customer => customer.id !== id));
+        setCustomers(prevCustomers =>
+          prevCustomers.filter(customer => customer.id !== id),
+        );
         toast({
-          title: "Customer deleted",
-          description: "The customer has been successfully deleted.",
+          title: 'Customer deleted',
+          description: 'The customer has been successfully deleted.',
         });
       }
     } catch (error) {
       console.error('Error deleting customer:', error);
       toast({
-        title: "Error",
-        description: "Failed to delete the customer. Please try again.",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to delete the customer. Please try again.',
+        variant: 'destructive',
       });
     }
   };
@@ -107,6 +108,6 @@ export function useCustomers(initialCustomers: Customer[]) {
     filterStatus,
     setFilterStatus,
     handleDelete,
-    fetchCustomers
+    fetchCustomers,
   };
 }

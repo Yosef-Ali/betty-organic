@@ -20,14 +20,14 @@ export async function createCustomer(data: CreateCustomerData) {
   const supabase = createClient();
 
   try {
-    const { error } = await supabase.from('customers').insert({
+    const { error } = await supabase.from('profiles').insert({
       id: data.id,
-      full_name: data.fullName,
+      name: data.fullName,
       email: data.email,
-      phone: data.phone || null,
-      location: data.location || null,
-      image_url: data.imageUrl || null,
-      status: data.status === 'active',
+      address: data.location || null,
+      avatar_url: data.imageUrl || null,
+      role: 'customer',
+      status: data.status,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     });
@@ -48,16 +48,14 @@ export async function updateCustomer(data: CreateCustomerData) {
   const supabase = createClient();
 
   try {
-    // First update customer data
     const { error } = await supabase
-      .from('customers')
+      .from('profiles')
       .update({
-        full_name: data.fullName,
+        name: data.fullName,
         email: data.email,
-        phone: data.phone || null,
-        location: data.location || null,
-        image_url: data.imageUrl || null,
-        status: data.status === 'active',
+        address: data.location || null,
+        avatar_url: data.imageUrl || null,
+        status: data.status,
         updated_at: new Date().toISOString(),
       })
       .eq('id', data.id);
@@ -80,21 +78,21 @@ export async function deleteCustomer(id: string) {
   try {
     // Get customer data to delete image if exists
     const { data: customer } = await supabase
-      .from('customers')
-      .select('image_url')
+      .from('profiles')
+      .select('avatar_url')
       .eq('id', id)
       .single();
 
     // Delete image from storage if exists
-    if (customer?.image_url) {
-      const path = customer.image_url.split('/').pop();
+    if (customer?.avatar_url) {
+      const path = customer.avatar_url.split('/').pop();
       if (path) {
-        await supabase.storage.from('customers').remove([`customers/${path}`]);
+        await supabase.storage.from('avatars').remove([path]);
       }
     }
 
     // Delete customer record
-    const { error } = await supabase.from('customers').delete().eq('id', id);
+    const { error } = await supabase.from('profiles').delete().eq('id', id);
 
     if (error) {
       throw error;
@@ -113,9 +111,10 @@ export async function getCustomer(id: string) {
 
   try {
     const { data, error } = await supabase
-      .from('customers')
+      .from('profiles')
       .select('*')
       .eq('id', id)
+      .eq('role', 'customer')
       .single();
 
     if (error) {
@@ -125,12 +124,11 @@ export async function getCustomer(id: string) {
     return data
       ? {
           id: data.id,
-          fullName: data.full_name,
+          fullName: data.name,
           email: data.email,
-          phone: data.phone || '',
-          location: data.location || '',
-          imageUrl: data.image_url || '',
-          status: data.status ? 'active' : 'inactive',
+          location: data.address || '',
+          imageUrl: data.avatar_url || '',
+          status: data.status || 'inactive',
         }
       : null;
   } catch (error) {
@@ -144,8 +142,9 @@ export async function getCustomers() {
 
   try {
     const { data, error } = await supabase
-      .from('customers')
+      .from('profiles')
       .select('*')
+      .eq('role', 'customer')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -156,12 +155,11 @@ export async function getCustomers() {
     return (
       data?.map(customer => ({
         id: customer.id,
-        full_name: customer.full_name,
+        full_name: customer.name,
         email: customer.email,
-        phone: customer.phone || '',
-        location: customer.location || '',
-        imageUrl: customer.image_url || '',
-        status: customer.status ? 'active' : 'inactive',
+        location: customer.address || '',
+        imageUrl: customer.avatar_url || '',
+        status: customer.status || 'inactive',
       })) || []
     );
   } catch (error) {
