@@ -6,32 +6,25 @@ type FilterStatus = 'all' | 'with-orders' | 'no-orders';
 
 interface Customer {
   id: string;
-  name: string | null;
+  fullName: string;
   email: string;
-  address?: string | null;
-  avatar_url?: string | null;
-  status?: string;
+  address?: string;
+  imageUrl?: string;
+  status: string;
   orders?: Array<{
     id: string;
-    customer_profile_id: string;
     total_amount: number;
     status: string;
     created_at: string;
-    updated_at?: string;
   }>;
   created_at: string;
   updated_at: string;
 }
 
-type CustomerWithOrders = Customer & {
-  orders?: any[];
-  imageUrl?: string;
-};
-
 export function useCustomers(initialCustomers: Customer[]) {
   const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
   const [filteredCustomers, setFilteredCustomers] =
-    useState<CustomerWithOrders[]>(customers);
+    useState<Customer[]>(customers);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
@@ -40,7 +33,7 @@ export function useCustomers(initialCustomers: Customer[]) {
   useEffect(() => {
     const filtered = customers.filter(customer => {
       const matchesSearch =
-        customer.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        customer.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         customer.email?.toLowerCase().includes(searchTerm.toLowerCase());
 
       if (!matchesSearch) return false;
@@ -60,7 +53,7 @@ export function useCustomers(initialCustomers: Customer[]) {
   const fetchCustomers = async () => {
     setIsLoading(true);
     try {
-      const fetchedCustomers = (await getCustomers()) as CustomerWithOrders[];
+      const fetchedCustomers = await getCustomers();
       const sortedCustomers = fetchedCustomers.sort(
         (a, b) =>
           new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),

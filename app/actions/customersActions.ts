@@ -112,7 +112,17 @@ export async function getCustomer(id: string) {
   try {
     const { data, error } = await supabase
       .from('profiles')
-      .select('*')
+      .select(
+        `
+        id,
+        name,
+        email,
+        address,
+        avatar_url,
+        role,
+        status
+      `,
+      )
       .eq('id', id)
       .eq('role', 'customer')
       .single();
@@ -143,23 +153,44 @@ export async function getCustomers() {
   try {
     const { data, error } = await supabase
       .from('profiles')
-      .select('*')
+      .select(
+        `
+        id,
+        name,
+        email,
+        address,
+        avatar_url,
+        role,
+        status,
+        created_at,
+        updated_at,
+        orders:orders!orders_customer_profile_id_fkey (
+          id,
+          total_amount,
+          status,
+          created_at
+        )
+      `,
+      )
       .eq('role', 'customer')
       .order('created_at', { ascending: false });
 
     if (error) {
       console.error('Supabase error fetching customers:', error);
-      return [];
+      throw error;
     }
 
     return (
       data?.map(customer => ({
         id: customer.id,
-        full_name: customer.name,
+        fullName: customer.name,
         email: customer.email,
-        location: customer.address || '',
+        address: customer.address || '',
         imageUrl: customer.avatar_url || '',
         status: customer.status || 'inactive',
+        orders: customer.orders || [],
+        created_at: customer.created_at,
+        updated_at: customer.updated_at,
       })) || []
     );
   } catch (error) {
