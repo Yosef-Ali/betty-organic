@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { CartItem as CartItemType } from '@/store/cartStore';
+import type { CartItem as CartItemType } from '@/types/cart';
 
 interface CartItemProps {
   item: CartItemType;

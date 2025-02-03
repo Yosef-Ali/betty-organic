@@ -1,5 +1,5 @@
-import { DashboardShell } from '@/components/DashboardShell';
 import { ProductForm } from '@/components/ProductForm';
+import { ProductHeader } from '@/components/products/ProductHeader';
 import { getProduct } from '@/app/actions/productActions';
 
 interface ProductEditPageProps {
@@ -12,19 +12,27 @@ export default async function ProductEditPage({
   const product = await getProduct(id);
 
   return (
-    <DashboardShell>
-      <div className="flex-1 flex flex-col space-y-4 p-8">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold tracking-tight">Edit Product</h1>
-        </div>
-        <div className="grid gap-4">
-          <ProductForm
-            initialData={product}
-            isAdmin={true} // TODO: Pass actual user role
-            isSales={true} // TODO: Pass actual user role
-          />
-        </div>
+    <div className="flex-1 flex flex-col space-y-4 p-8">
+      <ProductHeader title="Edit Product" />
+      <div className="grid gap-4">
+        <ProductForm
+          initialData={
+            product
+              ? {
+                  id: product.id,
+                  name: product.name,
+                  price: Number(product.price),
+                  status: product.active ? 'active' : 'out_of_stock',
+                  stock: Number(product.stock),
+                  description: product.description || undefined,
+                  imageUrl: product.imageUrl || undefined,
+                }
+              : undefined
+          }
+          isAdmin={true} // TODO: Pass actual user role
+          isSales={true} // TODO: Pass actual user role
+        />
       </div>
-    </DashboardShell>
+    </div>
   );
 }

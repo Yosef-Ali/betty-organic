@@ -36,9 +36,8 @@ import { ProductTableContent } from './ProductTableContent';
 const ProductTable = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [products, setProducts] = useState<Product[]>([]);
-  const [activeTab, setActiveTab] = useState<'all' | 'active' | 'out-of-stock'>(
-    'all',
-  );
+  const [activeTab, setActiveTab] = useState<'all' | 'active' | 'out-of-stock'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const { toast } = useToast();
   const router = useRouter();
 
@@ -93,10 +92,19 @@ const ProductTable = () => {
   };
 
   const filteredProducts = products.filter(product => {
-    if (activeTab === 'all') return true;
-    if (activeTab === 'active') return product.stock > 0;
-    if (activeTab === 'out-of-stock') return product.stock === 0;
-    return true;
+    // First apply tab filtering
+    const matchesTab =
+      activeTab === 'all' ? true :
+        activeTab === 'active' ? product.stock > 0 :
+          activeTab === 'out-of-stock' ? product.stock === 0 : true;
+
+    // Then apply search filtering
+    const matchesSearch =
+      searchQuery === '' ||
+      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      product.description?.toLowerCase().includes(searchQuery.toLowerCase());
+
+    return matchesTab && matchesSearch;
   });
 
   const renderTable = (products: Product[]) => (
@@ -129,7 +137,7 @@ const ProductTable = () => {
   );
 
   return (
-    <div className="h-full flex-1 flex-col space-y-8 md:p-4">
+    <div className="h-full flex-1 flex-col space-y-4">
       <Tabs
         defaultValue="all"
         className="space-y-4"
@@ -161,8 +169,8 @@ const ProductTable = () => {
               type="search"
               placeholder="Search products..."
               className="h-8 w-[150px] lg:w-[250px]"
-              value=""
-              onChange={e => {}}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
             />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

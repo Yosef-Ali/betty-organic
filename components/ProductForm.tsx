@@ -112,7 +112,11 @@ export function ProductForm({
           throw new Error('Failed to update product: Invalid response');
         }
         if ('error' in result) {
-          throw new Error(typeof result.error === 'string' ? result.error : 'Failed to update product');
+          throw new Error(
+            typeof result.error === 'string'
+              ? result.error
+              : 'Failed to update product',
+          );
         }
       } else {
         const result = await createProduct(formData);
@@ -120,7 +124,11 @@ export function ProductForm({
           throw new Error('Failed to create product: Invalid response');
         }
         if ('error' in result) {
-          throw new Error(typeof result.error === 'string' ? result.error : 'Failed to create product');
+          throw new Error(
+            typeof result.error === 'string'
+              ? result.error
+              : 'Failed to create product',
+          );
         }
       }
 
@@ -150,8 +158,12 @@ export function ProductForm({
       // Handle Zod validation errors from server
       else if (error && typeof error === 'object' && 'errors' in error) {
         // Handle Zod-like validation errors
-        const zodError = error as { errors: Array<{ path: string[]; message: string }> };
-        validationErrors = zodError.errors.map(e => `${e.path.join('.')}: ${e.message}`);
+        const zodError = error as {
+          errors: Array<{ path: string[]; message: string }>;
+        };
+        validationErrors = zodError.errors.map(
+          e => `${e.path.join('.')}: ${e.message}`,
+        );
         errorMessage = 'Validation failed';
       }
       // Handle standard Error objects
@@ -159,18 +171,26 @@ export function ProductForm({
         errorMessage = error.message;
       }
 
-      console.error('Form submission error:', JSON.stringify({
-        message: errorMessage,
-        validationErrors,
-        timestamp: new Date().toISOString(),
-        path: window.location.pathname,
-      }, null, 2));
+      console.error(
+        'Form submission error:',
+        JSON.stringify(
+          {
+            message: errorMessage,
+            validationErrors,
+            timestamp: new Date().toISOString(),
+            path: window.location.pathname,
+          },
+          null,
+          2,
+        ),
+      );
 
       toast({
         title: 'Submission Error',
-        description: validationErrors.length > 0
-          ? validationErrors.join('\n')
-          : errorMessage,
+        description:
+          validationErrors.length > 0
+            ? validationErrors.join('\n')
+            : errorMessage,
         variant: 'destructive',
       });
     } finally {
@@ -193,45 +213,10 @@ export function ProductForm({
   return (
     <Form {...form}>
       <form
+        id="product-form"
         onSubmit={form.handleSubmit(onSubmit)}
         className="mx-auto max-w-5xl"
       >
-        <div className="flex items-center gap-4 mb-6">
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            className="h-7 w-7"
-            onClick={() => router.back()}
-          >
-            <ChevronLeft className="h-4 w-4" />
-            <span className="sr-only">Back</span>
-          </Button>
-          <h1 className="text-xl font-semibold">
-            {initialData ? 'Edit Product' : 'Add Product'}
-          </h1>
-          <Badge variant="outline" className="ml-auto">
-            {form.watch('stock') > 0 ? 'In stock' : 'Out of stock'}
-          </Badge>
-          <div className="hidden md:flex items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => form.reset()}
-            >
-              Discard
-            </Button>
-            <Button type="submit" size="sm" disabled={isLoading}>
-              {isLoading
-                ? 'Saving...'
-                : initialData
-                  ? 'Update Product'
-                  : 'Save Product'}
-            </Button>
-          </div>
-        </div>
-
         <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-6">
           <ProductDetailsForm form={form} />
           <ProductMediaForm
@@ -239,25 +224,6 @@ export function ProductForm({
             isLoading={isLoading}
             initialData={initialData}
           />
-        </div>
-
-        {/* Mobile Actions */}
-        <div className="flex items-center justify-center gap-2 mt-6 md:hidden">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => form.reset()}
-          >
-            Discard
-          </Button>
-          <Button type="submit" size="sm" disabled={isLoading}>
-            {isLoading
-              ? 'Saving...'
-              : initialData
-                ? 'Update Product'
-                : 'Save Product'}
-          </Button>
         </div>
       </form>
     </Form>
