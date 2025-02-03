@@ -22,7 +22,7 @@ async function createClient() {
           await cookieStore.set(name, '', { ...options, maxAge: 0 });
         },
       },
-    }
+    },
   );
 }
 
@@ -30,7 +30,7 @@ export async function signIn(formData: FormData) {
   const email = formData.get('email') as string;
   const password = formData.get('password') as string;
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
@@ -104,18 +104,16 @@ export async function signUp(formData: FormData) {
 
       if (!existingProfile) {
         // Create profile entry only if it doesn't exist
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert({
-            id: data.user.id,
-            name: full_name,
-            email: email,
-            role: 'customer',
-            status: 'active',
-            auth_provider: 'email',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          });
+        const { error: profileError } = await supabase.from('profiles').insert({
+          id: data.user.id,
+          name: full_name,
+          email: email,
+          role: 'customer',
+          status: 'active',
+          auth_provider: 'email',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
 
         if (profileError) {
           console.error('Failed to create profile:', profileError);
@@ -125,7 +123,8 @@ export async function signUp(formData: FormData) {
 
       return {
         success: true,
-        message: 'Registration successful. Please check your email for verification.',
+        message:
+          'Registration successful. Please check your email for verification.',
         data: {
           user: {
             id: data.user.id,
@@ -263,9 +262,8 @@ export async function createGoogleUserProfile(user: any) {
 
   // Create profile if missing or update if needed
   if (!profile) {
-    const { error: upsertError } = await supabase
-      .from('profiles')
-      .upsert({
+    const { error: upsertError } = await supabase.from('profiles').upsert(
+      {
         id: user.id,
         name: user.user_metadata?.full_name || user.email?.split('@')[0],
         email: user.email,
@@ -274,10 +272,12 @@ export async function createGoogleUserProfile(user: any) {
         auth_provider: 'google',
         avatar_url: user.user_metadata?.avatar_url,
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: 'id'
-      });
+        updated_at: new Date().toISOString(),
+      },
+      {
+        onConflict: 'id',
+      },
+    );
 
     if (upsertError) {
       console.error('Profile upsert error:', upsertError);
