@@ -16,21 +16,26 @@ export async function getOrderDetails(orderId: string) {
   try {
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .select(
-        `
+      .select(`
         *,
         order_items!order_items_order_id_fkey (
           *,
           product:products!inner (*)
         ),
-        profile:profiles!orders_profile_id_fkey (
+        customer:profiles!orders_customer_profile_id_fkey (
           id,
           name,
           email,
           role,
           address
+        ),
+        seller:profiles!orders_profile_id_fkey (
+          id,
+          name,
+          email,
+          role
         )
-      `,
+      `)
       )
       .eq('id', orderId)
       .single();
@@ -172,14 +177,13 @@ export async function getOrders(customerId?: string) {
 
     let query = supabase
       .from('orders')
-      .select(
-        `
+      .select(`
         *,
         order_items!order_items_order_id_fkey (
           *,
           products!inner (*)
         ),
-        profiles!orders_customer_profile_id_fkey (
+        customer:profiles!orders_customer_profile_id_fkey (
           id,
           name,
           email,
@@ -191,21 +195,22 @@ export async function getOrders(customerId?: string) {
           email,
           role
         )
-      `,
+      `)
       )
       .order('created_at', { ascending: false });
 
-    // Custom filtering based on user role
-    const userRole = authData.profile.role;
-
-    if (userRole === 'sales') {
+    // Apply role-based filtering
+    if (authData.profile?.role === 'admin') {
+      // Admins can see all orders
+    } else if (authData.profile?.role === 'sales') {
       // Sales users can only see orders they created
       query = query.eq('profile_id', authData.user.id);
-    } else if (userRole === 'customer') {
-      // Customers can only see orders where they are the customer
+    } else if (authData.profile?.role === 'customer') {
+      // Customers can only see their own orders
       query = query.eq('customer_profile_id', authData.user.id);
+    } else {
+      throw new Error('Unauthorized: Invalid role');
     }
-    // Admins can see all orders (no additional filtering needed)
 
     // If customerId is provided, further filter by customer_profile_id
     if (customerId) {
