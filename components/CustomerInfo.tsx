@@ -1,5 +1,6 @@
 // CustomerInfo.tsx
 import React from 'react';
+import Image from 'next/image';
 
 type CustomerInfoProps = {
   fullName: string;
@@ -11,10 +12,12 @@ export const CustomerInfo: React.FC<CustomerInfoProps> = ({ fullName, email, ima
   return (
     <div className="flex items-center">
       <div className="h-10 w-10 flex-shrink-0">
-        <img
-          className="h-10 w-10 rounded-full object-cover"
+        <Image
+          className="rounded-full object-cover"
           src={imageUrl || '/public/uploads/default.jpg'}
           alt={fullName || 'Customer'}
+          width={40}
+          height={40}
         />
       </div>
       <div className="ml-4">

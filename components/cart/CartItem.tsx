@@ -1,4 +1,5 @@
 import React, { FC, useEffect, useRef } from "react";
+import Image from 'next/image';
 import { Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,7 +37,13 @@ export const CartItem: FC<CartItemProps> = ({ item, index, updateGrams, removeFr
     <div className="mb-6 px-2">
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-start">
-          <img src={item.imageUrl} alt={item.name} className="w-16 h-16 rounded-md mr-4 object-cover" />
+          <Image
+            src={item.imageUrl}
+            alt={item.name}
+            width={64}
+            height={64}
+            className="rounded-md mr-4 object-cover"
+          />
           <div>
             <h3 className="font-semibold text-lg">{item.name}</h3>
             <p className="text-sm text-muted-foreground">Br {item.pricePerKg.toFixed(2)} per kg</p>

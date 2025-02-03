@@ -69,7 +69,7 @@ export default function CustomerRow({
             <AlertDialogHeader>
               <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
               <AlertDialogDescription>
-                This action cannot be undone. This will permanently delete the customer's account and remove their data from our servers.
+                This action cannot be undone. This will permanently delete the customer&apos;s account and remove their data from our servers.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
