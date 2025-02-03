@@ -90,9 +90,15 @@ export default function Header({ onMobileMenuToggle, profile }: HeaderProps) {
   }, [pathname]);
 
   const handleSignOut = async () => {
-    await signOut();
-    // Full page reload to clear client-side state
-    window.location.assign('/auth/login');
+    const { error, success } = await signOut();
+    if (error) {
+      console.error('Sign out failed:', error);
+      return;
+    }
+    if (success) {
+      // Full page reload to clear client-side state
+      window.location.assign('/auth/login');
+    }
   };
 
   const generateBreadcrumbs = () => {
@@ -101,7 +107,9 @@ export default function Header({ onMobileMenuToggle, profile }: HeaderProps) {
     }
 
     const rawSegments = clientPathname.split('/').filter(Boolean);
-    const pathSegments = rawSegments.map(segment => String(segment).replace(/-/g, ' '));
+    const pathSegments = rawSegments.map(segment =>
+      String(segment).replace(/-/g, ' '),
+    );
 
     if (pathSegments.length === 0) {
       return [{ label: 'Dashboard', href: null }];
@@ -115,13 +123,16 @@ export default function Header({ onMobileMenuToggle, profile }: HeaderProps) {
       return [
         { label: firstSegment, href: `/${rawSegments[0]}` },
         { label: '...', href: null },
-        { label: lastSegment, href: `/${rawSegments.slice(0, -1).join('/')}` }
+        { label: lastSegment, href: `/${rawSegments.slice(0, -1).join('/')}` },
       ];
     }
 
     return pathSegments.map((segment, index) => ({
       label: segment,
-      href: index === pathSegments.length - 1 ? null : `/${pathSegments.slice(0, index + 1).join('/')}`
+      href:
+        index === pathSegments.length - 1
+          ? null
+          : `/${pathSegments.slice(0, index + 1).join('/')}`,
     }));
   };
 
