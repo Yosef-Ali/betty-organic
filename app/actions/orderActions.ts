@@ -179,7 +179,7 @@ export async function getOrders(customerId?: string) {
           *,
           products!inner (*)
         ),
-        customer:profiles!orders_customer_profile_id_fkey (
+        profiles!orders_customer_profile_id_fkey (
           id,
           name,
           email,

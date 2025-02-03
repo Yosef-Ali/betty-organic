@@ -10,7 +10,12 @@ export interface Order {
   type: string;
   created_at: string | null;
   updated_at: string | null;
-  customer_info?: any;
+  profiles?: {
+    id: string;
+    name: string | null;
+    email: string;
+    role: string;
+  };
   order_items: Array<{
     id: string;
     order_id: string;

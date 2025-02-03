@@ -235,58 +235,23 @@ export function useSalesCartSheet({
         customerId: customerData.id,
       });
 
-      // Start a transaction
-      const { data: order, error: orderError } = await supabase
-        .from('orders')
-        .insert(orderData)
-        .select()
-        .single();
+      // Convert cart items to order items format
+      const order_items = items.map(item => ({
+        product_id: item.id,
+        quantity: Math.round(item.grams),
+        price: (item.pricePerKg * item.grams) / 1000,
+        product_name: item.name,
+      }));
+
+      // Use the server action to create order
+      const { data: order, error: orderError } = await createOrder({
+        ...orderData,
+        order_items,
+      } as any);
 
       if (orderError) {
-        console.error('Supabase order error:', orderError);
-        throw new Error('Failed to save order to database');
-      }
-
-      // Log the order insert result
-      console.log('Order saved:', order);
-
-      // Insert order items with correct schema
-      const orderItemsData = [];
-      for (const item of items) {
-        console.log('Processing item:', item);
-        try {
-          const itemData = {
-            order_id: order.id,
-            product_id: item.id,
-            quantity: Math.round(item.grams),
-            price: (item.pricePerKg * item.grams) / 1000,
-            product_name: item.name,
-          };
-          orderItemsData.push(itemData);
-        } catch (error: unknown) {
-          console.error('Error processing item:', item, error);
-          const errorMessage =
-            error instanceof Error ? error.message : 'Unknown error occurred';
-          throw new Error(
-            `Failed to process item ${item.name}: ${errorMessage}`,
-          );
-        }
-      }
-
-      console.log('Order items to insert:', orderItemsData);
-
-      let { error: itemsError } = await supabase
-        .from('order_items')
-        .insert(orderItemsData);
-
-      if (itemsError) {
-        console.error('Supabase items error:', itemsError);
-        // Delete the order if items failed to save
-        await supabase
-          .from('orders')
-          .delete()
-          .eq('id', order.id as string);
-        throw new Error(`Failed to save order items: ${itemsError.message}`);
+        console.error('Order creation error:', orderError);
+        throw new Error(orderError.message || 'Failed to save order');
       }
 
       console.log('Order items saved successfully');
