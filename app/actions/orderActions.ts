@@ -16,7 +16,8 @@ export async function getOrderDetails(orderId: string) {
   try {
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .select(`
+      .select(
+        `
         *,
         order_items!order_items_order_id_fkey (
           *,
@@ -35,7 +36,7 @@ export async function getOrderDetails(orderId: string) {
           email,
           role
         )
-      `)
+      `,
       )
       .eq('id', orderId)
       .single();
@@ -177,7 +178,8 @@ export async function getOrders(customerId?: string) {
 
     let query = supabase
       .from('orders')
-      .select(`
+      .select(
+        `
         *,
         order_items!order_items_order_id_fkey (
           *,
@@ -195,7 +197,7 @@ export async function getOrders(customerId?: string) {
           email,
           role
         )
-      `)
+      `,
       )
       .order('created_at', { ascending: false });
 
