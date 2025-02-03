@@ -148,6 +148,12 @@ export async function deleteOrder(orderId: string) {
 export async function getOrders(customerId?: string) {
   const supabase = await createClient();
   try {
+    const authData = await getCurrentUser();
+
+    if (!authData?.user) {
+      throw new Error('Not authenticated');
+    }
+
     let query = supabase
       .from('orders')
       .select(
@@ -157,11 +163,24 @@ export async function getOrders(customerId?: string) {
           *,
           products!inner (*)
         ),
-        profile:profiles(id, name, email)
+        profile:profiles(id, name, email, role)
       `,
       )
       .order('created_at', { ascending: false });
 
+    // Custom filtering based on user role
+    const userRole = authData.profile.role;
+
+    if (userRole === 'sales') {
+      // Sales users can only see orders they created
+      query = query.eq('profile_id', authData.user.id);
+    } else if (userRole === 'customer') {
+      // Customers can only see their own orders
+      query = query.eq('profile_id', authData.user.id);
+    }
+    // Admins can see all orders (no additional filtering needed)
+
+    // If customerId is provided, further filter by it
     if (customerId) {
       query = query.eq('profile_id', customerId);
     }

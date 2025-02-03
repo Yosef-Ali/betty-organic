@@ -1,7 +1,5 @@
 import { Suspense } from 'react';
 import ProductTable from '@/components/products/ProductTable';
-import { getCurrentUser } from '@/app/actions/auth';
-import { redirect } from 'next/navigation';
 
 export default async function ProductsPage() {
   return (
