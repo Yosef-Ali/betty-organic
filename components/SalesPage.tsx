@@ -2,11 +2,14 @@
 
 import { FC, useState, useEffect, useCallback } from 'react';
 import { useSalesCartStore, SalesCartItem } from '@/store/salesCartStore';
-import { Tabs, TabsContent } from '@/components/ui/tabs';
+import { Tabs, TabsContent } from '@/components/ui/tabs';// Add this import
 import { ProductGrid } from './ProductGrid';
 import { SalesHeader } from './SalesHeader';
 import { SalesCartSheet } from './cart/SalesCartSheet';
 import { getProducts } from '@/app/actions/productActions';
+import { toast } from '@/hooks/use-toast';
+import { createOrder } from '@/app/actions/orderActions';
+import { Order } from '@/types/order';
 
 export interface Product {
   id: string;
@@ -106,6 +109,39 @@ const SalesPage: FC = () => {
     setIsCartOpen(open);
   }, []);
 
+  const handleOrderCreation = async (orderData: Order) => {
+    try {
+      const { data, error } = await createOrder(orderData);
+
+      if (error) {
+        toast({
+          title: "Error creating order",
+          description: error.message,
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      toast({
+        title: "Order created successfully",
+        description: `Order #${data.id} has been created`,
+      });
+
+      // Clear cart after successful order
+      useSalesCartStore.getState().clearCart();
+      setIsCartOpen(false);
+      return true;
+    } catch (err) {
+      toast({
+        title: "Error creating order",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  // Pass handleOrderCreation to SalesCartSheet
   return (
     <main className="flex-1 md:p-4 sm:px-6 sm:py-0">
       <SalesHeader
@@ -126,7 +162,11 @@ const SalesPage: FC = () => {
           />
         </TabsContent>
       </Tabs>
-      <SalesCartSheet isOpen={isCartOpen} onOpenChange={handleCartOpenChange} />
+      <SalesCartSheet
+        isOpen={isCartOpen}
+        onOpenChange={handleCartOpenChange}
+        onOrderCreate={handleOrderCreation}
+      />
     </main>
   );
 };

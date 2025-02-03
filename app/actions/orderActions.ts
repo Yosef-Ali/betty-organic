@@ -53,68 +53,51 @@ export async function createOrder(orderData: Order) {
     const authData = await getCurrentUser();
 
     if (!authData?.user) {
-      throw new Error('Session validation failed: Please sign in again');
+      return {
+        data: null,
+        error: new Error('Session validation failed: Please sign in again')
+      };
     }
 
-    const user = authData.user;
+    // Verify user role
+    if (!['admin', 'sales'].includes(authData.profile?.role)) {
+      return {
+        data: null,
+        error: new Error('Unauthorized: Only admin and sales can create orders')
+      };
+    }
 
+    // Validate order data
     if (!orderData?.order_items?.length) {
-      throw new Error('Invalid order data: Missing order items');
+      return {
+        data: null,
+        error: new Error('Invalid order data: Missing order items')
+      };
     }
 
-    const orderToCreate = {
-      id: orderData.id,
-      profile_id: user.id,
-      total_amount: orderData.total_amount,
-      status: orderData.status,
-      type: orderData.type,
-    };
+    // Start a transaction
+    const { data, error } = await supabase.rpc('create_order_with_items', {
+      order_data: {
+        ...orderToCreate,
+        profile_id: user.id,
+        created_by: user.id,
+        status: orderData.status || 'pending',
+      },
+      order_items: orderData.order_items
+    });
 
-    const { data: order, error: orderError } = await supabase
-      .from('orders')
-      .insert(orderToCreate)
-      .select()
-      .single();
-
-    if (orderError) {
-      console.error('Database error creating order:', {
-        code: orderError.code,
-        message: orderError.message,
-        details: orderError.details,
-      });
-      throw new Error(
-        `Database error creating order: ${
-          orderError.message || 'Unknown error'
-        }`,
-      );
+    if (error) {
+      console.error('Transaction error:', error);
+      return { data: null, error };
     }
 
-    const orderItems = orderData.order_items.map(item => ({
-      id: crypto.randomUUID(),
-      order_id: order.id,
-      product_id: item.product_id,
-      quantity: item.quantity,
-      price: item.price,
-      product_name: item.product_name,
-    }));
-
-    const { error: itemsError } = await supabase
-      .from('order_items')
-      .insert(orderItems);
-
-    if (itemsError) {
-      console.error('Database error creating order items:', itemsError);
-      throw itemsError;
-    }
-
-    return {
-      data: { ...order, order_items: orderData.order_items },
-      error: null,
-    };
+    return { data, error: null };
   } catch (err) {
-    const error = err as Error;
-    console.error('Server error creating order:', error);
-    return { data: null, error };
+    console.error('Server error creating order:', err);
+    return {
+      data: null,
+      error: new Error('Failed to create order. Please try again.')
+    };
   }
 }
 

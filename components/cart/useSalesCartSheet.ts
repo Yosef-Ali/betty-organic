@@ -7,15 +7,23 @@ import { Customer } from '@/types/customer';
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
-interface UseSalesCartSheetProps {
-  profile: any;
-  onOpenChange: (open: boolean) => void;
+interface Profile {
+  id: string;
+  name: string;
+  role: string;
 }
 
-export const useSalesCartSheet = ({
+interface UseSalesCartSheetProps {
+  profile: Profile | null;
+  onOpenChange: (open: boolean) => void;
+  onOrderCreate?: (orderData: Order) => Promise<boolean>;
+}
+
+export function useSalesCartSheet({
   profile,
   onOpenChange,
-}: UseSalesCartSheetProps) => {
+  onOrderCreate,
+}: UseSalesCartSheetProps) {
   console.log('useSalesCartSheet called with profile:', profile);
   const supabase = createClient();
   const { toast } = useToast();
@@ -23,7 +31,7 @@ export const useSalesCartSheet = ({
   const [customer, setCustomer] = useState<Partial<Customer>>({
     id: '',
     email: '',
-    full_name: '',
+    name: '',
     status: '',
     role: 'customer',
     created_at: null,
@@ -207,6 +215,7 @@ export const useSalesCartSheet = ({
       // Create order data
       const orderData = {
         profile_id: profile.id, // seller's profile ID
+        customer_profile_id: customerData.id, // customer's profile ID from profiles table
         status: orderStatus,
         total_amount: totalAmount,
         type: 'store',
@@ -218,6 +227,12 @@ export const useSalesCartSheet = ({
         sellerId: profile.id,
         itemCount: orderItems.length,
         total: totalAmount,
+      });
+
+      console.log('Creating order with data:', {
+        orderData,
+        orderItems,
+        customerId: customerData.id,
       });
 
       // Start a transaction
@@ -328,6 +343,14 @@ export const useSalesCartSheet = ({
     }
   };
 
+  const handleConfirmAction = async (action: 'save' | 'cancel') => {
+    if (action === 'save') {
+      await handleSaveOrder(customer); // Pass customer data as required argument
+    } else {
+      handleBackToCart();
+    }
+  };
+
   return {
     items,
     customer,
@@ -363,5 +386,6 @@ export const useSalesCartSheet = ({
     handleSaveOrder,
     handleCloseCart,
     handleConfirmDialog,
+    handleConfirmAction,
   };
-};
+}

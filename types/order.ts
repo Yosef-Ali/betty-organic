@@ -1,9 +1,10 @@
-import { Customer } from "@/types/customer";
-import { OrderItem } from "@/types/index";
+import { Customer } from '@/types/customer';
+import { OrderItem } from '@/types/index';
 
 export interface Order {
   id: string;
   profile_id: string;
+  customer_profile_id: string;
   total_amount: number;
   status: string;
   type: string;

@@ -18,30 +18,25 @@ import { OrderSummary } from './OrderSummary';
 import { useSalesCartSheet } from './useSalesCartSheet';
 import { getCurrentUser } from '@/app/actions/auth';
 import { Profile } from '@/lib/types/auth';
+import { Order } from '@/types/order';
 
-export interface SalesCartSheetProps {
+interface SalesCartSheetProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
+  onOrderCreate: (orderData: Order) => Promise<boolean>;
 }
 
-type OrderStatus = 'processing' | 'pending' | 'completed' | 'cancelled';
-type ConfirmActionType = 'save' | 'cancel' | null;
-type CustomerData = {
-  id: string;
-  name: string;
-  email?: string;
-};
-
-export const SalesCartSheet: FC<SalesCartSheetProps> = ({
+export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
   isOpen,
   onOpenChange,
+  onOrderCreate
 }) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [error, setError] = useState<Error | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] =
     useState<boolean>(false);
-  const [confirmAction, setConfirmAction] = useState<ConfirmActionType>(null);
+  const [confirmAction, setConfirmAction] = useState<'save' | 'cancel' | null>(null);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -107,7 +102,7 @@ export const SalesCartSheet: FC<SalesCartSheetProps> = ({
     onOpenChange,
   });
 
-  const handleConfirmDialogChange = (action: ConfirmActionType) => {
+  const handleConfirmDialogChange = (action: 'save' | 'cancel') => {
     setConfirmAction(action);
     setIsConfirmDialogOpen(true);
   };
@@ -158,18 +153,17 @@ export const SalesCartSheet: FC<SalesCartSheetProps> = ({
                   items={items}
                   totalAmount={getTotalAmount()}
                   customerId={customer?.id || ''}
-                  setCustomerId={id => setCustomer({ ...customer, id })}
-                  orderStatus={orderStatus}
+                  setCustomerId={(id: string) => setCustomer({ ...customer, id })}
+                  orderStatus={orderStatus || 'pending'}
                   setOrderStatus={
                     profile?.role === 'admin' ? setOrderStatus : undefined
                   }
                   isStatusVerified={isStatusVerified}
                   handleToggleLock={
                     profile?.role === 'admin'
-                      ? () =>
-                          setOrderStatus(
-                            isStatusVerified ? 'pending' : 'processing',
-                          )
+                      ? () => setOrderStatus(
+                          isStatusVerified ? 'pending' : 'processing'
+                        )
                       : undefined
                   }
                   handleConfirmDialog={handleConfirmDialogChange}
