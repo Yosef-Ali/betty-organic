@@ -173,14 +173,46 @@ export async function signInWithGoogle() {
 }
 
 export async function signOut() {
-  const supabase = createClient();
-  const { error } = await supabase.auth.signOut();
+  try {
+    const supabase = await createClient();
 
-  if (error) {
-    return { error: error.message };
+    // Get the current session first
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session) {
+      return { success: true }; // Already signed out
+    }
+
+    // Clear session from Supabase
+    const { error } = await supabase.auth.signOut();
+
+    if (error) {
+      return { error: error.message };
+    }
+
+    // Clear all Supabase session cookies
+    const cookieStore = cookies();
+    const supabaseCookies = [
+      'sb-access-token',
+      'sb-refresh-token',
+      'sb-auth-token',
+    ];
+    for (const cookieName of supabaseCookies) {
+      await cookieStore.set(cookieName, '', {
+        maxAge: -1,
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+      });
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.error('Sign out error:', err);
+    return { error: 'Failed to sign out' };
   }
-
-  return { success: true };
 }
 
 export async function resetPassword(email: string) {

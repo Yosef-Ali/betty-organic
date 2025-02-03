@@ -89,15 +89,31 @@ export default function Header({ onMobileMenuToggle, profile }: HeaderProps) {
     setClientPathname(pathname);
   }, [pathname]);
 
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
   const handleSignOut = async () => {
-    const { error, success } = await signOut();
-    if (error) {
-      console.error('Sign out failed:', error);
-      return;
-    }
-    if (success) {
-      // Full page reload to clear client-side state
-      window.location.assign('/auth/login');
+    if (isSigningOut) return;
+
+    try {
+      setIsSigningOut(true);
+      console.log('Starting sign out process...');
+
+      const result = await signOut();
+      console.log('Sign out result:', result);
+
+      if (result.error) {
+        console.error('Sign out failed:', result.error);
+        return;
+      }
+
+      console.log('Sign out successful, redirecting...');
+      // Short delay to ensure cookies are cleared
+      await new Promise(resolve => setTimeout(resolve, 100));
+      window.location.replace('/auth/login');
+    } catch (err) {
+      console.error('Sign out error:', err);
+    } finally {
+      setIsSigningOut(false);
     }
   };
 
@@ -183,7 +199,9 @@ export default function Header({ onMobileMenuToggle, profile }: HeaderProps) {
             <Link href="/dashboard/profile">Profile</Link>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={handleSignOut}>Logout</DropdownMenuItem>
+          <DropdownMenuItem onClick={handleSignOut} disabled={isSigningOut}>
+            {isSigningOut ? 'Signing out...' : 'Logout'}
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </header>
