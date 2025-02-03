@@ -154,7 +154,7 @@ export async function signInWithGoogle() {
           access_type: 'offline',
           prompt: 'consent',
         },
-        scopes: 'email profile',  // Ensure we request necessary scopes
+        scopes: ['email', 'profile'],  // Fix: Change string to array of scopes
       },
     });
 

@@ -21,6 +21,7 @@ DROP POLICY IF EXISTS "Users can delete their own entries" ON knowledge_base;
 DROP POLICY IF EXISTS "Users can insert their own entries" ON knowledge_base;
 DROP POLICY IF EXISTS "Users can view their own entries" ON knowledge_base;
 DROP POLICY IF EXISTS "public_read_knowledge" ON knowledge_base;
+DROP POLICY IF EXISTS "auth_write_knowledge" ON knowledge_base;
 
 -- 3. Orders cleanup
 DROP POLICY IF EXISTS "Users can create orders" ON orders;
@@ -50,27 +51,25 @@ CREATE POLICY "public_read_categories" ON categories FOR SELECT USING (true);
 -- 3. Knowledge base (public read, authenticated write)
 ALTER TABLE knowledge_base ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "public_read_knowledge" ON knowledge_base FOR SELECT USING (true);
-CREATE POLICY "auth_write_knowledge" ON knowledge_base 
+CREATE POLICY "auth_write_knowledge" ON knowledge_base
 FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 
 -- 4. Orders (customer access only)
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "customer_manage_orders" ON orders
-FOR ALL USING (auth.uid()::text = customer_id);
+FOR ALL USING (auth.uid() = customer_profile_id::uuid);
 
--- 5. Profiles (public read, own write)
+-- 5. Profiles policies are managed in profiles_rls_policies.sql
+-- Keeping RLS enabled but removing conflicting policies
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "public_read_profiles" ON profiles FOR SELECT USING (true);
-CREATE POLICY "users_manage_own_profile" ON profiles
-FOR ALL USING (auth.uid()::text = id::text);
 
 -- Verify final policies
-SELECT 
+SELECT
     schemaname,
     tablename,
     policyname,
     roles,
     cmd
-FROM pg_policies 
+FROM pg_policies
 WHERE schemaname = 'public'
 ORDER BY tablename, policyname;

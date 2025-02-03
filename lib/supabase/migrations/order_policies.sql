@@ -17,7 +17,7 @@ WITH CHECK (auth.role() IN ('authenticated', 'sales'));
 CREATE POLICY "Enable select for users based on customer_id"
 ON public.orders
 FOR SELECT
-USING (customer_id = auth.uid());
+USING (customer_profile_id = auth.uid());
 
 -- Policy for order items
 DROP POLICY IF EXISTS "Enable insert for authenticated users" ON public.order_items;
@@ -35,7 +35,7 @@ WITH CHECK (
   EXISTS (
     SELECT 1 FROM public.orders
     WHERE id = order_items.order_id
-    AND customer_id = auth.uid()
+    AND customer_profile_id = auth.uid()
   )
 );
 
@@ -47,6 +47,6 @@ USING (
   EXISTS (
     SELECT 1 FROM public.orders
     WHERE id = order_items.order_id
-    AND customer_id = auth.uid()
+    AND customer_profile_id = auth.uid()
   )
 );

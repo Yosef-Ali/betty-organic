@@ -17,14 +17,7 @@ WITH CHECK (auth.role() IN ('authenticated', 'sales'));
 CREATE POLICY "Enable select for users based on customer_id"
 ON public.orders
 FOR SELECT
-USING (customer_id = auth.uid());
-
--- Policy for order items
-DROP POLICY IF EXISTS "Enable insert for authenticated users" ON public.order_items;
-DROP POLICY IF EXISTS "Enable select for order owners" ON public.order_items;
-
--- Enable RLS on order_items
-ALTER TABLE public.order_items ENABLE ROW LEVEL SECURITY;
+USING (customer_profile_id = auth.uid());
 
 -- Allow authenticated users to create order items
 CREATE POLICY "Enable insert for authenticated users"
@@ -35,7 +28,7 @@ WITH CHECK (
   EXISTS (
     SELECT 1 FROM public.orders
     WHERE id = order_items.order_id
-    AND customer_id = auth.uid()
+    AND customer_profile_id = auth.uid()
   )
 );
 
@@ -47,6 +40,6 @@ USING (
   EXISTS (
     SELECT 1 FROM public.orders
     WHERE id = order_items.order_id
-    AND customer_id = auth.uid()
+    AND customer_profile_id = auth.uid()
   )
 );

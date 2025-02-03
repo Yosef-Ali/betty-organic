@@ -30,7 +30,8 @@ export async function handlePurchaseOrder(
 
     const orderData: Order = {
       id: crypto.randomUUID(),
-      customer_id: profile.id,
+      profile_id: profile.id, // This identifies who created the order
+      customer_profile_id: profile.id, // This identifies the customer
       status: 'pending',
       type: 'online',
       total_amount: Number(total.toFixed(2)),

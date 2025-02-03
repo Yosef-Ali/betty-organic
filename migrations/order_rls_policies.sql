@@ -18,7 +18,7 @@ CREATE POLICY "Enable read access for authenticated users" ON orders
     (auth.uid() IN (SELECT id FROM profiles WHERE role = 'sales') AND profile_id = auth.uid())
     OR
     -- Customers can read their own orders
-    (auth.uid() IN (SELECT id FROM profiles WHERE role = 'customer') AND customer_profile_id = auth.uid())
+    (auth.uid() IN (SELECT id FROM profiles WHERE role = 'customer') AND customer_profile_id = auth.uid()::uuid)
   );
 
 CREATE POLICY "Enable insert access for admin and sales" ON orders
@@ -37,13 +37,20 @@ CREATE POLICY "Enable update access for admin and sales" ON orders
     -- Admin can update any order
     (auth.uid() IN (SELECT id FROM profiles WHERE role = 'admin'))
     OR
-    -- Sales can only update orders they created
-    (auth.uid() IN (SELECT id FROM profiles WHERE role = 'sales') AND profile_id = auth.uid())
+    -- Sales can update orders they created or customer orders
+    (auth.uid() IN (SELECT id FROM profiles WHERE role = 'sales'))
+  )
   );
 
 CREATE POLICY "Enable delete access for admin and sales" ON orders
   FOR DELETE
   USING (
+    -- Admin can delete any order
+    (auth.uid() IN (SELECT id FROM profiles WHERE role = 'admin'))
+    OR
+    -- Sales can delete orders they created or customer orders
+    (auth.uid() IN (SELECT id FROM profiles WHERE role = 'sales'))
+  );
     -- Admin can delete any order
     (auth.uid() IN (SELECT id FROM profiles WHERE role = 'admin'))
     OR
