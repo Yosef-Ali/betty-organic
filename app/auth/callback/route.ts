@@ -34,22 +34,27 @@ export async function GET(request: Request) {
       } = await supabase.auth.getSession();
 
       try {
-        if (session?.provider === 'google') {
+        // Check auth provider from cookie first
+        const cookieStore = cookies();
+        const authProvider = await cookieStore.get('authProvider')?.value;
+
+        // Clear the auth provider cookie right away
+        await cookieStore.set('authProvider', '', {
+          maxAge: -1,
+          path: '/',
+        });
+
+        if (authProvider === 'google' || session?.provider === 'google') {
           // For Google auth, ensure we have a valid session first
-          if (!session.access_token || !session.refresh_token) {
-            console.error('Missing session tokens for Google auth');
+          if (!session?.access_token) {
+            console.error('Missing session token for Google auth');
             throw new Error('Invalid session state');
           }
 
-          // Import using correct relative path from callback directory
-          let createGoogleUserProfile;
-          try {
-            const authActions = await import('../actions/authActions');
-            createGoogleUserProfile = authActions.createGoogleUserProfile;
-          } catch (importError) {
-            console.error('Failed to import auth actions:', importError);
-            throw new Error('Authentication configuration error');
-          }
+          // Import using correct relative path
+          const { createGoogleUserProfile } = await import(
+            '../actions/authActions'
+          );
 
           // Add user metadata from Google
           const userWithMetadata = {
@@ -69,12 +74,37 @@ export async function GET(request: Request) {
             throw new Error(result.error);
           }
 
-          // Ensure session is properly set after profile creation
-          const { data: sessionData, error: sessionError } =
-            await supabase.auth.getSession();
-          if (sessionError || !sessionData.session) {
+          // After successful profile creation, retrieve the current session
+          const {
+            data: { session: freshSession },
+            error: sessionError,
+          } = await supabase.auth.getSession();
+
+          if (sessionError || !freshSession) {
             console.error('Session validation failed:', sessionError);
             throw new Error('Session validation failed');
+          }
+
+          // Ensure proper cookie handling for the session
+          const cookieStore = cookies();
+          await cookieStore.set('sb-access-token', freshSession.access_token, {
+            path: '/',
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: 60 * 60 * 24, // 24 hours
+          });
+
+          if (freshSession.refresh_token) {
+            await cookieStore.set(
+              'sb-refresh-token',
+              freshSession.refresh_token,
+              {
+                path: '/',
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'lax',
+                maxAge: 60 * 60 * 24 * 30, // 30 days
+              },
+            );
           }
         } else {
           // For email auth, handle profile creation directly
@@ -106,7 +136,20 @@ export async function GET(request: Request) {
           if (profileError) throw profileError;
         }
 
-        return NextResponse.redirect(new URL('/dashboard', requestUrl.origin));
+        // Get the origin for redirect
+        const origin = process.env.NEXT_PUBLIC_SITE_URL || requestUrl.origin;
+
+        // For Google auth in production, use full URL
+        if (
+          process.env.NODE_ENV === 'production' &&
+          origin !== requestUrl.origin
+        ) {
+          return NextResponse.redirect(
+            new URL('/dashboard', 'https://betty-organic.vercel.app'),
+          );
+        }
+
+        return NextResponse.redirect(new URL('/dashboard', origin));
       } catch (error) {
         console.error('Profile creation error:', error);
         return NextResponse.redirect(

@@ -154,10 +154,20 @@ export async function signInWithGoogle() {
       await supabase.auth.signOut(); // Clear any existing session
     }
 
+    // Get the current URL origin to handle both development and production
+    let origin = process.env.NEXT_PUBLIC_SITE_URL;
+    if (!origin) {
+      // Fallback for development
+      origin =
+        process.env.NODE_ENV === 'production'
+          ? 'https://betty-organic.vercel.app'
+          : 'http://localhost:3000';
+    }
+
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
+        redirectTo: `${origin}/auth/callback`,
         queryParams: {
           access_type: 'offline',
           prompt: 'consent',
@@ -176,12 +186,28 @@ export async function signInWithGoogle() {
       return { error: 'Authentication configuration error' };
     }
 
-    // Remove any stale auth provider info
-    if (typeof window !== 'undefined') {
-      sessionStorage.removeItem('authProvider');
-      // Set fresh provider info
-      sessionStorage.setItem('authProvider', 'google');
-    }
+    // Set the provider in a cookie instead of sessionStorage
+    const cookieStore = cookies();
+    await cookieStore.set('authProvider', 'google', {
+      path: '/',
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 5, // 5 minutes
+    });
+
+    // Clear any existing Supabase cookies to ensure clean state
+    await cookieStore.set('sb-access-token', '', {
+      path: '/',
+      maxAge: -1,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+    });
+    await cookieStore.set('sb-refresh-token', '', {
+      path: '/',
+      maxAge: -1,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+    });
 
     return {
       redirect: {
