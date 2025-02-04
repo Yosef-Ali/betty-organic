@@ -28,15 +28,28 @@ export async function GET(request: Request) {
     } = await supabase.auth.getUser();
 
     if (user) {
+      // Get the session to determine auth provider
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const authProvider = session?.provider || 'email';
+
+      // Check for existing profile to preserve role
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
       // Create/update profile after successful verification
       const { error: profileError } = await supabase.from('profiles').upsert(
         {
           id: user.id,
           email: user.email,
           name: user.user_metadata?.full_name || user.email?.split('@')[0],
-          role: 'customer',
+          role: existingProfile?.role || 'customer', // Preserve existing role or set default
           status: 'active',
-          auth_provider: 'email',
+          auth_provider: authProvider, // Use correct provider
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         },
