@@ -12,7 +12,25 @@ export async function GET(request: Request) {
 
   try {
     if (code) {
-      const { error } = await supabase.auth.exchangeCodeForSession(code);
+      // Get the code verifier from cookie
+      const cookieStore = cookies();
+      const codeVerifier = await cookieStore.get('code_verifier')?.value;
+
+      // Clear the code verifier cookie
+      await cookieStore.set('code_verifier', '', {
+        maxAge: -1,
+        path: '/',
+      });
+
+      if (!codeVerifier) {
+        console.error('Missing code verifier');
+        throw new Error('Invalid auth state: missing code verifier');
+      }
+
+      const { error } = await supabase.auth.exchangeCodeForSession(code, {
+        codeVerifier,
+      });
+
       if (error) throw error;
     } else if (tokenHash && type === 'signup') {
       const { error } = await supabase.auth.verifyOtp({
