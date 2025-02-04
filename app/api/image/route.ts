@@ -14,18 +14,48 @@ export async function GET(request: NextRequest) {
 
     // Verify the URL is from our Supabase storage
     const supabase = await createClient();
+    const fileName = imageUrl.split('/').pop();
+
+    if (!fileName) {
+      return new NextResponse('Invalid image filename', { status: 400 });
+    }
+
     const { data: publicUrl } = supabase.storage
       .from('product-images')
-      .getPublicUrl(imageUrl.split('/').pop() || '');
+      .getPublicUrl(fileName);
 
     if (!publicUrl.publicUrl) {
       return new NextResponse('Invalid image URL', { status: 400 });
     }
 
-    // Fetch the image
-    const response = await fetch(publicUrl.publicUrl);
-    if (!response.ok) {
-      return new NextResponse('Failed to fetch image', { status: response.status });
+    // Fetch the image with proper error handling
+    try {
+      const response = await fetch(publicUrl.publicUrl, {
+        headers: {
+          'Cache-Control': 'no-cache',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+      }
+
+      const buffer = await response.arrayBuffer();
+
+      // Forward the image with enhanced headers
+      const headers = new Headers();
+      headers.set('Content-Type', response.headers.get('Content-Type') || 'image/jpeg');
+      headers.set('Content-Length', buffer.byteLength.toString());
+      headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+      headers.set('Accept-Ranges', 'bytes');
+
+      return new NextResponse(buffer, {
+        headers,
+        status: 200,
+      });
+    } catch (fetchError) {
+      console.error('Image fetch error:', fetchError);
+      return new NextResponse('Failed to fetch image from storage', { status: 502 });
     }
 
     // Forward the image with original headers

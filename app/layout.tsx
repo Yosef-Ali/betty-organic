@@ -1,9 +1,7 @@
 import './globals.css';
-import { Inter } from 'next/font/google';
+import { GeistSans } from 'geist/font/sans';
+import { GeistMono } from 'geist/font/mono';
 import Providers from './providers';
-
-
-const inter = Inter({ subsets: ['latin'] });
 
 export const metadata = {
   title: "Betty's Organic",
@@ -12,7 +10,9 @@ export const metadata = {
 
 async function initializeApp() {
   try {
-    const response = await fetch('/api/init');
+    const response = await fetch('/api/init', {
+      signal: AbortSignal.timeout(5000), // 5 second timeout
+    });
     if (!response.ok) {
       throw new Error('Failed to initialize app');
     }
@@ -35,7 +35,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head />
       <body
-        className={`${inter.className} min-h-screen bg-background font-sans antialiased`}
+        className={`${GeistSans.variable} ${GeistMono.variable} min-h-screen bg-background font-sans antialiased`}
       >
         <Providers>{children}</Providers>
       </body>

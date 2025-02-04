@@ -22,6 +22,7 @@ import { useRouter } from 'next/navigation';
 const profileFormSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   email: z.string().email('Invalid email address'),
+  phone: z.string().optional(),
   avatar_url: z.string().optional(),
 });
 
@@ -50,6 +51,7 @@ export function ProfileForm({
       name: initialName,
       email: initialEmail,
       avatar_url: initialImage,
+      phone: '',
     },
   });
 
@@ -62,6 +64,7 @@ export function ProfileForm({
         name: data.name,
         email: data.email,
         avatar_url: data.avatar_url,
+        phone: data.phone,
       });
 
       if (result.success) {
@@ -110,9 +113,23 @@ export function ProfileForm({
             name="email"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Email Address</FormLabel>
+                <FormLabel>Email</FormLabel>
                 <FormControl>
-                  <Input {...field} disabled type="email" />
+                  <Input {...field} type="email" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="phone"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Phone Number</FormLabel>
+                <FormControl>
+                  <Input {...field} type="tel" placeholder="Enter phone number" />
                 </FormControl>
                 <FormMessage />
               </FormItem>
