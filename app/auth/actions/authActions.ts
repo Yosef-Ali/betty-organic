@@ -154,7 +154,7 @@ export async function signInWithGoogle() {
           access_type: 'offline',
           prompt: 'consent',
         },
-        scopes: ['email', 'profile'],  // Fix: Change string to array of scopes
+        scopes: ['email', 'profile'], // Fix: Change string to array of scopes
       },
     });
 
@@ -294,46 +294,52 @@ export async function createGoogleUserProfile(user: any) {
   const supabase = await createClient();
 
   try {
-    // Check for existing profile
-    const { data: profile, error } = await supabase
+    // Check for existing profile first
+    const { data: existingProfile, error: profileError } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', user.id)
       .single();
 
-    if (error && error.code !== 'PGRST116') {
-      console.error('Profile lookup error:', error);
-      return { error };
+    // Don't throw on not found, but do throw on other errors
+    if (profileError && profileError.code !== 'PGRST116') {
+      console.error('Profile lookup error:', profileError);
+      throw profileError;
     }
 
-    // Create profile if missing or update if needed
-    if (!profile) {
-      const { error: upsertError } = await supabase.from('profiles').upsert(
-        {
-          id: user.id,
-          name: user.user_metadata?.full_name || user.email?.split('@')[0],
-          email: user.email,
-          role: 'customer', // Ensure default role is set
-          status: 'active',
-          auth_provider: 'google',
-          avatar_url: user.user_metadata?.avatar_url,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-        {
-          onConflict: 'id',
-        },
-      );
+    // Prepare profile data, preserving existing role if any
+    const profileData = {
+      id: user.id,
+      name: user.user_metadata?.full_name || user.email?.split('@')[0],
+      email: user.email,
+      role: existingProfile?.role || 'customer', // Preserve existing role
+      status: 'active',
+      auth_provider: 'google',
+      avatar_url: user.user_metadata?.avatar_url,
+      updated_at: new Date().toISOString(),
+    };
 
-      if (upsertError) {
-        console.error('Profile upsert error:', upsertError);
-        return { error: upsertError };
-      }
+    // Only set created_at for new profiles
+    if (!existingProfile) {
+      profileData.created_at = new Date().toISOString();
+    }
+
+    // Upsert the profile
+    const { error: upsertError } = await supabase
+      .from('profiles')
+      .upsert(profileData, {
+        onConflict: 'id',
+        returning: 'minimal',
+      });
+
+    if (upsertError) {
+      console.error('Profile upsert error:', upsertError);
+      throw upsertError;
     }
 
     return { success: true };
   } catch (err) {
-    console.error('Error creating Google user profile:', err);
-    return { error: 'Failed to create user profile' };
+    console.error('Error in createGoogleUserProfile:', err);
+    return { error: err.message || 'Failed to create user profile' };
   }
 }

@@ -32,34 +32,51 @@ export async function GET(request: Request) {
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      const authProvider = session?.provider || 'email';
 
-      // Check for existing profile to preserve role
-      const { data: existingProfile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
+      try {
+        if (session?.provider === 'google') {
+          // For Google auth, use the dedicated profile handler
+          const { createGoogleUserProfile } = await import(
+            '@/app/auth/actions/authActions'
+          );
+          const result = await createGoogleUserProfile(user);
 
-      // Create/update profile after successful verification
-      const { error: profileError } = await supabase.from('profiles').upsert(
-        {
-          id: user.id,
-          email: user.email,
-          name: user.user_metadata?.full_name || user.email?.split('@')[0],
-          role: existingProfile?.role || 'customer', // Preserve existing role or set default
-          status: 'active',
-          auth_provider: authProvider, // Use correct provider
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-        {
-          onConflict: 'id',
-        },
-      );
+          if (result.error) {
+            throw new Error(result.error);
+          }
+        } else {
+          // For email auth, handle profile creation directly
+          const { data: existingProfile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single();
 
-      if (profileError) {
-        console.error('Profile creation error:', profileError);
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .upsert(
+              {
+                id: user.id,
+                email: user.email,
+                name:
+                  user.user_metadata?.full_name || user.email?.split('@')[0],
+                role: existingProfile?.role || 'customer',
+                status: 'active',
+                auth_provider: 'email',
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              },
+              {
+                onConflict: 'id',
+              },
+            );
+
+          if (profileError) throw profileError;
+        }
+
+        return NextResponse.redirect(new URL('/dashboard', requestUrl.origin));
+      } catch (error) {
+        console.error('Profile creation error:', error);
         return NextResponse.redirect(
           new URL(
             '/auth/error?message=profile_creation_failed',
