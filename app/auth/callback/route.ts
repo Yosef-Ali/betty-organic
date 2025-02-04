@@ -35,14 +35,46 @@ export async function GET(request: Request) {
 
       try {
         if (session?.provider === 'google') {
-          // For Google auth, use the dedicated profile handler
-          const { createGoogleUserProfile } = await import(
-            '@/app/auth/actions/authActions'
-          );
-          const result = await createGoogleUserProfile(user);
+          // For Google auth, ensure we have a valid session first
+          if (!session.access_token || !session.refresh_token) {
+            console.error('Missing session tokens for Google auth');
+            throw new Error('Invalid session state');
+          }
+
+          // Import using correct relative path from callback directory
+          let createGoogleUserProfile;
+          try {
+            const authActions = await import('../actions/authActions');
+            createGoogleUserProfile = authActions.createGoogleUserProfile;
+          } catch (importError) {
+            console.error('Failed to import auth actions:', importError);
+            throw new Error('Authentication configuration error');
+          }
+
+          // Add user metadata from Google
+          const userWithMetadata = {
+            ...user,
+            user_metadata: {
+              ...user.user_metadata,
+              full_name:
+                user.user_metadata?.full_name || user.email?.split('@')[0],
+              avatar_url: user.user_metadata?.avatar_url,
+            },
+          };
+
+          const result = await createGoogleUserProfile(userWithMetadata);
 
           if (result.error) {
+            console.error('Google profile creation failed:', result.error);
             throw new Error(result.error);
+          }
+
+          // Ensure session is properly set after profile creation
+          const { data: sessionData, error: sessionError } =
+            await supabase.auth.getSession();
+          if (sessionError || !sessionData.session) {
+            console.error('Session validation failed:', sessionError);
+            throw new Error('Session validation failed');
           }
         } else {
           // For email auth, handle profile creation directly

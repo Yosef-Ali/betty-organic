@@ -146,6 +146,14 @@ export async function signUp(formData: FormData) {
 export async function signInWithGoogle() {
   const supabase = await createClient();
   try {
+    // First check if we have existing session
+    const {
+      data: { session: existingSession },
+    } = await supabase.auth.getSession();
+    if (existingSession) {
+      await supabase.auth.signOut(); // Clear any existing session
+    }
+
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -154,7 +162,7 @@ export async function signInWithGoogle() {
           access_type: 'offline',
           prompt: 'consent',
         },
-        scopes: ['email', 'profile'], // Fix: Change string to array of scopes
+        scopes: ['email', 'profile'],
       },
     });
 
@@ -168,8 +176,10 @@ export async function signInWithGoogle() {
       return { error: 'Authentication configuration error' };
     }
 
-    // Store the provider in session storage for callback handling
+    // Remove any stale auth provider info
     if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('authProvider');
+      // Set fresh provider info
       sessionStorage.setItem('authProvider', 'google');
     }
 
