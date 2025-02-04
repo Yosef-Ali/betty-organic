@@ -6,6 +6,7 @@ import { Order } from '@/types/order';
 import { Customer } from '@/types/customer';
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useUser } from '@/lib/hooks/useUser';
 
 interface Profile {
   id: string;
@@ -14,17 +15,33 @@ interface Profile {
 }
 
 interface UseSalesCartSheetProps {
-  profile: Profile | null;
   onOpenChange: (open: boolean) => void;
   onOrderCreate?: (orderData: Order) => Promise<boolean>;
 }
 
 export function useSalesCartSheet({
-  profile,
   onOpenChange,
   onOrderCreate,
 }: UseSalesCartSheetProps) {
-  console.log('useSalesCartSheet called with profile:', profile);
+  const { user, loading: userLoading } = useUser();
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+
+  useEffect(() => {
+    if (!userLoading) {
+      if (user?.user_metadata) {
+        setProfile({
+          id: user.id,
+          name: user.user_metadata.full_name || user.email || '',
+          role: user.user_metadata.role || 'customer'
+        });
+      } else {
+        setError(new Error('Profile not found'));
+      }
+      setIsLoading(false);
+    }
+  }, [user, userLoading]);
   const supabase = createClient();
   const { toast } = useToast();
   const { items, clearCart, getTotalAmount } = useSalesCartStore();
@@ -154,8 +171,7 @@ export function useSalesCartSheet({
 
   const handleConfirmOrder = async () => {
     setIsOrderConfirmed(true);
-    // Set initial order status based on user role
-    setOrderStatus(profile?.role === 'admin' ? 'processing' : 'pending');
+    // Order status is already set based on role in the useEffect
   };
 
   const handleBackToCart = () => {
@@ -166,12 +182,13 @@ export function useSalesCartSheet({
     setOrderStatus('processing');
   };
 
-  // Ensure order status changes are restricted to admin
+  // Set initial order status based on profile role
   useEffect(() => {
-    if (profile && profile.role !== 'admin' && orderStatus !== 'pending') {
-      setOrderStatus('pending');
+    if (profile) {
+      const initialStatus = profile.role === 'admin' ? 'processing' : 'pending';
+      setOrderStatus(initialStatus);
     }
-  }, [profile, orderStatus]);
+  }, [profile]);
 
   const handleSaveOrder = async (customerData: any) => {
     try {
@@ -211,18 +228,23 @@ export function useSalesCartSheet({
       const totalAmount = getTotalAmount();
 
       // Prepare order data
-      const orderData = {
+      const orderData: Order = {
+        id: '', // Required field for Order type
         profile_id: profile.id,
         customer_profile_id: customerData.id,
         status: orderStatus,
         total_amount: totalAmount,
         type: 'store',
         order_items: items.map(item => ({
+          id: '', // Will be assigned by database
+          order_id: '', // Will be assigned by database
           product_id: item.id,
           quantity: Math.round(item.grams),
           price: (item.pricePerKg * item.grams) / 1000,
           product_name: item.name,
         })),
+        created_at: new Date().toISOString(), // Required field
+        updated_at: new Date().toISOString(), // Required field
       };
 
       console.log('Prepared order data:', orderData);
@@ -317,6 +339,9 @@ export function useSalesCartSheet({
   };
 
   return {
+    profile,
+    error,
+    isLoading,
     items,
     customer,
     setCustomer,

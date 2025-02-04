@@ -1,4 +1,4 @@
-import { FC, useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { toast } from 'sonner';
 import {
   Sheet,
@@ -17,8 +17,6 @@ import ConfirmDialog from './ConfirmDialog';
 import { CartItems } from './CartItems';
 import { OrderSummary } from './OrderSummary';
 import { useSalesCartSheet } from './useSalesCartSheet';
-import { getCurrentUser } from '@/app/actions/auth';
-import { Profile } from '@/lib/types/auth';
 import { Order } from '@/types/order';
 
 interface SalesCartSheetProps {
@@ -32,15 +30,16 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
   onOpenChange,
   onOrderCreate,
 }) => {
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [error, setError] = useState<Error | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState<boolean>(false);
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] =
+    useState<boolean>(false);
   const [confirmAction, setConfirmAction] = useState<'save' | 'cancel' | null>(
     null,
   );
 
   const {
+    profile,
+    error,
+    isLoading,
     items,
     customer,
     setCustomer,
@@ -70,7 +69,6 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
     setIsThermalPrintPreviewOpen,
     setIsOtpDialogOpen,
   } = useSalesCartSheet({
-    profile,
     onOpenChange,
     onOrderCreate,
   });
@@ -97,43 +95,11 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
 
   const handleToggleLockStatus = useCallback(() => {
     if (profile?.role === 'admin') {
-      setOrderStatus(isStatusVerified ? 'pending' : 'processing');
+      setOrderStatus(prevStatus =>
+        prevStatus === 'processing' ? 'pending' : 'processing',
+      );
     }
-  }, [profile?.role, isStatusVerified, setOrderStatus]);
-
-  useEffect(() => {
-    const fetchProfile = async () => {
-      console.log('Fetching profile...');
-      try {
-        const authData = await getCurrentUser();
-        if (!authData?.profile) {
-          throw new Error('Profile not found');
-        }
-        const userProfile = authData.profile;
-        if (!userProfile) {
-          throw new Error('Profile not found');
-        }
-        if (!userProfile.id) {
-          throw new Error('Profile ID not found');
-        }
-        setProfile(userProfile);
-        setError(null);
-        console.log('Fetched profile:', userProfile);
-      } catch (error) {
-        console.error('Error fetching user profile:', error);
-        setError(
-          error instanceof Error ? error : new Error('Failed to fetch profile'),
-        );
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchProfile();
-  }, []);
-
-  useEffect(() => {
-    console.log('Profile updated:', profile);
-  }, [profile]);
+  }, [profile?.role, setOrderStatus]);
 
   useEffect(() => {
     console.log('Customer updated:', customer);

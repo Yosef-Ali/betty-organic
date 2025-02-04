@@ -110,15 +110,13 @@ export const OrderSummary: FC<OrderSummaryProps> = ({
       const selected = customerList.find(c => c.id === value);
       if (selected) {
         console.log('Selected customer:', selected);
+        const customerData = {
+          id: selected.id,
+          name: selected.name,
+        };
         setSelectedCustomer(selected);
         if (setCustomerInfo) {
-          // Use requestAnimationFrame to ensure state update happens after render
-          requestAnimationFrame(() => {
-            setCustomerInfo({
-              id: selected.id,
-              name: selected.name,
-            });
-          });
+          setCustomerInfo(customerData);
         }
       }
     },

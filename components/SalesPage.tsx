@@ -46,44 +46,52 @@ export interface ProductWithStatus extends Product {
 
 const SalesPage: FC = () => {
   const [products, setProducts] = useState<ProductWithStatus[]>([]);
-  const [recentlySelectedProducts, setRecentlySelectedProducts] = useState<ProductWithStatus[]>([]);
+  const [recentlySelectedProducts, setRecentlySelectedProducts] = useState<
+    ProductWithStatus[]
+  >([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const { items, addItem } = useSalesCartStore();
   const { user, loading } = useUser();
 
-  useEffect(() => {
-    async function fetchProducts() {
-      try {
-        const allProducts = await getProducts();
-        const productsWithStatus = allProducts.map(
-          (p): ProductWithStatus => ({
-            id: p.id,
-            name: p.name,
-            description: p.description,
-            price: p.price ?? 0,
-            stock: p.stock ?? 0,
-            imageUrl: p.image_url || '/placeholder.svg',
-            category: p.category || 'Uncategorized',
-            active: p.active ?? true,
-            totalSales: p.total_sales ?? 0,
-            createdAt: p.createdat || new Date().toISOString(),
-            updatedAt: p.updated_at || new Date().toISOString(),
-            status: (p.stock ?? 0) > 0 ? 'Available' : 'Out of Stock',
-          }),
-        );
+  const fetchProducts = useCallback(async () => {
+    try {
+      const allProducts = await getProducts();
+      const productsWithStatus = allProducts.map(
+        (p): ProductWithStatus => ({
+          id: p.id,
+          name: p.name,
+          description: p.description,
+          price: p.price ?? 0,
+          stock: p.stock ?? 0,
+          imageUrl: p.imageUrl || '/placeholder.svg',
+          category: p.category || 'Uncategorized',
+          active: p.active ?? true,
+          totalSales: p.totalsales ?? 0,
+          createdAt: p.createdat || new Date().toISOString(),
+          updatedAt: p.updatedat || new Date().toISOString(),
+          status: (p.stock ?? 0) > 0 ? 'Available' : 'Out of Stock',
+        }),
+      );
 
-        // Filter out inactive products and set availability status
-        setProducts(
-          productsWithStatus
-            .filter(p => p.active !== false) // Show active products only
-            .filter(p => p.status === 'Available'),
-        );
-      } catch (error) {
-        console.error('Error fetching products:', error);
-      }
+      // Filter out inactive products and set availability status
+      setProducts(
+        productsWithStatus
+          .filter(p => p.active !== false) // Show active products only
+          .filter(p => p.status === 'Available'),
+      );
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch products. Please try again.',
+        variant: 'destructive',
+      });
     }
-    fetchProducts();
   }, []);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
 
   const handleProductClick = (product: ProductWithStatus) => {
     const cartItem: SalesCartItem = {
@@ -111,36 +119,40 @@ const SalesPage: FC = () => {
     setIsCartOpen(open);
   }, []);
 
-  const handleCreateOrder = async (orderData: any): Promise<boolean> => {
-    try {
-      if (!user) {
+  const handleCreateOrder = useCallback(
+    async (orderData: any): Promise<boolean> => {
+      try {
+        if (!user) {
+          toast({
+            title: 'Authentication required',
+            description: 'Please log in to create an order',
+            variant: 'destructive',
+          });
+          return false;
+        }
+
+        const data = await createOrder(orderData);
         toast({
-          title: 'Authentication required',
-          description: 'Please log in to create an order',
+          title: 'Order created successfully',
+          description: `Order #${data.data?.id || 'unknown'} has been created`,
+        });
+
+        useSalesCartStore.getState().clearCart();
+        setIsCartOpen(false);
+        return true;
+      } catch (err) {
+        console.error('Unexpected error during order creation:', err);
+        toast({
+          title: 'Error creating order',
+          description:
+            err instanceof Error
+              ? err.message
+              : 'Something went wrong. Please try again.',
           variant: 'destructive',
         });
         return false;
       }
-
-      const data = await createOrder(orderData);
-      toast({
-        title: 'Order created successfully',
-        description: `Order #${data.id} has been created`,
-      });
-
-      useSalesCartStore.getState().clearCart();
-      setIsCartOpen(false);
-      return true;
-    } catch (err) {
-      console.error('Unexpected error during order creation:', err);
-      toast({
-        title: 'Error creating order',
-        description: err instanceof Error ? err.message : 'Something went wrong. Please try again.',
-        variant: 'destructive',
-      });
-      return false;
-    }
-  };
+    }, [user, setIsCartOpen]);
 
   return (
     <main className="flex-1 md:p-4 sm:px-6 sm:py-0">

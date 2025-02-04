@@ -6,21 +6,51 @@ import crypto from 'crypto';
 
 // Helper function to create Supabase client with anon key
 async function createClient() {
-  const cookieStore = await cookies();
+  try {
+    const cookieStore = await cookies();
+    return createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          async get(name: string) {
+            const cookie = await cookieStore.get(name);
+            return cookie?.value;
+          },
+          async set(name: string, value: string, options: CookieOptions) {
+            await cookieStore.set(name, value, options);
+          },
+          async remove(name: string, options: CookieOptions) {
+            await cookieStore.set(name, '', { ...options, maxAge: 0 });
+          },
+        },
+      },
+    );
+  } catch (error) {
+    console.error('Error creating Supabase client:', error instanceof Error ? error.message : 'Unknown error');
+    throw new Error('Failed to initialize Supabase client');
+  }
+}
+
+// Helper function to create Supabase admin client with service role key
+async function createAdminClient() {
+  const cookieStore = cookies();
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
     {
       cookies: {
         async get(name: string) {
-          const cookie = await cookieStore.get(name);
-          return cookie?.value;
+          const cookieValue = await cookieStore;
+          return cookieValue.get(name)?.value;
         },
         async set(name: string, value: string, options: CookieOptions) {
-          await cookieStore.set(name, value, options);
+          const cookieValue = await cookieStore;
+          cookieValue.set(name, value, options);
         },
         async remove(name: string, options: CookieOptions) {
-          await cookieStore.set(name, '', { ...options, maxAge: 0 });
+          const cookieValue = await cookieStore;
+          cookieValue.set(name, '', { ...options, maxAge: 0 });
         },
       },
     },
@@ -48,8 +78,8 @@ export async function signIn(formData: FormData) {
     .eq('id', data.user?.id)
     .single();
   if (!profileError && profileData) {
-    const cookieStore = cookies();
-    await cookieStore.set('userRole', profileData.role, {
+    const cookieStore = await cookies();
+    cookieStore.set('userRole', profileData.role, {
       path: '/',
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
@@ -62,28 +92,6 @@ export async function signIn(formData: FormData) {
       type: 'replace',
     },
   };
-}
-
-// Helper function to create Supabase admin client with service role key
-async function createAdminClient() {
-  const cookieStore = cookies();
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      cookies: {
-        async get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-        async set(name: string, value: string, options: CookieOptions) {
-          cookieStore.set(name, value, options);
-        },
-        async remove(name: string, options: CookieOptions) {
-          cookieStore.set(name, '', { ...options, maxAge: 0 });
-        },
-      },
-    },
-  );
 }
 
 export async function signUp(formData: FormData) {
@@ -124,7 +132,7 @@ export async function signUp(formData: FormData) {
           id: data.user.id,
           name: full_name,
           email: email,
-          role: data.user_metadata?.role || 'customer',
+          role: data.user?.user_metadata?.role || 'customer',
           status: 'active',
           auth_provider: 'email',
           created_at: new Date().toISOString(),
@@ -230,13 +238,13 @@ export async function signInWithGoogle() {
     });
 
     // Clear any existing Supabase cookies to ensure clean state
-    cookieStore.set('sb-access-token', '', {
+    await cookieStore.set('sb-access-token', '', {
       path: '/',
       maxAge: -1,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
     });
-    cookieStore.set('sb-refresh-token', '', {
+    await cookieStore.set('sb-refresh-token', '', {
       path: '/',
       maxAge: -1,
       secure: process.env.NODE_ENV === 'production',
@@ -282,8 +290,9 @@ export async function signOut() {
       'sb-refresh-token',
       'sb-auth-token',
     ];
+    const cookieValue = await cookieStore;
     for (const cookieName of supabaseCookies) {
-      await cookieStore.set(cookieName, '', {
+      cookieValue.set(cookieName, '', {
         maxAge: -1,
         path: '/',
         secure: process.env.NODE_ENV === 'production',
@@ -299,7 +308,7 @@ export async function signOut() {
 }
 
 export async function resetPassword(email: string) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/update-password`,
   });
