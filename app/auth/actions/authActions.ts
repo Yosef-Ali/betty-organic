@@ -230,13 +230,13 @@ export async function signInWithGoogle() {
     });
 
     // Clear any existing Supabase cookies to ensure clean state
-    await cookieStore.set('sb-access-token', '', {
+    cookieStore.set('sb-access-token', '', {
       path: '/',
       maxAge: -1,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
     });
-    await cookieStore.set('sb-refresh-token', '', {
+    cookieStore.set('sb-refresh-token', '', {
       path: '/',
       maxAge: -1,
       secure: process.env.NODE_ENV === 'production',
@@ -378,29 +378,31 @@ export async function createGoogleUserProfile(user: any) {
       existingProfile = data;
     }
 
-    // Prepare profile data, preserving existing role if any
+    // Ensure we have valid user metadata
+    const userMetadata = user.user_metadata || {};
+    const fullName = userMetadata.full_name || userMetadata.name || user.email?.split('@')[0] || 'Unknown User';
+
+    // Prepare profile data with all required fields
     const profileData = {
       id: user.id,
-      name: user.user_metadata?.full_name || user.email?.split('@')[0],
+      name: fullName,
       email: user.email,
-      role: existingProfile?.role || 'customer', // Preserve existing role
+      role: existingProfile?.role || 'customer',
       status: 'active',
       auth_provider: 'google',
-      avatar_url: user.user_metadata?.avatar_url,
+      avatar_url: userMetadata.avatar_url || userMetadata.picture || null,
       updated_at: new Date().toISOString(),
+      created_at: existingProfile ? existingProfile.created_at : new Date().toISOString(),
+      phone: existingProfile?.phone || null,
+      address: existingProfile?.address || null
     };
 
-    // Only set created_at for new profiles
-    if (!existingProfile) {
-      profileData.created_at = new Date().toISOString();
-    }
-
-    // Upsert the profile
+    // Upsert the profile with all fields
     const { error: upsertError } = await supabase
       .from('profiles')
       .upsert(profileData, {
         onConflict: 'id',
-        returning: 'minimal',
+        returning: 'minimal'
       });
 
     if (upsertError) {
