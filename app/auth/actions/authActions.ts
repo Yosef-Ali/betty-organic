@@ -222,7 +222,6 @@ export async function signInWithGoogle() {
     }
 
     // Set the provider in a cookie instead of sessionStorage
-    const cookieStore = cookies();
     await cookieStore.set('authProvider', 'google', {
       path: '/',
       secure: process.env.NODE_ENV === 'production',
