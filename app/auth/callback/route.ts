@@ -49,13 +49,21 @@ export async function GET(request: Request) {
       );
     }
 
-    // Create or update user profile
+    // Check if user profile already exists
+    const { data: existingProfile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', authData.session.user.id)
+      .single();
+
+    // Create or update user profile, preserving existing role if present
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .upsert(
         {
           id: authData.session.user.id,
           email: authData.session.user.email,
+          role: existingProfile?.role || 'customer', // Preserve existing role or set default
           updated_at: new Date().toISOString(),
         },
         { onConflict: 'id' },

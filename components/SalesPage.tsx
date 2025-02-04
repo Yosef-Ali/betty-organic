@@ -2,7 +2,7 @@
 
 import { FC, useState, useEffect, useCallback } from 'react';
 import { useSalesCartStore, SalesCartItem } from '@/store/salesCartStore';
-import { Tabs, TabsContent } from '@/components/ui/tabs';// Add this import
+import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { ProductGrid } from './ProductGrid';
 import { SalesHeader } from './SalesHeader';
 import { SalesCartSheet } from './cart/SalesCartSheet';
@@ -10,6 +10,7 @@ import { getProducts } from '@/app/actions/productActions';
 import { toast } from '@/hooks/use-toast';
 import { createOrder } from '@/app/actions/orderActions';
 import { Order } from '@/types/order';
+import { useUser } from '@/lib/hooks/useUser';
 
 export interface Product {
   id: string;
@@ -45,30 +46,31 @@ export interface ProductWithStatus extends Product {
 
 const SalesPage: FC = () => {
   const [products, setProducts] = useState<ProductWithStatus[]>([]);
-  const [recentlySelectedProducts, setRecentlySelectedProducts] = useState<
-    ProductWithStatus[]
-  >([]);
-  const { addItem, items } = useSalesCartStore();
+  const [recentlySelectedProducts, setRecentlySelectedProducts] = useState<ProductWithStatus[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const { items, addItem } = useSalesCartStore();
+  const { user, loading } = useUser();
 
   useEffect(() => {
     async function fetchProducts() {
       try {
         const allProducts = await getProducts();
-        const productsWithStatus = allProducts.map((p): ProductWithStatus => ({
-          id: p.id,
-          name: p.name,
-          description: p.description,
-          price: p.price ?? 0,
-          stock: p.stock ?? 0,
-          imageUrl: p.imageUrl || '/default-product.png',
-          category: p.category || 'Uncategorized',
-          active: p.active ?? true,
-          totalSales: p.totalsales ?? 0,
-          createdAt: p.createdat ?? '',
-          updatedAt: p.updatedat ?? '',
-          status: (p.stock ?? 0) > 0 ? 'Available' : 'Out of Stock'
-        }));
+        const productsWithStatus = allProducts.map(
+          (p): ProductWithStatus => ({
+            id: p.id,
+            name: p.name,
+            description: p.description,
+            price: p.price ?? 0,
+            stock: p.stock ?? 0,
+            imageUrl: p.imageUrl || '/placeholder.svg',
+            category: p.category || 'Uncategorized',
+            active: p.active ?? true,
+            totalSales: p.total_sales ?? 0,
+            createdAt: p.createdat || new Date().toISOString(),
+            updatedAt: p.updatedat || new Date().toISOString(),
+            status: (p.stock ?? 0) > 0 ? 'Available' : 'Out of Stock',
+          }),
+        );
 
         // Filter out inactive products and set availability status
         setProducts(
@@ -109,39 +111,37 @@ const SalesPage: FC = () => {
     setIsCartOpen(open);
   }, []);
 
-  const handleOrderCreation = async (orderData: Order) => {
+  const handleCreateOrder = async (orderData: any): Promise<boolean> => {
     try {
-      const { data, error } = await createOrder(orderData);
-
-      if (error) {
+      if (!user) {
         toast({
-          title: "Error creating order",
-          description: error.message,
-          variant: "destructive",
+          title: 'Authentication required',
+          description: 'Please log in to create an order',
+          variant: 'destructive',
         });
         return false;
       }
 
+      const data = await createOrder(orderData);
       toast({
-        title: "Order created successfully",
+        title: 'Order created successfully',
         description: `Order #${data.id} has been created`,
       });
 
-      // Clear cart after successful order
       useSalesCartStore.getState().clearCart();
       setIsCartOpen(false);
       return true;
     } catch (err) {
+      console.error('Unexpected error during order creation:', err);
       toast({
-        title: "Error creating order",
-        description: "Something went wrong. Please try again.",
-        variant: "destructive",
+        title: 'Error creating order',
+        description: err instanceof Error ? err.message : 'Something went wrong. Please try again.',
+        variant: 'destructive',
       });
       return false;
     }
   };
 
-  // Pass handleOrderCreation to SalesCartSheet
   return (
     <main className="flex-1 md:p-4 sm:px-6 sm:py-0">
       <SalesHeader
@@ -165,7 +165,7 @@ const SalesPage: FC = () => {
       <SalesCartSheet
         isOpen={isCartOpen}
         onOpenChange={handleCartOpenChange}
-        onOrderCreate={handleOrderCreation}
+        onOrderCreate={handleCreateOrder}
       />
     </main>
   );

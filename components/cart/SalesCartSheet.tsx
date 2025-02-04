@@ -1,4 +1,4 @@
-import { FC, useEffect, useState } from 'react';
+import { FC, useEffect, useState, useCallback } from 'react';
 import {
   Sheet,
   SheetContent,
@@ -29,44 +29,15 @@ interface SalesCartSheetProps {
 export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
   isOpen,
   onOpenChange,
-  onOrderCreate
+  onOrderCreate,
 }) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [error, setError] = useState<Error | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isConfirmDialogOpen, setIsConfirmDialogOpen] =
-    useState<boolean>(false);
-  const [confirmAction, setConfirmAction] = useState<'save' | 'cancel' | null>(null);
-
-  useEffect(() => {
-    const fetchProfile = async () => {
-      console.log('Fetching profile...');
-      try {
-        const authData = await getCurrentUser();
-        if (!authData?.profile) {
-          throw new Error('Profile not found');
-        }
-        const userProfile = authData.profile;
-        if (!userProfile) {
-          throw new Error('Profile not found');
-        }
-        if (!userProfile.id) {
-          throw new Error('Profile ID not found');
-        }
-        setProfile(userProfile);
-        setError(null);
-        console.log('Fetched profile:', userProfile);
-      } catch (error) {
-        console.error('Error fetching user profile:', error);
-        setError(
-          error instanceof Error ? error : new Error('Failed to fetch profile'),
-        );
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchProfile();
-  }, []);
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState<boolean>(false);
+  const [confirmAction, setConfirmAction] = useState<'save' | 'cancel' | null>(
+    null,
+  );
 
   const {
     items,
@@ -100,14 +71,76 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
   } = useSalesCartSheet({
     profile,
     onOpenChange,
+    onOrderCreate,
   });
 
-  const handleConfirmDialogChange = (action: 'save' | 'cancel') => {
+  const handleConfirmDialogChange = (
+    action: 'save' | 'cancel',
+    selectedCustomer?: any,
+  ) => {
+    console.log('Confirm dialog with:', { action, selectedCustomer });
     setConfirmAction(action);
+    if (selectedCustomer) {
+      console.log('Setting customer:', selectedCustomer);
+      setCustomer(selectedCustomer);
+    }
+    if (action === 'save' && !selectedCustomer?.id) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Please select a customer before saving the order',
+      });
+      return;
+    }
     setIsConfirmDialogOpen(true);
   };
 
+  const handleToggleLockStatus = useCallback(() => {
+    if (profile?.role === 'admin') {
+      setOrderStatus(isStatusVerified ? 'pending' : 'processing');
+    }
+  }, [profile?.role, isStatusVerified, setOrderStatus]);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      console.log('Fetching profile...');
+      try {
+        const authData = await getCurrentUser();
+        if (!authData?.profile) {
+          throw new Error('Profile not found');
+        }
+        const userProfile = authData.profile;
+        if (!userProfile) {
+          throw new Error('Profile not found');
+        }
+        if (!userProfile.id) {
+          throw new Error('Profile ID not found');
+        }
+        setProfile(userProfile);
+        setError(null);
+        console.log('Fetched profile:', userProfile);
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
+        setError(
+          error instanceof Error ? error : new Error('Failed to fetch profile'),
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchProfile();
+  }, []);
+
+  useEffect(() => {
+    console.log('Profile updated:', profile);
+  }, [profile]);
+
+  useEffect(() => {
+    console.log('Customer updated:', customer);
+  }, [customer]);
+
   if (error) {
+    console.error('Profile load error:', error);
     return (
       <div className="p-4 text-center">
         <p className="text-red-500">
@@ -153,25 +186,21 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
                   items={items}
                   totalAmount={getTotalAmount()}
                   customerId={customer?.id || ''}
-                  setCustomerId={(id: string) => setCustomer({ ...customer, id })}
+                  setCustomerId={(id: string) =>
+                    setCustomer({ ...customer, id })
+                  }
                   orderStatus={orderStatus || 'pending'}
-                  setOrderStatus={
-                    profile?.role === 'admin' ? setOrderStatus : undefined
-                  }
+                  setOrderStatus={setOrderStatus}
                   isStatusVerified={isStatusVerified}
-                  handleToggleLock={
-                    profile?.role === 'admin'
-                      ? () => setOrderStatus(
-                          isStatusVerified ? 'pending' : 'processing'
-                        )
-                      : undefined
-                  }
+                  handleToggleLockStatus={handleToggleLockStatus}
                   handleConfirmDialog={handleConfirmDialogChange}
                   isSaving={isSaving}
                   onPrintPreview={handleThermalPrintPreview}
                   isOrderSaved={isOrderSaved}
                   orderNumber={orderNumber}
                   isAdmin={profile?.role === 'admin'}
+                  customerInfo={customer}
+                  setCustomerInfo={setCustomer}
                 />
               )}
             </ScrollArea>

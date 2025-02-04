@@ -45,11 +45,16 @@ interface OrderSummaryProps {
   onPrintPreview: () => void;
   isOrderSaved: boolean;
   orderNumber?: string;
-  customerInfo: {
+  customerInfo?: {
+    id?: string;
     name?: string;
     email?: string;
   };
-  setCustomerInfo: (info: { name?: string; email?: string }) => void;
+  setCustomerInfo?: (info: {
+    id?: string;
+    name?: string;
+    email?: string;
+  }) => void;
   isAdmin: boolean;
 }
 
@@ -68,9 +73,16 @@ export const OrderSummary: FC<OrderSummaryProps> = ({
   isOrderSaved,
   orderNumber,
   isAdmin,
+  customerInfo,
+  setCustomerInfo,
 }) => {
-  const [customerList, setCustomerList] = useState<Array<{ id: string; name: string }>>([]);
-  const [selectedCustomer, setSelectedCustomer] = useState<{ id: string; name: string } | null>(null);
+  const [customerList, setCustomerList] = useState<
+    Array<{ id: string; name: string }>
+  >([]);
+  const [selectedCustomer, setSelectedCustomer] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
 
   useEffect(() => {
     async function fetchCustomers() {
@@ -213,9 +225,16 @@ ${storeInfo}`;
               <Select
                 onValueChange={value => {
                   const selected = customerList.find(c => c.id === value);
-                  setSelectedCustomer(selected);
+                  if (selected) {
+                    console.log('Selected customer:', selected);
+                    setSelectedCustomer(selected);
+                    setCustomerInfo?.({
+                      id: selected.id,
+                      name: selected.name,
+                    });
+                  }
                 }}
-                value={selectedCustomer?.id || ''}
+                value={selectedCustomer?.id || customerId || ''}
               >
                 <SelectTrigger className="mt-1">
                   <SelectValue placeholder="Select customer" />
@@ -270,7 +289,16 @@ ${storeInfo}`;
           Cancel
         </Button>
         <Button
-          onClick={() => handleConfirmDialog('save', selectedCustomer)}
+          onClick={() => {
+            if (selectedCustomer) {
+              console.log('Saving order for customer:', selectedCustomer);
+              handleConfirmDialog('save', {
+                id: selectedCustomer.id,
+                name: selectedCustomer.name,
+                role: 'customer',
+              });
+            }
+          }}
           disabled={isSaving || !selectedCustomer || isOrderSaved}
         >
           {isSaving ? 'Saving...' : 'Save Order'}

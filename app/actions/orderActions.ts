@@ -65,47 +65,93 @@ export async function createOrder(orderData: Order) {
       };
     }
 
-    // Verify user role
-    if (!['admin', 'sales'].includes(authData.profile?.role)) {
+    // Verify user role and permissions
+    if (!authData.profile?.role) {
+      console.error('No role found in profile:', authData.profile);
       return {
         data: null,
-        error: new Error(
-          'Unauthorized: Only admin and sales can create orders',
-        ),
+        error: new Error('Unauthorized: User role not found'),
       };
     }
 
+    const role = authData.profile.role;
+    const userId = authData.user.id;
+
+    console.log('Creating order with role:', role, 'userId:', userId);
+
     // Validate order data
     if (!orderData?.order_items?.length) {
+      console.error('Missing order items in order data:', orderData);
       return {
         data: null,
         error: new Error('Invalid order data: Missing order items'),
       };
     }
 
-    const user = authData.user;
+    // Set profile_id and customer_profile_id based on role
+    let profile_id: string;
+    let customer_profile_id: string;
+
+    if (role === 'customer') {
+      // For customer orders, both IDs should be the customer's ID
+      profile_id = userId;
+      customer_profile_id = userId;
+    } else if (['admin', 'sales'].includes(role)) {
+      // For admin/sales orders, profile_id is their ID and customer_profile_id is the selected customer
+      profile_id = userId;
+      customer_profile_id = orderData.customer_profile_id;
+
+      if (!customer_profile_id) {
+        console.error('Missing customer_profile_id for admin/sales order');
+        return {
+          data: null,
+          error: new Error('Customer must be selected for admin/sales orders'),
+        };
+      }
+    } else {
+      console.error('Invalid role for order creation:', role);
+      return {
+        data: null,
+        error: new Error('Unauthorized: Invalid role for order creation'),
+      };
+    }
+    console.log('Order configuration:', {
+      profile_id,
+      customer_profile_id,
+      role,
+      orderItems: orderData.order_items.length,
+    });
 
     // Create the order
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .insert({
-        profile_id: user.id,
-        customer_profile_id: orderData.customer_profile_id,
+        profile_id,
+        customer_profile_id,
         total_amount: orderData.total_amount,
-        status: orderData.status,
-        type: orderData.type,
+        status: orderData.status || 'pending',
+        type:
+          orderData.type || (role === 'customer' ? 'self_service' : 'store'),
       })
       .select()
       .single();
 
     if (orderError) {
-      console.error('Database error creating order:', orderError);
+      console.error('Database error creating order:', {
+        error: orderError,
+        profile_id,
+        customer_profile_id,
+        role,
+        orderData,
+      });
       throw new Error(
         `Database error creating order: ${
           orderError.message || 'Unknown error'
         }`,
       );
     }
+
+    console.log('Order created successfully:', order);
 
     // Create order items
     const orderItems = orderData.order_items.map(item => ({
@@ -122,10 +168,21 @@ export async function createOrder(orderData: Order) {
       .insert(orderItems);
 
     if (itemsError) {
+      console.error('Error creating order items:', {
+        error: itemsError,
+        orderId: order.id,
+        items: orderItems.length,
+      });
       // If order items creation fails, delete the order
       await supabase.from('orders').delete().eq('id', order.id);
-      throw itemsError;
+      throw new Error(
+        `Failed to create order items: ${
+          itemsError.message || 'Unknown error'
+        }`,
+      );
     }
+
+    console.log('Order items created successfully for order:', order.id);
 
     return {
       data: { ...order, order_items: orderItems },

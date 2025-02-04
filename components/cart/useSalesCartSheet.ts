@@ -174,99 +174,99 @@ export function useSalesCartSheet({
   }, [profile, orderStatus]);
 
   const handleSaveOrder = async (customerData: any) => {
-    console.log('Starting handleSaveOrder with:', {
-      customerData,
-      items,
-      profile,
-    });
-
-    if (!customerData?.id || !customerData?.name) {
-      const error = 'Please select a customer';
-      console.error('Save failed:', error, { customerData });
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: error,
-      });
-      return;
-    }
-
-    setIsSaving(true);
     try {
-      const totalAmount = getTotalAmount();
-      const orderItems = items.map(item => ({
-        product_id: item.id,
-        quantity: item.grams,
-        price: (item.pricePerKg * item.grams) / 1000,
-        name: item.name,
-      }));
+      console.log('Saving order with profile:', profile);
+      console.log('Customer data:', customerData);
 
-      const orderNumber = `ORDER-${Date.now()}`;
-
-      // Check auth state
-      if (!profile?.id || !profile?.name) {
-        console.error('Auth state:', {
-          profile,
-          isLoading: profile === undefined,
+      if (!customerData?.id || !customerData?.name) {
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'Please select a customer',
         });
-        throw new Error('You must be logged in to create orders');
+        return;
       }
 
-      // Create order data
+      if (!profile?.id) {
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'You must be logged in to create orders',
+        });
+        return;
+      }
+
+      if (!profile.role || !['admin', 'sales'].includes(profile.role)) {
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'Insufficient permissions to create orders',
+        });
+        return;
+      }
+
+      setCustomer(customerData);
+
+      setIsSaving(true);
+      const totalAmount = getTotalAmount();
+
+      // Prepare order data
       const orderData = {
-        profile_id: profile.id, // seller's profile ID
-        customer_profile_id: customerData.id, // customer's profile ID from profiles table
+        profile_id: profile.id,
+        customer_profile_id: customerData.id,
         status: orderStatus,
         total_amount: totalAmount,
         type: 'store',
+        order_items: items.map(item => ({
+          product_id: item.id,
+          quantity: Math.round(item.grams),
+          price: (item.pricePerKg * item.grams) / 1000,
+          product_name: item.name,
+        })),
       };
 
-      console.log('Attempting to save order:', {
-        orderNumber,
-        customerId: customerData.id,
-        sellerId: profile.id,
-        itemCount: orderItems.length,
-        total: totalAmount,
-      });
+      console.log('Prepared order data:', orderData);
 
-      console.log('Creating order with data:', {
-        orderData,
-        orderItems,
-        customerId: customerData.id,
-      });
+      // Use onOrderCreate if provided, otherwise fall back to createOrder
+      let success = false;
+      if (onOrderCreate) {
+        console.log('Using provided onOrderCreate callback');
+        success = await onOrderCreate(orderData);
+      } else {
+        console.log('Using default createOrder function');
+        console.log('Creating order with data:', orderData);
+        const { data: order, error: orderError } = await createOrder(orderData);
+        console.log('Create order response:', { order, error: orderError });
 
-      // Convert cart items to order items format
-      const order_items = items.map(item => ({
-        product_id: item.id,
-        quantity: Math.round(item.grams),
-        price: (item.pricePerKg * item.grams) / 1000,
-        product_name: item.name,
-      }));
-
-      // Use the server action to create order
-      const { data: order, error: orderError } = await createOrder({
-        ...orderData,
-        order_items,
-      } as any);
-
-      if (orderError) {
-        console.error('Order creation error:', orderError);
-        throw new Error(orderError.message || 'Failed to save order');
+        if (orderError) {
+          console.error('Order creation error:', orderError);
+          throw new Error(orderError.message || 'Failed to save order');
+        }
+        success = true;
+        if (order?.id) {
+          setOrderNumber(order.id);
+          console.log('Order created successfully with ID:', order.id);
+        }
       }
 
-      console.log('Order items saved successfully');
+      if (success) {
+        console.log('Order created successfully');
+        setIsOrderSaved(true);
+        clearCart();
+        onOpenChange(false);
 
-      setOrderNumber(orderNumber);
-      setIsOrderSaved(true);
-      setCustomer(customerData);
-      clearCart();
-      onOpenChange(false);
-
-      // Show success message
-      toast({
-        title: 'Success',
-        description: 'Order saved successfully!',
-      });
+        toast({
+          title: 'Success',
+          description: `Order saved successfully for customer ${customerData.name}!`,
+        });
+      } else {
+        console.error('Order creation failed - success flag is false');
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'Order creation failed. Please try again.',
+        });
+      }
     } catch (error: any) {
       console.error('Failed to save order:', error);
       toast({

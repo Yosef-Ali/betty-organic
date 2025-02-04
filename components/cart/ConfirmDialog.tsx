@@ -16,7 +16,7 @@ interface ConfirmDialogProps {
   isConfirmDialogOpen: boolean;
   setIsConfirmDialogOpen: (open: boolean) => void;
   confirmAction: 'save' | 'cancel';
-  handleConfirmAction: (customerData: { name: string; email: string }) => void;
+  handleConfirmAction: (action: 'save' | 'cancel') => void;
 }
 
 const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
@@ -36,9 +36,9 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
         alert('Please fill in all required fields');
         return;
       }
-      handleConfirmAction({ name, email });
+      handleConfirmAction('save');
     } else {
-      handleConfirmAction({ name: '', email: '' });
+      handleConfirmAction('cancel');
     }
 
     setName('');
