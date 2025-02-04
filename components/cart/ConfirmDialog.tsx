@@ -28,7 +28,7 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (confirmAction === 'save') {
@@ -36,14 +36,16 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
         alert('Please fill in all required fields');
         return;
       }
-      handleConfirmAction('save');
+      await handleConfirmAction('save');
+      setName('');
+      setEmail('');
+      // Dialog will be closed by the parent component after successful order creation
     } else {
       handleConfirmAction('cancel');
+      setName('');
+      setEmail('');
+      setIsConfirmDialogOpen(false);
     }
-
-    setName('');
-    setEmail('');
-    setIsConfirmDialogOpen(false);
   };
 
   return (

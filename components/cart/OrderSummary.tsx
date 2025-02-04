@@ -1,4 +1,4 @@
-import { FC, useState, useEffect } from 'react';
+import { FC, useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,10 +31,8 @@ interface OrderSummaryProps {
   totalAmount: number;
   customerId: string;
   setCustomerId: (id: string) => void;
-  orderStatus: 'pending' | 'processing' | 'completed' | 'cancelled';
-  setOrderStatus: (
-    status: 'pending' | 'processing' | 'completed' | 'cancelled',
-  ) => void;
+  orderStatus: string;
+  setOrderStatus: (status: string) => void;
   isStatusVerified: boolean;
   handleToggleLock: () => void;
   handleConfirmDialog: (
@@ -106,6 +104,26 @@ export const OrderSummary: FC<OrderSummaryProps> = ({
       minute: '2-digit',
     });
   };
+
+  const handleCustomerChange = useCallback(
+    (value: string) => {
+      const selected = customerList.find(c => c.id === value);
+      if (selected) {
+        console.log('Selected customer:', selected);
+        setSelectedCustomer(selected);
+        if (setCustomerInfo) {
+          // Use requestAnimationFrame to ensure state update happens after render
+          requestAnimationFrame(() => {
+            setCustomerInfo({
+              id: selected.id,
+              name: selected.name,
+            });
+          });
+        }
+      }
+    },
+    [customerList, setCustomerInfo],
+  );
 
   const handleShare = async (shareType: 'direct' | 'group') => {
     try {
@@ -223,17 +241,7 @@ ${storeInfo}`;
             <div>
               <Label className="text-sm font-medium">Customer</Label>
               <Select
-                onValueChange={value => {
-                  const selected = customerList.find(c => c.id === value);
-                  if (selected) {
-                    console.log('Selected customer:', selected);
-                    setSelectedCustomer(selected);
-                    setCustomerInfo?.({
-                      id: selected.id,
-                      name: selected.name,
-                    });
-                  }
-                }}
+                onValueChange={handleCustomerChange}
                 value={selectedCustomer?.id || customerId || ''}
               >
                 <SelectTrigger className="mt-1">
@@ -285,7 +293,10 @@ ${storeInfo}`;
         )}
       </div>
       <div className="flex justify-end space-x-2">
-        <Button variant="outline" onClick={() => handleConfirmDialog('cancel')}>
+        <Button
+          variant="outline"
+          onClick={() => handleConfirmDialog('cancel', null)}
+        >
           Cancel
         </Button>
         <Button

@@ -1,4 +1,5 @@
 import { FC, useEffect, useState, useCallback } from 'react';
+import { toast } from 'sonner';
 import {
   Sheet,
   SheetContent,
@@ -74,26 +75,25 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
     onOrderCreate,
   });
 
-  const handleConfirmDialogChange = (
-    action: 'save' | 'cancel',
-    selectedCustomer?: any,
-  ) => {
-    console.log('Confirm dialog with:', { action, selectedCustomer });
-    setConfirmAction(action);
-    if (selectedCustomer) {
-      console.log('Setting customer:', selectedCustomer);
-      setCustomer(selectedCustomer);
-    }
-    if (action === 'save' && !selectedCustomer?.id) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Please select a customer before saving the order',
-      });
-      return;
-    }
-    setIsConfirmDialogOpen(true);
-  };
+  const handleConfirmDialogChange = useCallback(
+    (action: 'save' | 'cancel', selectedCustomer?: any) => {
+      console.log('Confirm dialog with:', { action, selectedCustomer });
+      setConfirmAction(action);
+
+      if (action === 'save') {
+        if (!selectedCustomer?.id) {
+          toast.error('Please select a customer before saving the order');
+          return;
+        }
+        handleConfirmDialog('save', selectedCustomer);
+      } else {
+        setIsConfirmDialogOpen(true);
+      }
+    },
+    [handleConfirmDialog],
+  );
+
+  // Remove the problematic useEffect
 
   const handleToggleLockStatus = useCallback(() => {
     if (profile?.role === 'admin') {
@@ -192,7 +192,7 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
                   orderStatus={orderStatus || 'pending'}
                   setOrderStatus={setOrderStatus}
                   isStatusVerified={isStatusVerified}
-                  handleToggleLockStatus={handleToggleLockStatus}
+                  handleToggleLock={handleToggleLockStatus}
                   handleConfirmDialog={handleConfirmDialogChange}
                   isSaving={isSaving}
                   onPrintPreview={handleThermalPrintPreview}
