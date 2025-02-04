@@ -93,7 +93,6 @@ export async function GET(request: Request) {
             sameSite: 'lax',
             maxAge: 60 * 60 * 24, // 24 hours
           });
-
           if (freshSession.refresh_token) {
             await cookieStore.set(
               'sb-refresh-token',
@@ -105,6 +104,23 @@ export async function GET(request: Request) {
                 maxAge: 60 * 60 * 24 * 30, // 30 days
               },
             );
+          }
+
+          // After setting session tokens, get and set user role
+          const { data: userData } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single();
+
+          if (userData) {
+            const role = userData.role || 'customer';
+            await cookieStore.set('userRole', role, {
+              path: '/',
+              secure: process.env.NODE_ENV === 'production',
+              sameSite: 'lax',
+              maxAge: 60 * 60 * 24, // 24 hours
+            });
           }
         } else {
           // For email auth, handle profile creation directly
@@ -135,6 +151,22 @@ export async function GET(request: Request) {
 
           if (profileError) throw profileError;
         }
+        // Set user role cookie for email auth after profile creation
+        const { data: emailProfileData } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+
+        if (emailProfileData) {
+          const role = emailProfileData.role || 'customer';
+          await cookieStore.set('userRole', role, {
+            path: '/',
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: 60 * 60 * 24, // 24 hours
+          });
+        }
 
         // Get the origin for redirect
         const origin = process.env.NEXT_PUBLIC_SITE_URL || requestUrl.origin;
@@ -148,7 +180,6 @@ export async function GET(request: Request) {
             new URL('/dashboard', 'https://betty-organic.vercel.app'),
           );
         }
-
         return NextResponse.redirect(new URL('/dashboard', origin));
       } catch (error) {
         console.error('Profile creation error:', error);

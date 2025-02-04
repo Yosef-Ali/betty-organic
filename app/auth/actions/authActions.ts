@@ -40,6 +40,21 @@ export async function signIn(formData: FormData) {
     return { error: error.message };
   }
 
+  // Fetch user profile to preserve role
+  const { data: profileData, error: profileError } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', data.user?.id)
+    .single();
+  if (!profileError && profileData) {
+    const cookieStore = cookies();
+    await cookieStore.set('userRole', profileData.role, {
+      path: '/',
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+    });
+  }
+
   return {
     redirect: {
       destination: '/dashboard',
@@ -172,7 +187,7 @@ export async function signInWithGoogle() {
           access_type: 'offline',
           prompt: 'consent',
         },
-        scopes: ['email', 'profile'],
+        scopes: 'email profile',
       },
     });
 
@@ -331,16 +346,17 @@ export async function createGoogleUserProfile(user: any) {
 
   try {
     // Check for existing profile first
-    const { data: existingProfile, error: profileError } = await supabase
+    let existingProfile = null;
+    const { data, error: profileError } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', user.id)
       .single();
 
-    // Don't throw on not found, but do throw on other errors
-    if (profileError && profileError.code !== 'PGRST116') {
-      console.error('Profile lookup error:', profileError);
-      throw profileError;
+    if (profileError && !data) {
+      existingProfile = null;
+    } else {
+      existingProfile = data;
     }
 
     // Prepare profile data, preserving existing role if any
