@@ -22,8 +22,8 @@ export const columns: ColumnDef<ExtendedOrder>[] = [
   {
     id: 'profile_name',
     header: 'Profile',
-    accessorFn: row => row.profile?.name || 'N/A',
-    cell: ({ row }) => row.original.profile?.name || 'N/A',
+    accessorFn: row => row.profile?.name || 'Unknown Customer',
+    cell: ({ row }) => row.original.profile?.name || 'Unknown Customer',
     enableGlobalFilter: true,
   },
   {

@@ -332,7 +332,7 @@ const OrderDashboard: React.FC = () => {
           </TabsContent>
         </Tabs>
       </div>
-      {/* {selectedOrderId && <OrderDetails orderId={selectedOrderId} />} */}
+      {selectedOrderId && <OrderDetails orderId={selectedOrderId} />}
     </main>
   );
 };

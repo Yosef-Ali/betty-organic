@@ -4,7 +4,7 @@ import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { useOrderDetails } from '@/lib/hooks/useOrderDetails';
 import { useRouter } from 'next/navigation';
-import { Profile } from "@/lib/types/auth";
+import { Profile } from '@/lib/types/auth';
 
 // Order components
 import OrderHeader from '@/components/orders/OrderHeader';
@@ -77,23 +77,27 @@ export default function OrderDetails({ orderId }: OrderDetailsProps) {
         <OrderItemsList items={itemsWithTotal} subtotal={subtotal} />
 
         <Separator className="my-4" />
-        <ShippingBillingInfo
-          address={order.profile.name}
-          city={order.profile.email}
-          postalCode={order.profile.email}
-        />
+        <>
+          <ShippingBillingInfo
+            address={order.profile?.name || 'N/A'}
+            city={order.profile?.email || 'N/A'}
+            postalCode={order.profile?.email || 'N/A'}
+          />
 
-        <Separator className="my-4" />
-        <ProfileDetails profile={{
-          id: order.profile.id,
-          name: order.profile.name,
-          email: order.profile.email,
-          role: order.profile.role,
-          status: 'active',
-          created_at: order.profile.created_at || new Date().toISOString(),
-          updated_at: order.profile.updated_at || new Date().toISOString(),
-          avatar_url: order.profile.avatar_url || undefined
-        }} />
+          <Separator className="my-4" />
+          <ProfileDetails
+            profile={{
+              id: order.profile?.id || 'temp-id',
+              name: order.profile?.name || 'Unknown Customer',
+              email: order.profile?.email || 'No Email',
+              role: order.profile?.role || 'customer',
+              status: 'active',
+              created_at: order.profile?.created_at || new Date().toISOString(),
+              updated_at: order.profile?.updated_at || new Date().toISOString(),
+              avatar_url: order.profile?.avatar_url || undefined,
+            }}
+          />
+        </>
 
         <Separator className="my-4" />
         <PaymentDetails />
@@ -108,7 +112,7 @@ export default function OrderDetails({ orderId }: OrderDetailsProps) {
               : 'Just now'}
           </time>
         </div>
-        <OrderPagination onPrevious={() => { }} onNext={() => { }} />
+        <OrderPagination onPrevious={() => {}} onNext={() => {}} />
       </CardFooter>
 
       <ConfirmOrderDeleteDialog

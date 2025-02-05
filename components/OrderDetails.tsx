@@ -33,47 +33,27 @@ import { File, PlusCircle, MoreHorizontal } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { getOrders, deleteOrder } from '@/app/actions/orderActions';
-import { getProfiles } from '@/app/actions/profile';
-import type { Database } from '@/lib/types/supabase';
-
-type ProfileType = Database['public']['Tables']['profiles']['Row'];
-type OrderType = Database['public']['Tables']['orders']['Row'];
 
 type ExtendedOrder = {
   id: string;
   customer: {
-    fullName: string | null;
+    id: string;
+    name: string | null;
     email: string;
-    imageUrl: string | null;
+    role: string;
   } | null;
   type: string;
   status: string;
-  createdAt: string;
-  totalAmount: number;
-};
-
-const mapOrderToExtended = (
-  order: OrderType,
-  profiles: ProfileType[],
-): ExtendedOrder => {
-  const customerProfile = profiles.find(
-    profile => profile.id === order.customer_profile_id,
-  );
-
-  return {
-    id: order.id,
-    customer: customerProfile
-      ? {
-          fullName: customerProfile.name,
-          email: customerProfile.email,
-          imageUrl: customerProfile.avatar_url,
-        }
-      : null,
-    type: order.type,
-    status: order.status,
-    createdAt: order.created_at || new Date().toISOString(),
-    totalAmount: order.total_amount,
-  };
+  created_at: string | null;
+  total_amount: number;
+  order_items: Array<{
+    id: string;
+    order_id: string;
+    product_id: string;
+    product_name: string;
+    quantity: number;
+    price: number;
+  }>;
 };
 
 const OrderDetailsContent = ({
@@ -85,7 +65,6 @@ const OrderDetailsContent = ({
   isLoading: boolean;
   onDelete: (id: string) => Promise<void>;
 }) => {
-  const [deletingId, setDeletingId] = useState<string | null>(null);
   const router = useRouter();
 
   if (isLoading) {
@@ -111,15 +90,17 @@ const OrderDetailsContent = ({
   return orders.map((order: ExtendedOrder) => (
     <TableRow key={order.id}>
       <TableCell className="font-medium">
-        {order.customer?.fullName || 'N/A'}
+        {order.customer?.name || 'N/A'}
       </TableCell>
       <TableCell>{order.id}</TableCell>
       <TableCell>{order.status}</TableCell>
       <TableCell>{order.type}</TableCell>
       <TableCell>
-        {formatDistanceToNow(new Date(order.createdAt), { addSuffix: true })}
+        {order.created_at
+          ? formatDistanceToNow(new Date(order.created_at), { addSuffix: true })
+          : 'N/A'}
       </TableCell>
-      <TableCell>{order.totalAmount}</TableCell>
+      <TableCell>{order.total_amount}</TableCell>
       <TableCell>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -165,7 +146,7 @@ export function OrderDetails() {
   useEffect(() => {
     const filtered = orders.filter(
       order =>
-        (order.customer?.fullName?.toLowerCase() ?? '').includes(
+        (order.customer?.name?.toLowerCase() ?? '').includes(
           searchTerm.toLowerCase(),
         ) || order.id.toLowerCase().includes(searchTerm.toLowerCase()),
     );
@@ -175,21 +156,17 @@ export function OrderDetails() {
   async function fetchOrders() {
     setIsLoading(true);
     try {
-      const [ordersResponse, profilesResponse] = await Promise.all([
-        getOrders(),
-        getProfiles(),
-      ]);
+      const response = await getOrders();
 
-      if (!Array.isArray(ordersResponse)) {
+      if (!Array.isArray(response)) {
         throw new Error('Invalid orders response');
       }
 
-      const sortedOrders = ordersResponse
-        .map(order => mapOrderToExtended(order, profilesResponse))
-        .sort(
-          (a, b) =>
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-        );
+      const sortedOrders = response.sort(
+        (a, b) =>
+          new Date(b.created_at ?? 0).getTime() -
+          new Date(a.created_at ?? 0).getTime(),
+      );
 
       setOrders(sortedOrders);
       setFilteredOrders(sortedOrders);

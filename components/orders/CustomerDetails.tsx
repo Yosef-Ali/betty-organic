@@ -1,9 +1,21 @@
 'use client';
 
-import { Profile } from "@/lib/types/auth";
+import { Profile } from '@/lib/types/auth';
 
 export default function CustomerDetails({ profile }: { profile?: Profile }) {
-  // Display whatever information is available without strict checks
+  // Create a default profile if none is provided
+  const defaultProfile: Profile = {
+    id: 'temp-id',
+    name: 'Unknown Customer',
+    email: 'No Email',
+    role: 'customer',
+    status: 'active',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  // Use the provided profile or fall back to default
+  const customerProfile = profile || defaultProfile;
 
   return (
     <div className="grid gap-3">
@@ -11,18 +23,18 @@ export default function CustomerDetails({ profile }: { profile?: Profile }) {
       <dl className="grid gap-3">
         <div className="flex items-center justify-between">
           <dt className="text-muted-foreground">Customer</dt>
-          <dd>{profile.name || 'Unknown Customer'}</dd>
+          <dd>{customerProfile.name}</dd>
         </div>
         <div className="flex items-center justify-between">
           <dt className="text-muted-foreground">Email</dt>
           <dd>
-            {profile.email ? (
+            {customerProfile.email && customerProfile.email !== 'No Email' ? (
               <a
-                href={`mailto:${profile.email}`}
+                href={`mailto:${customerProfile.email}`}
                 className="hover:underline"
-                title={`Send email to ${profile.name}`}
+                title={`Send email to ${customerProfile.name}`}
               >
-                {profile.email}
+                {customerProfile.email}
               </a>
             ) : (
               'N/A'
@@ -31,11 +43,11 @@ export default function CustomerDetails({ profile }: { profile?: Profile }) {
         </div>
         <div className="flex items-center justify-between">
           <dt className="text-muted-foreground">Role</dt>
-          <dd className="capitalize">{profile.role || 'N/A'}</dd>
+          <dd className="capitalize">{customerProfile.role}</dd>
         </div>
         <div className="flex items-center justify-between">
           <dt className="text-muted-foreground">Status</dt>
-          <dd className="capitalize">{profile.status || 'N/A'}</dd>
+          <dd className="capitalize">{customerProfile.status}</dd>
         </div>
       </dl>
     </div>

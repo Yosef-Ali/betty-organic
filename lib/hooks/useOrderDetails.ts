@@ -45,21 +45,41 @@ export function useOrderDetails(orderId: string) {
           throw error;
         }
 
+        // Create default profile if data.profile is missing
+        const defaultProfile: Profile = {
+          id: 'temp-id',
+          name: 'Unknown Customer',
+          email: 'No Email',
+          role: 'customer',
+          status: 'active',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          avatar_url: null,
+        };
+
         // Transform the data to match our interface
         const transformedOrder: OrderDetails = {
           id: data.id,
           createdAt: data.created_at,
           updatedAt: data.updated_at,
-          profile: {
-            id: data.profile.id,
-            full_name: data.profile.full_name,
-            email: data.profile.email,
-            role: data.profile.role,
-            status: 'active',
-            created_at: data.profile.created_at || new Date().toISOString(),
-            updated_at: data.profile.updated_at || new Date().toISOString(),
-            avatar_url: data.profile.avatar_url || null
-          },
+          profile: data.profile
+            ? {
+                id: data.profile.id || defaultProfile.id,
+                name:
+                  data.profile.name ||
+                  data.profile.full_name ||
+                  defaultProfile.name,
+                email: data.profile.email || defaultProfile.email,
+                role: data.profile.role || defaultProfile.role,
+                status: 'active',
+                created_at:
+                  data.profile.created_at || defaultProfile.created_at,
+                updated_at:
+                  data.profile.updated_at || defaultProfile.updated_at,
+                avatar_url:
+                  data.profile.avatar_url || defaultProfile.avatar_url,
+              }
+            : defaultProfile,
           items: data.order_items.map(item => ({
             id: item.id,
             product: {
