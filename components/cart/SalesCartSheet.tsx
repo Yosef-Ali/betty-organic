@@ -43,12 +43,14 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
   user,
 }) => {
   const {
-    profile = user?.profile ? {
-      id: user.profile.id || user.id,
-      role: user.profile.role,
-      name: user.user_metadata?.full_name || '',
-      email: user.email
-    } : null,
+    profile = user?.profile
+      ? {
+          id: user.profile.id || user.id,
+          role: user.profile.role,
+          name: user.user_metadata?.full_name || '',
+          email: user.email,
+        }
+      : null,
     error,
     items,
     customer,
@@ -84,7 +86,9 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
   });
 
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
-  const [confirmAction, setConfirmAction] = useState<'save' | 'cancel' | null>(null);
+  const [confirmAction, setConfirmAction] = useState<'save' | 'cancel' | null>(
+    null,
+  );
   const [isPending, setIsPending] = useState(false);
 
   useEffect(() => {
@@ -95,15 +99,18 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
     };
   }, []);
 
-  const handleCustomerUpdate = useCallback((id: string) => {
-    try {
-      if (!id) return;
-      setCustomer({ ...customer, id });
-    } catch (error) {
-      console.error('Error updating customer:', error);
-      toast.error('Failed to update customer information');
-    }
-  }, [setCustomer]);
+  const handleCustomerUpdate = useCallback(
+    (id: string) => {
+      try {
+        if (!id) return;
+        setCustomer({ ...customer, id });
+      } catch (error) {
+        console.error('Error updating customer:', error);
+        toast.error('Failed to update customer information');
+      }
+    },
+    [customer, setCustomer],
+  );
 
   const handleToggleLockStatus = useCallback(() => {
     if (profile?.role === 'admin' && !isPending) {
@@ -111,7 +118,7 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
       const newStatus = orderStatus === 'processing' ? 'pending' : 'processing';
       setOrderStatus(newStatus);
     }
-  }, [profile?.role, setOrderStatus]);
+  }, [profile?.role, setOrderStatus, isPending, orderStatus]);
 
   useEffect(() => {
     if (isPending) {
@@ -154,9 +161,13 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
             <div className="h-6 w-6 text-destructive" />
           </div>
           <div className="flex flex-col gap-2">
-            <h3 className="font-semibold tracking-tight">Error Loading Profile</h3>
+            <h3 className="font-semibold tracking-tight">
+              Error Loading Profile
+            </h3>
             <p className="text-sm text-muted-foreground">
-              {error instanceof Error ? error.message : 'Failed to load profile. Please try again.'}
+              {error instanceof Error
+                ? error.message
+                : 'Failed to load profile. Please try again.'}
             </p>
           </div>
           <Button
@@ -174,7 +185,10 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
   return (
     <>
       <Sheet open={isOpen} onOpenChange={onOpenChange}>
-        <SheetContent side="right" className="w-full sm:max-w-lg flex flex-col h-full">
+        <SheetContent
+          side="right"
+          className="w-full sm:max-w-lg flex flex-col h-full"
+        >
           <SheetHeader className="space-y-0 pb-4">
             <div className="flex items-center justify-between">
               <Button
@@ -197,7 +211,10 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
                 <CartItems items={items} />
               ) : (
                 <>
-                  {console.log('Profile being passed to OrderSummary:', profile)}
+                  {console.log(
+                    'Profile being passed to OrderSummary:',
+                    profile,
+                  )}
                   <OrderSummary
                     items={items}
                     totalAmount={getTotalAmount()}
@@ -215,12 +232,16 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
                     isAdmin={profile?.role === 'admin'}
                     customerInfo={customer}
                     setCustomerInfo={setCustomer}
-                    profile={profile ? {
-                      id: profile.id,
-                      role: profile.role,
-                      name: profile.name,
-                      email: profile.email
-                    } : undefined}
+                    profile={
+                      profile
+                        ? {
+                            id: profile.id,
+                            role: profile.role,
+                            name: profile.name,
+                            email: profile.email,
+                          }
+                        : undefined
+                    }
                   />
                 </>
               )}
@@ -289,4 +310,3 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
     </>
   );
 };
-

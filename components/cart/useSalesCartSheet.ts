@@ -140,12 +140,14 @@ export function useSalesCartSheet({
 }: UseSalesCartSheetProps) {
   const [state, dispatch] = useReducer(cartReducer, {
     ...initialCartState,
-    profile: user ? {
-      id: user.id,
-      name: user.email || '',
-      role: user.profile?.role || 'customer',
-    } : null,
-    orderStatus: user?.profile?.role === 'admin' ? 'processing' : 'pending'
+    profile: user
+      ? {
+          id: user.id,
+          name: user.email || '',
+          role: user.profile?.role || 'customer',
+        }
+      : null,
+    orderStatus: user?.profile?.role === 'admin' ? 'processing' : 'pending',
   });
   const { toast } = useToast();
   const { items, clearCart, getTotalAmount } = useSalesCartStore();
@@ -173,12 +175,15 @@ export function useSalesCartSheet({
     window.print();
   }, []);
 
-  const onOtpChange = useCallback((index: number, value: string) => {
-    dispatch({
-      type: 'SET_OTP',
-      payload: state.otp.map((item, i) => (i === index ? value : item)),
-    });
-  }, [state.otp]);
+  const onOtpChange = useCallback(
+    (index: number, value: string) => {
+      dispatch({
+        type: 'SET_OTP',
+        payload: state.otp.map((item, i) => (i === index ? value : item)),
+      });
+    },
+    [state.otp],
+  );
 
   const handleOtpSubmit = useCallback(() => {
     console.log('OTP submitted:', state.otp.join(''));
@@ -278,11 +283,14 @@ export function useSalesCartSheet({
         const profileId = state.profile?.id || user?.id;
 
         // Check if user has required role permissions first
-        if (!state.profile?.role || !['admin', 'sales'].includes(state.profile.role)) {
+        if (
+          !state.profile?.role ||
+          !['admin', 'sales'].includes(state.profile.role)
+        ) {
           toast({
             variant: 'destructive',
             title: 'Error',
-            description: 'Insufficient permissions to create orders'
+            description: 'Insufficient permissions to create orders',
           });
           return;
         }
@@ -366,7 +374,17 @@ export function useSalesCartSheet({
         dispatch({ type: 'SET_SAVING', payload: false });
       }
     },
-    [state.profile, state.orderStatus, items, getTotalAmount, clearCart, onOrderCreate, onOpenChange, toast],
+    [
+      state.profile,
+      state.orderStatus,
+      items,
+      getTotalAmount,
+      clearCart,
+      onOrderCreate,
+      onOpenChange,
+      toast,
+      user?.id,
+    ],
   );
 
   const handleCloseCart = useCallback(() => {
@@ -375,7 +393,7 @@ export function useSalesCartSheet({
     } else {
       onOpenChange(false);
     }
-  }, [items.length, onOpenChange]);
+  }, [items.length, onOpenChange, handleConfirmDialog]);
 
   const handleConfirmDialog = useCallback(
     (action: 'save' | 'cancel', selectedCustomer: any = null) => {
@@ -410,7 +428,10 @@ export function useSalesCartSheet({
         toast({
           variant: 'destructive',
           title: 'Error',
-          description: error instanceof Error ? error.message : 'An unexpected error occurred',
+          description:
+            error instanceof Error
+              ? error.message
+              : 'An unexpected error occurred',
         });
       }
     },
@@ -424,7 +445,8 @@ export function useSalesCartSheet({
     items,
     customer: state.customer,
     setCustomer: useCallback(
-      (customer: Partial<Customer>) => dispatch({ type: 'SET_CUSTOMER', payload: customer }),
+      (customer: Partial<Customer>) =>
+        dispatch({ type: 'SET_CUSTOMER', payload: customer }),
       [],
     ),
     orderStatus: state.orderStatus,
@@ -455,7 +477,8 @@ export function useSalesCartSheet({
     handleConfirmDialog,
     handleConfirmAction,
     setIsThermalPrintPreviewOpen: useCallback(
-      (value: boolean) => dispatch({ type: 'SET_THERMAL_PREVIEW', payload: value }),
+      (value: boolean) =>
+        dispatch({ type: 'SET_THERMAL_PREVIEW', payload: value }),
       [],
     ),
     setIsOtpDialogOpen: useCallback(

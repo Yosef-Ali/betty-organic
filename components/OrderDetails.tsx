@@ -141,7 +141,7 @@ export function OrderDetails() {
 
   useEffect(() => {
     fetchOrders();
-  }, []);
+  }, [fetchOrders]);
 
   useEffect(() => {
     const filtered = orders.filter(

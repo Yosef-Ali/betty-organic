@@ -62,23 +62,28 @@ interface SalesPageProps {
 
 const SalesPage: FC<SalesPageProps> = ({ user }) => {
   const [products, setProducts] = useState<ProductWithStatus[]>([]);
-  const [recentlySelectedProducts, setRecentlySelectedProducts] = useState<ProductWithStatus[]>([]);
+  const [recentlySelectedProducts, setRecentlySelectedProducts] = useState<
+    ProductWithStatus[]
+  >([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { items, addItem } = useSalesCartStore();
   const { toast } = useToast();
 
-  const handleCartOpenChange = useCallback((open: boolean) => {
-    if (!user) {
-      toast({
-        title: 'Authentication Required',
-        description: 'Please log in to access the cart',
-        variant: 'destructive',
-      });
-      return;
-    }
-    setIsCartOpen(open);
-  }, [user, toast]);
+  const handleCartOpenChange = useCallback(
+    (open: boolean) => {
+      if (!user) {
+        toast({
+          title: 'Authentication Required',
+          description: 'Please log in to access the cart',
+          variant: 'destructive',
+        });
+        return;
+      }
+      setIsCartOpen(open);
+    },
+    [user, toast],
+  );
 
   const fetchProducts = useCallback(async () => {
     setIsLoading(true);
@@ -116,7 +121,7 @@ const SalesPage: FC<SalesPageProps> = ({ user }) => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     fetchProducts();
@@ -179,18 +184,24 @@ const SalesPage: FC<SalesPageProps> = ({ user }) => {
         return false;
       }
     },
-    [user],
+    [user, toast],
   );
 
   return (
     <div className="flex flex-col min-h-screen">
-      <SalesHeader cartItemCount={items.length} onCartClick={() => handleCartOpenChange(true)} />
+      <SalesHeader
+        cartItemCount={items.length}
+        onCartClick={() => handleCartOpenChange(true)}
+      />
       <Tabs defaultValue="all" className="flex-grow">
         <TabsContent value="all" className="m-0">
           {isLoading ? (
             <SalesPageSkeleton />
           ) : (
-            <ProductGrid products={products} onProductClick={handleProductClick} />
+            <ProductGrid
+              products={products}
+              onProductClick={handleProductClick}
+            />
           )}
         </TabsContent>
       </Tabs>
