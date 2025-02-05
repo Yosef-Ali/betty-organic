@@ -19,6 +19,7 @@ import {
   DropdownMenuItem,
 } from '@/components/ui/dropdown-menu';
 import { getCustomerList } from '@/app/actions/customerActions';
+import { toast } from 'sonner';
 
 interface OrderSummaryProps {
   items: Array<{
@@ -54,26 +55,48 @@ interface OrderSummaryProps {
     email?: string;
   }) => void;
   isAdmin: boolean;
+  disabled?: boolean;
+  profile?: {
+    id?: string;
+    role?: string;
+    name?: string;
+    email?: string;
+  };
 }
 
-export const OrderSummary: FC<OrderSummaryProps> = ({
-  items,
-  totalAmount,
-  customerId,
-  setCustomerId,
-  orderStatus,
-  setOrderStatus,
-  isStatusVerified,
-  handleToggleLock,
-  handleConfirmDialog,
-  isSaving,
-  onPrintPreview,
-  isOrderSaved,
-  orderNumber,
-  isAdmin,
-  customerInfo,
-  setCustomerInfo,
-}) => {
+export const OrderSummary: FC<OrderSummaryProps> = (props) => {
+  const {
+    items,
+    totalAmount,
+    customerId,
+    setCustomerId,
+    orderStatus,
+    setOrderStatus,
+    isStatusVerified,
+    handleToggleLock,
+    handleConfirmDialog,
+    isSaving,
+    onPrintPreview,
+    isOrderSaved,
+    orderNumber,
+    isAdmin,
+    customerInfo,
+    setCustomerInfo,
+    profile
+  } = props;
+
+  // Log component props when it loads
+  useEffect(() => {
+    console.log('OrderSummary component loading with props:', { items, totalAmount, customerId, orderStatus, isAdmin, profile });
+    console.log('Profile details:', {
+      id: profile?.id,
+      role: profile?.role,
+      name: profile?.name,
+      email: profile?.email
+    });
+  }, [items, totalAmount, customerId, orderStatus, isAdmin, profile]);
+
+
   const [customerList, setCustomerList] = useState<
     Array<{ id: string; name: string }>
   >([]);
@@ -336,13 +359,27 @@ ${storeInfo}`;
         </Button>
         <Button
           onClick={() => {
-            if (selectedCustomer) {
-              handleConfirmDialog('save', {
-                id: selectedCustomer.id,
-                name: selectedCustomer.name,
-                role: 'customer',
-              });
+            if (!profile) {
+              toast.error("You must be logged in to create an order");
+              return;
             }
+            if (!profile.role) {
+              toast.error("Your profile is missing required permissions");
+              return;
+            }
+            if (profile.role !== 'admin' && profile.role !== 'sales') {
+              toast.error("Access Denied - Only admin or sales users can create orders");
+              return;
+            }
+            if (!selectedCustomer) {
+              toast.error("Please select a customer before saving the order");
+              return;
+            }
+            handleConfirmDialog('save', {
+              id: selectedCustomer.id,
+              name: selectedCustomer.name,
+              role: 'customer',
+            });
           }}
           disabled={isSaving || !selectedCustomer || isOrderSaved}
         >

@@ -4,9 +4,7 @@ import { usePathname } from 'next/navigation';
 import { createOrder } from '@/app/actions/orderActions';
 import { Order } from '@/types/order';
 import { Customer } from '@/types/customer';
-import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useUser } from '@/lib/hooks/useUser';
 
 interface Profile {
   id: string;
@@ -121,56 +119,35 @@ function cartReducer(state: CartState, action: CartAction): CartState {
 interface UseSalesCartSheetProps {
   onOpenChange: (open: boolean) => void;
   onOrderCreate?: (orderData: Order) => Promise<boolean>;
+  user?: {
+    id: string;
+    user_metadata: {
+      full_name?: string;
+    };
+    email?: string;
+    profile: {
+      id: string;
+      role: string;
+    };
+  };
 }
 
 export function useSalesCartSheet({
   onOpenChange,
   onOrderCreate,
+  user,
 }: UseSalesCartSheetProps) {
-  const { user, loading: userLoading } = useUser();
-  const [state, dispatch] = useReducer(cartReducer, initialCartState);
-  const supabase = createClient();
+  const [state, dispatch] = useReducer(cartReducer, {
+    ...initialCartState,
+    profile: user ? {
+      id: user.id,
+      name: user.email || '',
+      role: user.profile?.role || 'customer',
+    } : null,
+    orderStatus: user?.profile?.role === 'admin' ? 'processing' : 'pending'
+  });
   const { toast } = useToast();
   const { items, clearCart, getTotalAmount } = useSalesCartStore();
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const initializeProfile = async () => {
-      if (!userLoading && isMounted) {
-        try {
-          if (user?.user_metadata) {
-            const initialProfile = {
-              id: user.id,
-              name: user.user_metadata.full_name || user.email || '',
-              role: user.user_metadata.role || 'customer',
-            };
-            dispatch({
-              type: 'SET_PROFILE',
-              payload: { profile: initialProfile, role: initialProfile.role },
-            });
-          } else {
-            dispatch({
-              type: 'SET_ERROR',
-              payload: new Error('Profile not found'),
-            });
-          }
-        } catch (error) {
-          dispatch({
-            type: 'SET_ERROR',
-            payload: error instanceof Error ? error : new Error('Unknown error'),
-          });
-        } finally {
-          dispatch({ type: 'SET_LOADING', payload: false });
-        }
-      }
-    };
-
-    initializeProfile();
-    return () => {
-      isMounted = false;
-    };
-  }, [user, userLoading]);
 
   useEffect(() => {
     if (items.length === 0) {
@@ -286,11 +263,24 @@ export function useSalesCartSheet({
           return;
         }
 
-        if (!state.profile?.id) {
+        if (!state.profile) {
           toast({
             variant: 'destructive',
             title: 'Error',
             description: 'You must be logged in to create orders',
+          });
+          return;
+        }
+
+        // Use profile ID from state or user object
+        const profileId = state.profile?.id || user?.id;
+
+        // Check if user has required role permissions first
+        if (!state.profile?.role || !['admin', 'sales'].includes(state.profile.role)) {
+          toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Insufficient permissions to create orders'
           });
           return;
         }

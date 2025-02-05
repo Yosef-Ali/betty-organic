@@ -34,19 +34,17 @@ async function createClient() {
 
 // Helper function to create Supabase admin client with service role key
 async function createAdminClient() {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     {
       cookies: {
         async get(name: string) {
-          const cookieValue = await cookieStore;
-          return cookieValue.get(name)?.value;
+          return cookieStore.get(name)?.value;
         },
         async set(name: string, value: string, options: CookieOptions) {
-          const cookieValue = await cookieStore;
-          cookieValue.set(name, value, options);
+          await cookieStore.set(name, value, options);
         },
         async remove(name: string, options: CookieOptions) {
           const cookieValue = await cookieStore;
@@ -79,7 +77,7 @@ export async function signIn(formData: FormData) {
     .single();
   if (!profileError && profileData) {
     const cookieStore = await cookies();
-    cookieStore.set('userRole', profileData.role, {
+    await cookieStore.set('userRole', profileData.role, {
       path: '/',
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
@@ -230,7 +228,8 @@ export async function signInWithGoogle() {
     }
 
     // Set the provider in a cookie instead of sessionStorage
-    await cookieStore.set('authProvider', 'google', {
+    const cookieValue = await cookieStore;
+    await cookieValue.set('authProvider', 'google', {
       path: '/',
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
@@ -238,13 +237,13 @@ export async function signInWithGoogle() {
     });
 
     // Clear any existing Supabase cookies to ensure clean state
-    await cookieStore.set('sb-access-token', '', {
+    await cookieValue.set('sb-access-token', '', {
       path: '/',
       maxAge: -1,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
     });
-    await cookieStore.set('sb-refresh-token', '', {
+    await cookieValue.set('sb-refresh-token', '', {
       path: '/',
       maxAge: -1,
       secure: process.env.NODE_ENV === 'production',
@@ -422,6 +421,6 @@ export async function createGoogleUserProfile(user: any) {
     return { success: true };
   } catch (err) {
     console.error('Error in createGoogleUserProfile:', err);
-    return { error: err.message || 'Failed to create user profile' };
+    return { error: err instanceof Error ? err.message : 'Failed to create user profile' };
   }
 }

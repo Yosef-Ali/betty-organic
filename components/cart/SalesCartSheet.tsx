@@ -23,18 +23,33 @@ interface SalesCartSheetProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   onOrderCreate: (orderData: Order) => Promise<boolean>;
+  user?: {
+    id: string;
+    user_metadata: {
+      full_name?: string;
+    };
+    email?: string;
+    profile: {
+      id: string;
+      role: string;
+    };
+  };
 }
 
 export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
   isOpen,
   onOpenChange,
   onOrderCreate,
+  user,
 }) => {
-  // Custom hook for main functionality
   const {
-    profile,
+    profile = user?.profile ? {
+      id: user.profile.id || user.id,
+      role: user.profile.role,
+      name: user.user_metadata?.full_name || '',
+      email: user.email
+    } : null,
     error,
-    isLoading,
     items,
     customer,
     setCustomer,
@@ -65,14 +80,13 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
   } = useSalesCartSheet({
     onOpenChange,
     onOrderCreate,
+    user,
   });
 
-  // Local state
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<'save' | 'cancel' | null>(null);
   const [isPending, setIsPending] = useState(false);
 
-  // Cleanup effect
   useEffect(() => {
     return () => {
       setIsConfirmDialogOpen(false);
@@ -81,7 +95,6 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
     };
   }, []);
 
-  // Handle customer updates with proper error handling
   const handleCustomerUpdate = useCallback((id: string) => {
     try {
       if (!id) return;
@@ -92,7 +105,6 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
     }
   }, [setCustomer]);
 
-  // Handle status toggle with proper state management
   const handleToggleLockStatus = useCallback(() => {
     if (profile?.role === 'admin' && !isPending) {
       setIsPending(true);
@@ -101,7 +113,6 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
     }
   }, [profile?.role, setOrderStatus]);
 
-  // Effect to handle pending state
   useEffect(() => {
     if (isPending) {
       const timer = setTimeout(() => {
@@ -111,7 +122,6 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
     }
   }, [isPending]);
 
-  // Handle confirm dialog changes safely
   const handleConfirmDialogChange = useCallback(
     async (action: 'save' | 'cancel', selectedCustomer?: any) => {
       if (isPending) return;
@@ -136,28 +146,34 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
     [handleConfirmDialog, isPending],
   );
 
-
-  // Error handling
   if (error) {
     return (
-      <div className="p-4 text-center">
-        <p className="text-red-500">Failed to load profile. Please try again.</p>
-      </div>
-    );
-  }
-
-  // Loading state
-  if (isLoading) {
-    return (
-      <div className="p-4 text-center">
-        <p>Loading...</p>
+      <div className="flex items-center justify-center p-8">
+        <div className="flex flex-col items-center gap-4 text-center">
+          <div className="rounded-full bg-destructive/10 p-3">
+            <div className="h-6 w-6 text-destructive" />
+          </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-semibold tracking-tight">Error Loading Profile</h3>
+            <p className="text-sm text-muted-foreground">
+              {error instanceof Error ? error.message : 'Failed to load profile. Please try again.'}
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => window.location.reload()}
+          >
+            Try Again
+          </Button>
+        </div>
       </div>
     );
   }
 
   return (
     <>
-      <Sheet open={isOpen} onOpenChange={onOpenChange} defaultOpen={isOpen}>
+      <Sheet open={isOpen} onOpenChange={onOpenChange}>
         <SheetContent side="right" className="w-full sm:max-w-lg flex flex-col h-full">
           <SheetHeader className="space-y-0 pb-4">
             <div className="flex items-center justify-between">
@@ -180,25 +196,28 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
               {!isOrderConfirmed ? (
                 <CartItems items={items} />
               ) : (
-                <OrderSummary
-                  items={items}
-                  totalAmount={getTotalAmount()}
-                  customerId={customer?.id || ''}
-                  setCustomerId={handleCustomerUpdate}
-                  orderStatus={orderStatus || 'pending'}
-                  setOrderStatus={setOrderStatus}
-                  isStatusVerified={isStatusVerified}
-                  handleToggleLock={handleToggleLockStatus}
-                  handleConfirmDialog={handleConfirmDialogChange}
-                  isSaving={isSaving}
-                  onPrintPreview={handleThermalPrintPreview}
-                  isOrderSaved={isOrderSaved}
-                  orderNumber={orderNumber}
-                  isAdmin={profile?.role === 'admin'}
-                  customerInfo={customer}
-                  setCustomerInfo={setCustomer}
-                  disabled={isPending}
-                />
+                <>
+                  {console.log('Profile being passed to OrderSummary:', profile)}
+                  <OrderSummary
+                    items={items}
+                    totalAmount={getTotalAmount()}
+                    customerId={customer?.id || ''}
+                    setCustomerId={handleCustomerUpdate}
+                    orderStatus={orderStatus || 'pending'}
+                    setOrderStatus={setOrderStatus}
+                    isStatusVerified={isStatusVerified}
+                    handleToggleLock={handleToggleLockStatus}
+                    handleConfirmDialog={handleConfirmDialogChange}
+                    isSaving={isSaving}
+                    onPrintPreview={handleThermalPrintPreview}
+                    isOrderSaved={isOrderSaved}
+                    orderNumber={orderNumber}
+                    isAdmin={profile?.role === 'admin'}
+                    customerInfo={customer}
+                    setCustomerInfo={setCustomer}
+                    profile={profile}
+                  />
+                </>
               )}
             </ScrollArea>
           </div>

@@ -7,10 +7,10 @@ import { ProductGrid } from './ProductGrid';
 import { SalesHeader } from './SalesHeader';
 import { SalesCartSheet } from './cart/SalesCartSheet';
 import { getProducts } from '@/app/actions/productActions';
-import { toast } from '@/hooks/use-toast';
+import { toast, useToast } from '@/hooks/use-toast';
 import { createOrder } from '@/app/actions/orderActions';
 import { Order } from '@/types/order';
-import { useUser } from '@/lib/hooks/useUser';
+import { User } from '@/types/user';
 
 export interface Product {
   id: string;
@@ -44,14 +44,35 @@ export interface ProductWithStatus extends Product {
   status: 'Available' | 'Out of Stock';
 }
 
-const SalesPage: FC = () => {
+interface SalesPageProps {
+  user: {
+    user: User;
+    profile: {
+      id: string;
+      role: string;
+    };
+    isAdmin: boolean;
+  };
+}
+
+const SalesPage: FC<SalesPageProps> = ({ user }) => {
   const [products, setProducts] = useState<ProductWithStatus[]>([]);
-  const [recentlySelectedProducts, setRecentlySelectedProducts] = useState<
-    ProductWithStatus[]
-  >([]);
+  const [recentlySelectedProducts, setRecentlySelectedProducts] = useState<ProductWithStatus[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const { items, addItem } = useSalesCartStore();
-  const { user, loading } = useUser();
+  const { toast } = useToast();
+
+  const handleCartOpenChange = useCallback((open: boolean) => {
+    if (!user) {
+      toast({
+        title: 'Authentication Required',
+        description: 'Please log in to access the cart',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setIsCartOpen(open);
+  }, [user, toast]);
 
   const fetchProducts = useCallback(async () => {
     try {
@@ -73,10 +94,9 @@ const SalesPage: FC = () => {
         }),
       );
 
-      // Filter out inactive products and set availability status
       setProducts(
         productsWithStatus
-          .filter(p => p.active !== false) // Show active products only
+          .filter(p => p.active !== false)
           .filter(p => p.status === 'Available'),
       );
     } catch (error) {
@@ -99,13 +119,12 @@ const SalesPage: FC = () => {
       name: product.name,
       imageUrl: product.imageUrl || '/placeholder-product.svg',
       pricePerKg: product.price,
-      grams: product.stock > 0 ? 1000 : 100, // Default to 1kg if stock is available, else 100g
+      grams: product.stock > 0 ? 1000 : 100,
       unit: 'kg',
     };
 
     addItem(cartItem);
 
-    // Add selected product to recently selected list
     setRecentlySelectedProducts(prev => {
       const alreadySelected = prev.some(p => p.id === product.id);
       if (alreadySelected) return prev;
@@ -115,9 +134,7 @@ const SalesPage: FC = () => {
     setIsCartOpen(true);
   };
 
-  const handleCartOpenChange = useCallback((open: boolean) => {
-    setIsCartOpen(open);
-  }, []);
+  // Remove duplicate handleCartOpenChange declaration
 
   const handleCreateOrder = useCallback(
     async (orderData: any): Promise<boolean> => {
@@ -153,35 +170,24 @@ const SalesPage: FC = () => {
         return false;
       }
     },
-    [user, setIsCartOpen],
+    [user],
   );
 
   return (
-    <main className="flex-1 md:p-4 sm:px-6 sm:py-0">
-      <SalesHeader
-        cartItemCount={items.length}
-        onCartClick={() => setIsCartOpen(true)}
-      />
-      <Tabs defaultValue="all">
-        <TabsContent value="all">
-          <ProductGrid
-            products={products}
-            onProductClick={handleProductClick}
-          />
-        </TabsContent>
-        <TabsContent value="recently-selected">
-          <ProductGrid
-            products={recentlySelectedProducts}
-            onProductClick={handleProductClick}
-          />
+    <div className="flex flex-col min-h-screen">
+      <SalesHeader cartItemCount={items.length} onCartClick={() => handleCartOpenChange(true)} />
+      <Tabs defaultValue="all" className="flex-grow">
+        <TabsContent value="all" className="m-0">
+          <ProductGrid products={products} onProductClick={handleProductClick} />
         </TabsContent>
       </Tabs>
       <SalesCartSheet
         isOpen={isCartOpen}
         onOpenChange={handleCartOpenChange}
         onOrderCreate={handleCreateOrder}
+        user={user}
       />
-    </main>
+    </div>
   );
 };
 

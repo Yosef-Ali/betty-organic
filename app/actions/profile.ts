@@ -14,6 +14,21 @@ interface ProfileData {
   role: string;
 }
 
+interface Profile {
+  id: string;
+  name: string | null;
+  email: string;
+  phone: string | null;
+  address: string | null;
+  avatar_url: string | null;
+  role: string;
+  status: string | null;
+  created_at: string | null;
+  updated_at: string;
+  auth_provider: string | null;
+  phone: string | null;
+}
+
 export async function updateProfile(data: ProfileData) {
   const supabase = await createClient();
 
@@ -23,7 +38,7 @@ export async function updateProfile(data: ProfileData) {
     }
 
     const updateData = {
-      id: data.id || undefined,
+      id: data.id || '', // Ensure id is always a string
       name: data.fullName.trim(),
       email: data.email.trim(),
       address: data.location?.trim() || null,
@@ -65,24 +80,29 @@ export async function getProfile(id: string) {
       .single();
 
     if (error) {
-      throw error;
+      console.error('Error fetching profile:', error);
+      return null;
     }
 
-    return data
-      ? {
-          id: data.id,
-          fullName: data.name, 
-          email: data.email,
-          phone: data.phone || '',
-          location: data.location || '',
-          status: data.status ? 'active' : 'inactive',
-          imageUrl: data.image_url || '',
-          role: data.role,
-        }
-      : null;
+    if (!data) {
+      return null;
+    }
+
+    return {
+      id: data.id,
+      fullName: data.name,
+      email: data.email,
+      phone: data.phone || '',
+      location: data.address || '',
+      imageUrl: data.avatar_url || '',
+      status: data.status || 'inactive',
+      role: data.role || 'customer',
+      createdAt: data.created_at,
+      updatedAt: data.updated_at
+    };
   } catch (error) {
     console.error('Error in getProfile:', error);
-    throw error;
+    return null;
   }
 }
 
@@ -104,12 +124,12 @@ export async function getCustomers() {
     return (
       data?.map(profile => ({
         id: profile.id,
-        fullName: profile.name, 
+        fullName: profile.name,
         email: profile.email,
         phone: profile.phone || '',
-        location: profile.location || '',
-        imageUrl: profile.image_url || '',
-        status: profile.status ? 'active' : 'inactive',
+        location: profile.address || '',
+        imageUrl: profile.avatar_url || '',
+        status: profile.status || 'inactive',
       })) || []
     );
   } catch (error) {
@@ -134,14 +154,14 @@ export async function getCustomer(id: string) {
 
     return data
       ? {
-          id: data.id,
-          fullName: data.name, 
-          email: data.email,
-          phone: data.phone || '',
-          location: data.location || '',
-          imageUrl: data.image_url || '',
-          status: data.status ? 'active' : 'inactive',
-        }
+        id: data.id,
+        fullName: data.name,
+        email: data.email,
+        phone: data.phone || '',
+        location: data.address || '',
+        imageUrl: data.avatar_url || '',
+        status: profile.status || 'inactive',
+      }
       : null;
   } catch (error) {
     console.error('Error in getCustomer:', error);
@@ -158,9 +178,9 @@ export async function searchCustomers(query: string) {
       .select('*')
       .eq('role', 'customer')
       .or(
-        `name.ilike.%${query}%,email.ilike.%${query}%,phone.ilike.%${query}%`, 
+        `name.ilike.%${query}%,email.ilike.%${query}%,phone.ilike.%${query}%`,
       )
-      .order('name'); 
+      .order('name');
 
     if (error) {
       console.error('Supabase error searching customers:', error);
@@ -170,12 +190,12 @@ export async function searchCustomers(query: string) {
     return (
       data?.map(profile => ({
         id: profile.id,
-        fullName: profile.name, 
+        fullName: profile.name,
         email: profile.email,
         phone: profile.phone || '',
-        location: profile.location || '',
-        imageUrl: profile.image_url || '',
-        status: profile.status ? 'active' : 'inactive',
+        location: profile.address || '',
+        imageUrl: profile.avatar_url || '',
+        status: profile.status || 'inactive',
       })) || []
     );
   } catch (error) {
