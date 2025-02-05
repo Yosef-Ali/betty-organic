@@ -143,14 +143,52 @@ export function useSalesCartSheet({
     profile: user
       ? {
           id: user.id,
-          name: user.email || '',
-          role: user.profile?.role || 'customer',
-        }
-      : null,
-    orderStatus: user?.profile?.role === 'admin' ? 'processing' : 'pending',
-  });
+          name: user.user_metadata.full_name || user.email || '',
+          role: user.user_metadata.role || 'customer'
+        });
+      } else {
+        setError(new Error('Profile not found'));
+      }
+      setIsLoading(false);
+    }
+  }, [user, userLoading]);
+  const supabase = createClient();
   const { toast } = useToast();
   const { items, clearCart, getTotalAmount } = useSalesCartStore();
+  const [customer, setCustomer] = useState<Partial<Customer>>({
+    id: '',
+    email: '',
+    name: '',
+    status: '',
+    role: 'customer',
+    created_at: null,
+    updated_at: null,
+  });
+  const [orderStatus, setOrderStatus] = useState<Order['status']>('processing');
+  const [isThermalPrintPreviewOpen, setIsThermalPrintPreviewOpen] =
+    useState(false);
+  const [isOrderConfirmed, setIsOrderConfirmed] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isStatusVerified, setIsStatusVerified] = useState<boolean | undefined>(
+    false,
+  );
+  const [isOtpDialogOpen, setIsOtpDialogOpen] = useState(false);
+  const [otp, setOtp] = useState(['', '', '', '']);
+  const [hasToggledLock, setHasToggledLock] = useState(false);
+  const [isOrderSaved, setIsOrderSaved] = useState(false);
+  const [orderNumber, setOrderNumber] = useState<string>('');
+
+  const pathname = usePathname();
+
+  const onOtpChange = (index: number, value: string) => {
+    const newOtp = [...otp];
+    newOtp[index] = value;
+    setOtp(newOtp);
+  };
+
+  const handleOtpSubmit = () => {
+    console.log('OTP submitted:', otp.join(''));
+  };
 
   useEffect(() => {
     if (items.length === 0) {
@@ -476,14 +514,5 @@ export function useSalesCartSheet({
     handleCloseCart,
     handleConfirmDialog,
     handleConfirmAction,
-    setIsThermalPrintPreviewOpen: useCallback(
-      (value: boolean) =>
-        dispatch({ type: 'SET_THERMAL_PREVIEW', payload: value }),
-      [],
-    ),
-    setIsOtpDialogOpen: useCallback(
-      (value: boolean) => dispatch({ type: 'SET_OTP_DIALOG', payload: value }),
-      [],
-    ),
   };
 }

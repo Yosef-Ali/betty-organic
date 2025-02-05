@@ -27,7 +27,7 @@ export const SalesHeader: FC<SalesHeaderProps> = ({
             Export
           </span>
         </Button>
-        <Button size="sm" className="h-10 gap-1" onClick={() => {}}>
+        <Button size="sm" className="h-10 gap-1" onClick={() => { }}>
           <Link href="/dashboard/products/new" className="flex items-center">
             <PlusCircle className="h-3.5 w-3.5 mr-1" />
             <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">

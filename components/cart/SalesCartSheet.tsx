@@ -42,6 +42,10 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
   onOrderCreate,
   user,
 }) => {
+<<<<<<< HEAD
+=======
+  // Custom hook for main functionality
+>>>>>>> main
   const {
     profile = user?.profile
       ? {
@@ -85,13 +89,53 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
     user,
   });
 
+<<<<<<< HEAD
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<'save' | 'cancel' | null>(
+    null,
+  );
+  const [isPending, setIsPending] = useState(false);
+=======
+  // Local state
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<'save' | 'cancel' | null>(
     null,
   );
   const [isPending, setIsPending] = useState(false);
 
+  // Cleanup effect
   useEffect(() => {
+    return () => {
+      setIsConfirmDialogOpen(false);
+      setConfirmAction(null);
+      setIsPending(false);
+    };
+  }, []);
+
+  // Handle customer updates
+  const handleCustomerUpdate = useCallback(
+    (id: string) => {
+      setCustomer(prev => ({ ...prev, id }));
+    },
+    [setCustomer],
+  );
+
+  // Handle status toggle with proper state management
+  const handleToggleLockStatus = useCallback(() => {
+    if (profile?.role === 'admin' && !isPending) {
+      setIsPending(true);
+      setOrderStatus(prevStatus => {
+        const newStatus =
+          prevStatus === 'processing' ? 'pending' : 'processing';
+        return newStatus;
+      });
+    }
+  }, [profile?.role, setOrderStatus, isPending]);
+>>>>>>> main
+
+  // Effect to handle pending state
+  useEffect(() => {
+<<<<<<< HEAD
     return () => {
       setIsConfirmDialogOpen(false);
       setConfirmAction(null);
@@ -121,6 +165,8 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
   }, [profile?.role, setOrderStatus, isPending, orderStatus]);
 
   useEffect(() => {
+=======
+>>>>>>> main
     if (isPending) {
       const timer = setTimeout(() => {
         setIsPending(false);
@@ -128,6 +174,7 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
       return () => clearTimeout(timer);
     }
   }, [isPending]);
+<<<<<<< HEAD
 
   const handleConfirmDialogChange = useCallback(
     async (action: 'save' | 'cancel', selectedCustomer?: any) => {
@@ -152,9 +199,39 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
     },
     [handleConfirmDialog, isPending],
   );
+=======
+>>>>>>> main
 
+  // Handle confirm dialog changes safely
+  const handleConfirmDialogChange = useCallback(
+    async (action: 'save' | 'cancel', selectedCustomer?: any) => {
+      if (isPending) return;
+
+      setIsPending(true);
+
+      try {
+        if (action === 'save') {
+          if (!selectedCustomer?.id) {
+            toast.error('Please select a customer before saving the order');
+            return;
+          }
+          setConfirmAction(action);
+          await handleConfirmDialog('save', selectedCustomer);
+        } else {
+          setConfirmAction(action);
+          setIsConfirmDialogOpen(true);
+        }
+      } finally {
+        setIsPending(false);
+      }
+    },
+    [handleConfirmDialog, isPending],
+  );
+
+  // Error handling
   if (error) {
     return (
+<<<<<<< HEAD
       <div className="flex items-center justify-center p-8">
         <div className="flex flex-col items-center gap-4 text-center">
           <div className="rounded-full bg-destructive/10 p-3">
@@ -178,23 +255,43 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
             Try Again
           </Button>
         </div>
+=======
+      <div className="p-4 text-center">
+        <p className="text-red-500">
+          Failed to load profile. Please try again.
+        </p>
+      </div>
+    );
+  }
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="p-4 text-center">
+        <p>Loading...</p>
+>>>>>>> main
       </div>
     );
   }
 
   return (
     <>
+<<<<<<< HEAD
       <Sheet open={isOpen} onOpenChange={onOpenChange}>
         <SheetContent
           side="right"
           className="w-full sm:max-w-lg flex flex-col h-full"
         >
+=======
+      <Sheet open={isOpen} onOpenChange={onOpenChange} modal={false}>
+        <SheetContent className="w-full sm:max-w-lg flex flex-col h-full">
+>>>>>>> main
           <SheetHeader className="space-y-0 pb-4">
             <div className="flex items-center justify-between">
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={handleCloseCart}
+                onClick={() => onOpenChange(false)}
                 className="h-8 w-8 p-0"
                 disabled={isPending}
               >
@@ -210,6 +307,7 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
               {!isOrderConfirmed ? (
                 <CartItems items={items} />
               ) : (
+<<<<<<< HEAD
                 <>
                   {console.log(
                     'Profile being passed to OrderSummary:',
@@ -244,6 +342,27 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
                     }
                   />
                 </>
+=======
+                <OrderSummary
+                  items={items}
+                  totalAmount={getTotalAmount()}
+                  customerId={customer?.id || ''}
+                  setCustomerId={handleCustomerUpdate}
+                  orderStatus={orderStatus || 'pending'}
+                  setOrderStatus={setOrderStatus}
+                  isStatusVerified={isStatusVerified}
+                  handleToggleLock={handleToggleLockStatus}
+                  handleConfirmDialog={handleConfirmDialogChange}
+                  isSaving={isSaving}
+                  onPrintPreview={handleThermalPrintPreview}
+                  isOrderSaved={isOrderSaved}
+                  orderNumber={orderNumber}
+                  isAdmin={profile?.role === 'admin'}
+                  customerInfo={customer}
+                  setCustomerInfo={setCustomer}
+                  disabled={isPending}
+                />
+>>>>>>> main
               )}
             </ScrollArea>
           </div>

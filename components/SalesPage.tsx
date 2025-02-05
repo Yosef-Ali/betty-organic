@@ -188,6 +188,7 @@ const SalesPage: FC<SalesPageProps> = ({ user }) => {
   );
 
   return (
+<<<<<<< HEAD
     <div className="flex flex-col min-h-screen">
       <SalesHeader
         cartItemCount={items.length}
@@ -203,6 +204,22 @@ const SalesPage: FC<SalesPageProps> = ({ user }) => {
               onProductClick={handleProductClick}
             />
           )}
+=======
+    <main className="flex-1 md:p-4 sm:px-6 sm:py-0">
+      <SalesHeader cartItemCount={items.length} onCartClick={() => setIsCartOpen(true)} />
+      <Tabs defaultValue="all">
+        <TabsContent value="all">
+          <ProductGrid
+            products={products}
+            onProductClick={handleProductClick}
+          />
+        </TabsContent>
+        <TabsContent value="recently-selected">
+          <ProductGrid
+            products={recentlySelectedProducts}
+            onProductClick={handleProductClick}
+          />
+>>>>>>> main
         </TabsContent>
       </Tabs>
       <SalesCartSheet

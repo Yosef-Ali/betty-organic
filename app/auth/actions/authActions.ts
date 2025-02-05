@@ -34,6 +34,7 @@ async function createClient() {
 
 // Helper function to create Supabase admin client with service role key
 async function createAdminClient() {
+<<<<<<< HEAD
   const cookieStore = await cookies();
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -49,10 +50,32 @@ async function createAdminClient() {
         },
         async remove(name: string, options: CookieOptions) {
           await cookieStore.set(name, '', { ...options, maxAge: 0 });
+=======
+  try {
+    const cookieStore = await cookies();
+    return createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      {
+        cookies: {
+          async get(name: string) {
+            const cookie = cookieStore.get(name);
+            return cookie?.value;
+          },
+          async set(name: string, value: string, options: CookieOptions) {
+            cookieStore.set(name, value, options);
+          },
+          async remove(name: string, options: CookieOptions) {
+            cookieStore.set(name, '', { ...options, maxAge: 0 });
+          },
+>>>>>>> main
         },
       },
-    },
-  );
+    );
+  } catch (error) {
+    console.error('Error creating admin client:', error instanceof Error ? error.message : 'Unknown error');
+    throw new Error('Failed to initialize admin client');
+  }
 }
 
 export async function signIn(formData: FormData) {
@@ -236,13 +259,13 @@ export async function signInWithGoogle() {
     });
 
     // Clear any existing Supabase cookies to ensure clean state
-    await cookieStore.set('sb-access-token', '', {
+    cookieStore.set('sb-access-token', '', {
       path: '/',
       maxAge: -1,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
     });
-    await cookieStore.set('sb-refresh-token', '', {
+    cookieStore.set('sb-refresh-token', '', {
       path: '/',
       maxAge: -1,
       secure: process.env.NODE_ENV === 'production',
