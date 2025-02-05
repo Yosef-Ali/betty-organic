@@ -156,10 +156,7 @@ const SalesPage: FC = () => {
 
   return (
     <main className="flex-1 md:p-4 sm:px-6 sm:py-0">
-      <SalesHeader
-        cartItemCount={items.length}
-        onCartClick={() => setIsCartOpen(true)}
-      />
+      <SalesHeader cartItemCount={items.length} onCartClick={() => setIsCartOpen(true)} />
       <Tabs defaultValue="all">
         <TabsContent value="all">
           <ProductGrid

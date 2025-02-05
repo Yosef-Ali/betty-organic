@@ -34,7 +34,7 @@ export function useSalesCartSheet({
         setProfile({
           id: user.id,
           name: user.user_metadata.full_name || user.email || '',
-          role: user.user_metadata.role || 'customer'
+          role: user.user_metadata.role || 'customer',
         });
       } else {
         setError(new Error('Profile not found'));
@@ -67,6 +67,10 @@ export function useSalesCartSheet({
   const [hasToggledLock, setHasToggledLock] = useState(false);
   const [isOrderSaved, setIsOrderSaved] = useState(false);
   const [orderNumber, setOrderNumber] = useState<string>('');
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<'save' | 'cancel' | null>(
+    null,
+  );
 
   const pathname = usePathname();
 
@@ -377,5 +381,9 @@ export function useSalesCartSheet({
     handleCloseCart,
     handleConfirmDialog,
     handleConfirmAction,
+    isConfirmDialogOpen,
+    setIsConfirmDialogOpen,
+    confirmAction,
+    setConfirmAction,
   };
 }

@@ -30,12 +30,7 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
   onOpenChange,
   onOrderCreate,
 }) => {
-  const [isConfirmDialogOpen, setIsConfirmDialogOpen] =
-    useState<boolean>(false);
-  const [confirmAction, setConfirmAction] = useState<'save' | 'cancel' | null>(
-    null,
-  );
-
+  // Custom hook for main functionality
   const {
     profile,
     error,
@@ -51,7 +46,6 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
     isStatusVerified = false,
     isOtpDialogOpen,
     otp,
-    hasToggledLock,
     isOrderSaved,
     orderNumber,
     getTotalAmount,
@@ -73,40 +67,80 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
     onOrderCreate,
   });
 
-  const handleConfirmDialogChange = useCallback(
-    (action: 'save' | 'cancel', selectedCustomer?: any) => {
-      console.log('Confirm dialog with:', { action, selectedCustomer });
-      setConfirmAction(action);
+  // Local state
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<'save' | 'cancel' | null>(
+    null,
+  );
+  const [isPending, setIsPending] = useState(false);
 
-      if (action === 'save') {
-        if (!selectedCustomer?.id) {
-          toast.error('Please select a customer before saving the order');
-          return;
-        }
-        handleConfirmDialog('save', selectedCustomer);
-      } else {
-        setIsConfirmDialogOpen(true);
-      }
+  // Cleanup effect
+  useEffect(() => {
+    return () => {
+      setIsConfirmDialogOpen(false);
+      setConfirmAction(null);
+      setIsPending(false);
+    };
+  }, []);
+
+  // Handle customer updates
+  const handleCustomerUpdate = useCallback(
+    (id: string) => {
+      setCustomer(prev => ({ ...prev, id }));
     },
-    [handleConfirmDialog],
+    [setCustomer],
   );
 
-  // Remove the problematic useEffect
-
+  // Handle status toggle with proper state management
   const handleToggleLockStatus = useCallback(() => {
-    if (profile?.role === 'admin') {
-      setOrderStatus(prevStatus =>
-        prevStatus === 'processing' ? 'pending' : 'processing',
-      );
+    if (profile?.role === 'admin' && !isPending) {
+      setIsPending(true);
+      setOrderStatus(prevStatus => {
+        const newStatus =
+          prevStatus === 'processing' ? 'pending' : 'processing';
+        return newStatus;
+      });
     }
-  }, [profile?.role, setOrderStatus]);
+  }, [profile?.role, setOrderStatus, isPending]);
 
+  // Effect to handle pending state
   useEffect(() => {
-    console.log('Customer updated:', customer);
-  }, [customer]);
+    if (isPending) {
+      const timer = setTimeout(() => {
+        setIsPending(false);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isPending]);
 
+  // Handle confirm dialog changes safely
+  const handleConfirmDialogChange = useCallback(
+    async (action: 'save' | 'cancel', selectedCustomer?: any) => {
+      if (isPending) return;
+
+      setIsPending(true);
+
+      try {
+        if (action === 'save') {
+          if (!selectedCustomer?.id) {
+            toast.error('Please select a customer before saving the order');
+            return;
+          }
+          setConfirmAction(action);
+          await handleConfirmDialog('save', selectedCustomer);
+        } else {
+          setConfirmAction(action);
+          setIsConfirmDialogOpen(true);
+        }
+      } finally {
+        setIsPending(false);
+      }
+    },
+    [handleConfirmDialog, isPending],
+  );
+
+  // Error handling
   if (error) {
-    console.error('Profile load error:', error);
     return (
       <div className="p-4 text-center">
         <p className="text-red-500">
@@ -116,6 +150,7 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
     );
   }
 
+  // Loading state
   if (isLoading) {
     return (
       <div className="p-4 text-center">
@@ -126,15 +161,16 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
 
   return (
     <>
-      <Sheet open={isOpen} onOpenChange={onOpenChange}>
+      <Sheet open={isOpen} onOpenChange={onOpenChange} modal={false}>
         <SheetContent className="w-full sm:max-w-lg flex flex-col h-full">
           <SheetHeader className="space-y-0 pb-4">
             <div className="flex items-center justify-between">
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={handleCloseCart}
+                onClick={() => onOpenChange(false)}
                 className="h-8 w-8 p-0"
+                disabled={isPending}
               >
                 <ChevronLeftIcon className="h-4 w-4" />
               </Button>
@@ -152,9 +188,7 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
                   items={items}
                   totalAmount={getTotalAmount()}
                   customerId={customer?.id || ''}
-                  setCustomerId={(id: string) =>
-                    setCustomer({ ...customer, id })
-                  }
+                  setCustomerId={handleCustomerUpdate}
                   orderStatus={orderStatus || 'pending'}
                   setOrderStatus={setOrderStatus}
                   isStatusVerified={isStatusVerified}
@@ -167,6 +201,7 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
                   isAdmin={profile?.role === 'admin'}
                   customerInfo={customer}
                   setCustomerInfo={setCustomer}
+                  disabled={isPending}
                 />
               )}
             </ScrollArea>
@@ -181,6 +216,7 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
             onConfirmOrder={handleConfirmOrder}
             isOrderConfirmed={isOrderConfirmed}
             onCancel={handleBackToCart}
+            disabled={isPending}
           />
         </SheetContent>
       </Sheet>
@@ -189,7 +225,11 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
         {isThermalPrintPreviewOpen && (
           <PrintPreviewModal
             isOpen={isThermalPrintPreviewOpen}
-            onClose={() => setIsThermalPrintPreviewOpen(false)}
+            onClose={() => {
+              if (!isPending) {
+                setIsThermalPrintPreviewOpen(false);
+              }
+            }}
             items={items.map(item => ({
               name: item.name,
               quantity: item.grams / 1000,
@@ -201,16 +241,27 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
         )}
       </AnimatePresence>
 
-      <ConfirmDialog
-        isConfirmDialogOpen={isConfirmDialogOpen}
-        setIsConfirmDialogOpen={setIsConfirmDialogOpen}
-        confirmAction={confirmAction || 'cancel'}
-        handleConfirmAction={handleConfirmAction}
-      />
+      {isConfirmDialogOpen && (
+        <ConfirmDialog
+          isConfirmDialogOpen={isConfirmDialogOpen}
+          setIsConfirmDialogOpen={setIsConfirmDialogOpen}
+          confirmAction={confirmAction || 'cancel'}
+          handleConfirmAction={action => {
+            if (!isPending) {
+              handleConfirmAction(action);
+              setIsConfirmDialogOpen(false);
+            }
+          }}
+        />
+      )}
 
       <OtpDialog
         isOpen={isOtpDialogOpen}
-        onOpenChange={setIsOtpDialogOpen}
+        onOpenChange={value => {
+          if (!isPending) {
+            setIsOtpDialogOpen(value);
+          }
+        }}
         otp={otp}
         handleOtpChange={onOtpChange}
         handleOtpSubmit={handleOtpSubmit}
