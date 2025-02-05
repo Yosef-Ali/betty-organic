@@ -33,7 +33,7 @@ export async function createProduct(formData: FormData): Promise<Product> {
     const priceStr = formData.get('price') as string;
     const stockStr = formData.get('stock') as string;
     const imageUrl =
-      (formData.get('imageUrl') as string) || '/placeholder-product.png';
+      (formData.get('imageUrl') as string) || '/placeholder-product.svg';
     const status = (formData.get('status') as string) || 'active';
 
     if (!name || typeof name !== 'string') {
@@ -151,9 +151,9 @@ export async function updateProduct(
       description: description || '',
       price,
       stock,
-      imageUrl: imageUrl || '/placeholder-product.png',
+      imageUrl: imageUrl || '/placeholder-product.svg',
       active: status === 'active',
-      updatedat: new Date().toISOString()
+      updatedat: new Date().toISOString(),
     };
 
     const { data: product, error } = await supabase
@@ -212,8 +212,12 @@ export async function getProductImages(productId: string): Promise<string[]> {
 }
 
 export async function getProducts(): Promise<Product[]> {
-  const supabase = await createClient();
   try {
+    const supabase = await createClient();
+    if (!supabase) {
+      throw new Error('Failed to initialize Supabase client');
+    }
+
     const { data, error } = await supabase
       .from('products')
       .select('*')
@@ -221,19 +225,19 @@ export async function getProducts(): Promise<Product[]> {
 
     if (error) {
       console.error('Error fetching products:', error);
-      return [];
+      throw error;
     }
 
     return (data || []).map(product => {
       const { imageUrl, ...rest } = product;
       return {
         ...rest,
-        imageUrl: imageUrl || '/placeholder.svg',
+        imageUrl: imageUrl || '/placeholder-product.svg',
       };
     });
   } catch (error) {
     console.error('Error in getProducts:', error);
-    return [];
+    throw error;
   }
 }
 

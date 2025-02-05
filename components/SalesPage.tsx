@@ -63,7 +63,7 @@ const SalesPage: FC = () => {
           description: p.description,
           price: p.price ?? 0,
           stock: p.stock ?? 0,
-          imageUrl: p.imageUrl || '/placeholder.svg',
+          imageUrl: p.imageUrl || '/placeholder-product.svg',
           category: p.category || 'Uncategorized',
           active: p.active ?? true,
           totalSales: p.totalsales ?? 0,
@@ -97,7 +97,7 @@ const SalesPage: FC = () => {
     const cartItem: SalesCartItem = {
       id: product.id,
       name: product.name,
-      imageUrl: product.imageUrl || '/placeholder.png',
+      imageUrl: product.imageUrl || '/placeholder-product.svg',
       pricePerKg: product.price,
       grams: product.stock > 0 ? 1000 : 100, // Default to 1kg if stock is available, else 100g
       unit: 'kg',
@@ -152,7 +152,9 @@ const SalesPage: FC = () => {
         });
         return false;
       }
-    }, [user, setIsCartOpen]);
+    },
+    [user, setIsCartOpen],
+  );
 
   return (
     <main className="flex-1 md:p-4 sm:px-6 sm:py-0">

@@ -82,17 +82,39 @@ export const OrderSummary: FC<OrderSummaryProps> = ({
     name: string;
   } | null>(null);
 
+  // Effect for fetching customers - runs only once
   useEffect(() => {
-    async function fetchCustomers() {
-      const customers = await getCustomerList();
-      setCustomerList(customers);
-    }
+    let isMounted = true;
+
+    const fetchCustomers = async () => {
+      try {
+        const customers = await getCustomerList();
+        if (isMounted) {
+          setCustomerList(customers);
+        }
+      } catch (error) {
+        console.error('Error fetching customers:', error);
+      }
+    };
+
     fetchCustomers();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  const WHATSAPP_NUMBER = '251947385509';
-  const WHATSAPP_GROUP_LINK =
-    'https://chat.whatsapp.com/your-group-invite-link';
+  // Separate effect for updating selected customer when customerInfo changes
+  useEffect(() => {
+    if (customerInfo?.id && customerList.length > 0) {
+      const matchingCustomer = customerList.find(c => c.id === customerInfo.id);
+      if (
+        matchingCustomer &&
+        (!selectedCustomer || selectedCustomer.id !== matchingCustomer.id)
+      ) {
+        setSelectedCustomer(matchingCustomer);
+      }
+    }
+  }, [customerInfo?.id, customerList]);
 
   const formatDate = () => {
     return new Date().toLocaleDateString('en-US', {
@@ -105,22 +127,31 @@ export const OrderSummary: FC<OrderSummaryProps> = ({
     });
   };
 
+  const handleOrderStatusChange = useCallback(
+    (status: string) => {
+      if (status !== orderStatus) {
+        setOrderStatus(status);
+      }
+    },
+    [orderStatus, setOrderStatus],
+  );
+
   const handleCustomerChange = useCallback(
     (value: string) => {
       const selected = customerList.find(c => c.id === value);
       if (selected) {
-        console.log('Selected customer:', selected);
         const customerData = {
           id: selected.id,
           name: selected.name,
         };
         setSelectedCustomer(selected);
+        setCustomerId(selected.id);
         if (setCustomerInfo) {
           setCustomerInfo(customerData);
         }
       }
     },
-    [customerList, setCustomerInfo],
+    [customerList, setCustomerInfo, setCustomerId],
   );
 
   const handleShare = async (shareType: 'direct' | 'group') => {
@@ -138,7 +169,7 @@ export const OrderSummary: FC<OrderSummaryProps> = ({
 
       const storeInfo = `
 📍 *Location:* Genet Tower, Office #505
-📞 *Contact:* +${WHATSAPP_NUMBER}
+📞 *Contact:* +251947385509
 🌐 *Instagram:* @bettyorganic`;
 
       const shareText = `
@@ -157,9 +188,12 @@ ${customerId ? `\n👤 *Customer ID:* ${customerId}` : ''}
 ${storeInfo}`;
 
       if (shareType === 'group') {
-        window.open(WHATSAPP_GROUP_LINK, '_blank');
+        window.open(
+          'https://chat.whatsapp.com/your-group-invite-link',
+          '_blank',
+        );
       } else {
-        const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
+        const whatsappUrl = `https://wa.me/251947385509?text=${encodeURIComponent(
           shareText,
         )}`;
         window.open(whatsappUrl, '_blank');
@@ -263,7 +297,10 @@ ${storeInfo}`;
               <Label htmlFor="order-status" className="text-sm font-medium">
                 Order Status
               </Label>
-              <Select value={orderStatus} onValueChange={setOrderStatus}>
+              <Select
+                value={orderStatus}
+                onValueChange={handleOrderStatusChange}
+              >
                 <SelectTrigger id="order-status" className="mt-1">
                   <SelectValue placeholder="Select order status" />
                 </SelectTrigger>
@@ -300,7 +337,6 @@ ${storeInfo}`;
         <Button
           onClick={() => {
             if (selectedCustomer) {
-              console.log('Saving order for customer:', selectedCustomer);
               handleConfirmDialog('save', {
                 id: selectedCustomer.id,
                 name: selectedCustomer.name,

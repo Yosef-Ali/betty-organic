@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useReducer } from 'react';
 import { useSalesCartStore } from '@/store/salesCartStore';
 import { usePathname } from 'next/navigation';
 import { createOrder } from '@/app/actions/orderActions';
@@ -14,6 +14,110 @@ interface Profile {
   role: string;
 }
 
+interface CartState {
+  isLoading: boolean;
+  error: Error | null;
+  profile: Profile | null;
+  orderStatus: Order['status'];
+  customer: Partial<Customer>;
+  isThermalPrintPreviewOpen: boolean;
+  isOrderConfirmed: boolean;
+  isSaving: boolean;
+  isStatusVerified: boolean;
+  isOtpDialogOpen: boolean;
+  otp: string[];
+  hasToggledLock: boolean;
+  isOrderSaved: boolean;
+  orderNumber: string;
+}
+
+type CartAction =
+  | { type: 'SET_PROFILE'; payload: { profile: Profile | null; role?: string } }
+  | { type: 'SET_ERROR'; payload: Error | null }
+  | { type: 'SET_LOADING'; payload: boolean }
+  | { type: 'SET_ORDER_STATUS'; payload: Order['status'] }
+  | { type: 'SET_CUSTOMER'; payload: Partial<Customer> }
+  | { type: 'SET_THERMAL_PREVIEW'; payload: boolean }
+  | { type: 'SET_ORDER_CONFIRMED'; payload: boolean }
+  | { type: 'SET_SAVING'; payload: boolean }
+  | { type: 'SET_STATUS_VERIFIED'; payload: boolean }
+  | { type: 'SET_OTP_DIALOG'; payload: boolean }
+  | { type: 'SET_OTP'; payload: string[] }
+  | { type: 'SET_TOGGLED_LOCK'; payload: boolean }
+  | { type: 'SET_ORDER_SAVED'; payload: boolean }
+  | { type: 'SET_ORDER_NUMBER'; payload: string }
+  | { type: 'RESET_CART_STATE' };
+
+const initialCartState: CartState = {
+  isLoading: true,
+  error: null,
+  profile: null,
+  orderStatus: 'pending',
+  customer: {
+    id: '',
+    email: '',
+    name: '',
+    status: '',
+    role: 'customer',
+    created_at: null,
+    updated_at: null,
+  },
+  isThermalPrintPreviewOpen: false,
+  isOrderConfirmed: false,
+  isSaving: false,
+  isStatusVerified: false,
+  isOtpDialogOpen: false,
+  otp: ['', '', '', ''],
+  hasToggledLock: false,
+  isOrderSaved: false,
+  orderNumber: '',
+};
+
+function cartReducer(state: CartState, action: CartAction): CartState {
+  switch (action.type) {
+    case 'SET_PROFILE':
+      return {
+        ...state,
+        profile: action.payload.profile,
+        orderStatus: action.payload.role === 'admin' ? 'processing' : 'pending',
+      };
+    case 'SET_ERROR':
+      return { ...state, error: action.payload };
+    case 'SET_LOADING':
+      return { ...state, isLoading: action.payload };
+    case 'SET_ORDER_STATUS':
+      return { ...state, orderStatus: action.payload };
+    case 'SET_CUSTOMER':
+      return { ...state, customer: { ...state.customer, ...action.payload } };
+    case 'SET_THERMAL_PREVIEW':
+      return { ...state, isThermalPrintPreviewOpen: action.payload };
+    case 'SET_ORDER_CONFIRMED':
+      return { ...state, isOrderConfirmed: action.payload };
+    case 'SET_SAVING':
+      return { ...state, isSaving: action.payload };
+    case 'SET_STATUS_VERIFIED':
+      return { ...state, isStatusVerified: action.payload };
+    case 'SET_OTP_DIALOG':
+      return { ...state, isOtpDialogOpen: action.payload };
+    case 'SET_OTP':
+      return { ...state, otp: action.payload };
+    case 'SET_TOGGLED_LOCK':
+      return { ...state, hasToggledLock: action.payload };
+    case 'SET_ORDER_SAVED':
+      return { ...state, isOrderSaved: action.payload };
+    case 'SET_ORDER_NUMBER':
+      return { ...state, orderNumber: action.payload };
+    case 'RESET_CART_STATE':
+      return {
+        ...initialCartState,
+        profile: state.profile,
+        orderStatus: state.profile?.role === 'admin' ? 'processing' : 'pending',
+      };
+    default:
+      return state;
+  }
+}
+
 interface UseSalesCartSheetProps {
   onOpenChange: (open: boolean) => void;
   onOrderCreate?: (orderData: Order) => Promise<boolean>;
@@ -24,79 +128,84 @@ export function useSalesCartSheet({
   onOrderCreate,
 }: UseSalesCartSheetProps) {
   const { user, loading: userLoading } = useUser();
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
-
-  useEffect(() => {
-    if (!userLoading) {
-      if (user?.user_metadata) {
-        setProfile({
-          id: user.id,
-          name: user.user_metadata.full_name || user.email || '',
-          role: user.user_metadata.role || 'customer'
-        });
-      } else {
-        setError(new Error('Profile not found'));
-      }
-      setIsLoading(false);
-    }
-  }, [user, userLoading]);
+  const [state, dispatch] = useReducer(cartReducer, initialCartState);
   const supabase = createClient();
   const { toast } = useToast();
   const { items, clearCart, getTotalAmount } = useSalesCartStore();
-  const [customer, setCustomer] = useState<Partial<Customer>>({
-    id: '',
-    email: '',
-    name: '',
-    status: '',
-    role: 'customer',
-    created_at: null,
-    updated_at: null,
-  });
-  const [orderStatus, setOrderStatus] = useState<Order['status']>('processing');
-  const [isThermalPrintPreviewOpen, setIsThermalPrintPreviewOpen] =
-    useState(false);
-  const [isOrderConfirmed, setIsOrderConfirmed] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isStatusVerified, setIsStatusVerified] = useState<boolean | undefined>(
-    false,
-  );
-  const [isOtpDialogOpen, setIsOtpDialogOpen] = useState(false);
-  const [otp, setOtp] = useState(['', '', '', '']);
-  const [hasToggledLock, setHasToggledLock] = useState(false);
-  const [isOrderSaved, setIsOrderSaved] = useState(false);
-  const [orderNumber, setOrderNumber] = useState<string>('');
 
-  const pathname = usePathname();
+  useEffect(() => {
+    let isMounted = true;
 
-  const onOtpChange = (index: number, value: string) => {
-    const newOtp = [...otp];
-    newOtp[index] = value;
-    setOtp(newOtp);
-  };
+    const initializeProfile = async () => {
+      if (!userLoading && isMounted) {
+        try {
+          if (user?.user_metadata) {
+            const initialProfile = {
+              id: user.id,
+              name: user.user_metadata.full_name || user.email || '',
+              role: user.user_metadata.role || 'customer',
+            };
+            dispatch({
+              type: 'SET_PROFILE',
+              payload: { profile: initialProfile, role: initialProfile.role },
+            });
+          } else {
+            dispatch({
+              type: 'SET_ERROR',
+              payload: new Error('Profile not found'),
+            });
+          }
+        } catch (error) {
+          dispatch({
+            type: 'SET_ERROR',
+            payload: error instanceof Error ? error : new Error('Unknown error'),
+          });
+        } finally {
+          dispatch({ type: 'SET_LOADING', payload: false });
+        }
+      }
+    };
 
-  const handleOtpSubmit = () => {
-    console.log('OTP submitted:', otp.join(''));
-  };
+    initializeProfile();
+    return () => {
+      isMounted = false;
+    };
+  }, [user, userLoading]);
 
   useEffect(() => {
     if (items.length === 0) {
-      setIsOrderConfirmed(false);
-      setIsStatusVerified(false);
-      setHasToggledLock(false);
+      dispatch({ type: 'RESET_CART_STATE' });
     }
   }, [items]);
 
-  const handleThermalPrintPreview = () => {
-    setIsThermalPrintPreviewOpen(true);
-  };
+  const handleBackToCart = useCallback(() => {
+    dispatch({ type: 'RESET_CART_STATE' });
+  }, []);
 
-  const handlePrint = () => {
+  const handleConfirmOrder = useCallback(() => {
+    dispatch({ type: 'SET_ORDER_CONFIRMED', payload: true });
+  }, []);
+
+  const handleThermalPrintPreview = useCallback(() => {
+    dispatch({ type: 'SET_THERMAL_PREVIEW', payload: true });
+  }, []);
+
+  const handlePrint = useCallback(() => {
     window.print();
-  };
+  }, []);
 
-  const handleShare = async () => {
+  const onOtpChange = useCallback((index: number, value: string) => {
+    dispatch({
+      type: 'SET_OTP',
+      payload: state.otp.map((item, i) => (i === index ? value : item)),
+    });
+  }, [state.otp]);
+
+  const handleOtpSubmit = useCallback(() => {
+    console.log('OTP submitted:', state.otp.join(''));
+  }, [state.otp]);
+
+  const handleShare = useCallback(async () => {
     try {
       if (items.length === 0) {
         toast({
@@ -107,7 +216,6 @@ export function useSalesCartSheet({
         return;
       }
 
-      // Format order details with better spacing
       const orderDetails = items
         .map(
           item =>
@@ -123,7 +231,6 @@ export function useSalesCartSheet({
         2,
       )}*`;
 
-      // Check if Web Share API is available and supported
       if (typeof navigator !== 'undefined' && navigator.share) {
         try {
           await navigator.share({
@@ -135,13 +242,11 @@ export function useSalesCartSheet({
             description: 'Order shared successfully',
           });
         } catch (shareError) {
-          // User cancelled or share failed - fallback to WhatsApp
           if ((shareError as Error).name !== 'AbortError') {
             throw shareError;
           }
         }
       } else {
-        // Fallback to WhatsApp
         const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(
           shareText,
         )}`;
@@ -167,204 +272,184 @@ export function useSalesCartSheet({
           error instanceof Error ? error.message : 'Failed to share order',
       });
     }
-  };
+  }, [items, getTotalAmount, toast]);
 
-  const handleConfirmOrder = async () => {
-    setIsOrderConfirmed(true);
-    // Order status is already set based on role in the useEffect
-  };
-
-  const handleBackToCart = () => {
-    setIsOrderConfirmed(false);
-    setIsStatusVerified(false);
-    setHasToggledLock(false);
-    // Reset order status when going back to cart
-    setOrderStatus('processing');
-  };
-
-  // Set initial order status based on profile role
-  useEffect(() => {
-    if (profile) {
-      const initialStatus = profile.role === 'admin' ? 'processing' : 'pending';
-      setOrderStatus(initialStatus);
-    }
-  }, [profile]);
-
-  const handleSaveOrder = async (customerData: any) => {
-    try {
-      console.log('Saving order with profile:', profile);
-      console.log('Customer data:', customerData);
-
-      if (!customerData?.id || !customerData?.name) {
-        toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: 'Please select a customer',
-        });
-        return;
-      }
-
-      if (!profile?.id) {
-        toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: 'You must be logged in to create orders',
-        });
-        return;
-      }
-
-      if (!profile.role || !['admin', 'sales'].includes(profile.role)) {
-        toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: 'Insufficient permissions to create orders',
-        });
-        return;
-      }
-
-      setCustomer(customerData);
-
-      setIsSaving(true);
-      const totalAmount = getTotalAmount();
-
-      // Prepare order data
-      const orderData: Order = {
-        id: '', // Required field for Order type
-        profile_id: profile.id,
-        customer_profile_id: customerData.id,
-        status: orderStatus,
-        total_amount: totalAmount,
-        type: 'store',
-        order_items: items.map(item => ({
-          id: '', // Will be assigned by database
-          order_id: '', // Will be assigned by database
-          product_id: item.id,
-          quantity: Math.round(item.grams),
-          price: (item.pricePerKg * item.grams) / 1000,
-          product_name: item.name,
-        })),
-        created_at: new Date().toISOString(), // Required field
-        updated_at: new Date().toISOString(), // Required field
-      };
-
-      console.log('Prepared order data:', orderData);
-
-      // Use onOrderCreate if provided, otherwise fall back to createOrder
-      let success = false;
-      if (onOrderCreate) {
-        console.log('Using provided onOrderCreate callback');
-        success = await onOrderCreate(orderData);
-      } else {
-        console.log('Using default createOrder function');
-        console.log('Creating order with data:', orderData);
-        const { data: order, error: orderError } = await createOrder(orderData);
-        console.log('Create order response:', { order, error: orderError });
-
-        if (orderError) {
-          console.error('Order creation error:', orderError);
-          throw new Error(orderError.message || 'Failed to save order');
+  const handleSaveOrder = useCallback(
+    async (customerData: any) => {
+      try {
+        if (!customerData?.id || !customerData?.name) {
+          toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Please select a customer',
+          });
+          return;
         }
-        success = true;
-        if (order?.id) {
-          setOrderNumber(order.id);
-          console.log('Order created successfully with ID:', order.id);
+
+        if (!state.profile?.id) {
+          toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'You must be logged in to create orders',
+          });
+          return;
         }
-      }
 
-      if (success) {
-        console.log('Order created successfully');
-        setIsOrderSaved(true);
-        clearCart();
-        onOpenChange(false);
+        if (
+          !state.profile.role ||
+          !['admin', 'sales'].includes(state.profile.role)
+        ) {
+          toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Insufficient permissions to create orders',
+          });
+          return;
+        }
 
-        toast({
-          title: 'Success',
-          description: `Order saved successfully for customer ${customerData.name}!`,
-        });
-      } else {
-        console.error('Order creation failed - success flag is false');
+        dispatch({ type: 'SET_CUSTOMER', payload: customerData });
+        dispatch({ type: 'SET_SAVING', payload: true });
+
+        const totalAmount = getTotalAmount();
+        const orderData: Order = {
+          id: '',
+          profile_id: state.profile.id,
+          customer_profile_id: customerData.id,
+          status: state.orderStatus,
+          total_amount: totalAmount,
+          type: 'store',
+          order_items: items.map(item => ({
+            id: '',
+            order_id: '',
+            product_id: item.id,
+            quantity: Math.round(item.grams),
+            price: (item.pricePerKg * item.grams) / 1000,
+            product_name: item.name,
+          })),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+
+        let success = false;
+        if (onOrderCreate) {
+          success = await onOrderCreate(orderData);
+        } else {
+          const { data: order, error: orderError } = await createOrder(
+            orderData,
+          );
+
+          if (orderError) {
+            throw new Error(orderError.message || 'Failed to save order');
+          }
+          success = true;
+          if (order?.id) {
+            dispatch({ type: 'SET_ORDER_NUMBER', payload: order.id });
+          }
+        }
+
+        if (success) {
+          dispatch({ type: 'SET_ORDER_SAVED', payload: true });
+          clearCart();
+          onOpenChange(false);
+
+          toast({
+            title: 'Success',
+            description: `Order saved successfully for customer ${customerData.name}!`,
+          });
+        } else {
+          toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Order creation failed. Please try again.',
+          });
+        }
+      } catch (error: any) {
         toast({
           variant: 'destructive',
           title: 'Error',
-          description: 'Order creation failed. Please try again.',
+          description:
+            error.message || 'Failed to save order. Please try again.',
         });
+      } finally {
+        dispatch({ type: 'SET_SAVING', payload: false });
       }
-    } catch (error: any) {
-      console.error('Failed to save order:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: error.message || 'Failed to save order. Please try again.',
-      });
-    } finally {
-      setIsSaving(false);
-    }
-  };
+    },
+    [state.profile, state.orderStatus, items, getTotalAmount, clearCart, onOrderCreate, onOpenChange, toast],
+  );
 
-  const handleCloseCart = () => {
+  const handleCloseCart = useCallback(() => {
     if (items.length > 0) {
       handleConfirmDialog('cancel');
     } else {
       onOpenChange(false);
     }
-  };
+  }, [items.length, onOpenChange]);
 
-  const handleConfirmDialog = (
-    action: 'save' | 'cancel',
-    selectedCustomer: any = null,
-  ) => {
-    console.log('handleConfirmDialog called with:', {
-      action,
-      selectedCustomer,
-    });
-
-    if (action === 'save') {
-      // Save order directly without confirmation dialog
-      handleSaveOrder(selectedCustomer);
-    } else if (action === 'cancel') {
-      // Just clear cart and close
-      if (!isOrderSaved) {
+  const handleConfirmDialog = useCallback(
+    (action: 'save' | 'cancel', selectedCustomer: any = null) => {
+      if (action === 'save') {
+        handleSaveOrder(selectedCustomer);
+      } else if (action === 'cancel' && !state.isOrderSaved) {
         clearCart();
         onOpenChange(false);
       }
-    }
-  };
+    },
+    [handleSaveOrder, state.isOrderSaved, clearCart, onOpenChange],
+  );
 
-  const handleConfirmAction = async (action: 'save' | 'cancel') => {
-    if (action === 'save') {
-      await handleSaveOrder(customer); // Pass customer data as required argument
-    } else {
-      handleBackToCart();
-    }
-  };
+  const handleConfirmAction = useCallback(
+    async (action: 'save' | 'cancel') => {
+      try {
+        if (action === 'save') {
+          if (!state.customer?.id) {
+            toast({
+              variant: 'destructive',
+              title: 'Error',
+              description: 'Please select a customer before saving the order',
+            });
+            return;
+          }
+          await handleSaveOrder(state.customer);
+        } else {
+          handleBackToCart();
+        }
+      } catch (error) {
+        console.error('Error in handleConfirmAction:', error);
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: error instanceof Error ? error.message : 'An unexpected error occurred',
+        });
+      }
+    },
+    [state.customer, handleSaveOrder, handleBackToCart, toast],
+  );
 
   return {
-    profile,
-    error,
-    isLoading,
+    profile: state.profile,
+    error: state.error,
+    isLoading: state.isLoading,
     items,
-    customer,
-    setCustomer,
-    orderStatus,
-    setOrderStatus,
-    isThermalPrintPreviewOpen,
-    setIsThermalPrintPreviewOpen,
-    isOrderConfirmed,
-    setIsOrderConfirmed,
-    isSaving,
-    setIsSaving,
-    isStatusVerified,
-    setIsStatusVerified,
-    isOtpDialogOpen,
-    setIsOtpDialogOpen,
-    otp,
-    setOtp,
-    hasToggledLock,
-    setHasToggledLock,
-    isOrderSaved,
-    setIsOrderSaved,
-    orderNumber,
-    setOrderNumber,
+    customer: state.customer,
+    setCustomer: useCallback(
+      (customer: Partial<Customer>) => dispatch({ type: 'SET_CUSTOMER', payload: customer }),
+      [],
+    ),
+    orderStatus: state.orderStatus,
+    setOrderStatus: useCallback(
+      (status: Order['status']) =>
+        dispatch({ type: 'SET_ORDER_STATUS', payload: status }),
+      [],
+    ),
+    isThermalPrintPreviewOpen: state.isThermalPrintPreviewOpen,
+    isOrderConfirmed: state.isOrderConfirmed,
+    isSaving: state.isSaving,
+    isStatusVerified: state.isStatusVerified,
+    isOtpDialogOpen: state.isOtpDialogOpen,
+    otp: state.otp,
+    hasToggledLock: state.hasToggledLock,
+    isOrderSaved: state.isOrderSaved,
+    orderNumber: state.orderNumber,
     getTotalAmount,
     onOtpChange,
     handleOtpSubmit,
@@ -377,5 +462,13 @@ export function useSalesCartSheet({
     handleCloseCart,
     handleConfirmDialog,
     handleConfirmAction,
+    setIsThermalPrintPreviewOpen: useCallback(
+      (value: boolean) => dispatch({ type: 'SET_THERMAL_PREVIEW', payload: value }),
+      [],
+    ),
+    setIsOtpDialogOpen: useCallback(
+      (value: boolean) => dispatch({ type: 'SET_OTP_DIALOG', payload: value }),
+      [],
+    ),
   };
 }
