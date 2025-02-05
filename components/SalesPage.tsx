@@ -11,6 +11,7 @@ import { toast, useToast } from '@/hooks/use-toast';
 import { createOrder } from '@/app/actions/orderActions';
 import { Order } from '@/types/order';
 import { User } from '@/types/user';
+import { SalesPageSkeleton } from './sales/SalesPageSkeleton';
 
 export interface Product {
   id: string;
@@ -46,7 +47,11 @@ export interface ProductWithStatus extends Product {
 
 interface SalesPageProps {
   user: {
-    user: User;
+    id: string;
+    user_metadata: {
+      full_name?: string;
+    };
+    email?: string;
     profile: {
       id: string;
       role: string;
@@ -59,6 +64,7 @@ const SalesPage: FC<SalesPageProps> = ({ user }) => {
   const [products, setProducts] = useState<ProductWithStatus[]>([]);
   const [recentlySelectedProducts, setRecentlySelectedProducts] = useState<ProductWithStatus[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const { items, addItem } = useSalesCartStore();
   const { toast } = useToast();
 
@@ -75,6 +81,7 @@ const SalesPage: FC<SalesPageProps> = ({ user }) => {
   }, [user, toast]);
 
   const fetchProducts = useCallback(async () => {
+    setIsLoading(true);
     try {
       const allProducts = await getProducts();
       const productsWithStatus = allProducts.map(
@@ -106,6 +113,8 @@ const SalesPage: FC<SalesPageProps> = ({ user }) => {
         description: 'Failed to fetch products. Please try again.',
         variant: 'destructive',
       });
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
@@ -178,7 +187,11 @@ const SalesPage: FC<SalesPageProps> = ({ user }) => {
       <SalesHeader cartItemCount={items.length} onCartClick={() => handleCartOpenChange(true)} />
       <Tabs defaultValue="all" className="flex-grow">
         <TabsContent value="all" className="m-0">
-          <ProductGrid products={products} onProductClick={handleProductClick} />
+          {isLoading ? (
+            <SalesPageSkeleton />
+          ) : (
+            <ProductGrid products={products} onProductClick={handleProductClick} />
+          )}
         </TabsContent>
       </Tabs>
       <SalesCartSheet

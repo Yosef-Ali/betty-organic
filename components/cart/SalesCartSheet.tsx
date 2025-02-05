@@ -215,7 +215,12 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
                     isAdmin={profile?.role === 'admin'}
                     customerInfo={customer}
                     setCustomerInfo={setCustomer}
-                    profile={profile}
+                    profile={profile ? {
+                      id: profile.id,
+                      role: profile.role,
+                      name: profile.name,
+                      email: profile.email
+                    } : undefined}
                   />
                 </>
               )}

@@ -41,14 +41,14 @@ async function createAdminClient() {
     {
       cookies: {
         async get(name: string) {
-          return cookieStore.get(name)?.value;
+          const cookie = await cookieStore.get(name);
+          return cookie?.value;
         },
         async set(name: string, value: string, options: CookieOptions) {
           await cookieStore.set(name, value, options);
         },
         async remove(name: string, options: CookieOptions) {
-          const cookieValue = await cookieStore;
-          cookieValue.set(name, '', { ...options, maxAge: 0 });
+          await cookieStore.set(name, '', { ...options, maxAge: 0 });
         },
       },
     },
@@ -194,7 +194,7 @@ export async function signInWithGoogle() {
       .digest('base64url');
 
     // Store code verifier in a cookie for the callback
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     await cookieStore.set('code_verifier', codeVerifier, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -228,8 +228,7 @@ export async function signInWithGoogle() {
     }
 
     // Set the provider in a cookie instead of sessionStorage
-    const cookieValue = await cookieStore;
-    await cookieValue.set('authProvider', 'google', {
+    await cookieStore.set('authProvider', 'google', {
       path: '/',
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
@@ -237,13 +236,13 @@ export async function signInWithGoogle() {
     });
 
     // Clear any existing Supabase cookies to ensure clean state
-    await cookieValue.set('sb-access-token', '', {
+    await cookieStore.set('sb-access-token', '', {
       path: '/',
       maxAge: -1,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
     });
-    await cookieValue.set('sb-refresh-token', '', {
+    await cookieStore.set('sb-refresh-token', '', {
       path: '/',
       maxAge: -1,
       secure: process.env.NODE_ENV === 'production',
@@ -283,15 +282,14 @@ export async function signOut() {
     }
 
     // Clear all Supabase session cookies
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const supabaseCookies = [
       'sb-access-token',
       'sb-refresh-token',
       'sb-auth-token',
     ];
-    const cookieValue = await cookieStore;
     for (const cookieName of supabaseCookies) {
-      cookieValue.set(cookieName, '', {
+      await cookieStore.set(cookieName, '', {
         maxAge: -1,
         path: '/',
         secure: process.env.NODE_ENV === 'production',
@@ -326,7 +324,7 @@ export async function resetPassword(email: string) {
 }
 
 export async function verifyEmail(email: string, code: string) {
-  const supabase = createAdminClient();
+  const supabase = await createAdminClient();
 
   // Check if verification code exists and is valid
   const { data: verificationData, error: verificationError } = await supabase
@@ -409,8 +407,7 @@ export async function createGoogleUserProfile(user: any) {
     const { error: upsertError } = await supabase
       .from('profiles')
       .upsert(profileData, {
-        onConflict: 'id',
-        returning: 'minimal'
+        onConflict: 'id'
       });
 
     if (upsertError) {

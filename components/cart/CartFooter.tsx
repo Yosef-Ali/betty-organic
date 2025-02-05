@@ -21,6 +21,7 @@ export interface CartFooterProps {
   onShare: () => void;
   onConfirmOrder: () => Promise<void>;
   isOrderConfirmed: boolean;
+  disabled?: boolean; // Add disabled prop
 }
 
 export const CartFooter: FC<CartFooterProps> = ({

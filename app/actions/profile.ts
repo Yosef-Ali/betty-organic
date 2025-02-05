@@ -7,11 +7,13 @@ interface ProfileData {
   id?: string;
   fullName: string;
   email: string;
-  phone?: string | null;
-  location?: string | null;
-  imageUrl?: string | null;
+  phone: string | null;
+  location: string | null;
+  imageUrl: string | null;
   status: 'active' | 'inactive';
   role: string;
+  createdAt?: string | null;
+  updatedAt?: string | null;
 }
 
 interface Profile {
@@ -22,11 +24,10 @@ interface Profile {
   address: string | null;
   avatar_url: string | null;
   role: string;
-  status: string | null;
+  status: 'active' | 'inactive';
   created_at: string | null;
   updated_at: string;
   auth_provider: string | null;
-  phone: string | null;
 }
 
 export async function updateProfile(data: ProfileData) {
@@ -92,7 +93,7 @@ export async function getProfile(id: string) {
       id: data.id,
       fullName: data.name,
       email: data.email,
-      phone: data.phone || '',
+      phone: null,
       location: data.address || '',
       imageUrl: data.avatar_url || '',
       status: data.status || 'inactive',
@@ -126,7 +127,7 @@ export async function getCustomers() {
         id: profile.id,
         fullName: profile.name,
         email: profile.email,
-        phone: profile.phone || '',
+        phone: null,
         location: profile.address || '',
         imageUrl: profile.avatar_url || '',
         status: profile.status || 'inactive',
@@ -157,10 +158,10 @@ export async function getCustomer(id: string) {
         id: data.id,
         fullName: data.name,
         email: data.email,
-        phone: data.phone || '',
+        phone: null,
         location: data.address || '',
         imageUrl: data.avatar_url || '',
-        status: profile.status || 'inactive',
+        status: data.status || 'inactive',
       }
       : null;
   } catch (error) {
@@ -192,7 +193,7 @@ export async function searchCustomers(query: string) {
         id: profile.id,
         fullName: profile.name,
         email: profile.email,
-        phone: profile.phone || '',
+        phone: null,
         location: profile.address || '',
         imageUrl: profile.avatar_url || '',
         status: profile.status || 'inactive',

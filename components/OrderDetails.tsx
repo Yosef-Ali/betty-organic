@@ -1,24 +1,50 @@
-'use client'
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu';
 import { File, PlusCircle, MoreHorizontal } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
-import { getOrders, deleteOrder } from '@/app/actions/orderActions'; // Assume these functions are defined in your API utility
+import { getOrders, deleteOrder } from '@/app/actions/orderActions';
+import { getProfiles } from '@/app/actions/profile';
+import type { Database } from '@/lib/types/supabase';
+
+type ProfileType = Database['public']['Tables']['profiles']['Row'];
+type OrderType = Database['public']['Tables']['orders']['Row'];
 
 type ExtendedOrder = {
   id: string;
   customer: {
-    fullName: string;
+    fullName: string | null;
     email: string;
-    imageUrl: string;
+    imageUrl: string | null;
   } | null;
   type: string;
   status: string;
@@ -26,7 +52,35 @@ type ExtendedOrder = {
   totalAmount: number;
 };
 
-const OrderDetailsContent = ({ orders, isLoading, onDelete }: {
+const mapOrderToExtended = (
+  order: OrderType,
+  profiles: ProfileType[],
+): ExtendedOrder => {
+  const customerProfile = profiles.find(
+    profile => profile.id === order.customer_profile_id,
+  );
+
+  return {
+    id: order.id,
+    customer: customerProfile
+      ? {
+          fullName: customerProfile.name,
+          email: customerProfile.email,
+          imageUrl: customerProfile.avatar_url,
+        }
+      : null,
+    type: order.type,
+    status: order.status,
+    createdAt: order.created_at || new Date().toISOString(),
+    totalAmount: order.total_amount,
+  };
+};
+
+const OrderDetailsContent = ({
+  orders,
+  isLoading,
+  onDelete,
+}: {
   orders: ExtendedOrder[];
   isLoading: boolean;
   onDelete: (id: string) => Promise<void>;
@@ -41,7 +95,7 @@ const OrderDetailsContent = ({ orders, isLoading, onDelete }: {
           Loading...
         </TableCell>
       </TableRow>
-    )
+    );
   }
 
   if (orders.length === 0) {
@@ -51,16 +105,20 @@ const OrderDetailsContent = ({ orders, isLoading, onDelete }: {
           No orders found.
         </TableCell>
       </TableRow>
-    )
+    );
   }
 
   return orders.map((order: ExtendedOrder) => (
     <TableRow key={order.id}>
-      <TableCell className="font-medium">{order.customer?.fullName || 'N/A'}</TableCell>
+      <TableCell className="font-medium">
+        {order.customer?.fullName || 'N/A'}
+      </TableCell>
       <TableCell>{order.id}</TableCell>
       <TableCell>{order.status}</TableCell>
       <TableCell>{order.type}</TableCell>
-      <TableCell>{formatDistanceToNow(new Date(order.createdAt), { addSuffix: true })}</TableCell>
+      <TableCell>
+        {formatDistanceToNow(new Date(order.createdAt), { addSuffix: true })}
+      </TableCell>
       <TableCell>{order.totalAmount}</TableCell>
       <TableCell>
         <DropdownMenu>
@@ -72,10 +130,14 @@ const OrderDetailsContent = ({ orders, isLoading, onDelete }: {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem onSelect={() => router.push(`/dashboard/orders/${order.id}/edit`)}>
+            <DropdownMenuItem
+              onSelect={() => router.push(`/dashboard/orders/${order.id}/edit`)}
+            >
               Edit
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => router.push(`/dashboard/orders/${order.id}`)}>
+            <DropdownMenuItem
+              onSelect={() => router.push(`/dashboard/orders/${order.id}`)}
+            >
               View Details
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => onDelete(order.id)}>
@@ -85,8 +147,8 @@ const OrderDetailsContent = ({ orders, isLoading, onDelete }: {
         </DropdownMenu>
       </TableCell>
     </TableRow>
-  ))
-}
+  ));
+};
 
 export function OrderDetails() {
   const [orders, setOrders] = useState<ExtendedOrder[]>([]);
@@ -101,9 +163,11 @@ export function OrderDetails() {
   }, []);
 
   useEffect(() => {
-    const filtered = orders.filter(order =>
-      order.customer?.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.id.toLowerCase().includes(searchTerm.toLowerCase())
+    const filtered = orders.filter(
+      order =>
+        (order.customer?.fullName?.toLowerCase() ?? '').includes(
+          searchTerm.toLowerCase(),
+        ) || order.id.toLowerCase().includes(searchTerm.toLowerCase()),
     );
     setFilteredOrders(filtered);
   }, [searchTerm, orders]);
@@ -111,20 +175,29 @@ export function OrderDetails() {
   async function fetchOrders() {
     setIsLoading(true);
     try {
-      const fetchedOrders = (await getOrders()).map(order => ({
-        ...order,
-        createdAt: order.createdAt.toISOString(),
-      })) as ExtendedOrder[];
-      const sortedOrders = fetchedOrders.sort((a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
+      const [ordersResponse, profilesResponse] = await Promise.all([
+        getOrders(),
+        getProfiles(),
+      ]);
+
+      if (!Array.isArray(ordersResponse)) {
+        throw new Error('Invalid orders response');
+      }
+
+      const sortedOrders = ordersResponse
+        .map(order => mapOrderToExtended(order, profilesResponse))
+        .sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        );
+
       setOrders(sortedOrders);
       setFilteredOrders(sortedOrders);
     } catch (error) {
       toast({
-        title: "Error",
-        description: "Failed to fetch orders",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to fetch orders',
+        variant: 'destructive',
       });
     }
     setIsLoading(false);
@@ -136,8 +209,8 @@ export function OrderDetails() {
       if (result.success) {
         setOrders(prevOrders => prevOrders.filter(order => order.id !== id));
         toast({
-          title: "Order deleted",
-          description: "The order has been successfully deleted.",
+          title: 'Order deleted',
+          description: 'The order has been successfully deleted.',
         });
       } else {
         throw new Error(result.error);
@@ -145,12 +218,12 @@ export function OrderDetails() {
     } catch (error) {
       console.error('Error deleting order:', error);
       toast({
-        title: "Error",
-        description: "Failed to delete the order. Please try again.",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to delete the order. Please try again.',
+        variant: 'destructive',
       });
     }
-  }
+  };
 
   const renderTable = (orders: ExtendedOrder[]) => (
     <Table>
@@ -162,7 +235,9 @@ export function OrderDetails() {
           <TableHead>Type</TableHead>
           <TableHead>Date</TableHead>
           <TableHead>Amount</TableHead>
-          <TableHead><span className="sr-only">Actions</span></TableHead>
+          <TableHead>
+            <span className="sr-only">Actions</span>
+          </TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -173,7 +248,7 @@ export function OrderDetails() {
         />
       </TableBody>
     </Table>
-  )
+  );
 
   return (
     <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">
@@ -189,22 +264,29 @@ export function OrderDetails() {
               placeholder="Search orders..."
               className="h-8 w-[150px] lg:w-[250px]"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={e => setSearchTerm(e.target.value)}
             />
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-              </DropdownMenuTrigger>
+              <DropdownMenuTrigger asChild></DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuSeparator />
               </DropdownMenuContent>
             </DropdownMenu>
             <Button size="sm" variant="outline" className="h-8 gap-1">
               <File className="h-3.5 w-3.5" />
-              <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Export</span>
+              <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+                Export
+              </span>
             </Button>
-            <Button size="sm" className="h-8 gap-1" onClick={() => router.push('/dashboard/orders/new')}>
+            <Button
+              size="sm"
+              className="h-8 gap-1"
+              onClick={() => router.push('/dashboard/orders/new')}
+            >
               <PlusCircle className="h-3.5 w-3.5" />
-              <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Add Order</span>
+              <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+                Add Order
+              </span>
             </Button>
           </div>
         </div>
@@ -212,11 +294,11 @@ export function OrderDetails() {
           <Card>
             <CardHeader>
               <CardTitle>Orders</CardTitle>
-              <CardDescription>Manage your orders and view their details.</CardDescription>
+              <CardDescription>
+                Manage your orders and view their details.
+              </CardDescription>
             </CardHeader>
-            <CardContent>
-              {renderTable(filteredOrders)}
-            </CardContent>
+            <CardContent>{renderTable(filteredOrders)}</CardContent>
             <CardFooter>
               <div className="text-xs text-muted-foreground">
                 Showing of orders
@@ -229,11 +311,10 @@ export function OrderDetails() {
             <CardHeader>
               <CardTitle>Orders with No Details</CardTitle>
             </CardHeader>
-            <CardContent>
-            </CardContent>
+            <CardContent></CardContent>
           </Card>
         </TabsContent>
       </Tabs>
     </main>
-  )
+  );
 }

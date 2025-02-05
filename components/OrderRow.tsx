@@ -16,7 +16,7 @@ export const OrderRow: React.FC<OrderRowProps> = ({ order, onSelectOrder }) => {
     <TableRow key={order.id} onClick={() => onSelectOrder(order.id)}>
       <TableCell>
         <CustomerInfo
-          fullName={order.customer?.full_name || 'Anonymous'}
+          fullName={order.customer?.name || 'Anonymous'}
           email={order.customer?.email || 'No email'}
           imageUrl={order.customer?.imageUrl || '/public/uploads/default.jpg'}
         />

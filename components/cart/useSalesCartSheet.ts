@@ -10,6 +10,7 @@ interface Profile {
   id: string;
   name: string;
   role: string;
+  email?: string;
 }
 
 interface CartState {
@@ -159,8 +160,9 @@ export function useSalesCartSheet({
     dispatch({ type: 'RESET_CART_STATE' });
   }, []);
 
-  const handleConfirmOrder = useCallback(() => {
+  const handleConfirmOrder = useCallback(async () => {
     dispatch({ type: 'SET_ORDER_CONFIRMED', payload: true });
+    return Promise.resolve();
   }, []);
 
   const handleThermalPrintPreview = useCallback(() => {

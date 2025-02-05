@@ -8,26 +8,52 @@ import { File } from 'lucide-react';
 import { OrdersOverviewCard } from './OrdersOverviewCard';
 import { StatCard } from './StatCard';
 import OrderDetails from './OrderDetailsCard';
-
 import { getOrders, deleteOrder } from '../app/actions/orderActions';
-import { getCustomers } from '../app/actions/profile';
 import { getProducts } from '../app/actions/productActions';
+import { getCustomers } from '../app/actions/profile';
 import { useToast } from '../hooks/use-toast';
 import OrderTable from './OrdersTable';
-import { Customer, Order, Product } from '../types';
 
-type ExtendedOrder = Order & {
+type Product = {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  imageUrl: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type OrderItem = {
+  id: string;
+  order_id: string;
+  price: number;
+  product_id: string;
+  product_name: string;
+  quantity: number;
+};
+
+type ExtendedOrder = {
+  id: string;
+  customerName: string;
+  items: OrderItem[];
   customer: {
     id: string;
-    fullName: string;
+    name: string;
+    full_name: string;
     email: string;
     phone: string | null;
-    location: string | null;
-    status: 'active' | 'inactive';
+    address: string | null;
+    imageUrl: string | null;
+    status: string | null;
     created_at: string | null;
-    updated_at: string | null;
+    updated_at: string;
   } | null;
   type: OrderType;
+  totalAmount: number;
+  created_at: string | null;
+  updated_at: string | null;
+  status: string;
 };
 
 export const OrderType = {
@@ -40,71 +66,120 @@ export type OrderType = (typeof OrderType)[keyof typeof OrderType];
 
 const OrderDashboard: React.FC = () => {
   const [orders, setOrders] = useState<ExtendedOrder[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
-  const fetchData = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const [ordersData, customersData, productsData] = await Promise.all([
-        getOrders(),
-        getCustomers(),
-        getProducts(),
-      ]);
-
-      const extendedOrders: ExtendedOrder[] = ordersData.map(order => {
-        const customer = order.customerId
-          ? customersData?.find(c => c.id === order.customerId)
-          : null;
-
-        const customerData = customer && {
-          id: customer.id,
-          fullName: customer.fullName || '',
-          email: customer.email || '',
-          phone: customer.phone || null,
-          location: customer.location || null,
-          status: customer.status || 'inactive',
-          created_at: customer.createdAt || null,
-          updated_at: customer.updatedAt || null,
-        };
-
-        return {
-          ...order,
-          customer: customerData || null,
-          type: order.type as OrderType,
-        };
-      });
-
-      const sortedOrders = extendedOrders.sort(
-        (a, b) =>
-          new Date(b.created_at ?? 0).getTime() -
-          new Date(a.created_at ?? 0).getTime(),
-      );
-
-      setOrders(sortedOrders);
-      setCustomers(customersData);
-      setProducts(productsData);
-
-      if (sortedOrders.length > 0) {
-        setSelectedOrderId(sortedOrders[0].id);
-      }
-    } catch (error) {
-      console.error('Error fetching data:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to fetch data. Please try again.',
-        variant: 'error',
-      });
-    }
-    setIsLoading(false);
-  }, [toast]);
-
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    let mounted = true;
+
+    const loadData = async () => {
+      setIsLoading(true);
+      try {
+        const [ordersResponse, customersResponse, productsResponse] =
+          await Promise.all([getOrders(), getCustomers(), getProducts()]);
+
+        if (!mounted) return;
+
+        if (!ordersResponse || !customersResponse || !productsResponse) {
+          throw new Error('Failed to fetch required data');
+        }
+
+        const ordersData = Array.isArray(ordersResponse) ? ordersResponse : [];
+        const customersData = Array.isArray(customersResponse)
+          ? customersResponse
+          : [];
+        const productsData = Array.isArray(productsResponse)
+          ? productsResponse
+          : [];
+
+        const extendedOrders: ExtendedOrder[] = ordersData.map(order => {
+          const customer = order.customer_profile_id
+            ? customersData.find(
+              (c: { id: string }) => c.id === order.customer_profile_id,
+            )
+            : null;
+
+          const customerData = customer
+            ? {
+              id: customer.id || '',
+              name: customer.fullName || 'Unknown',
+              full_name: customer.fullName || 'Unknown',
+              email: customer.email || 'No email',
+              phone: customer.phone || null,
+              address: customer.location || null,
+              imageUrl: customer.imageUrl || null,
+              status: customer.status || 'pending',
+              created_at: customer.created_at || new Date().toISOString(),
+              updated_at: customer.updated_at || new Date().toISOString(),
+            }
+            : null;
+
+          return {
+            id: order.id,
+            customerName: customerData?.name || 'Unknown',
+            items:
+              order.order_items?.map(item => ({
+                id: item.id,
+                order_id: item.order_id,
+                price: item.price || 0,
+                product_id: item.product_id,
+                product_name: item.product_name || 'Unknown Product',
+                quantity: item.quantity || 0,
+              })) || [],
+            customer: customerData,
+            type: order.type as OrderType,
+            totalAmount: order.total_amount || 0,
+            created_at: order.created_at || new Date().toISOString(),
+            updated_at: order.updated_at || null,
+            status: order.status || 'pending',
+          };
+        });
+
+        const sortedOrders = extendedOrders.sort(
+          (a, b) =>
+            new Date(b.created_at ?? 0).getTime() -
+            new Date(a.created_at ?? 0).getTime(),
+        );
+
+        if (mounted) {
+          setOrders(sortedOrders);
+          setProducts(productsData);
+
+          if (sortedOrders.length > 0 && !selectedOrderId) {
+            setSelectedOrderId(sortedOrders[0].id);
+          }
+        }
+      } catch (error) {
+        if (!mounted) return;
+
+        console.error('Error fetching data:', error);
+        const errorMessage =
+          error instanceof Error ? error.message : 'Failed to fetch data';
+        toast({
+          title: 'Error',
+          description: `${errorMessage}. Please try again.`,
+          variant: 'destructive',
+        });
+        setOrders([]);
+        setProducts([]);
+        if (selectedOrderId) {
+          setSelectedOrderId(null);
+        }
+      } finally {
+        if (mounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadData();
+
+    return () => {
+      mounted = false;
+    };
+  }, [toast, selectedOrderId]);
 
   const handleDelete = async (id: string) => {
     try {
@@ -126,7 +201,7 @@ const OrderDashboard: React.FC = () => {
       toast({
         title: 'Error',
         description: 'Failed to delete the order. Please try again.',
-        variant: 'error',
+        variant: 'destructive',
       });
     }
   };
@@ -210,17 +285,15 @@ const OrderDashboard: React.FC = () => {
           <StatCard
             title="This Week"
             value={`Br ${currentWeekTotal.toFixed(2)}`}
-            change={`${
-              currentWeekChangePercentage >= 0 ? '+' : ''
-            }${currentWeekChangePercentage.toFixed(2)}% from last week`}
+            change={`${currentWeekChangePercentage >= 0 ? '+' : ''
+              }${currentWeekChangePercentage.toFixed(2)}% from last week`}
             changePercentage={currentWeekChangePercentage}
           />
           <StatCard
             title="This Month"
             value={`Br ${currentMonthTotal.toFixed(2)}`}
-            change={`${
-              currentMonthChangePercentage >= 0 ? '+' : ''
-            }${currentMonthChangePercentage.toFixed(2)}% from last month`}
+            change={`${currentMonthChangePercentage >= 0 ? '+' : ''
+              }${currentMonthChangePercentage.toFixed(2)}% from last month`}
             changePercentage={currentMonthChangePercentage}
           />
         </div>
@@ -259,7 +332,7 @@ const OrderDashboard: React.FC = () => {
           </TabsContent>
         </Tabs>
       </div>
-      {selectedOrderId && <OrderDetails orderId={selectedOrderId} />}
+      {/* {selectedOrderId && <OrderDetails orderId={selectedOrderId} />} */}
     </main>
   );
 };

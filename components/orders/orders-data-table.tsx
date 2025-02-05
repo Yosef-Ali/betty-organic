@@ -227,18 +227,15 @@ export function OrdersDataTable({
                             {row.original.items
                               ?.filter(
                                 (item: OrderItem | null): item is OrderItem =>
-                                  item !== null && item.product !== null,
+                                  item !== null
                               )
                               ?.map((item: OrderItem) => (
                                 <div
-                                  key={`${row.id}-product-${item.product.id}`}
+                                  key={`${row.id}-product-${item.product_id}`}
                                 >
                                   <Image
-                                    src={
-                                      item.product.imageUrl ||
-                                      '/placeholder-product.png'
-                                    }
-                                    alt={item.product.name || 'Unknown product'}
+                                    src="/placeholder-product.png"
+                                    alt={item.product_name || 'Unknown product'}
                                     width={48}
                                     height={48}
                                     className="rounded-full object-cover border"
@@ -247,10 +244,10 @@ export function OrdersDataTable({
                               ))}
                             {(!row.original.items ||
                               !row.original.items.length) && (
-                              <div className="text-muted-foreground text-sm">
-                                No products
-                              </div>
-                            )}
+                                <div className="text-muted-foreground text-sm">
+                                  No products
+                                </div>
+                              )}
                           </div>
                         </div>
 

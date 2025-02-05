@@ -57,9 +57,9 @@ interface OrderSummaryProps {
   isAdmin: boolean;
   disabled?: boolean;
   profile?: {
-    id?: string;
-    role?: string;
-    name?: string;
+    id: string;
+    role: string;
+    name: string;
     email?: string;
   };
 }

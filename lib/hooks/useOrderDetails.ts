@@ -3,16 +3,13 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { deleteOrder, getOrderDetails } from '@/app/actions/orderActions';
+import { Profile } from '@/lib/types/auth';
 
 interface OrderDetails {
   id: string;
   createdAt: string;
   updatedAt?: string;
-  profile: {
-    full_name: string;
-    email: string;
-    role: string;
-  };
+  profile: Profile;
   items: Array<{
     id: string;
     product: {
@@ -54,9 +51,14 @@ export function useOrderDetails(orderId: string) {
           createdAt: data.created_at,
           updatedAt: data.updated_at,
           profile: {
+            id: data.profile.id,
             full_name: data.profile.full_name,
             email: data.profile.email,
             role: data.profile.role,
+            status: 'active',
+            created_at: data.profile.created_at || new Date().toISOString(),
+            updated_at: data.profile.updated_at || new Date().toISOString(),
+            avatar_url: data.profile.avatar_url || null
           },
           items: data.order_items.map(item => ({
             id: item.id,

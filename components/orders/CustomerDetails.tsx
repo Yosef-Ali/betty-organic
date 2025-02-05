@@ -1,31 +1,41 @@
 'use client';
 
-import type { Profile } from '@/types/supabase';
+import { Profile } from "@/lib/types/auth";
 
-export default function ProfileDetails({ profile }: { profile: Profile }) {
+export default function CustomerDetails({ profile }: { profile?: Profile }) {
+  // Display whatever information is available without strict checks
+
   return (
     <div className="grid gap-3">
-      <div className="font-semibold">Profile Information</div>
+      <div className="font-semibold">Customer Information</div>
       <dl className="grid gap-3">
         <div className="flex items-center justify-between">
           <dt className="text-muted-foreground">Customer</dt>
-          <dd>{profile.full_name || 'Unknown Customer'}</dd>
+          <dd>{profile.name || 'Unknown Customer'}</dd>
         </div>
         <div className="flex items-center justify-between">
           <dt className="text-muted-foreground">Email</dt>
           <dd>
-            <a
-              href={`mailto:${profile.email}`}
-              className="hover:underline"
-              title={`Send email to ${profile.name}`}
-            >
-              {profile.email || 'N/A'}
-            </a>
+            {profile.email ? (
+              <a
+                href={`mailto:${profile.email}`}
+                className="hover:underline"
+                title={`Send email to ${profile.name}`}
+              >
+                {profile.email}
+              </a>
+            ) : (
+              'N/A'
+            )}
           </dd>
         </div>
         <div className="flex items-center justify-between">
           <dt className="text-muted-foreground">Role</dt>
           <dd className="capitalize">{profile.role || 'N/A'}</dd>
+        </div>
+        <div className="flex items-center justify-between">
+          <dt className="text-muted-foreground">Status</dt>
+          <dd className="capitalize">{profile.status || 'N/A'}</dd>
         </div>
       </dl>
     </div>
