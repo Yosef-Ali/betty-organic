@@ -1,23 +1,26 @@
-"use client";
+'use client';
 
-import { motion } from "framer-motion";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Star, Truck } from "lucide-react";
+import { motion } from 'framer-motion';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Star, Truck } from 'lucide-react';
 
 export function HeroContent() {
   return (
-    <motion.div 
+    <motion.div
       className="flex flex-col items-center md:items-start text-center md:text-left relative z-20"
       initial={{ opacity: 0, x: -50 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.5 }}
     >
-      <Badge variant="secondary" className="mb-4 md:mb-6 gap-1 bg-white/80 backdrop-blur-sm relative z-10">
-        <Star className="h-3 w-3 fill-yellow-500 text-yellow-500" /> 
+      <Badge
+        variant="secondary"
+        className="mb-4 md:mb-6 gap-1 bg-white/80 backdrop-blur-sm relative z-10"
+      >
+        <Star className="h-3 w-3 fill-yellow-500 text-yellow-500" />
         Rated #1 Fruit & Vegetable Delivery
       </Badge>
-      
+
       <motion.div
         className="relative mb-4 md:mb-6 z-10"
         initial={{ opacity: 0, y: 20 }}
@@ -29,9 +32,7 @@ export function HeroContent() {
           <br />
           <span className="text-green-600">Vegetables</span>,
           <br />
-          <span className="text-orange-600">
-            Delivered Daily
-          </span>
+          <span className="text-orange-600">Delivered Daily</span>
         </h1>
       </motion.div>
 
@@ -41,7 +42,9 @@ export function HeroContent() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3, duration: 0.5 }}
       >
-        Experience the convenience of having fresh, handpicked fruits and vegetables delivered right to your doorstep. Quality and freshness guaranteed with every delivery.
+        Experience the convenience of having fresh, handpicked fruits and
+        vegetables delivered right to your doorstep. Quality and freshness
+        guaranteed with every delivery.
       </motion.p>
 
       <motion.div
@@ -50,10 +53,22 @@ export function HeroContent() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4, duration: 0.5 }}
       >
-        <Button size="lg" className="w-full sm:w-auto bg-orange-600 hover:bg-orange-700">
+        <Button
+          size="lg"
+          className="w-full sm:w-auto bg-orange-600 hover:bg-orange-700"
+          onClick={() => {
+            document
+              .getElementById('products')
+              ?.scrollIntoView({ behavior: 'smooth' });
+          }}
+        >
           Order Now
         </Button>
-        <Button size="lg" variant="outline" className="w-full sm:w-auto bg-white/20 hover:bg-white/30">
+        <Button
+          size="lg"
+          variant="outline"
+          className="w-full sm:w-auto hover:bg-white/30"
+        >
           <Truck className="mr-2 h-4 w-4" />
           Track Order
         </Button>

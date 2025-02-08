@@ -1,23 +1,23 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { useMarketingCartStore } from "@/store/cartStore";
-import { Button } from "@/components/ui/button";
-import { ShoppingCart } from "lucide-react";
+import { useState } from 'react';
+import { useMarketingCartStore } from '@/store/cartStore';
+import { Button } from '@/components/ui/button';
+import { ShoppingCart } from 'lucide-react';
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
-} from "@/components/ui/sheet";
-import { SharePopup } from "./SharePopup";
-import { CartItem } from "./CartItem";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import { ConfirmPurchaseDialog } from "./ConfirmPurchaseDialog";
+} from '@/components/ui/sheet';
+import { SharePopup } from './SharePopup';
+import { CartItem } from './CartItem';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
+import { ConfirmPurchaseDialog } from './ConfirmPurchaseDialog';
 
-import { CartItem as CartItemType } from "@/types/cart";
+import { CartItem as CartItemType } from '@/types/cart';
 
 interface CartSheetProps {
   isOpen: boolean;
@@ -31,7 +31,7 @@ export const CartSheet = ({ isOpen, onOpenChange }: CartSheetProps) => {
 
   const totalAmount = items.reduce(
     (total, item) => total + item.pricePerKg * (item.grams / 1000),
-    0
+    0,
   );
 
   // Handle purchase dialog closing
@@ -67,7 +67,7 @@ export const CartSheet = ({ isOpen, onOpenChange }: CartSheetProps) => {
               </div>
             ) : (
               <div className="flex flex-col">
-                {items?.map((item) => (
+                {items?.map(item => (
                   <div key={item.id}>
                     <CartItem item={item} />
                     <Separator />
@@ -89,7 +89,7 @@ export const CartSheet = ({ isOpen, onOpenChange }: CartSheetProps) => {
                   className="flex-1"
                   onClick={() => setIsPurchaseDialogOpen(true)}
                 >
-                  Purchase Now
+                  Order Now
                 </Button>
                 <SharePopup />
               </div>
@@ -116,4 +116,4 @@ export const CartSheet = ({ isOpen, onOpenChange }: CartSheetProps) => {
       />
     </>
   );
-}
+};
