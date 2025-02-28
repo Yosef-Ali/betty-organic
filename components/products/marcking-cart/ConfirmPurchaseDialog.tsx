@@ -158,9 +158,8 @@ export function ConfirmPurchaseDialog({
             variant="outline"
             disabled={isSubmitting}
             onClick={() => {
-              const message = `I just placed an order for ${
-                items.length
-              } items totaling ETB ${total.toFixed(2)}!`;
+              const message = `I just placed an order for ${items.length
+                } items totaling ETB ${total.toFixed(2)}!`;
               const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
               window.open(url, '_blank');
             }}

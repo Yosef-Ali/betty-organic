@@ -229,12 +229,12 @@ export default function Footer() {
                 <p>&copy; {new Date().getFullYear()} Betty&apos;s Organic</p>
                 <p>All rights reserved</p>
                 <p className="text-xs mt-2">
-                  Developed by Mekdes Yared{' '}
+                  Developed by Yosef Ali{' '}
                   <a
                     href="mailto:mekdesyared@gmail.com"
                     className="hover:text-yellow-600"
                   >
-                    mekdesyared@gmail.com
+                    dev.yosefali@gmail.com
                   </a>
                 </p>
               </div>

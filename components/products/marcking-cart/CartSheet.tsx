@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useMarketingCartStore } from '@/store/cartStore';
+import { useUIStore } from '@/store/uiStore';
 import { Button } from '@/components/ui/button';
 import { ShoppingCart } from 'lucide-react';
 import {
@@ -27,6 +28,7 @@ interface CartSheetProps {
 export const CartSheet = ({ isOpen, onOpenChange }: CartSheetProps) => {
   const { items } = useMarketingCartStore();
   const { clearCart } = useMarketingCartStore();
+  const { setCartOpen } = useUIStore();
   const [isPurchaseDialogOpen, setIsPurchaseDialogOpen] = useState(false);
 
   const totalAmount = items.reduce(
@@ -40,12 +42,17 @@ export const CartSheet = ({ isOpen, onOpenChange }: CartSheetProps) => {
     if (!open) {
       // If purchase dialog is closing, also close the cart sheet
       onOpenChange(false);
+      // Make sure chat is visible again
+      setCartOpen(false);
     }
   };
 
   return (
     <>
-      <Sheet open={isOpen} onOpenChange={onOpenChange}>
+      <Sheet open={isOpen} onOpenChange={(open) => {
+        onOpenChange(open);
+        setCartOpen(open);
+      }}>
         <SheetTrigger asChild>
           <Button variant="outline" size="icon" className="relative">
             <ShoppingCart className="h-4 w-4" />
@@ -99,6 +106,7 @@ export const CartSheet = ({ isOpen, onOpenChange }: CartSheetProps) => {
                 onClick={() => {
                   clearCart();
                   onOpenChange(false);
+                  setCartOpen(false);
                 }}
               >
                 Clear Cart

@@ -25,7 +25,6 @@ export interface CustomerWithOrders extends Customer {
   imageUrl?: string;
   fullName?: string;
   createdAt?: string;
-  role?: 'admin' | 'sales' | 'customer';
-  created_at?: string | null;
-  updated_at?: string | null;
+  // created_at and updated_at are already defined in the Customer interface
+  // no need to redefine them here
 }

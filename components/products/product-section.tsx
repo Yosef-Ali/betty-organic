@@ -13,6 +13,7 @@ export function ProductSection() {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isError, setIsError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -20,12 +21,24 @@ export function ProductSection() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
+        setIsLoading(true);
+        setIsError(false);
+        setErrorMessage('');
+
         const data = await getProducts();
-        console.log('Fetched products:', data);
+
+        if (!data || !Array.isArray(data)) {
+          throw new Error('Invalid data format received');
+        }
+
         setProducts(data);
       } catch (error) {
-        console.error('Error fetching products:', error);
         setIsError(true);
+        const errorMsg = error instanceof Error
+          ? error.message
+          : 'Failed to fetch products';
+        setErrorMessage(errorMsg);
+        console.error('Error fetching products:', error);
       } finally {
         setIsLoading(false);
       }
@@ -120,7 +133,7 @@ export function ProductSection() {
 
               {isError && (
                 <div className="col-span-full text-center py-8 text-red-500">
-                  Error loading products. Please try again later.
+                  {errorMessage || 'Error loading products. Please try again later.'}
                 </div>
               )}
 
