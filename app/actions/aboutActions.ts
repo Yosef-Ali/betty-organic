@@ -9,6 +9,7 @@ export interface AboutContent {
   title: string;
   content: string;
   images: string[];
+  videos: string[]; // Added videos array
   active?: boolean;
   created_at?: string;
   updated_at?: string;
