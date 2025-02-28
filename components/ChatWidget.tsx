@@ -69,7 +69,7 @@ const ChatWidget: React.FC = () => {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-            className="bg-white rounded-2xl shadow-2xl w-[350px] md:w-[400px] h-[550px] flex flex-col overflow-hidden"
+            className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-[350px] md:w-[400px] h-[550px] flex flex-col overflow-hidden"
           >
             {/* Chat Header */}
             <div className="bg-gradient-to-r from-green-600 to-green-500 p-4 rounded-t-2xl flex justify-between items-center">
@@ -88,7 +88,7 @@ const ChatWidget: React.FC = () => {
             </div>
 
             {/* Messages Container */}
-            <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
+            <div className="flex-1 overflow-y-auto p-4 bg-gray-50 dark:bg-gray-700">
               <div className="space-y-4">
                 {messages.map((msg, idx) => (
                   <motion.div
@@ -101,7 +101,7 @@ const ChatWidget: React.FC = () => {
                     <div
                       className={`max-w-[85%] rounded-2xl px-4 py-3 shadow-sm ${msg.sender === 'user'
                         ? 'bg-green-600 text-white rounded-br-none'
-                        : 'bg-white text-gray-800 rounded-bl-none'
+                        : 'bg-white dark:bg-gray-600 text-gray-800 dark:text-white rounded-bl-none'
                         }`}
                     >
                       {msg.text}
@@ -114,7 +114,7 @@ const ChatWidget: React.FC = () => {
                     animate={{ opacity: 1, y: 0 }}
                     className="flex justify-start"
                   >
-                    <div className="bg-white text-gray-800 rounded-2xl rounded-bl-none px-4 py-3 shadow-sm max-w-[85%]">
+                    <div className="bg-white dark:bg-gray-600 text-gray-800 dark:text-white rounded-2xl rounded-bl-none px-4 py-3 shadow-sm max-w-[85%]">
                       <div className="flex space-x-1">
                         <div className="w-2 h-2 rounded-full bg-gray-500 animate-bounce" style={{ animationDelay: '0ms' }} />
                         <div className="w-2 h-2 rounded-full bg-gray-500 animate-bounce" style={{ animationDelay: '150ms' }} />
@@ -128,14 +128,14 @@ const ChatWidget: React.FC = () => {
             </div>
 
             {/* Input Area */}
-            <div className="p-4 bg-white border-t border-gray-200">
+            <div className="p-4 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
               <div className="flex gap-2 items-center">
                 <input
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
                   placeholder="Ask about our organic fruits..."
-                  className="flex-1 p-3 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent"
+                  className="flex-1 p-3 border border-gray-300 dark:border-gray-600 rounded-full focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent bg-white dark:bg-gray-700 text-gray-800 dark:text-white placeholder-gray-500 dark:placeholder-gray-300"
                 />
                 <button
                   onClick={handleSendMessage}
