@@ -241,34 +241,46 @@ export function SettingsAbout() {
     try {
       setIsSubmitting(true);
 
-      // Make sure videos array is valid before saving - handle possible null values
-      const validVideos = Array.isArray(aboutContent.videos)
-        ? aboutContent.videos.filter(url => typeof url === 'string' && url.trim() !== '')
-        : [];
+      // Ensure we have a videos array that's properly formatted
+      let validVideos: string[] = [];
+      if (Array.isArray(aboutContent.videos)) {
+        validVideos = aboutContent.videos.filter(url =>
+          typeof url === 'string' && url.trim() !== ''
+        );
+      } else if (aboutContent.videos) {
+        // If it's somehow not an array but has a value, convert to array
+        validVideos = [aboutContent.videos.toString()];
+      }
 
-      // Ensure images array is also valid - handle possible null values
-      const validImages = Array.isArray(aboutContent.images)
-        ? aboutContent.images.filter(url => typeof url === 'string' && url.trim() !== '')
-        : [];
+      // Validate the images array
+      let validImages: string[] = [];
+      if (Array.isArray(aboutContent.images)) {
+        validImages = aboutContent.images.filter(url =>
+          typeof url === 'string' && url.trim() !== ''
+        );
+      } else if (aboutContent.images) {
+        validImages = [aboutContent.images.toString()];
+      }
 
-      // Create a clean object with only the fields that should be sent to the database
+      // Create a clean content object for saving
       const contentToSave = {
         id: aboutContent.id || '',
-        title: aboutContent.title.trim(),
-        content: aboutContent.content.trim(),
+        title: aboutContent.title?.trim() || '',
+        content: aboutContent.content?.trim() || '',
         images: validImages,
         videos: validVideos,
-        active: aboutContent.active === undefined ? true : aboutContent.active,
+        active: aboutContent.active !== undefined ? aboutContent.active : true,
       };
 
-      // Log with JSON.stringify for better debugging (prevents circular references)
-      console.log('About to save content:', JSON.stringify(contentToSave));
+      // Remove any circular references that might exist
+      const cleanContent = JSON.parse(JSON.stringify(contentToSave));
 
-      const result = await saveAbout(contentToSave);
+      console.log('About to save content:', cleanContent);
 
-      if (!result) {
-        throw new Error('Failed to save about content');
-      }
+      // Attempt to save the content
+      const result = await saveAbout(cleanContent);
+
+      if (!result) throw new Error('Failed to save about content');
 
       toast({
         title: 'Success',
@@ -278,13 +290,7 @@ export function SettingsAbout() {
       // Reload content after saving
       await loadAboutContent();
     } catch (error) {
-      // Error message with additional details for debugging
-      const errorMessage = error instanceof Error
-        ? `${error.message} (${error.name})`
-        : 'Failed to update about content';
-
-      console.error('Save error:', errorMessage);
-
+      console.error('Save error:', error);
       toast({
         variant: 'destructive',
         title: 'Error',

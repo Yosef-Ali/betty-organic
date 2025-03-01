@@ -18,22 +18,40 @@ export interface AboutContent {
 
 export async function getAbout() {
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('about')
-    .select('*')
-    .maybeSingle();
+  try {
+    const { data, error } = await supabase
+      .from('about_content')
+      .select('*')
+      .eq('active', true)
+      .maybeSingle();
 
-  if (error) {
-    console.error('Error fetching about content:', error);
-    throw new Error(`Failed to fetch about content: ${error.message}`);
+    if (error) {
+      console.error('Error fetching about content:', error);
+      throw new Error(`Failed to fetch about content: ${error.message}`);
+    }
+
+    // Ensure videos array exists even if column doesn't exist in the database yet
+    if (data && !data.videos) {
+      data.videos = [];
+
+      // Check if we have the specific video URL to include
+      const videoUrl = "https://xmumlfgzvrliepxcjqil.supabase.co/storage/v1/object/public/about_images//bettys.mp4";
+      data.videos.push(videoUrl);
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error in getAbout:', error);
+    // Return a default structure if there's an error
+    return {
+      id: uuidv4(),
+      title: "About Betty's Organic",
+      content: "Welcome to Betty's Organic. Our content is currently being updated.",
+      images: [],
+      videos: ["https://xmumlfgzvrliepxcjqil.supabase.co/storage/v1/object/public/about_images//bettys.mp4"],
+      active: true
+    };
   }
-
-  // Ensure videos array exists even if it's null in the database
-  if (data && !data.videos) {
-    data.videos = [];
-  }
-
-  return data;
 }
 
 export async function saveAbout(content: AboutContent) {
@@ -45,7 +63,7 @@ export async function saveAbout(content: AboutContent) {
       title: content.title,
       content: content.content,
       images: content.images || [],
-      videos: Array.isArray(content.videos) ? content.videos : [], // Ensure videos is always an array
+      // We'll handle videos separately since the column might not exist yet
       active: content.active !== undefined ? content.active : true,
     };
 
@@ -55,11 +73,24 @@ export async function saveAbout(content: AboutContent) {
       throw new Error('Invalid UUID format');
     }
 
+    // Check if videos column exists in the table
+    const { error: checkError } = await supabase
+      .from('about_content')
+      .select('videos')
+      .limit(1);
+
+    // If videos column exists, include it in the update
+    if (!checkError) {
+      cleanContent['videos'] = Array.isArray(content.videos) ? content.videos : [];
+    } else {
+      console.log('Videos column does not exist yet. Videos will be ignored until migration is applied.');
+    }
+
     // Log the content being sent to debug
     console.log('Saving about content:', JSON.stringify(cleanContent));
 
     const { data, error } = await supabase
-      .from('about')
+      .from('about_content')
       .upsert({
         ...cleanContent,
         updated_at: new Date().toISOString(),
