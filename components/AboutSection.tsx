@@ -35,11 +35,12 @@ export function AboutSection() {
       'https://images.unsplash.com/photo-1505144808419-1957a94ca61e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=3070&q=80',
       'https://images.unsplash.com/photo-1470252649378-9c29740c9fa8?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=3540&q=80',
     ],
+    videos: [],
   };
 
   const content = aboutData ?? defaultContent;
   const paragraphs = content.content.split('\n\n');
-  
+
   if (error) {
     return (
       <section className="p-4 text-center">
@@ -55,7 +56,7 @@ export function AboutSection() {
       </section>
     );
   }
-  
+
   if (loading) {
     return (
       <section className="p-4 text-center">
@@ -68,7 +69,10 @@ export function AboutSection() {
       </section>
     );
   }
-  
+
+  // Combine media items (images and videos) for display
+  const hasVideos = content.videos && content.videos.length > 0;
+
   return (
     <section className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
       {/* Text Content Column */}
@@ -80,29 +84,60 @@ export function AboutSection() {
           </p>
         ))}
       </div>
-      {/* Image Gallery Column */}
+
+      {/* Media Gallery Column - Images and Videos */}
       <div className="grid grid-cols-2 gap-4">
-        {content.images.slice(0, 2).map((image: string, index: number) => (
+        {/* Display the first two media items (images or videos) */}
+        {content.images.slice(0, hasVideos ? 1 : 2).map((image: string, index: number) => (
           <div
-            key={index}
+            key={`img-${index}`}
             className="relative h-64 rounded-lg overflow-hidden"
           >
-            <Image
+            <img
               src={image}
               alt={`About image ${index + 1}`}
-              fill
-              className="object-cover"
+              className="w-full h-full object-cover"
             />
           </div>
         ))}
-        {content.images[2] && (
+
+        {/* Display first video if available (takes one slot in top row) */}
+        {content.videos && content.videos[0] && (
+          <div
+            key="video-0"
+            className="relative h-64 rounded-lg overflow-hidden"
+          >
+            <video
+              src={content.videos[0]}
+              controls
+              className="w-full h-full object-cover"
+            >
+              Your browser does not support the video tag.
+            </video>
+          </div>
+        )}
+
+        {/* Full width slot for third item (image or video) */}
+        {content.images[2] && !content.videos?.[1] && (
           <div className="relative h-64 rounded-lg overflow-hidden col-span-2">
-            <Image
+            <img
               src={content.images[2]}
               alt="About image 3"
-              fill
-              className="object-cover"
+              className="w-full h-full object-cover"
             />
+          </div>
+        )}
+
+        {/* If there's a second video, it gets the full width bottom row */}
+        {content.videos && content.videos[1] && (
+          <div className="relative h-64 rounded-lg overflow-hidden col-span-2">
+            <video
+              src={content.videos[1]}
+              controls
+              className="w-full h-full object-cover"
+            >
+              Your browser does not support the video tag.
+            </video>
           </div>
         )}
       </div>

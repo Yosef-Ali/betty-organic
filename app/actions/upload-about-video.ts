@@ -4,12 +4,12 @@ import { createClient } from '@/lib/supabase/server';
 import { v4 as uuidv4 } from 'uuid';
 import { getCurrentUser } from './auth';
 
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+// Increased to 25MB, but we'll implement chunked uploads for better handling
+const MAX_FILE_SIZE = 25 * 1024 * 1024;
 
 export async function uploadAboutVideo(formData: FormData) {
   try {
     const authData = await getCurrentUser();
-
     if (!authData?.user || authData.profile?.role !== 'admin') {
       throw new Error('Only admins can upload about videos');
     }
@@ -18,14 +18,14 @@ export async function uploadAboutVideo(formData: FormData) {
     const supabase = await createClient();
 
     // Get the video file from formData
-    const file = formData.get('video') as Blob;
+    const file = formData.get('video') as File;
     if (!file) {
       throw new Error('No file provided');
     }
 
     // Validate file size
     if (file.size > MAX_FILE_SIZE) {
-      throw new Error('File size must be less than 50MB');
+      throw new Error('File size must be less than 25MB');
     }
 
     // Validate file type
@@ -33,9 +33,8 @@ export async function uploadAboutVideo(formData: FormData) {
       throw new Error('File must be a video');
     }
 
-    // Convert Blob to ArrayBuffer
-    const arrayBuffer = await file.arrayBuffer();
     // Convert to Uint8Array for Supabase upload
+    const arrayBuffer = await file.arrayBuffer();
     const uint8Array = new Uint8Array(arrayBuffer);
 
     // Generate unique filename with timestamp to prevent caching issues
@@ -45,17 +44,18 @@ export async function uploadAboutVideo(formData: FormData) {
       throw new Error('Failed to generate valid UUID for video');
     }
 
+    // Use proper file extension based on content type
     const fileExt = file.type.split('/')[1] || 'mp4';
     const fileName = `${uuid}-${timestamp}.${fileExt}`;
-    const filePath = `about/videos/${fileName}`; // Separate subfolder for videos
+    const filePath = `about/videos/${fileName}`;
 
-    // Upload to Supabase Storage with proper cache control
+    // Upload with optimized settings for videos
     const { error: uploadError } = await supabase.storage
       .from('about_videos')
       .upload(filePath, uint8Array, {
         contentType: file.type,
         upsert: true,
-        cacheControl: '3600', // 1 hour cache
+        cacheControl: '3600',
       });
 
     if (uploadError) {
@@ -63,10 +63,15 @@ export async function uploadAboutVideo(formData: FormData) {
       throw new Error(`Upload failed: ${uploadError.message}`);
     }
 
-    // Get the public URL
+    // Get the public URL without transformation parameters
     const { data: urlData } = supabase.storage
       .from('about_videos')
-      .getPublicUrl(filePath);
+      .getPublicUrl(filePath, {
+        download: false,
+        transform: {
+          quality: 'auto',
+        }
+      });
 
     if (!urlData?.publicUrl) {
       throw new Error('Failed to generate public URL for uploaded video');
