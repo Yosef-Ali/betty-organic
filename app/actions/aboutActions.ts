@@ -28,6 +28,11 @@ export async function getAbout() {
     throw new Error(`Failed to fetch about content: ${error.message}`);
   }
 
+  // Ensure videos array exists (backward compatibility)
+  if (data && !data.videos) {
+    data.videos = [];
+  }
+
   return data;
 }
 
@@ -46,12 +51,34 @@ export async function saveAbout(content: AboutContent) {
       throw new Error('Invalid UUID format');
     }
 
+    // Check if the about table has a videos column
+    const { data: columnInfo, error: columnError } = await supabase
+      .from('about')
+      .select('videos')
+      .limit(1);
+
+    // Prepare content for database
+    const contentToSave = {
+      id: content.id,
+      title: content.title,
+      content: content.content,
+      images: content.images,
+      active: content.active ?? true,
+      updated_at: new Date().toISOString(),
+    };
+
+    // Only add videos if the column exists
+    if (columnInfo && !columnError) {
+      // If the column exists in the response data, add videos
+      contentToSave['videos'] = content.videos || [];
+    } else {
+      console.warn('Videos column not found in about table. Videos will not be saved.');
+      // We'll continue without the videos field
+    }
+
     const { data, error } = await supabase
       .from('about')
-      .upsert({
-        ...content,
-        updated_at: new Date().toISOString(),
-      })
+      .upsert(contentToSave)
       .select()
       .single();
 
