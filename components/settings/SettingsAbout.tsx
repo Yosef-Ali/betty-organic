@@ -240,23 +240,51 @@ export function SettingsAbout() {
 
     try {
       setIsSubmitting(true);
-      const result = await saveAbout({
-        id: aboutContent.id,
+
+      // Make sure videos array is valid before saving - handle possible null values
+      const validVideos = Array.isArray(aboutContent.videos)
+        ? aboutContent.videos.filter(url => typeof url === 'string' && url.trim() !== '')
+        : [];
+
+      // Ensure images array is also valid - handle possible null values
+      const validImages = Array.isArray(aboutContent.images)
+        ? aboutContent.images.filter(url => typeof url === 'string' && url.trim() !== '')
+        : [];
+
+      // Create a clean object with only the fields that should be sent to the database
+      const contentToSave = {
+        id: aboutContent.id || '',
         title: aboutContent.title.trim(),
         content: aboutContent.content.trim(),
-        images: aboutContent.images,
-        videos: aboutContent.videos || [],
-      });
+        images: validImages,
+        videos: validVideos,
+        active: aboutContent.active === undefined ? true : aboutContent.active,
+      };
 
-      if (!result) throw new Error('Failed to save about content');
+      // Log with JSON.stringify for better debugging (prevents circular references)
+      console.log('About to save content:', JSON.stringify(contentToSave));
+
+      const result = await saveAbout(contentToSave);
+
+      if (!result) {
+        throw new Error('Failed to save about content');
+      }
 
       toast({
         title: 'Success',
         description: 'About content updated successfully',
       });
 
+      // Reload content after saving
       await loadAboutContent();
     } catch (error) {
+      // Error message with additional details for debugging
+      const errorMessage = error instanceof Error
+        ? `${error.message} (${error.name})`
+        : 'Failed to update about content';
+
+      console.error('Save error:', errorMessage);
+
       toast({
         variant: 'destructive',
         title: 'Error',

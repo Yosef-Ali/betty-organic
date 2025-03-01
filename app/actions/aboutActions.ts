@@ -28,7 +28,7 @@ export async function getAbout() {
     throw new Error(`Failed to fetch about content: ${error.message}`);
   }
 
-  // Ensure videos array exists (backward compatibility)
+  // Ensure videos array exists even if it's null in the database
   if (data && !data.videos) {
     data.videos = [];
   }
@@ -38,47 +38,32 @@ export async function getAbout() {
 
 export async function saveAbout(content: AboutContent) {
   const supabase = await createClient();
-
   try {
-    // Ensure we have a valid UUID for new content
-    if (!content.id) {
-      content.id = uuidv4();
-    }
+    // Make a clean copy of the content to avoid potential issues
+    const cleanContent = {
+      id: content.id || uuidv4(),
+      title: content.title,
+      content: content.content,
+      images: content.images || [],
+      videos: Array.isArray(content.videos) ? content.videos : [], // Ensure videos is always an array
+      active: content.active !== undefined ? content.active : true,
+    };
 
     // Validate UUID format
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(content.id)) {
+    if (!uuidRegex.test(cleanContent.id)) {
       throw new Error('Invalid UUID format');
     }
 
-    // Check if the about table has a videos column
-    const { data: columnInfo, error: columnError } = await supabase
-      .from('about')
-      .select('videos')
-      .limit(1);
-
-    // Prepare content for database
-    const contentToSave = {
-      id: content.id,
-      title: content.title,
-      content: content.content,
-      images: content.images,
-      active: content.active ?? true,
-      updated_at: new Date().toISOString(),
-    };
-
-    // Only add videos if the column exists
-    if (columnInfo && !columnError) {
-      // If the column exists in the response data, add videos
-      contentToSave['videos'] = content.videos || [];
-    } else {
-      console.warn('Videos column not found in about table. Videos will not be saved.');
-      // We'll continue without the videos field
-    }
+    // Log the content being sent to debug
+    console.log('Saving about content:', JSON.stringify(cleanContent));
 
     const { data, error } = await supabase
       .from('about')
-      .upsert(contentToSave)
+      .upsert({
+        ...cleanContent,
+        updated_at: new Date().toISOString(),
+      })
       .select()
       .single();
 

@@ -16,27 +16,19 @@ export function AboutSection() {
       try {
         const data = await getAbout() as AboutContent | null;
 
-        // Handle the specific video URL
-        if (data) {
-          // Make sure videos array exists
-          if (!Array.isArray(data.videos)) {
-            data.videos = [];
-          }
+        // If we have the specific video URL you provided, make sure it's included
+        if (data && (!data.videos || data.videos.length === 0)) {
+          const videoUrl = "https://xmumlfgzvrliepxcjqil.supabase.co/storage/v1/object/public/about_images//bettys.mp4";
 
-          // Add the existing video if not already in the array
-          const existingVideoUrl = "https://xmumlfgzvrliepxcjqil.supabase.co/storage/v1/object/public/about_images//bettys.mp4";
-          if (!data.videos.includes(existingVideoUrl)) {
-            // Store locally but don't modify database directly
-            setAboutData({
-              ...data,
-              videos: [...data.videos, existingVideoUrl]
-            });
-          } else {
-            setAboutData(data);
+          // Check if we should add the video URL
+          const shouldAddVideo = !data.videos || !data.videos.includes(videoUrl);
+
+          if (shouldAddVideo) {
+            data.videos = [...(data.videos || []), videoUrl];
           }
-        } else {
-          setAboutData(null);
         }
+
+        setAboutData(data);
       } catch (err) {
         console.error('Error fetching about data:', err);
         setError(true);
@@ -47,7 +39,6 @@ export function AboutSection() {
 
     fetchAboutData();
   }, []);
-
   // Default content if no dynamic content is available
   const defaultContent: AboutContent = {
     id: 'default',
@@ -58,7 +49,7 @@ export function AboutSection() {
       'https://images.unsplash.com/photo-1505144808419-1957a94ca61e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=3070&q=80',
       'https://images.unsplash.com/photo-1470252649378-9c29740c9fa8?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=3540&q=80',
     ],
-    videos: ["https://xmumlfgzvrliepxcjqil.supabase.co/storage/v1/object/public/about_images//bettys.mp4"],
+    videos: [],
   };
 
   const content = aboutData ?? defaultContent;
@@ -93,15 +84,14 @@ export function AboutSection() {
     );
   }
 
+  // Combine media items (images and videos) for display
+  const hasVideos = content.videos && content.videos.length > 0;
+
   // Handle video errors
   const handleVideoError = (videoUrl: string) => {
     setVideoError(prev => ({ ...prev, [videoUrl]: true }));
     console.error(`Failed to load video: ${videoUrl}`);
   };
-
-  // Safely check for videos
-  const videos = Array.isArray(content.videos) ? content.videos : [];
-  const hasVideos = videos.length > 0;
 
   return (
     <section className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
@@ -132,17 +122,16 @@ export function AboutSection() {
         ))}
 
         {/* Display first video if available (takes one slot in top row) */}
-        {videos[0] && !videoError[videos[0]] && (
+        {content.videos && content.videos[0] && !videoError[content.videos[0]] && (
           <div
             key="video-0"
             className="relative h-64 rounded-lg overflow-hidden"
           >
             <video
-              src={videos[0]}
+              src={content.videos[0]}
               controls
               className="w-full h-full object-cover"
-              onError={() => handleVideoError(videos[0])}
-              preload="metadata"
+              onError={() => handleVideoError(content.videos[0])}
             >
               Your browser does not support the video tag.
             </video>
@@ -150,7 +139,7 @@ export function AboutSection() {
         )}
 
         {/* Full width slot for third item (image or video) */}
-        {content.images[2] && !videos[1] && (
+        {content.images[2] && !content.videos?.[1] && (
           <div className="relative h-64 rounded-lg overflow-hidden col-span-2">
             <img
               src={content.images[2]}
@@ -161,14 +150,13 @@ export function AboutSection() {
         )}
 
         {/* If there's a second video, it gets the full width bottom row */}
-        {videos[1] && !videoError[videos[1]] && (
+        {content.videos && content.videos[1] && !videoError[content.videos[1]] && (
           <div className="relative h-64 rounded-lg overflow-hidden col-span-2">
             <video
-              src={videos[1]}
+              src={content.videos[1]}
               controls
               className="w-full h-full object-cover"
-              onError={() => handleVideoError(videos[1])}
-              preload="metadata"
+              onError={() => handleVideoError(content.videos[1])}
             >
               Your browser does not support the video tag.
             </video>

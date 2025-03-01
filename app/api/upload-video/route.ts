@@ -3,14 +3,8 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { v4 as uuidv4 } from 'uuid';
 
-// Increase max body size for this route specifically
-export const config = {
-  runtime: 'edge',
-  maxDuration: 60, // Extend the function's runtime duration for large uploads
-};
-
-// Maximum video size: 50MB
-const MAX_FILE_SIZE = 50 * 1024 * 1024;
+// Maximum video size: 25MB
+const MAX_FILE_SIZE = 25 * 1024 * 1024;
 
 export async function POST(request: Request) {
   try {
@@ -61,7 +55,7 @@ export async function POST(request: Request) {
     // Check file size
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
-        { error: 'File size exceeds 50MB limit' },
+        { error: 'File size exceeds 25MB limit' },
         { status: 400 }
       );
     }
@@ -77,20 +71,10 @@ export async function POST(request: Request) {
     const fileName = `${uuid}-${timestamp}.${fileExt}`;
     const filePath = `about/videos/${fileName}`;
 
-    // Create bucket if it doesn't exist
-    const { data: buckets } = await supabase.storage.listBuckets();
-    const aboutVideosBucket = buckets?.find(b => b.name === 'about_videos');
-
-    if (!aboutVideosBucket) {
-      await supabase.storage.createBucket('about_videos', {
-        public: true,
-        fileSizeLimit: 52428800, // 50MB in bytes
-      });
-    }
-
-    // Upload to Supabase
+    // Upload to Supabase - we'll use the existing about_images bucket for simplicity
+    // This matches with your existing bettys.mp4 location
     const { error: uploadError } = await supabase.storage
-      .from('about_videos')
+      .from('about_images')
       .upload(filePath, buffer, {
         contentType: file.type,
         cacheControl: '3600',
@@ -107,7 +91,7 @@ export async function POST(request: Request) {
 
     // Get public URL for the uploaded video
     const { data: urlData } = supabase.storage
-      .from('about_videos')
+      .from('about_images')
       .getPublicUrl(filePath);
 
     if (!urlData?.publicUrl) {
