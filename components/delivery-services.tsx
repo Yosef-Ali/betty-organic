@@ -12,8 +12,8 @@ const services = [
   },
   {
     icon: Clock,
-    title: "24/7 Service",
-    description: "Round-the-clock customer support and delivery tracking"
+    title: "Business Hours",
+    description: "Customer support and delivery tracking available 8 AM - 6 PM, Monday through Saturday"
   },
   {
     icon: Shield,
