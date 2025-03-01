@@ -9,11 +9,25 @@ export function AboutSection() {
   const [aboutData, setAboutData] = useState<AboutContent | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [videoError, setVideoError] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const fetchAboutData = async () => {
       try {
         const data = await getAbout() as AboutContent | null;
+
+        // If we have the specific video URL you provided, make sure it's included
+        if (data && (!data.videos || data.videos.length === 0)) {
+          const videoUrl = "https://xmumlfgzvrliepxcjqil.supabase.co/storage/v1/object/public/about_images//bettys.mp4";
+
+          // Check if we should add the video URL
+          const shouldAddVideo = !data.videos || !data.videos.includes(videoUrl);
+
+          if (shouldAddVideo) {
+            data.videos = [...(data.videos || []), videoUrl];
+          }
+        }
+
         setAboutData(data);
       } catch (err) {
         console.error('Error fetching about data:', err);
@@ -73,6 +87,12 @@ export function AboutSection() {
   // Combine media items (images and videos) for display
   const hasVideos = content.videos && content.videos.length > 0;
 
+  // Handle video errors
+  const handleVideoError = (videoUrl: string) => {
+    setVideoError(prev => ({ ...prev, [videoUrl]: true }));
+    console.error(`Failed to load video: ${videoUrl}`);
+  };
+
   return (
     <section className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
       {/* Text Content Column */}
@@ -102,7 +122,7 @@ export function AboutSection() {
         ))}
 
         {/* Display first video if available (takes one slot in top row) */}
-        {content.videos && content.videos[0] && (
+        {content.videos && content.videos[0] && !videoError[content.videos[0]] && (
           <div
             key="video-0"
             className="relative h-64 rounded-lg overflow-hidden"
@@ -111,6 +131,7 @@ export function AboutSection() {
               src={content.videos[0]}
               controls
               className="w-full h-full object-cover"
+              onError={() => handleVideoError(content.videos[0])}
             >
               Your browser does not support the video tag.
             </video>
@@ -129,12 +150,13 @@ export function AboutSection() {
         )}
 
         {/* If there's a second video, it gets the full width bottom row */}
-        {content.videos && content.videos[1] && (
+        {content.videos && content.videos[1] && !videoError[content.videos[1]] && (
           <div className="relative h-64 rounded-lg overflow-hidden col-span-2">
             <video
               src={content.videos[1]}
               controls
               className="w-full h-full object-cover"
+              onError={() => handleVideoError(content.videos[1])}
             >
               Your browser does not support the video tag.
             </video>

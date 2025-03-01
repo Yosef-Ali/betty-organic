@@ -125,11 +125,11 @@ export function SettingsAbout() {
     }
 
     const file = e.target.files[0];
-    if (file.size > 25 * 1024 * 1024) { // Reduced to 25MB to avoid 413 errors
+    if (file.size > 50 * 1024 * 1024) { // Increased to 50MB to match API limit
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'File size must be less than 25MB',
+        description: 'File size must be less than 50MB',
       });
       return;
     }
@@ -150,11 +150,19 @@ export function SettingsAbout() {
         description: 'Uploading video...',
       });
 
+      // Use the dedicated API route for video uploads
       const formData = new FormData();
       formData.append('video', file);
 
-      const result = await uploadAboutVideo(formData);
-      if (!result.success || !result.videoUrl) {
+      // Call our video upload API endpoint
+      const response = await fetch('/api/upload-video', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success || !result.videoUrl) {
         throw new Error(result.error || 'Failed to upload video');
       }
 
@@ -360,6 +368,7 @@ export function SettingsAbout() {
                     src={video}
                     controls
                     className="w-full h-full rounded-md"
+                    poster="/video-thumbnail.png" // Add a default thumbnail
                   >
                     Your browser does not support the video tag.
                   </video>
