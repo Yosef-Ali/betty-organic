@@ -67,11 +67,11 @@ export function SettingsAbout() {
     }
 
     const file = e.target.files[0];
-    if (file.size > 5 * 1024 * 1024) {
+    if (file.size > 4 * 1024 * 1024) { // Reduced to 4MB to match server-side limit
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'File size must be less than 5MB',
+        description: 'File size must be less than 4MB',
       });
       return;
     }
@@ -112,7 +112,6 @@ export function SettingsAbout() {
     }
   };
 
-  // New handler for video uploads
   const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
 
@@ -126,11 +125,11 @@ export function SettingsAbout() {
     }
 
     const file = e.target.files[0];
-    if (file.size > 50 * 1024 * 1024) {
+    if (file.size > 25 * 1024 * 1024) { // Reduced to 25MB to avoid 413 errors
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'File size must be less than 50MB',
+        description: 'File size must be less than 25MB',
       });
       return;
     }
@@ -192,7 +191,6 @@ export function SettingsAbout() {
     });
   };
 
-  // New handler for removing videos
   const handleRemoveVideo = (index: number) => {
     if (!aboutContent) return;
     setAboutContent(prev => ({
@@ -223,7 +221,7 @@ export function SettingsAbout() {
         title: aboutContent.title.trim(),
         content: aboutContent.content.trim(),
         images: aboutContent.images,
-        videos: aboutContent.videos || [], // Include videos in the save
+        videos: aboutContent.videos || [],
       });
 
       if (!result) throw new Error('Failed to save about content');
@@ -290,9 +288,9 @@ export function SettingsAbout() {
           />
         </div>
 
-        {/* Image upload section */}
+        {/* Combined media grid section */}
         <div className="space-y-2">
-          <h3 className="text-sm font-medium">Images</h3>
+          <h3 className="text-sm font-medium">Media Gallery</h3>
           <div className="flex items-center space-x-2">
             <Button
               type="button"
@@ -303,6 +301,15 @@ export function SettingsAbout() {
               <Upload className="w-4 h-4 mr-2" />
               {isUploading ? 'Uploading...' : 'Upload Image'}
             </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => document.getElementById('video-upload')?.click()}
+              disabled={isSubmitting || isUploadingVideo || (aboutContent?.videos?.length || 0) >= 2}
+            >
+              <Video className="w-4 h-4 mr-2" />
+              {isUploadingVideo ? 'Uploading...' : 'Upload Video'}
+            </Button>
             <input
               id="image-upload"
               type="file"
@@ -311,17 +318,28 @@ export function SettingsAbout() {
               onChange={handleImageUpload}
               disabled={isUploading || isSubmitting}
             />
+            <input
+              id="video-upload"
+              type="file"
+              accept="video/*"
+              className="hidden"
+              onChange={handleVideoUpload}
+              disabled={isUploadingVideo || isSubmitting}
+            />
           </div>
+
+          {/* Combined grid for both images and videos */}
           <div className="grid grid-cols-3 gap-4 mt-4">
+            {/* Images */}
             {aboutContent?.images.map((image, index) => (
-              <div key={index} className="relative group">
-                <Image
-                  src={image}
-                  alt={`About image ${index + 1}`}
-                  width={200}
-                  height={200}
-                  className="object-cover w-full h-32 rounded-md"
-                />
+              <div key={`image-${index}`} className="relative group">
+                <div className="aspect-video w-full">
+                  <img
+                    src={image}
+                    alt={`About image ${index + 1}`}
+                    className="object-cover w-full h-full rounded-md"
+                  />
+                </div>
                 <Button
                   variant="destructive"
                   size="icon"
@@ -333,36 +351,11 @@ export function SettingsAbout() {
                 </Button>
               </div>
             ))}
-          </div>
-        </div>
 
-        {/* Video upload section */}
-        <div className="space-y-2 border-t pt-4">
-          <h3 className="text-sm font-medium">Videos</h3>
-          <div className="flex items-center space-x-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => document.getElementById('video-upload')?.click()}
-              disabled={isSubmitting || isUploadingVideo || (aboutContent?.videos?.length || 0) >= 2}
-            >
-              <Video className="w-4 h-4 mr-2" />
-              {isUploadingVideo ? 'Uploading...' : 'Upload Video'}
-            </Button>
-            <input
-              id="video-upload"
-              type="file"
-              accept="video/*"
-              className="hidden"
-              onChange={handleVideoUpload}
-              disabled={isUploadingVideo || isSubmitting}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 mt-4">
+            {/* Videos */}
             {aboutContent?.videos?.map((video, index) => (
-              <div key={index} className="relative group bg-gray-100 rounded-md p-2">
-                <div className="relative aspect-video">
+              <div key={`video-${index}`} className="relative group">
+                <div className="aspect-video w-full">
                   <video
                     src={video}
                     controls
@@ -371,20 +364,15 @@ export function SettingsAbout() {
                     Your browser does not support the video tag.
                   </video>
                 </div>
-                <div className="flex justify-between items-center mt-2">
-                  <span className="text-sm truncate max-w-[80%]">
-                    Video {index + 1}
-                  </span>
-                  <Button
-                    variant="destructive"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => handleRemoveVideo(index)}
-                    disabled={isSubmitting}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
+                <Button
+                  variant="destructive"
+                  size="icon"
+                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={() => handleRemoveVideo(index)}
+                  disabled={isSubmitting}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
               </div>
             ))}
           </div>
