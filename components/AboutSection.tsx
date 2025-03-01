@@ -106,9 +106,9 @@ export function AboutSection() {
       </div>
 
       {/* Media Gallery Column - Images and Videos */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 grid-rows-2 gap-4 aspect-square">
         {/* Display the first two media items (images or videos) */}
-        {content.images.slice(0, hasVideos ? 1 : 2).map((image: string, index: number) => (
+        {content.images.slice(0, 2).map((image: string, index: number) => (
           <div
             key={`img-${index}`}
             className="relative h-64 rounded-lg overflow-hidden"
@@ -129,9 +129,12 @@ export function AboutSection() {
           >
             <video
               src={content.videos[0]}
-              controls
-              className="w-full h-full object-cover"
+              muted
+              className="w-full h-full object-cover cursor-pointer rounded-lg transition-opacity hover:opacity-90"
+              onMouseEnter={(e) => e.currentTarget.play()}
+              onMouseLeave={(e) => e.currentTarget.pause()}
               onError={() => handleVideoError(content.videos[0])}
+              poster="/video-thumbnail.jpg"
             >
               Your browser does not support the video tag.
             </video>
