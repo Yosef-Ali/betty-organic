@@ -19,7 +19,7 @@ export interface AboutContent {
 export async function getAbout() {
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from('about_content')
+    .from('about')
     .select('*')
     .maybeSingle();
 
@@ -47,7 +47,7 @@ export async function saveAbout(content: AboutContent) {
     }
 
     const { data, error } = await supabase
-      .from('about_content')
+      .from('about')
       .upsert({
         ...content,
         updated_at: new Date().toISOString(),
