@@ -32,7 +32,11 @@ export function SettingsAbout() {
   const loadAboutContent = async () => {
     try {
       const content = await getAbout();
-      setAboutContent(content ? content as AboutContent : {
+
+      // Check for the existing video and add it if not already there
+      const existingVideoUrl = "https://xmumlfgzvrliepxcjqil.supabase.co/storage/v1/object/public/about_images//bettys.mp4";
+
+      let aboutData = content ? content as AboutContent : {
         id: '',
         title: '',
         content: '',
@@ -42,7 +46,19 @@ export function SettingsAbout() {
         created_at: '',
         updated_at: '',
         created_by: '',
-      });
+      };
+
+      // Ensure we have a videos array
+      if (!aboutData.videos) {
+        aboutData.videos = [];
+      }
+
+      // Add the existing video if it's not already there
+      if (!aboutData.videos.includes(existingVideoUrl)) {
+        aboutData.videos = [...aboutData.videos, existingVideoUrl];
+      }
+
+      setAboutContent(aboutData);
     } catch (error) {
       toast({
         variant: 'destructive',

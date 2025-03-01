@@ -5,12 +5,8 @@ import { v4 as uuidv4 } from 'uuid';
 
 // Increase max body size for this route specifically
 export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: '50mb',
-    },
-    responseLimit: '50mb',
-  },
+  runtime: 'edge',
+  maxDuration: 60, // Extend the function's runtime duration for large uploads
 };
 
 // Maximum video size: 50MB
