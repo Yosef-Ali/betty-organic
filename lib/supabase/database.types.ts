@@ -1,3 +1,5 @@
-Need to install the following packages:
-supabase@2.15.8
-Ok to proceed? (y) 
+// filepath: /Users/mekdesyared/betty-organic-app/lib/supabase/database.types.ts
+export * from './db.types';
+
+// Re-export database types to maintain compatibility with any imports
+// that might be using this file instead of db.types.ts
