@@ -2,6 +2,7 @@ import './globals.css';
 import { GeistSans } from 'geist/font/sans';
 import { GeistMono } from 'geist/font/mono';
 import Providers from './providers';
+import { FacebookSDK } from '@/components/FacebookSDK';
 
 export const metadata = {
   title: "Betty's Organic",
@@ -20,6 +21,7 @@ export default function RootLayout({
         className={`${GeistSans.variable} ${GeistMono.variable} min-h-screen bg-background font-sans antialiased`}
       >
         <Providers>
+          <FacebookSDK />
           {children}
         </Providers>
       </body>

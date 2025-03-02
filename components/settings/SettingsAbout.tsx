@@ -24,6 +24,40 @@ export function SettingsAbout() {
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
+  const [facebookVideoUrl, setFacebookVideoUrl] = useState('');
+  const [videoErrors, setVideoErrors] = useState<Record<string, boolean>>({});
+
+  // Enhanced function to validate and transform Facebook video URL
+  const validateFacebookVideoUrl = (url: string) => {
+    if (!url) return { isValid: false, embedUrl: '' };
+
+    // Match various Facebook video URL formats
+    const fbRegex = /^https?:\/\/(?:www\.|web\.|m\.)?facebook\.com\/(?:[^/]+\/)?(?:videos\/|watch\/\?v=)(\d+)/;
+    const match = url.match(fbRegex);
+
+    if (!match) return { isValid: false, embedUrl: '' };
+
+    // Get the video ID from the URL
+    const videoId = match[1];
+
+    // Create the embed URL with all necessary parameters
+    const embedUrl = `https://www.facebook.com/plugins/video.php?height=314&href=${encodeURIComponent(url)}&show_text=false&width=560&t=0&appId=&autoplay=false&allowfullscreen=true`;
+
+    return { isValid: true, videoId, embedUrl };
+  };
+
+  // Function to handle video errors with better error logging
+  const handleVideoError = (videoUrl: string) => {
+    setVideoErrors(prev => ({ ...prev, [videoUrl]: true }));
+    console.error(`Failed to load video: ${videoUrl}`);
+
+    // Notify user about failed video
+    toast({
+      variant: 'destructive',
+      title: 'Video Error',
+      description: 'Could not load video. Please check the URL and try again.',
+    });
+  };
 
   useEffect(() => {
     loadAboutContent();
@@ -241,26 +275,14 @@ export function SettingsAbout() {
     try {
       setIsSubmitting(true);
 
-      // Ensure we have a videos array that's properly formatted
-      let validVideos: string[] = [];
-      if (Array.isArray(aboutContent.videos)) {
-        validVideos = aboutContent.videos.filter(url =>
-          typeof url === 'string' && url.trim() !== ''
-        );
-      } else if (aboutContent.videos) {
-        // If it's somehow not an array but has a value, convert to array
-        validVideos = [aboutContent.videos.toString()];
-      }
+      // Ensure we have valid arrays for videos and images
+      const validVideos = Array.isArray(aboutContent.videos)
+        ? aboutContent.videos.filter(url => typeof url === 'string' && url.trim() !== '')
+        : [];
 
-      // Validate the images array
-      let validImages: string[] = [];
-      if (Array.isArray(aboutContent.images)) {
-        validImages = aboutContent.images.filter(url =>
-          typeof url === 'string' && url.trim() !== ''
-        );
-      } else if (aboutContent.images) {
-        validImages = [aboutContent.images.toString()];
-      }
+      const validImages = Array.isArray(aboutContent.images)
+        ? aboutContent.images.filter(url => typeof url === 'string' && url.trim() !== '')
+        : [];
 
       // Create a clean content object for saving
       const contentToSave = {
@@ -318,6 +340,42 @@ export function SettingsAbout() {
     );
   }
 
+  // The button click handler for adding Facebook videos
+  const addFacebookVideo = () => {
+    if ((aboutContent?.videos?.length || 0) >= 2) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Maximum 2 videos allowed'
+      });
+      return;
+    }
+
+    const { isValid, embedUrl } = validateFacebookVideoUrl(facebookVideoUrl);
+
+    if (!isValid) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Please enter a valid Facebook video URL'
+      });
+      return;
+    }
+
+    setAboutContent(prev => ({
+      ...prev!,
+      videos: [...(prev?.videos || []), embedUrl]
+    }));
+
+    setFacebookVideoUrl('');
+    setVideoErrors({});
+
+    toast({
+      title: 'Success',
+      description: 'Facebook video added successfully'
+    });
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -349,92 +407,171 @@ export function SettingsAbout() {
         {/* Combined media grid section */}
         <div className="space-y-2">
           <h3 className="text-sm font-medium">Media Gallery</h3>
-          <div className="flex items-center space-x-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => document.getElementById('image-upload')?.click()}
-              disabled={isSubmitting || isUploading || (aboutContent?.images?.length || 0) >= 3}
-            >
-              <Upload className="w-4 h-4 mr-2" />
-              {isUploading ? 'Uploading...' : 'Upload Image'}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => document.getElementById('video-upload')?.click()}
-              disabled={isSubmitting || isUploadingVideo || (aboutContent?.videos?.length || 0) >= 2}
-            >
-              <Video className="w-4 h-4 mr-2" />
-              {isUploadingVideo ? 'Uploading...' : 'Upload Video'}
-            </Button>
-            <input
-              id="image-upload"
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleImageUpload}
-              disabled={isUploading || isSubmitting}
-            />
-            <input
-              id="video-upload"
-              type="file"
-              accept="video/*"
-              className="hidden"
-              onChange={handleVideoUpload}
-              disabled={isUploadingVideo || isSubmitting}
-            />
-          </div>
+          <div className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => document.getElementById('image-upload')?.click()}
+                disabled={isSubmitting || isUploading || (aboutContent?.images?.length || 0) >= 3}
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                {isUploading ? 'Uploading...' : 'Upload Image'}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => document.getElementById('video-upload')?.click()}
+                disabled={isSubmitting || isUploadingVideo || (aboutContent?.videos?.length || 0) >= 2}
+              >
+                <Video className="w-4 h-4 mr-2" />
+                {isUploadingVideo ? 'Uploading...' : 'Upload Video'}
+              </Button>
+              <input
+                id="image-upload"
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleImageUpload}
+                disabled={isUploading || isSubmitting}
+              />
+              <input
+                id="video-upload"
+                type="file"
+                accept="video/*"
+                className="hidden"
+                onChange={handleVideoUpload}
+                disabled={isUploadingVideo || isSubmitting}
+              />
+            </div>
+            <div className="flex items-center space-x-2">
+              <Input
+                placeholder="Facebook Video URL"
+                value={facebookVideoUrl}
+                onChange={e => setFacebookVideoUrl(e.target.value)}
+                className="flex-1"
+                disabled={isSubmitting}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={addFacebookVideo}
+                disabled={!facebookVideoUrl.trim() || isSubmitting}
+              >
+                Add Facebook Video
+              </Button>
+            </div>
 
-          {/* Combined grid for both images and videos */}
-          <div className="grid grid-cols-3 gap-4 mt-4">
-            {/* Images */}
-            {aboutContent?.images.map((image, index) => (
-              <div key={`image-${index}`} className="relative group">
-                <div className="aspect-video w-full">
-                  <img
-                    src={image}
-                    alt={`About image ${index + 1}`}
-                    className="object-cover w-full h-full rounded-md"
-                  />
-                </div>
-                <Button
-                  variant="destructive"
-                  size="icon"
-                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={() => handleRemoveImage(index)}
-                  disabled={isSubmitting}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </div>
-            ))}
-
-            {/* Videos */}
-            {aboutContent?.videos?.map((video, index) => (
-              <div key={`video-${index}`} className="relative group">
-                <div className="aspect-video w-full">
-                  <video
-                    src={video}
-                    controls
-                    className="w-full h-full rounded-md"
-                    poster="/video-thumbnail.png" // Add a default thumbnail
+            {/* Combined grid for both images and videos */}
+            <div className="grid grid-cols-3 gap-4 mt-4">
+              {/* Images */}
+              {aboutContent?.images.map((image, index) => (
+                <div key={`image-${index}`} className="relative group">
+                  <div className="aspect-video w-full">
+                    <img
+                      src={image}
+                      alt={`About image ${index + 1}`}
+                      className="object-cover w-full h-full rounded-md"
+                    />
+                  </div>
+                  <Button
+                    variant="destructive"
+                    size="icon"
+                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={() => handleRemoveImage(index)}
+                    disabled={isSubmitting}
                   >
-                    Your browser does not support the video tag.
-                  </video>
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
                 </div>
-                <Button
-                  variant="destructive"
-                  size="icon"
-                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={() => handleRemoveVideo(index)}
-                  disabled={isSubmitting}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </div>
-            ))}
+              ))}
+
+              {/* Videos */}
+              {aboutContent?.videos?.map((video, index) => (
+                <div key={`video-${index}`} className="relative group">
+                  <div className="aspect-video w-full">
+                    {!videoErrors[video] ? (
+                      video.includes('facebook.com') ? (
+                        <div className="relative w-full h-full bg-black rounded-md">
+                          <iframe
+                            src={video}
+                            className="absolute top-0 left-0 w-full h-full"
+                            style={{ border: 'none', overflow: 'hidden' }}
+                            scrolling="no"
+                            frameBorder="0"
+                            allowFullScreen={true}
+                            allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+                            onError={() => handleVideoError(video)}
+                          ></iframe>
+                        </div>
+                      ) : (
+                        <video
+                          src={video}
+                          className="w-full h-full rounded-md object-cover"
+                          onMouseEnter={e => {
+                            try {
+                              const playPromise = e.currentTarget.play();
+                              if (playPromise !== undefined) {
+                                playPromise.catch(error => {
+                                  console.error("Error playing video:", error);
+                                  handleVideoError(video);
+                                });
+                              }
+                            } catch (error) {
+                              console.error("Error during play attempt:", error);
+                              handleVideoError(video);
+                            }
+                          }}
+                          onMouseLeave={e => {
+                            try {
+                              e.currentTarget.pause();
+                              e.currentTarget.currentTime = 0;
+                            } catch (error) {
+                              console.error("Error during pause attempt:", error);
+                            }
+                          }}
+                          onError={() => handleVideoError(video)}
+                          loop
+                          playsInline
+                          muted
+                          poster="/video-thumbnail.png"
+                          preload="metadata"
+                        >
+                          Your browser does not support the video tag.
+                        </video>
+                      )
+                    ) : (
+                      <div className="w-full h-full rounded-md bg-gray-100 flex items-center justify-center">
+                        <div className="text-center p-4">
+                          <p className="text-sm text-gray-500">Failed to load video</p>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="mt-2"
+                            onClick={() => {
+                              setVideoErrors(prev => ({ ...prev, [video]: false }));
+                            }}
+                          >
+                            Retry
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <Button
+                    variant="destructive"
+                    size="icon"
+                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={() => handleRemoveVideo(index)}
+                    disabled={isSubmitting}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
           </div>
+
         </div>
 
         <Button
