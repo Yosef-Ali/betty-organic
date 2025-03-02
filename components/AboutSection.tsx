@@ -235,8 +235,8 @@ export function AboutSection() {
   // Default content if no dynamic content is available
   const defaultContent: AboutContent = {
     id: 'default',
-    title: "About Betty's Organic",
-    content: `At Betty's Organic, we're passionate about bringing you the freshest, most nutritious produce straight from local farms. Our commitment to organic farming practices ensures that every fruit and vegetable is grown without harmful chemicals, preserving both your health and the environment.\n\nFounded in 2010, we've grown from a small family farm to a trusted source for organic produce in the community. Our team carefully selects each item, ensuring only the highest quality reaches your table.`,
+    title: "About Betty&apos;s Organic",
+    content: `At Betty&apos;s Organic, we&apos;re passionate about bringing you the freshest, most nutritious produce straight from local farms. Our commitment to organic farming practices ensures that every fruit and vegetable is grown without harmful chemicals, preserving both your health and the environment.\n\nFounded in 2010, we&apos;ve grown from a small family farm to a trusted source for organic produce in the community. Our team carefully selects each item, ensuring only the highest quality reaches your table.`,
     images: [
       'https://images.unsplash.com/photo-1554080353-a576cf803bda?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=3387&q=80',
       'https://images.unsplash.com/photo-1505144808419-1957a94ca61e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=3070&q=80',
@@ -257,7 +257,7 @@ export function AboutSection() {
             Temporarily Unavailable
           </h2>
           <p className="text-red-600 mt-2">
-            We're experiencing technical difficulties. Please try again later.
+            We&apos;re experiencing technical difficulties. Please try again later.
           </p>
         </div>
       </section>

@@ -35,12 +35,10 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  // Increase the body parser size limit for API routes
-  api: {
-    bodyParser: {
-      sizeLimit: '25mb', // Set to 25MB to match our client-side limit
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '25mb',
     },
-    responseLimit: '25mb',
   },
 };
 
