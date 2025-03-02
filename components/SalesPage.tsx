@@ -63,6 +63,7 @@ interface SalesPageProps {
 const SalesPage: FC<SalesPageProps> = ({ user }) => {
   const [products, setProducts] = useState<ProductWithStatus[]>([]);
   const [recentlySelectedProducts, setRecentlySelectedProducts] = useState<ProductWithStatus[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { items, addItem } = useSalesCartStore();
@@ -116,13 +117,13 @@ const SalesPage: FC<SalesPageProps> = ({ user }) => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
 
-  const handleProductClick = (product: ProductWithStatus) => {
+  const handleProductClick = useCallback((product: ProductWithStatus) => {
     const cartItem: SalesCartItem = {
       id: product.id,
       name: product.name,
@@ -141,9 +142,15 @@ const SalesPage: FC<SalesPageProps> = ({ user }) => {
     });
 
     setIsCartOpen(true);
-  };
+  }, [addItem, toast]);
 
-  // Remove duplicate handleCartOpenChange declaration
+  const handleCategorySelect = useCallback((event: string[]) => {
+    setSelectedCategories(event);
+    toast({
+      title: 'Category filter updated',
+      description: 'Product list has been filtered based on selected categories.',
+    });
+  }, [toast]);
 
   const handleCreateOrder = useCallback(
     async (orderData: any): Promise<boolean> => {
@@ -179,7 +186,7 @@ const SalesPage: FC<SalesPageProps> = ({ user }) => {
         return false;
       }
     },
-    [user],
+    [user, toast],
   );
 
   return (

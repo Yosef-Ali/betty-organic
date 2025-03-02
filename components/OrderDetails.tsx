@@ -56,15 +56,11 @@ type ExtendedOrder = {
   }>;
 };
 
-const OrderDetailsContent = ({
-  orders,
-  isLoading,
-  onDelete,
-}: {
+const OrderDetailsContent: React.FC<{
   orders: ExtendedOrder[];
   isLoading: boolean;
   onDelete: (id: string) => Promise<void>;
-}) => {
+}> = ({ orders, isLoading, onDelete }) => {
   const router = useRouter();
 
   if (isLoading) {
@@ -87,48 +83,52 @@ const OrderDetailsContent = ({
     );
   }
 
-  return orders.map((order: ExtendedOrder) => (
-    <TableRow key={order.id}>
-      <TableCell className="font-medium">
-        {order.customer?.name || 'N/A'}
-      </TableCell>
-      <TableCell>{order.id}</TableCell>
-      <TableCell>{order.status}</TableCell>
-      <TableCell>{order.type}</TableCell>
-      <TableCell>
-        {order.created_at
-          ? formatDistanceToNow(new Date(order.created_at), { addSuffix: true })
-          : 'N/A'}
-      </TableCell>
-      <TableCell>{order.total_amount}</TableCell>
-      <TableCell>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button aria-haspopup="true" size="icon" variant="ghost">
-              <MoreHorizontal className="h-4 w-4" />
-              <span className="sr-only">Toggle menu</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem
-              onSelect={() => router.push(`/dashboard/orders/${order.id}/edit`)}
-            >
-              Edit
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onSelect={() => router.push(`/dashboard/orders/${order.id}`)}
-            >
-              View Details
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => onDelete(order.id)}>
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </TableCell>
-    </TableRow>
-  ));
+  return (
+    <>
+      {orders.map((order: ExtendedOrder) => (
+        <TableRow key={order.id}>
+          <TableCell className="font-medium">
+            {order.customer?.name || 'N/A'}
+          </TableCell>
+          <TableCell>{order.id}</TableCell>
+          <TableCell>{order.status}</TableCell>
+          <TableCell>{order.type}</TableCell>
+          <TableCell>
+            {order.created_at
+              ? formatDistanceToNow(new Date(order.created_at), { addSuffix: true })
+              : 'N/A'}
+          </TableCell>
+          <TableCell>{order.total_amount}</TableCell>
+          <TableCell>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button aria-haspopup="true" size="icon" variant="ghost">
+                  <MoreHorizontal className="h-4 w-4" />
+                  <span className="sr-only">Toggle menu</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                <DropdownMenuItem
+                  onSelect={() => router.push(`/dashboard/orders/${order.id}/edit`)}
+                >
+                  Edit
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={() => router.push(`/dashboard/orders/${order.id}`)}
+                >
+                  View Details
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => onDelete(order.id)}>
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </TableCell>
+        </TableRow>
+      ))}
+    </>
+  );
 };
 
 export function OrderDetails() {
@@ -141,7 +141,7 @@ export function OrderDetails() {
 
   useEffect(() => {
     fetchOrders();
-  }, []);
+  }, [fetchOrders]);
 
   useEffect(() => {
     const filtered = orders.filter(
@@ -183,15 +183,14 @@ export function OrderDetails() {
   const handleDelete = async (id: string) => {
     try {
       const result = await deleteOrder(id);
-      if (result.success) {
-        setOrders(prevOrders => prevOrders.filter(order => order.id !== id));
-        toast({
-          title: 'Order deleted',
-          description: 'The order has been successfully deleted.',
-        });
-      } else {
-        throw new Error(result.error);
+      if (!result.success) {
+        throw new Error(result.error?.toString() || 'Failed to delete order');
       }
+      setOrders(prevOrders => prevOrders.filter(order => order.id !== id));
+      toast({
+        title: 'Order deleted',
+        description: 'The order has been successfully deleted.',
+      });
     } catch (error) {
       console.error('Error deleting order:', error);
       toast({

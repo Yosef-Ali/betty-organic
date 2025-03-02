@@ -116,11 +116,10 @@ function UserTableContent({
           <TableCell>
             <div
               className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
-              ${
-                user.status === 'active'
+              ${user.status === 'active'
                   ? 'bg-green-100 text-green-800'
                   : 'bg-gray-100 text-gray-800'
-              }`}
+                }`}
             >
               {user.status || 'active'}
             </div>
@@ -191,13 +190,13 @@ export default function UserTable({ initialUsers }: UserTableProps) {
   const { toast } = useToast();
 
   useEffect(() => {
-    const loadUsers = async () => {
+    const fetchData = async () => {
       setIsLoading(true);
       try {
-        const fetchedUsers = await getUsers();
-        setUsers(fetchedUsers);
-        setFilteredUsers(fetchedUsers);
+        const response = await getUsers();
+        setUsers(response);
       } catch (error) {
+        console.error('Error fetching users:', error);
         toast({
           title: 'Error',
           description: 'Failed to load users',
@@ -207,8 +206,9 @@ export default function UserTable({ initialUsers }: UserTableProps) {
         setIsLoading(false);
       }
     };
-    loadUsers();
-  }, []);
+
+    fetchData();
+  }, [toast]);
 
   useEffect(() => {
     const filtered = users.filter(user => {
@@ -313,11 +313,10 @@ export default function UserTable({ initialUsers }: UserTableProps) {
                         </div>
                         <div
                           className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
-                          ${
-                            user.status === 'active'
+                          ${user.status === 'active'
                               ? 'bg-green-100 text-green-800'
                               : 'bg-gray-100 text-gray-800'
-                          }`}
+                            }`}
                         >
                           {user.status || 'active'}
                         </div>

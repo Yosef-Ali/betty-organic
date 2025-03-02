@@ -24,10 +24,6 @@ export function OrderHistory({ userId }: OrderHistoryProps) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
 
-  useEffect(() => {
-    fetchOrders();
-  }, []);
-
   const fetchOrders = async () => {
     setLoading(true);
     try {
@@ -40,6 +36,10 @@ export function OrderHistory({ userId }: OrderHistoryProps) {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
 
   if (loading) {
     return (
@@ -118,7 +118,7 @@ export function OrderHistory({ userId }: OrderHistoryProps) {
           <div className="flex items-center justify-between gap-4 pt-4 mt-4 border-t sm:flex-col sm:items-end sm:w-[180px] sm:border-0 sm:pt-0 sm:mt-0">
             <div className="flex items-center gap-2">
               <div className={`w-2 h-2 rounded-full ${order.status === 'completed' ? 'bg-green-500' :
-                  order.status === 'pending' ? 'bg-yellow-500' : 'bg-red-500'
+                order.status === 'pending' ? 'bg-yellow-500' : 'bg-red-500'
                 }`} />
               <span className="text-sm capitalize">{order.status}</span>
             </div>

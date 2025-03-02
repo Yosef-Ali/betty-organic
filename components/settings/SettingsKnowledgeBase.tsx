@@ -14,10 +14,16 @@ import {
 } from '@/app/actions/knowledge-base-actions';
 
 import { useToast } from '@/hooks/use-toast';
-import { Database } from '@/lib/supabase/database.types';
 
-type KnowledgeBaseEntryType =
-  Database['public']['Tables']['knowledge_base']['Row'];
+type KnowledgeBaseEntryType = {
+  id: number;
+  question: string;
+  response: string;
+  suggestions: string[];
+  links: Record<string, any>;
+  created_at?: string;
+  updated_at?: string;
+};
 
 export function SettingsKnowledgeBase() {
   const { toast } = useToast();
@@ -29,15 +35,8 @@ export function SettingsKnowledgeBase() {
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
   useEffect(() => {
-    fetchEntries().catch(err =>
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description:
-          err instanceof Error ? err.message : 'Failed to fetch entries',
-      }),
-    );
-  }, [toast]);
+    fetchEntries();
+  }, [fetchEntries]);
 
   async function fetchEntries() {
     setLoading(true);

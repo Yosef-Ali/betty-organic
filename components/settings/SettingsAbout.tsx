@@ -40,7 +40,7 @@ export function SettingsAbout() {
 
   useEffect(() => {
     loadAboutContent();
-  }, []);
+  }, [loadAboutContent]);
 
   const loadAboutContent = async () => {
     try {

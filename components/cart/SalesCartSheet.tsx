@@ -18,6 +18,7 @@ import { CartItems } from './CartItems';
 import { OrderSummary } from './OrderSummary';
 import { useSalesCartSheet } from './useSalesCartSheet';
 import { Order } from '@/types/order';
+import { useSalesCartStore } from '@/store/salesCartStore';
 
 interface SalesCartSheetProps {
   isOpen: boolean;
@@ -42,6 +43,8 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
   onOrderCreate,
   user,
 }) => {
+  const { clearCart } = useSalesCartStore();
+
   const {
     profile = user?.profile ? {
       id: user.profile.id || user.id,
@@ -145,6 +148,18 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
     },
     [handleConfirmDialog, isPending],
   );
+
+  const handleDeleteClick = useCallback(() => {
+    clearCart();
+    onOpenChange(false);
+  }, [clearCart, onOpenChange]);
+
+  const handleCancelClick = useCallback(() => {
+    if (!customer || !isPending || orderStatus === 'completed') {
+      clearCart();
+      onOpenChange(false);
+    }
+  }, [customer, isPending, orderStatus, clearCart, onOpenChange]);
 
   if (error) {
     return (

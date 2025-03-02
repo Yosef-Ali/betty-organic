@@ -148,7 +148,11 @@ export function useSalesCartSheet({
     orderStatus: user?.profile?.role === 'admin' ? 'processing' : 'pending'
   });
   const { toast } = useToast();
-  const { items, clearCart, getTotalAmount } = useSalesCartStore();
+  const {
+    items,
+    clearCart,
+    getTotalAmount
+  } = useSalesCartStore();
 
   useEffect(() => {
     if (items.length === 0) {
@@ -369,26 +373,6 @@ export function useSalesCartSheet({
     [state.profile, state.orderStatus, items, getTotalAmount, clearCart, onOrderCreate, onOpenChange, toast],
   );
 
-  const handleCloseCart = useCallback(() => {
-    if (items.length > 0) {
-      handleConfirmDialog('cancel');
-    } else {
-      onOpenChange(false);
-    }
-  }, [items.length, onOpenChange]);
-
-  const handleConfirmDialog = useCallback(
-    (action: 'save' | 'cancel', selectedCustomer: any = null) => {
-      if (action === 'save') {
-        handleSaveOrder(selectedCustomer);
-      } else if (action === 'cancel' && !state.isOrderSaved) {
-        clearCart();
-        onOpenChange(false);
-      }
-    },
-    [handleSaveOrder, state.isOrderSaved, clearCart, onOpenChange],
-  );
-
   const handleConfirmAction = useCallback(
     async (action: 'save' | 'cancel') => {
       try {
@@ -415,6 +399,35 @@ export function useSalesCartSheet({
       }
     },
     [state.customer, handleSaveOrder, handleBackToCart, toast],
+  );
+
+  const handleConfirmDialog = useCallback(async (
+    action: 'save' | 'cancel',
+    selectedCustomer: any,
+  ) => {
+    if (action === 'save' && selectedCustomer) {
+      await handleSaveOrder(selectedCustomer);
+    } else {
+      handleConfirmAction(action);
+    }
+  }, [handleSaveOrder, handleConfirmAction]);
+
+  const handleCloseCart = useCallback(() => {
+    if (items.length > 0) {
+      handleConfirmDialog('cancel', null);
+    } else {
+      onOpenChange(false);
+    }
+  }, [items.length, handleConfirmDialog, onOpenChange]);
+
+  const handleActionConfirmation = useCallback(
+    (action: string) => {
+      if (action === 'delete') {
+        clearCart();
+        onOpenChange(false);
+      }
+    },
+    [clearCart, onOpenChange],
   );
 
   return {
@@ -454,6 +467,7 @@ export function useSalesCartSheet({
     handleCloseCart,
     handleConfirmDialog,
     handleConfirmAction,
+    handleActionConfirmation,
     setIsThermalPrintPreviewOpen: useCallback(
       (value: boolean) => dispatch({ type: 'SET_THERMAL_PREVIEW', payload: value }),
       [],

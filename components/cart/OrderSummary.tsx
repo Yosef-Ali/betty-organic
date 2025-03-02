@@ -64,26 +64,51 @@ interface OrderSummaryProps {
   };
 }
 
-export const OrderSummary: FC<OrderSummaryProps> = (props) => {
-  const {
-    items,
-    totalAmount,
-    customerId,
-    setCustomerId,
-    orderStatus,
-    setOrderStatus,
-    isStatusVerified,
-    handleToggleLock,
-    handleConfirmDialog,
-    isSaving,
-    onPrintPreview,
-    isOrderSaved,
-    orderNumber,
-    isAdmin,
-    customerInfo,
-    setCustomerInfo,
-    profile
-  } = props;
+interface CustomerType {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+}
+
+interface CustomerDetails {
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+}
+
+export const OrderSummary: FC<OrderSummaryProps> = ({
+  items,
+  totalAmount,
+  customerId,
+  setCustomerId,
+  orderStatus,
+  setOrderStatus,
+  isStatusVerified,
+  handleToggleLock,
+  handleConfirmDialog,
+  isSaving,
+  onPrintPreview,
+  isOrderSaved,
+  orderNumber,
+  isAdmin,
+  customerInfo,
+  setCustomerInfo,
+  profile
+}) => {
+  const [customerDetails, setCustomerDetails] = useState<CustomerDetails>({
+    name: '',
+    email: '',
+    phone: '',
+    address: ''
+  });
+
+  const [customerList, setCustomerList] = useState<
+    Array<{ id: string; name: string }>
+  >([]);
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerType | null>(null);
 
   // Log component props when it loads
   useEffect(() => {
@@ -95,15 +120,6 @@ export const OrderSummary: FC<OrderSummaryProps> = (props) => {
       email: profile?.email
     });
   }, [items, totalAmount, customerId, orderStatus, isAdmin, profile]);
-
-
-  const [customerList, setCustomerList] = useState<
-    Array<{ id: string; name: string }>
-  >([]);
-  const [selectedCustomer, setSelectedCustomer] = useState<{
-    id: string;
-    name: string;
-  } | null>(null);
 
   // Effect for fetching customers - runs only once
   useEffect(() => {
@@ -138,6 +154,20 @@ export const OrderSummary: FC<OrderSummaryProps> = (props) => {
       }
     }
   }, [customerInfo?.id, customerList]);
+
+  // Effect for setting customer details when selectedCustomer changes
+  useEffect(() => {
+    if (selectedCustomer) {
+      // Only update customer details that exist in selectedCustomer
+      setCustomerDetails(prev => ({
+        ...prev,
+        name: selectedCustomer.name || prev.name,
+        email: selectedCustomer.email || prev.email,
+        phone: selectedCustomer.phone || prev.phone,
+        address: selectedCustomer.address || prev.address
+      }));
+    }
+  }, [selectedCustomer]);
 
   const formatDate = () => {
     return new Date().toLocaleDateString('en-US', {

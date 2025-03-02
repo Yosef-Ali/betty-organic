@@ -5,6 +5,7 @@ import type { AboutContent } from '@/app/actions/aboutActions';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { FacebookVideoCard } from '@/components/FacebookVideoCard';
+import Image from 'next/image';
 
 export function AboutSection() {
   // State declarations
@@ -356,20 +357,29 @@ export function AboutSection() {
     <section className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
       <div className="space-y-6">
         <h2 className="text-4xl font-bold">{content.title}</h2>
-        {paragraphs.map((paragraph: string, index: number) => (
-          <p key={index} className="text-lg">
-            {paragraph}
-          </p>
-        ))}
+        {Array.isArray(content.content) ? (
+          content.content.map((paragraph: string, index: number) => (
+            <p key={index} className="mb-4 text-lg text-gray-600">
+              {paragraph.replace("'", "&apos;")}
+            </p>
+          ))
+        ) : typeof content.content === 'string' ? (
+          content.content.split('\n\n').map((paragraph: string, index: number) => (
+            <p key={index} className="mb-4 text-lg text-gray-600">
+              {paragraph.replace("'", "&apos;")}
+            </p>
+          ))
+        ) : null}
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         {content.images.length > 0 && !imageError[content.images[0]] && (
           <div className="relative h-64 rounded-lg overflow-hidden">
-            <img
+            <Image
               src={content.images[0]}
               alt="About image 1"
-              className="w-full h-full object-cover"
+              fill
+              className="object-cover"
               onError={() => handleImageError(content.images[0])}
             />
           </div>
@@ -389,20 +399,22 @@ export function AboutSection() {
           <>
             {content.images.length > 1 && !imageError[content.images[1]] && (
               <div className="relative h-64 rounded-lg overflow-hidden">
-                <img
+                <Image
                   src={content.images[1]}
                   alt="About image 2"
-                  className="w-full h-full object-cover"
+                  fill
+                  className="object-cover"
                   onError={() => handleImageError(content.images[1])}
                 />
               </div>
             )}
             {content.images.length > 2 && !imageError[content.images[2]] && (
               <div className="relative h-64 rounded-lg overflow-hidden">
-                <img
+                <Image
                   src={content.images[2]}
                   alt="About image 3"
-                  className="w-full h-full object-cover"
+                  fill
+                  className="object-cover"
                   onError={() => handleImageError(content.images[2])}
                 />
               </div>
