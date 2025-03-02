@@ -24,33 +24,12 @@ export function SettingsAbout() {
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
-  const [facebookVideoUrl, setFacebookVideoUrl] = useState('');
   const [videoErrors, setVideoErrors] = useState<Record<string, boolean>>({});
-
-  // Enhanced function to validate and transform Facebook video URL
-  const validateFacebookVideoUrl = (url: string) => {
-    if (!url) return { isValid: false, embedUrl: '' };
-
-    // Match various Facebook video URL formats
-    const fbRegex = /^https?:\/\/(?:www\.|web\.|m\.)?facebook\.com\/(?:[^/]+\/)?(?:videos\/|watch\/\?v=)(\d+)/;
-    const match = url.match(fbRegex);
-
-    if (!match) return { isValid: false, embedUrl: '' };
-
-    // Get the video ID from the URL
-    const videoId = match[1];
-
-    // Create the embed URL with all necessary parameters
-    const embedUrl = `https://www.facebook.com/plugins/video.php?height=314&href=${encodeURIComponent(url)}&show_text=false&width=560&t=0&appId=&autoplay=false&allowfullscreen=true`;
-
-    return { isValid: true, videoId, embedUrl };
-  };
 
   // Function to handle video errors with better error logging
   const handleVideoError = (videoUrl: string) => {
     setVideoErrors(prev => ({ ...prev, [videoUrl]: true }));
     console.error(`Failed to load video: ${videoUrl}`);
-
     // Notify user about failed video
     toast({
       variant: 'destructive',
@@ -104,14 +83,16 @@ export function SettingsAbout() {
     }
   };
 
+  // Update the handleImageUpload function to check the total media count
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
 
-    if ((aboutContent?.images?.length || 0) >= 3) {
+    const totalMediaCount = (aboutContent?.images?.length || 0) + (aboutContent?.videos?.length || 0);
+    if (totalMediaCount >= 4) {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Maximum 3 images allowed',
+        description: 'Maximum 4 media items allowed (images and videos combined)',
       });
       return;
     }
@@ -162,14 +143,16 @@ export function SettingsAbout() {
     }
   };
 
+  // Update the handleVideoUpload function to check the total media count
   const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
 
-    if ((aboutContent?.videos?.length || 0) >= 2) {
+    const totalMediaCount = (aboutContent?.images?.length || 0) + (aboutContent?.videos?.length || 0);
+    if (totalMediaCount >= 4) {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Maximum 2 videos allowed',
+        description: 'Maximum 4 media items allowed (images and videos combined)',
       });
       return;
     }
@@ -340,42 +323,6 @@ export function SettingsAbout() {
     );
   }
 
-  // The button click handler for adding Facebook videos
-  const addFacebookVideo = () => {
-    if ((aboutContent?.videos?.length || 0) >= 2) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Maximum 2 videos allowed'
-      });
-      return;
-    }
-
-    const { isValid, embedUrl } = validateFacebookVideoUrl(facebookVideoUrl);
-
-    if (!isValid) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Please enter a valid Facebook video URL'
-      });
-      return;
-    }
-
-    setAboutContent(prev => ({
-      ...prev!,
-      videos: [...(prev?.videos || []), embedUrl]
-    }));
-
-    setFacebookVideoUrl('');
-    setVideoErrors({});
-
-    toast({
-      title: 'Success',
-      description: 'Facebook video added successfully'
-    });
-  };
-
   return (
     <Card>
       <CardHeader>
@@ -403,7 +350,6 @@ export function SettingsAbout() {
             disabled={isSubmitting}
           />
         </div>
-
         {/* Combined media grid section */}
         <div className="space-y-2">
           <h3 className="text-sm font-medium">Media Gallery</h3>
@@ -413,7 +359,7 @@ export function SettingsAbout() {
                 type="button"
                 variant="outline"
                 onClick={() => document.getElementById('image-upload')?.click()}
-                disabled={isSubmitting || isUploading || (aboutContent?.images?.length || 0) >= 3}
+                disabled={isSubmitting || isUploading || ((aboutContent?.images?.length || 0) + (aboutContent?.videos?.length || 0) >= 4)}
               >
                 <Upload className="w-4 h-4 mr-2" />
                 {isUploading ? 'Uploading...' : 'Upload Image'}
@@ -422,7 +368,7 @@ export function SettingsAbout() {
                 type="button"
                 variant="outline"
                 onClick={() => document.getElementById('video-upload')?.click()}
-                disabled={isSubmitting || isUploadingVideo || (aboutContent?.videos?.length || 0) >= 2}
+                disabled={isSubmitting || isUploadingVideo || ((aboutContent?.images?.length || 0) + (aboutContent?.videos?.length || 0) >= 4)}
               >
                 <Video className="w-4 h-4 mr-2" />
                 {isUploadingVideo ? 'Uploading...' : 'Upload Video'}
@@ -443,23 +389,6 @@ export function SettingsAbout() {
                 onChange={handleVideoUpload}
                 disabled={isUploadingVideo || isSubmitting}
               />
-            </div>
-            <div className="flex items-center space-x-2">
-              <Input
-                placeholder="Facebook Video URL"
-                value={facebookVideoUrl}
-                onChange={e => setFacebookVideoUrl(e.target.value)}
-                className="flex-1"
-                disabled={isSubmitting}
-              />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={addFacebookVideo}
-                disabled={!facebookVideoUrl.trim() || isSubmitting}
-              >
-                Add Facebook Video
-              </Button>
             </div>
 
             {/* Combined grid for both images and videos */}
@@ -491,55 +420,40 @@ export function SettingsAbout() {
                 <div key={`video-${index}`} className="relative group">
                   <div className="aspect-video w-full">
                     {!videoErrors[video] ? (
-                      video.includes('facebook.com') ? (
-                        <div className="relative w-full h-full bg-black rounded-md">
-                          <iframe
-                            src={video}
-                            className="absolute top-0 left-0 w-full h-full"
-                            style={{ border: 'none', overflow: 'hidden' }}
-                            scrolling="no"
-                            frameBorder="0"
-                            allowFullScreen={true}
-                            allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
-                            onError={() => handleVideoError(video)}
-                          ></iframe>
-                        </div>
-                      ) : (
-                        <video
-                          src={video}
-                          className="w-full h-full rounded-md object-cover"
-                          onMouseEnter={e => {
-                            try {
-                              const playPromise = e.currentTarget.play();
-                              if (playPromise !== undefined) {
-                                playPromise.catch(error => {
-                                  console.error("Error playing video:", error);
-                                  handleVideoError(video);
-                                });
-                              }
-                            } catch (error) {
-                              console.error("Error during play attempt:", error);
-                              handleVideoError(video);
+                      <video
+                        src={video}
+                        className="w-full h-full rounded-md object-cover"
+                        onMouseEnter={e => {
+                          try {
+                            const playPromise = e.currentTarget.play();
+                            if (playPromise !== undefined) {
+                              playPromise.catch(error => {
+                                console.error("Error playing video:", error);
+                                handleVideoError(video);
+                              });
                             }
-                          }}
-                          onMouseLeave={e => {
-                            try {
-                              e.currentTarget.pause();
-                              e.currentTarget.currentTime = 0;
-                            } catch (error) {
-                              console.error("Error during pause attempt:", error);
-                            }
-                          }}
-                          onError={() => handleVideoError(video)}
-                          loop
-                          playsInline
-                          muted
-                          poster="/video-thumbnail.png"
-                          preload="metadata"
-                        >
-                          Your browser does not support the video tag.
-                        </video>
-                      )
+                          } catch (error) {
+                            console.error("Error during play attempt:", error);
+                            handleVideoError(video);
+                          }
+                        }}
+                        onMouseLeave={e => {
+                          try {
+                            e.currentTarget.pause();
+                            e.currentTarget.currentTime = 0;
+                          } catch (error) {
+                            console.error("Error during pause attempt:", error);
+                          }
+                        }}
+                        onError={() => handleVideoError(video)}
+                        loop
+                        playsInline
+                        muted
+                        poster="/video-thumbnail.png"
+                        preload="metadata"
+                      >
+                        Your browser does not support the video tag.
+                      </video>
                     ) : (
                       <div className="w-full h-full rounded-md bg-gray-100 flex items-center justify-center">
                         <div className="text-center p-4">
@@ -571,7 +485,6 @@ export function SettingsAbout() {
               ))}
             </div>
           </div>
-
         </div>
 
         <Button

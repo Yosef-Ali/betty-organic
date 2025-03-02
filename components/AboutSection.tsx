@@ -4,6 +4,7 @@ import { getAbout } from '@/app/actions/aboutActions';
 import type { AboutContent } from '@/app/actions/aboutActions';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { FacebookVideoCard } from '@/components/FacebookVideoCard';
 
 export function AboutSection() {
   // State declarations
@@ -21,11 +22,6 @@ export function AboutSection() {
   const loadedMetadataListeners = useRef<Record<string, () => void>>({});
 
   // Callback functions
-  const isFacebookVideo = useCallback((url: string) => {
-    const fbRegex = /^https?:\/\/(?:www\.|web\.|m\.)?facebook\.com\/(?:[^/]+\/)?(?:videos\/|watch\/\?v=|plugins\/video\.php)/;
-    return fbRegex.test(url);
-  }, []);
-
   const setInitialVideoPosition = useCallback((videoElement: HTMLVideoElement) => {
     if (videoElement.readyState >= 2) {
       videoElement.currentTime = videoElement.duration * 0.1;
@@ -124,24 +120,22 @@ export function AboutSection() {
   }, []);
 
   const handleVideoLoad = useCallback((videoUrl: string, videoElement: HTMLVideoElement) => {
-    if (!isFacebookVideo(videoUrl)) {
-      // Generate thumbnail first
-      generateThumbnail(videoUrl, videoElement);
-      setInitialVideoPosition(videoElement);
+    // Generate thumbnail first
+    generateThumbnail(videoUrl, videoElement);
+    setInitialVideoPosition(videoElement);
 
-      // Give a small delay before trying to play to allow thumbnail to be displayed
-      setTimeout(() => {
-        videoElement.play()
-          .then(() => {
-            console.log(`Video started playing: ${videoUrl}`);
-          })
-          .catch(err => {
-            console.warn(`Auto-play prevented for ${videoUrl}:`, err);
-          });
-      }, 300);
-    }
+    // Give a small delay before trying to play to allow thumbnail to be displayed
+    setTimeout(() => {
+      videoElement.play()
+        .then(() => {
+          console.log(`Video started playing: ${videoUrl}`);
+        })
+        .catch(err => {
+          console.warn(`Auto-play prevented for ${videoUrl}:`, err);
+        });
+    }, 300);
     setVideoLoading(prev => ({ ...prev, [videoUrl]: false }));
-  }, [isFacebookVideo, generateThumbnail, setInitialVideoPosition]);
+  }, [generateThumbnail, setInitialVideoPosition]);
 
   const cleanupVideoResources = useCallback(() => {
     Object.entries(videoRefs.current).forEach(([url, videoEl]) => {
@@ -185,11 +179,9 @@ export function AboutSection() {
 
           console.log("Videos in content:", data.videos);
 
-          // Initialize loading state for non-Facebook videos
+          // Initialize loading state for all videos
           data.videos.forEach((video: string) => {
-            if (!isFacebookVideo(video)) {
-              setVideoLoading(prev => ({ ...prev, [video]: true }));
-            }
+            setVideoLoading(prev => ({ ...prev, [video]: true }));
           });
 
           // Ensure images array exists
@@ -210,31 +202,13 @@ export function AboutSection() {
     fetchAboutData();
 
     return cleanupVideoResources;
-  }, [isFacebookVideo, cleanupVideoResources]);
-
-  useEffect(() => {
-    // Set initial loading state for Facebook videos
-    if (aboutData?.videos) {
-      aboutData.videos.forEach((videoUrl: string) => {
-        if (isFacebookVideo(videoUrl)) {
-          setVideoLoading(prev => ({ ...prev, [videoUrl]: true }));
-
-          // Set a timeout to handle cases where the iframe doesn't trigger onLoad
-          const timeoutId = setTimeout(() => {
-            setVideoLoading(prev => ({ ...prev, [videoUrl]: false }));
-          }, 5000);
-
-          return () => clearTimeout(timeoutId);
-        }
-      });
-    }
-  }, [aboutData?.videos, isFacebookVideo]);
+  }, [cleanupVideoResources]);
 
   useEffect(() => {
     // Auto-play videos when they become available and are not loading or errored
     if (aboutData?.videos) {
       aboutData.videos.forEach((videoUrl: string) => {
-        if (!isFacebookVideo(videoUrl) && !videoLoading[videoUrl] && !videoError[videoUrl]) {
+        if (!videoLoading[videoUrl] && !videoError[videoUrl]) {
           const videoElement = videoRefs.current[videoUrl];
           if (videoElement && videoElement.paused && videoElement.readyState >= 2) {
             console.log(`Attempting to play video: ${videoUrl}`);
@@ -255,7 +229,7 @@ export function AboutSection() {
         }
       });
     }
-  }, [aboutData?.videos, videoLoading, videoError, isFacebookVideo, videoRefs, thumbnails]);
+  }, [aboutData?.videos, videoLoading, videoError, videoRefs, thumbnails]);
 
   // Default content if no dynamic content is available
   const defaultContent: AboutContent = {
@@ -312,106 +286,70 @@ export function AboutSection() {
   }
 
   const renderVideo = (videoUrl: string, isFullWidth = false) => {
-    if (isFacebookVideo(videoUrl)) {
-      // Use a clean, clickable card design instead of trying to embed
-      const fbIconSvg = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#1877F2">
-          <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-        </svg>
-      `;
-
-      return (
-        <div className="relative w-full h-full bg-white rounded-md overflow-hidden shadow-md transition-transform hover:shadow-lg hover:-translate-y-1">
-          <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center">
-            <div
-              className="w-12 h-12 mb-3 flex items-center justify-center"
-              dangerouslySetInnerHTML={{ __html: fbIconSvg }}
-            />
-            <h3 className="text-lg font-semibold text-gray-800 mb-2">Facebook Video</h3>
-            <p className="text-sm text-gray-600 mb-4">This content is hosted on Facebook</p>
-
-            <a
-              href={videoUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors"
-            >
-              Watch on Facebook
-              <svg className="ml-2 w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
-              </svg>
-            </a>
-          </div>
-        </div>
-      );
-    } else {
-      // Regular video handling
-      return (
-        <div className="relative w-full h-full rounded-md overflow-hidden bg-black">
-          {thumbnails[videoUrl] && (
-            <img
-              src={thumbnails[videoUrl]}
-              alt="Video thumbnail"
-              className={`absolute inset-0 w-full h-full object-cover ${videoLoading[videoUrl] ? 'opacity-100' : 'opacity-0 transition-opacity duration-700'
-                }`}
-            />
-          )}
-          <video
-            ref={el => {
-              if (el) {
-                videoRefs.current[videoUrl] = el;
-                if (!loadedMetadataListeners.current[videoUrl]) {
-                  const listener = () => {
-                    handleVideoLoad(videoUrl, el);
-                  };
-                  loadedMetadataListeners.current[videoUrl] = listener;
-                  el.addEventListener('loadedmetadata', listener);
-
-                  el.addEventListener('playing', () => {
-                    const thumbnailImg = document.querySelector(`img[src="${thumbnails[videoUrl]}"]`);
-                    if (thumbnailImg) {
-                      (thumbnailImg as HTMLElement).style.opacity = '0';
-                    }
-                  });
-                }
-              }
-            }}
-            src={videoUrl}
-            className="absolute inset-0 w-full h-full object-cover"
-            playsInline
-            muted
-            loop
-            preload="auto"
-            onError={() => handleVideoError(videoUrl)}
+    return (
+      <div className="relative w-full h-full rounded-md overflow-hidden bg-black">
+        {thumbnails[videoUrl] && (
+          <img
+            src={thumbnails[videoUrl]}
+            alt="Video thumbnail"
+            className={`absolute inset-0 w-full h-full object-cover ${videoLoading[videoUrl] ? 'opacity-100' : 'opacity-0 transition-opacity duration-700'}`}
           />
-          {videoLoading[videoUrl] && !videoError[videoUrl] && (
-            <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-              <LoadingSpinner />
+        )}
+        <video
+          ref={el => {
+            if (el) {
+              videoRefs.current[videoUrl] = el;
+              if (!loadedMetadataListeners.current[videoUrl]) {
+                const listener = () => {
+                  handleVideoLoad(videoUrl, el);
+                };
+                loadedMetadataListeners.current[videoUrl] = listener;
+                el.addEventListener('loadedmetadata', listener);
+
+                el.addEventListener('playing', () => {
+                  const thumbnailImg = document.querySelector(`img[src="${thumbnails[videoUrl]}"]`);
+                  if (thumbnailImg) {
+                    (thumbnailImg as HTMLElement).style.opacity = '0';
+                  }
+                });
+              }
+            }
+          }}
+          src={videoUrl}
+          className="absolute inset-0 w-full h-full object-cover"
+          playsInline
+          muted
+          loop
+          preload="auto"
+          onError={() => handleVideoError(videoUrl)}
+        />
+        {videoLoading[videoUrl] && !videoError[videoUrl] && (
+          <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+            <LoadingSpinner />
+          </div>
+        )}
+        {videoError[videoUrl] && (
+          <div className="absolute inset-0 bg-black bg-opacity-70 flex items-center justify-center">
+            <div className="text-center text-white">
+              <p className="text-sm">Video failed to load</p>
+              <button
+                className="mt-2 px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600"
+                onClick={() => {
+                  setVideoError(prev => ({ ...prev, [videoUrl]: false }));
+                  setVideoLoading(prev => ({ ...prev, [videoUrl]: true }));
+                  const videoEl = videoRefs.current[videoUrl];
+                  if (videoEl) {
+                    videoEl.load();
+                  }
+                }}
+              >
+                Retry
+              </button>
             </div>
-          )}
-          {videoError[videoUrl] && (
-            <div className="absolute inset-0 bg-black bg-opacity-70 flex items-center justify-center">
-              <div className="text-center text-white">
-                <p className="text-sm">Video failed to load</p>
-                <button
-                  className="mt-2 px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600"
-                  onClick={() => {
-                    setVideoError(prev => ({ ...prev, [videoUrl]: false }));
-                    setVideoLoading(prev => ({ ...prev, [videoUrl]: true }));
-                    const videoEl = videoRefs.current[videoUrl];
-                    if (videoEl) {
-                      videoEl.load();
-                    }
-                  }}
-                >
-                  Retry
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      );
-    }
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
