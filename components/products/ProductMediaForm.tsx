@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Image from 'next/image';
 import { UseFormReturn } from 'react-hook-form';
 import { uploadImage } from '@/app/actions/upload-image';
+import { deleteStorageImage } from '@/app/actions/deleteStorageImage';
 import { ImageSelector } from '@/components/ImageSelector';
 import {
   FormField,
@@ -30,6 +31,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { ProductFormValues, ImageUploadResponse } from './ProductFormSchema';
+import { X } from 'lucide-react';
 
 const DEFAULT_PRODUCT_IMAGE = '/placeholder-product.jpg';
 
@@ -47,6 +49,33 @@ export function ProductMediaForm({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>('');
   const { toast } = useToast();
+
+  const handleDeleteImage = async (imageUrl: string) => {
+    try {
+      const result = await deleteStorageImage(imageUrl);
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to delete image');
+      }
+
+      // Also clear the form value if it's the current image
+      if (form.getValues('imageUrl') === imageUrl) {
+        form.setValue('imageUrl', '');
+      }
+
+      toast({
+        title: 'Success',
+        description: 'Image deleted successfully',
+      });
+    } catch (error) {
+      console.error('Failed to delete image:', error);
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to delete image',
+        variant: 'destructive',
+      });
+    }
+  };
 
   const handleImageUpload = async (
     event: React.ChangeEvent<HTMLInputElement>,
@@ -173,11 +202,9 @@ export function ProductMediaForm({
                     />
                   </div>
 
-                  {/* Image Selector Grid */}
+                  {/* Image Selector */}
                   <div className="space-y-2">
-                    <FormLabel className="text-sm">
-                      Select from library
-                    </FormLabel>
+                    <FormLabel className="text-sm">Select from library</FormLabel>
                     <ImageSelector
                       value={field.value}
                       onChange={url => {
@@ -187,6 +214,7 @@ export function ProductMediaForm({
                         }
                         field.onChange(url);
                       }}
+                      onDelete={handleDeleteImage}
                     />
                   </div>
                 </div>

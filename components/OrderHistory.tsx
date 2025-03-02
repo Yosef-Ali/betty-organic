@@ -79,62 +79,61 @@ export function OrderHistory({ userId }: OrderHistoryProps) {
 
   return (
     <div className="space-y-2 sm:space-y-4">
-  {orders.map(order => (
-    <div
-    key={order.id}
-    className="flex flex-col gap-4 p-4 border rounded-lg hover:bg-muted/50 transition-colors sm:flex-row sm:items-center sm:gap-6 sm:p-6"
-  >
-    {/* Order Info */}
-    <div className="flex items-start gap-4 sm:w-[200px]">
-      <div className="flex items-center justify-center w-10 h-10 rounded-md shrink-0 bg-muted">
-        <Package className="w-5 h-5 text-muted-foreground" />
-      </div>
-      <div className="space-y-1">
-        <p className="font-medium text-sm sm:text-base">#{order.id.slice(0, 8)}</p>
-        <time className="text-xs text-muted-foreground sm:text-sm">
-          {order.created_at && new Date(order.created_at).toLocaleDateString()}
-        </time>
-      </div>
-    </div>
-
-    {/* Items List */}
-    <div className="flex-1 min-w-0">
-      <div className="space-y-2">
-        {order.order_items.map((item, index) => (
-          <div key={index} className="flex items-center justify-between gap-2 text-sm">
-            <span className="truncate">{item.products.name}</span>
-            <div className="flex items-center gap-2 whitespace-nowrap">
-              <span>{item.quantity} × ${item.price.toFixed(2)}</span>
-              <span className="hidden text-muted-foreground sm:inline">
-                (${(item.quantity * item.price).toFixed(2)})
-              </span>
+      {orders.map(order => (
+        <div
+          key={order.id}
+          className="flex flex-col gap-4 p-4 border rounded-lg hover:bg-muted/50 transition-colors sm:flex-row sm:items-center sm:gap-6 sm:p-6"
+        >
+          {/* Order Info */}
+          <div className="flex items-start gap-4 sm:w-[200px]">
+            <div className="flex items-center justify-center w-10 h-10 rounded-md shrink-0 bg-muted">
+              <Package className="w-5 h-5 text-muted-foreground" />
+            </div>
+            <div className="space-y-1">
+              <p className="font-medium text-sm sm:text-base">#{order.id.slice(0, 8)}</p>
+              <time className="text-xs text-muted-foreground sm:text-sm">
+                {order.created_at && new Date(order.created_at).toLocaleDateString()}
+              </time>
             </div>
           </div>
-        ))}
-      </div>
-    </div>
 
-    {/* Status & Total */}
-    <div className="flex items-center justify-between gap-4 pt-4 mt-4 border-t sm:flex-col sm:items-end sm:w-[180px] sm:border-0 sm:pt-0 sm:mt-0">
-      <div className="flex items-center gap-2">
-        <div className={`w-2 h-2 rounded-full ${
-          order.status === 'completed' ? 'bg-green-500' :
-          order.status === 'pending' ? 'bg-yellow-500' : 'bg-red-500'
-        }`} />
-        <span className="text-sm capitalize">{order.status}</span>
-      </div>
-      <div className="flex items-center gap-2">
-        <p className="font-medium text-sm sm:text-base">
-          ${order.total_amount.toFixed(2)}
-        </p>
-        {/* <Button variant="ghost" size="sm" className="hidden sm:inline-flex">
+          {/* Items List */}
+          <div className="flex-1 min-w-0">
+            <div className="space-y-2">
+              {order.order_items.map((item, index) => (
+                <div key={index} className="flex items-center justify-between gap-2 text-sm">
+                  <span className="truncate">{item.products.name}</span>
+                  <div className="flex items-center gap-2 whitespace-nowrap">
+                    <span>{item.quantity} × Br {item.price.toFixed(2)}</span>
+                    <span className="hidden text-muted-foreground sm:inline">
+                      (Br {(item.quantity * item.price).toFixed(2)})
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Status & Total */}
+          <div className="flex items-center justify-between gap-4 pt-4 mt-4 border-t sm:flex-col sm:items-end sm:w-[180px] sm:border-0 sm:pt-0 sm:mt-0">
+            <div className="flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full ${order.status === 'completed' ? 'bg-green-500' :
+                  order.status === 'pending' ? 'bg-yellow-500' : 'bg-red-500'
+                }`} />
+              <span className="text-sm capitalize">{order.status}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <p className="font-medium text-sm sm:text-base">
+                Br {order.total_amount.toFixed(2)}
+              </p>
+              {/* <Button variant="ghost" size="sm" className="hidden sm:inline-flex">
           <ChevronRight className="w-4 h-4" />
           <span className="sr-only">View order details</span>
         </Button> */}
-      </div>
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
-  </div>
-  ))}
-</div>
   );
 }

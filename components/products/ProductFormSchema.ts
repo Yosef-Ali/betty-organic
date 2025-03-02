@@ -26,3 +26,9 @@ export const productFormSchema = z.object({
 })
 
 export type ProductFormValues = z.infer<typeof productFormSchema>
+
+export interface ImageUploadResponse {
+  success: boolean;
+  imageUrl?: string;
+  error?: string;
+}
