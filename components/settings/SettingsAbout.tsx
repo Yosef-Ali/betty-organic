@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -38,11 +38,7 @@ export function SettingsAbout() {
     });
   };
 
-  useEffect(() => {
-    loadAboutContent();
-  }, [loadAboutContent]);
-
-  const loadAboutContent = async () => {
+  const loadAboutContent = useCallback(async () => {
     try {
       const content = await getAbout();
 
@@ -81,7 +77,11 @@ export function SettingsAbout() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    loadAboutContent();
+  }, [loadAboutContent]);
 
   // Update the handleImageUpload function to check the total media count
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {

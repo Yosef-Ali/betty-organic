@@ -14,6 +14,18 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default async function SettingsPage() {
+  const authData = await getCurrentUser();
+
+  if (!authData) {
+    redirect('/auth/login');
+  }
+
+  const { isAdmin, profile } = authData;
+
+  if (!isAdmin) {
+    redirect('/dashboard');
+  }
+
   return (
     <div className="flex flex-col min-h-[calc(100vh-64px)]">
       <div className="flex-1 space-y-4 md:p-8 pt-6">
