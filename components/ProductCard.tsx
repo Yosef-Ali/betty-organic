@@ -12,6 +12,7 @@ interface ProductCardProps {
 export const ProductCard: FC<ProductCardProps> = ({ product, onClick }) => {
   const [hasError, setHasError] = useState(false);
   const fallbackImage = '/placeholder-product.svg';
+  const imageUrl = hasError || !product.imageUrl ? fallbackImage : product.imageUrl;
 
   return (
     <div
@@ -20,20 +21,12 @@ export const ProductCard: FC<ProductCardProps> = ({ product, onClick }) => {
     >
       <div className="relative aspect-square w-full">
         <Image
-          src={hasError ? fallbackImage : product.imageUrl || fallbackImage}
+          src={imageUrl}
           alt={product.name}
           width={200}
           height={200}
           className="object-cover w-full h-full transition-all group-hover:scale-105"
-          onError={() => {
-            if (!hasError) {
-              setHasError(true);
-              console.error(
-                `Failed to load image for product ${product.name}:`,
-                product.imageUrl,
-              );
-            }
-          }}
+          onError={() => setHasError(true)}
           priority={false}
           loading="lazy"
         />
@@ -46,9 +39,8 @@ export const ProductCard: FC<ProductCardProps> = ({ product, onClick }) => {
             <span className="text-xs font-normal">per kg</span>
           </p>
           <p
-            className={`text-xs mt-1 ${
-              product.status === 'Available' ? 'text-green-300' : 'text-red-300'
-            }`}
+            className={`text-xs mt-1 ${product.status === 'Available' ? 'text-green-300' : 'text-red-300'
+              }`}
           >
             {product.status}
           </p>
