@@ -164,11 +164,11 @@ export default function Footer() {
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <Phone className="w-5 h-5" />
-                  <span>+251 91 234 5678</span>
+                  <span>+251 94 738 5590</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Mail className="w-5 h-5" />
-                  <span>info@bettysorganic.com</span>
+                  <span>bettysorganic@gmail.com</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <MapPin className="w-5 h-5" />
