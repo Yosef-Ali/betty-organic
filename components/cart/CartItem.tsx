@@ -10,12 +10,12 @@ import type { CartItem as CartItemType } from '@/types/cart';
 interface CartItemProps {
   item: CartItemType;
   index: number;
-  updateGrams: (id: string, grams: number) => void;
+  updateItemQuantity: (id: string, grams: number) => void;
   removeFromCart: (id: string) => void;
   isLastItem: boolean;
 }
 
-export const CartItem: FC<CartItemProps> = ({ item, index, updateGrams, removeFromCart, isLastItem }) => {
+export const CartItem: FC<CartItemProps> = ({ item, index, updateItemQuantity, removeFromCart, isLastItem }) => {
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -26,7 +26,7 @@ export const CartItem: FC<CartItemProps> = ({ item, index, updateGrams, removeFr
 
   const handleGramsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newGrams = Number(e.target.value) || 0;
-    updateGrams(item.id, newGrams);
+    updateItemQuantity(item.id, newGrams);
   };
 
   const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
