@@ -33,6 +33,7 @@ export const CartFooter: FC<CartFooterProps> = ({
   const [coupon, setCoupon] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [deliveryCost, setDeliveryCost] = useState(0);
 
   const handleApplyCoupon = () => {
     if (coupon.trim()) {
@@ -58,14 +59,25 @@ export const CartFooter: FC<CartFooterProps> = ({
     }
   };
 
+  const totalAmountWithDelivery = getTotalAmount() + deliveryCost;
+
   return (
     <CardFooter className="flex-col items-stretch gap-6 pt-4">
       <Separator />
       <div className="flex justify-between items-center">
         <span className="font-semibold text-lg">Total:</span>
         <span className="font-bold text-2xl">
-          ${getTotalAmount().toFixed(2)}
+          ${totalAmountWithDelivery.toFixed(2)}
         </span>
+      </div>
+      <div className="flex items-center space-x-2">
+        <Input
+          type="number"
+          placeholder="Delivery Cost (Birr)"
+          value={deliveryCost}
+          onChange={(e) => setDeliveryCost(parseFloat(e.target.value) || 0)}
+          className="w-full"
+        />
       </div>
       <AnimatePresence mode="wait">
         {!isOrderConfirmed && (
