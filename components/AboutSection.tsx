@@ -15,12 +15,19 @@ export function AboutSection() {
   const [videoError, setVideoError] = useState<Record<string, boolean>>({});
   const [videoLoading, setVideoLoading] = useState<Record<string, boolean>>({});
   const [imageError, setImageError] = useState<Record<string, boolean>>({});
+  const [imageRetryCount, setImageRetryCount] = useState<Record<string, number>>({});
   const [thumbnails, setThumbnails] = useState<Record<string, string>>({});
+
+  // Constants
+  const MAX_IMAGE_RETRIES = 2;
+  const IMAGE_RETRY_DELAY = 2000; // 2 seconds
+  const IMAGE_TIMEOUT = 8000; // 8 seconds timeout for images
 
   // Refs
   const bettyVideo = useRef("https://xmumlfgzvrliepxcjqil.supabase.co/storage/v1/object/public/about_images//bettys.mp4");
   const videoRefs = useRef<Record<string, HTMLVideoElement>>({});
   const loadedMetadataListeners = useRef<Record<string, () => void>>({});
+  const imageTimeouts = useRef<Record<string, NodeJS.Timeout>>({});
 
   // Callback functions
   const setInitialVideoPosition = useCallback((videoElement: HTMLVideoElement) => {
@@ -31,8 +38,6 @@ export function AboutSection() {
   }, []);
 
   const generateThumbnail = useCallback((videoUrl: string, videoElement: HTMLVideoElement) => {
-    console.log(`Attempting thumbnail generation for ${videoUrl}`);
-
     // Use a simpler approach that's less likely to fail
     const generateSimpleThumbnail = () => {
       try {
@@ -41,12 +46,8 @@ export function AboutSection() {
           ...prev,
           [videoUrl]: "/images/video-thumbnail.jpg" // Make sure this file exists in your public folder
         }));
-
-        // Skip the complex canvas drawing which is causing errors
-        console.log(`Using fallback thumbnail for ${videoUrl}`);
         return true;
       } catch (error) {
-        console.error("Error generating fallback thumbnail:", error);
         return false;
       }
     };
@@ -68,7 +69,6 @@ export function AboutSection() {
             const ctx = canvas.getContext('2d');
 
             if (!ctx || videoElement.videoWidth <= 0) {
-              console.log("Invalid context or video dimensions, using fallback");
               return;
             }
 
@@ -88,36 +88,45 @@ export function AboutSection() {
                 ...prev,
                 [videoUrl]: thumbnailUrl
               }));
-              console.log(`Generated actual thumbnail for ${videoUrl}`);
             } catch (e) {
-              console.warn("Failed to draw video to canvas:", e);
               // Fallback thumbnail already set, so no action needed
             }
           } catch (e) {
-            console.warn("Error in thumbnail generation timeout:", e);
+            // Silent fail - fallback already in place
           }
         }, 500);
       } catch (e) {
-        console.warn("Error setting video currentTime:", e);
+        // Silent fail - fallback already in place
       }
     }
   }, []);
 
   const handleVideoError = useCallback((videoUrl: string) => {
-    console.error(`Failed to load video: ${videoUrl}`);
     // Clear existing iframe
     const iframe = document.querySelector(`iframe[src*="${videoUrl}"]`);
     if (iframe) {
       iframe.removeAttribute('src');
     }
+
+    // Set error state
     setVideoError(prev => ({ ...prev, [videoUrl]: true }));
     setVideoLoading(prev => ({ ...prev, [videoUrl]: false }));
 
-    // Delay retry to prevent loop
-    setTimeout(() => {
+    // Only schedule a retry if we're not already in an error state
+    // which helps prevent infinite retry loops
+    const retryTimeoutId = setTimeout(() => {
       setVideoError(prev => ({ ...prev, [videoUrl]: false }));
       setVideoLoading(prev => ({ ...prev, [videoUrl]: true }));
-    }, 2000);
+
+      // Try to reload the video if we have a reference to it
+      const videoEl = videoRefs.current[videoUrl];
+      if (videoEl) {
+        videoEl.load();
+      }
+    }, 3000); // Increased delay to prevent rapid retries
+
+    // Store timeout ID in a ref for cleanup
+    return retryTimeoutId;
   }, []);
 
   const handleVideoLoad = useCallback((videoUrl: string, videoElement: HTMLVideoElement) => {
@@ -127,13 +136,9 @@ export function AboutSection() {
 
     // Give a small delay before trying to play to allow thumbnail to be displayed
     setTimeout(() => {
-      videoElement.play()
-        .then(() => {
-          console.log(`Video started playing: ${videoUrl}`);
-        })
-        .catch(err => {
-          console.warn(`Auto-play prevented for ${videoUrl}:`, err);
-        });
+      videoElement.play().catch(() => {
+        // If autoplay fails, handle it silently - the thumbnail will show instead
+      });
     }, 300);
     setVideoLoading(prev => ({ ...prev, [videoUrl]: false }));
   }, [generateThumbnail, setInitialVideoPosition]);
@@ -155,9 +160,97 @@ export function AboutSection() {
   }, []);
 
   const handleImageError = useCallback((imageUrl: string) => {
-    console.error(`Failed to load image: ${imageUrl}`);
-    setImageError(prev => ({ ...prev, [imageUrl]: true }));
-  }, []);
+    // Clear any existing timeout for this image
+    if (imageTimeouts.current[imageUrl]) {
+      clearTimeout(imageTimeouts.current[imageUrl]);
+      delete imageTimeouts.current[imageUrl];
+    }
+
+    // Get current retry count or default to 0
+    const currentRetries = imageRetryCount[imageUrl] || 0;
+
+    if (currentRetries < MAX_IMAGE_RETRIES) {
+      // Increment retry count - do this first before setting other state
+      const newRetryCount = currentRetries + 1;
+
+      // Update retry count in a stable way
+      setImageRetryCount(prev => ({
+        ...prev,
+        [imageUrl]: newRetryCount
+      }));
+
+      // Show temporary error state
+      setImageError(prev => ({
+        ...prev,
+        [imageUrl]: true
+      }));
+
+      // Retry after delay with exponential backoff
+      const retryDelay = IMAGE_RETRY_DELAY * Math.pow(1.5, currentRetries);
+
+      // Store the timeout ID so we can clear it if needed
+      const timeoutId = setTimeout(() => {
+        // Reset error state to trigger re-render with new image attempt
+        setImageError(prev => ({
+          ...prev,
+          [imageUrl]: false
+        }));
+      }, retryDelay);
+
+      // Store the timeout for cleanup
+      imageTimeouts.current[imageUrl] = timeoutId;
+    } else {
+      // Max retries reached, show permanent error state
+      setImageError(prev => ({
+        ...prev,
+        [imageUrl]: true
+      }));
+    }
+  }, [MAX_IMAGE_RETRIES, IMAGE_RETRY_DELAY, imageRetryCount]);
+
+  // Setup image timeout handler
+  const setupImageTimeout = useCallback((imageUrl: string) => {
+    // Clear any existing timeout
+    if (imageTimeouts.current[imageUrl]) {
+      clearTimeout(imageTimeouts.current[imageUrl]);
+      delete imageTimeouts.current[imageUrl];
+    }
+
+    // Don't setup a timeout if the image is already in error state
+    if (imageError[imageUrl]) {
+      return () => { };
+    }
+
+    // Set new timeout
+    imageTimeouts.current[imageUrl] = setTimeout(() => {
+      // If image is still loading after timeout period, trigger error handler
+      // Check if the component is still mounted and the image hasn't already errored
+      if (!imageError[imageUrl]) {
+        handleImageError(imageUrl);
+      }
+    }, IMAGE_TIMEOUT);
+
+    return () => {
+      if (imageTimeouts.current[imageUrl]) {
+        clearTimeout(imageTimeouts.current[imageUrl]);
+        delete imageTimeouts.current[imageUrl];
+      }
+    };
+  }, [imageError, handleImageError, IMAGE_TIMEOUT]);
+
+  // Image load success handler
+  const handleImageLoad = useCallback((imageUrl: string) => {
+    // Clear timeout and reset error state on successful load
+    if (imageTimeouts.current[imageUrl]) {
+      clearTimeout(imageTimeouts.current[imageUrl]);
+      delete imageTimeouts.current[imageUrl];
+    }
+
+    // Reset error state if it was previously set
+    if (imageError[imageUrl]) {
+      setImageError(prev => ({ ...prev, [imageUrl]: false }));
+    }
+  }, [imageError]);
 
   // Effect hooks - place ALL useEffect hooks here in the same order they were originally defined
   useEffect(() => {
@@ -178,8 +271,6 @@ export function AboutSection() {
             data.videos = [...data.videos, videoUrl];
           }
 
-          console.log("Videos in content:", data.videos);
-
           // Initialize loading state for all videos
           data.videos.forEach((video: string) => {
             setVideoLoading(prev => ({ ...prev, [video]: true }));
@@ -189,11 +280,17 @@ export function AboutSection() {
           if (!data.images) {
             data.images = [];
           }
+
+          // Setup timeouts for all images
+          if (data.images && data.images.length > 0) {
+            data.images.forEach((imgUrl: string) => {
+              setupImageTimeout(imgUrl);
+            });
+          }
         }
 
         setAboutData(data);
       } catch (err) {
-        console.error('Error fetching about data:', err);
         setError(true);
       } finally {
         setLoading(false);
@@ -202,8 +299,17 @@ export function AboutSection() {
 
     fetchAboutData();
 
-    return cleanupVideoResources;
-  }, [cleanupVideoResources]);
+    // Cleanup function
+    return () => {
+      cleanupVideoResources();
+
+      // Clear all image timeouts
+      Object.keys(imageTimeouts.current).forEach(key => {
+        clearTimeout(imageTimeouts.current[key]);
+      });
+      imageTimeouts.current = {};
+    };
+  }, [cleanupVideoResources, setupImageTimeout]);
 
   useEffect(() => {
     // Auto-play videos when they become available and are not loading or errored
@@ -212,20 +318,15 @@ export function AboutSection() {
         if (!videoLoading[videoUrl] && !videoError[videoUrl]) {
           const videoElement = videoRefs.current[videoUrl];
           if (videoElement && videoElement.paused && videoElement.readyState >= 2) {
-            console.log(`Attempting to play video: ${videoUrl}`);
-            videoElement.play()
-              .then(() => console.log(`Successfully playing video: ${videoUrl}`))
-              .catch(err => {
-                console.error(`Error auto-playing video ${videoUrl}:`, err);
-
-                // If autoplay fails, make sure thumbnail stays visible
-                if (thumbnails[videoUrl]) {
-                  const thumbnailImg = document.querySelector(`img[src="${thumbnails[videoUrl]}"]`);
-                  if (thumbnailImg) {
-                    (thumbnailImg as HTMLElement).style.opacity = '1';
-                  }
+            videoElement.play().catch(() => {
+              // If autoplay fails, make sure thumbnail stays visible
+              if (thumbnails[videoUrl]) {
+                const thumbnailImg = document.querySelector(`img[src="${thumbnails[videoUrl]}"]`);
+                if (thumbnailImg) {
+                  (thumbnailImg as HTMLElement).style.opacity = '1';
                 }
-              });
+              }
+            });
           }
         }
       });
@@ -353,6 +454,64 @@ export function AboutSection() {
     );
   };
 
+  // Function to render images with error handling
+  const renderImage = (imageUrl: string, index: number) => {
+    const hasError = imageError[imageUrl];
+    const retryCount = imageRetryCount[imageUrl] || 0;
+    const fallbackImageUrl = `/images/fallback-image-${(index % 3) + 1}.jpg`;
+
+    return (
+      <div className="relative h-64 rounded-lg overflow-hidden" style={{ position: 'relative' }}>
+        {hasError ? (
+          // Show fallback image if we've had an error
+          <>
+            <Image
+              src={fallbackImageUrl}
+              alt={`Fallback image ${index + 1}`}
+              fill
+              sizes="(max-width: 768px) 100vw, 50vw"
+              className="object-cover opacity-90"
+            />
+            <div className="absolute inset-0 bg-black bg-opacity-20 flex items-center justify-center">
+              {retryCount < MAX_IMAGE_RETRIES ? (
+                <div className="text-center text-white p-2 bg-black bg-opacity-50 rounded">
+                  <div className="mb-2"><LoadingSpinner size="sm" /></div>
+                  <p className="text-sm">Retrying image...</p>
+                </div>
+              ) : (
+                <div className="text-center text-white p-2 bg-black bg-opacity-50 rounded">
+                  <p className="text-sm">Image unavailable</p>
+                  <button
+                    className="mt-2 px-3 py-1 bg-white text-black text-xs rounded hover:bg-gray-200"
+                    onClick={() => {
+                      // Reset retry count and error state
+                      setImageRetryCount(prev => ({ ...prev, [imageUrl]: 0 }));
+                      setImageError(prev => ({ ...prev, [imageUrl]: false }));
+                      setupImageTimeout(imageUrl);
+                    }}
+                  >
+                    Try Again
+                  </button>
+                </div>
+              )}
+            </div>
+          </>
+        ) : (
+          <Image
+            src={imageUrl}
+            alt={`About image ${index + 1}`}
+            fill
+            sizes="(max-width: 768px) 100vw, 50vw"
+            className="object-cover"
+            onError={() => handleImageError(imageUrl)}
+            onLoad={() => handleImageLoad(imageUrl)}
+            priority={index === 0} // Prioritize loading the first image
+          />
+        )}
+      </div>
+    );
+  };
+
   return (
     <section className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
       <div className="space-y-6">
@@ -373,16 +532,8 @@ export function AboutSection() {
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        {content.images.length > 0 && !imageError[content.images[0]] && (
-          <div className="relative h-64 rounded-lg overflow-hidden">
-            <Image
-              src={content.images[0]}
-              alt="About image 1"
-              fill
-              className="object-cover"
-              onError={() => handleImageError(content.images[0])}
-            />
-          </div>
+        {content.images.length > 0 && (
+          renderImage(content.images[0], 0)
         )}
 
         {hasVideos && content.videos[0] && (
@@ -397,27 +548,11 @@ export function AboutSection() {
           </div>
         ) : (
           <>
-            {content.images.length > 1 && !imageError[content.images[1]] && (
-              <div className="relative h-64 rounded-lg overflow-hidden">
-                <Image
-                  src={content.images[1]}
-                  alt="About image 2"
-                  fill
-                  className="object-cover"
-                  onError={() => handleImageError(content.images[1])}
-                />
-              </div>
+            {content.images.length > 1 && (
+              renderImage(content.images[1], 1)
             )}
-            {content.images.length > 2 && !imageError[content.images[2]] && (
-              <div className="relative h-64 rounded-lg overflow-hidden">
-                <Image
-                  src={content.images[2]}
-                  alt="About image 3"
-                  fill
-                  className="object-cover"
-                  onError={() => handleImageError(content.images[2])}
-                />
-              </div>
+            {content.images.length > 2 && (
+              renderImage(content.images[2], 2)
             )}
           </>
         )}

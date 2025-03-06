@@ -21,7 +21,7 @@ export function FruitCard({
   id,
   name,
   price,
-  imageUrl,  // Changed from image to imageUrl
+  imageUrl,
   description = '',
   unit = 'piece'
 }: FruitCardProps) {

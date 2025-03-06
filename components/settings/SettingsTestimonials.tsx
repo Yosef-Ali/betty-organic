@@ -1,6 +1,5 @@
 'use client';
-
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import {
   Card,
   CardContent,
@@ -23,22 +22,22 @@ export function SettingsTestimonials() {
     Testimonial | undefined
   >(undefined);
 
-  const handleTabChange = (value: string) => {
+  const handleTabChange = useCallback((value: string) => {
     setActiveTab(value);
     setIsAddingTestimonial(false);
     setEditingTestimonial(undefined);
-  };
+  }, []);
 
-  const handleEdit = (testimonial: Testimonial) => {
+  const handleEdit = useCallback((testimonial: Testimonial) => {
     setEditingTestimonial(testimonial);
     setIsAddingTestimonial(false);
-  };
+  }, []);
 
-  const handleCancel = () => {
+  const handleCancel = useCallback(() => {
     setIsAddingTestimonial(false);
     setEditingTestimonial(undefined);
     setActiveTab('all');
-  };
+  }, []);
 
   const isEditing = Boolean(editingTestimonial);
 
@@ -89,15 +88,15 @@ export function SettingsTestimonials() {
                       {isAddingTestimonial
                         ? 'Add Testimonial'
                         : isEditing
-                        ? 'Edit Testimonial'
-                        : 'Testimonials'}
+                          ? 'Edit Testimonial'
+                          : 'Testimonials'}
                     </CardTitle>
                     <CardDescription>
                       {isAddingTestimonial
                         ? 'Create a new testimonial'
                         : isEditing
-                        ? 'Edit existing testimonial'
-                        : 'Manage customer testimonials that appear on the marketing page.'}
+                          ? 'Edit existing testimonial'
+                          : 'Manage customer testimonials that appear on the marketing page.'}
                     </CardDescription>
                   </div>
                 </div>

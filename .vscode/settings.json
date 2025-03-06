@@ -49,5 +49,8 @@
   "terminal.integrated.shell.osx": "/bin/zsh",
   // Extensions settings
   "extensions.ignoreRecommendations": false,
-  "editor.accessibilityPageSize": 16
+  "editor.accessibilityPageSize": 16,
+  "terminal.integrated.commandsToSkipShell": [
+    ""
+  ]
 }

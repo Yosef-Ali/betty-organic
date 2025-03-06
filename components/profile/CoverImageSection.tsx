@@ -18,13 +18,13 @@ const CoverImageSection: React.FC<CoverImageSectionProps> = ({ coverImageUrl, co
       >
         <input {...coverDropzone.getInputProps()} />
         {coverImageUrl ? (
-          <div className="relative h-32 w-full">
+          <div className="relative h-32 w-full" style={{ position: 'relative' }}>
             <Image
-              src={coverImageUrl || '/placeholder-cover.jpg'} // Add a placeholder image or use null
+              src={coverImageUrl || '/placeholder-cover.jpg'}
               alt="Cover"
-              layout="fill"
-              objectFit="cover"
-              className="rounded-lg"
+              fill
+              sizes="100vw"
+              className="rounded-lg object-cover"
             />
             <Button
               type="button"

@@ -6,6 +6,7 @@
   "private": true,
   "scripts": {
     "seed": "tsx supabase/seed.ts",
+    "db:create-reviews": "tsx scripts/create-google-reviews-table.ts",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",

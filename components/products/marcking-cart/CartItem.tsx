@@ -28,60 +28,51 @@ export function CartItem({ item }: CartItemProps) {
   return (
     <div className="flex items-center justify-between space-x-4 py-4">
       <div className="sm:flex items-center space-x-4">
-        <div className="relative hidden sm:block h-16 w-16 overflow-hidden rounded-md">
+        <div className="relative hidden sm:block h-16 w-16 overflow-hidden rounded-md" style={{ position: 'relative' }}>
           <Image
             src={item.imageUrl}
             alt={item.name}
             fill
-            sizes="(max-width: 64px) 100vw"
+            sizes="64px"
             className="object-cover"
             priority={false}
           />
         </div>
-        <div className="space-y-1">
-          <h4 className="font-medium leading-none">{item.name}</h4>
+        <div>
+          <h3 className="font-medium">{item.name}</h3>
           <p className="text-sm text-muted-foreground">
-            ETB {item.pricePerKg.toFixed(2)}/kg
+            ETB {item.pricePerKg.toFixed(2)} per kg
           </p>
         </div>
       </div>
-      <div className="flex flex-col items-end space-y-2">
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 w-8 p-0"
-            onClick={() => handleQuantityChange(-100)}
-            disabled={item.grams <= 100}
-          >
-            <Minus className="h-3 w-3" />
-            <span className="sr-only">Decrease quantity</span>
-          </Button>
-          <div className="relative w-32">
-            <Input
-              type="text"
-              min="0.1"
-              value={item.grams / 1000}
-              onChange={handleDirectInput}
-              className="text-center"
-            />
-            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-              kg
-            </span>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 w-8 p-0"
-            onClick={() => handleQuantityChange(100)}
-          >
-            <Plus className="h-3 w-3" />
-            <span className="sr-only">Increase quantity</span>
-          </Button>
-        </div>
-        <span className="font-medium">
-          ETB {(item.pricePerKg * (item.grams / 1000)).toFixed(2)}
-        </span>
+      <div className="flex items-center space-x-3">
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-8 w-8"
+          onClick={() => handleQuantityChange(-100)}
+          disabled={item.grams <= 100}
+        >
+          <Minus className="h-4 w-4" />
+          <span className="sr-only">Decrease quantity</span>
+        </Button>
+        <Input
+          type="number"
+          min="0.1"
+          step="0.1"
+          value={(item.grams / 1000).toFixed(1)}
+          onChange={handleDirectInput}
+          className="w-16 text-center"
+        />
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-8 w-8"
+          onClick={() => handleQuantityChange(100)}
+        >
+          <Plus className="h-4 w-4" />
+          <span className="sr-only">Increase quantity</span>
+        </Button>
       </div>
     </div>
   );

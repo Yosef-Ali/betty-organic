@@ -133,6 +133,7 @@ export function HeroImage() {
               alt="Fresh fruits"
               fill
               className="object-cover object-center scale-110"
+              sizes="(max-width: 768px) 90vw, 45vw"
               priority
             />
           </div>
@@ -152,13 +153,16 @@ export function HeroImage() {
             }}
             transition={fruit.transition}
           >
-            <Image
-              src={fruit.src}
-              alt={fruit.alt}
-              width={200}
-              height={200}
-              className="w-full h-full object-contain drop-shadow-xl"
-            />
+            <div className="relative w-full h-full">
+              <Image
+                src={fruit.src}
+                alt={fruit.alt}
+                width={200}
+                height={200}
+                className="w-full h-full object-contain drop-shadow-xl"
+                sizes="(max-width: 768px) 100px, 200px"
+              />
+            </div>
           </motion.div>
         ))}
       </motion.div>

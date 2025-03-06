@@ -19,12 +19,12 @@ export const ProductCard: FC<ProductCardProps> = ({ product, onClick }) => {
       className="w-full overflow-hidden cursor-pointer border border-gray-200 rounded-lg shadow-md hover:shadow-lg transition-all group"
       onClick={onClick}
     >
-      <div className="relative aspect-square w-full">
+      <div className="relative aspect-square w-full" style={{ position: 'relative' }}>
         <Image
           src={imageUrl}
           alt={product.name}
-          width={200}
-          height={200}
+          fill
+          sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
           className="object-cover w-full h-full transition-all group-hover:scale-105"
           onError={() => setHasError(true)}
           priority={false}
@@ -39,8 +39,7 @@ export const ProductCard: FC<ProductCardProps> = ({ product, onClick }) => {
             <span className="text-xs font-normal">per kg</span>
           </p>
           <p
-            className={`text-xs mt-1 ${product.status === 'Available' ? 'text-green-300' : 'text-red-300'
-              }`}
+            className={`text-xs mt-1 ${product.status === 'Available' ? 'text-green-300' : 'text-red-300'}`}
           >
             {product.status}
           </p>

@@ -34,11 +34,8 @@ export function SettingsKnowledgeBase() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
-  useEffect(() => {
-    fetchEntries();
-  }, [fetchEntries]);
-
-  async function fetchEntries() {
+  // Properly memoize the fetchEntries function to prevent infinite loops
+  const fetchEntries = useCallback(async () => {
     setLoading(true);
     try {
       const fetchedEntries = await getKnowledgeBaseEntries();
@@ -53,7 +50,12 @@ export function SettingsKnowledgeBase() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [toast]); // Include only toast in the dependency array
+
+  // Now useEffect won't re-run unless toast changes
+  useEffect(() => {
+    fetchEntries();
+  }, [fetchEntries]);
 
   const handleAddEntry = async () => {
     if (!newEntry.question.trim() || !newEntry.response.trim()) {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Testimonial } from '@/lib/types/supabase';
 import { getTestimonials } from '@/app/actions/testimonialActions';
 import { useToast } from '@/hooks/use-toast';
@@ -18,26 +18,57 @@ export function useTestimonials({
   const [searchTerm, setSearchTerm] = useState('');
   const { toast } = useToast();
 
+  // Use refs to prevent repeated API calls
+  const fetchedRef = useRef(false);
+  const isMountedRef = useRef(true);
+  const fetchingRef = useRef(false);
+
   useEffect(() => {
-    if (!initialTestimonials.length) {
-      const fetchTestimonials = async () => {
-        try {
-          const fetchedTestimonials = await getTestimonials();
-          setTestimonials(fetchedTestimonials);
-        } catch (error) {
+    // Set up cleanup function
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (initialTestimonials.length > 0) {
+      setTestimonials(initialTestimonials);
+      setIsLoading(false);
+      fetchedRef.current = true;
+      return;
+    }
+
+    if (fetchedRef.current || fetchingRef.current) return;
+
+    const fetchTestimonialsData = async () => {
+      if (fetchingRef.current) return;
+      fetchingRef.current = true;
+
+      try {
+        setIsLoading(true);
+        const data = await getTestimonials();
+        if (isMountedRef.current) {
+          setTestimonials(data);
+          fetchedRef.current = true;
+        }
+      } catch (error) {
+        if (isMountedRef.current) {
           toast({
             title: 'Error',
             description: 'Failed to fetch testimonials',
             variant: 'destructive',
           });
-        } finally {
-          setIsLoading(false);
         }
-      };
+      } finally {
+        if (isMountedRef.current) {
+          setIsLoading(false);
+          fetchingRef.current = false;
+        }
+      }
+    };
 
-      fetchTestimonials();
-    }
-  }, [initialTestimonials.length, toast]);
+    fetchTestimonialsData();
+  }, []); // Empty dependency array to run only once
 
   const filteredTestimonials = useMemo(() => {
     // First filter by status
@@ -52,7 +83,7 @@ export function useTestimonials({
     if (searchTerm) {
       const lowerSearchTerm = searchTerm.toLowerCase();
       filtered = filtered.filter(testimonial =>
-        [testimonial.author_name, testimonial.role, testimonial.content].some(
+        [testimonial.author, testimonial.role, testimonial.content].some(
           field => field?.toLowerCase().includes(lowerSearchTerm),
         ),
       );

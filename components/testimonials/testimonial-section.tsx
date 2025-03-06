@@ -56,10 +56,9 @@ export function TestimonialSection({ testimonials }: TestimonialSectionProps) {
           transition={{ duration: 0.5 }}
           className="mb-8 md:mb-12 lg:mb-16 text-center"
         >
-          <h2 className="mb-4 text-4xl font-bold">What Our Customers Say</h2>
+          <h2 className="mb-4 text-4xl font-bold">Customer Reviews</h2>
           <p className="mx-auto max-w-2xl text-lg text-gray-700">
-            Don&apos;t just take our word for it - hear from our satisfied
-            customers about their experience with FruitMart.
+            See what our customers have to say about their experiences
           </p>
         </motion.div>
 
@@ -94,23 +93,17 @@ export function TestimonialSection({ testimonials }: TestimonialSectionProps) {
                           )}
                         </div>
                         <div>
-                          <h3 className="font-semibold">
-                            {testimonial.author}
-                          </h3>
-                          <p className="text-sm text-gray-600">
-                            {testimonial.role}
-                          </p>
+                          <h3 className="font-semibold">{testimonial.author}</h3>
+                          <p className="text-sm text-gray-600">{testimonial.role}</p>
                         </div>
                       </div>
                       <div className="flex gap-0.5">
-                        {Array.from({ length: testimonial.rating ?? 0 }).map(
-                          (_, i) => (
-                            <Star
-                              key={i}
-                              className="h-4 w-4 fill-yellow-400 text-yellow-400"
-                            />
-                          ),
-                        )}
+                        {Array.from({ length: testimonial.rating ?? 0 }).map((_, i) => (
+                          <Star
+                            key={i}
+                            className="h-4 w-4 fill-yellow-400 text-yellow-400"
+                          />
+                        ))}
                       </div>
                       <p className="text-gray-700">{testimonial.content}</p>
                     </CardContent>
@@ -128,9 +121,7 @@ export function TestimonialSection({ testimonials }: TestimonialSectionProps) {
               <button
                 key={index}
                 onClick={() => scrollTo(index)}
-                className={`h-3 w-3 rounded-full transition-all duration-300 ${current === index + 1
-                  ? 'bg-[#e6b000] w-6'
-                  : 'bg-[#ffd966] hover:bg-[#e6b000]'
+                className={`h-3 w-3 rounded-full transition-all duration-300 ${current === index + 1 ? 'bg-[#e6b000] w-6' : 'bg-[#ffd966] hover:bg-[#e6b000]'
                   }`}
                 aria-label={`Go to slide ${index + 1}`}
               />

@@ -1,5 +1,6 @@
 "use client";
 
+import React from 'react';
 import { motion } from "framer-motion";
 import { Truck, Clock, Shield } from "lucide-react";
 import Image from "next/image";
@@ -33,7 +34,6 @@ export function DeliveryServices() {
             <circle cx="0" cy="0" r="400" fill="none" stroke="#FF8C00" strokeWidth="25" strokeDasharray="60 30" />
             <circle cx="0" cy="0" r="300" fill="none" stroke="#FF8C00" strokeWidth="20" strokeDasharray="50 25" />
           </svg>
-
         </div>
       </div>
 
@@ -59,12 +59,14 @@ export function DeliveryServices() {
             whileInView={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5 }}
             viewport={{ once: true }}
+            style={{ position: 'relative' }}
           >
             <Image
               src="/delivery-boy.jpg"
               alt="Young delivery boy on motorbike"
               fill
               className="object-cover object-center"
+              sizes="(max-width: 1024px) 100vw, 50vw"
               priority
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
