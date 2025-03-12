@@ -43,11 +43,11 @@ function EmptyState({
       <p className="text-sm text-gray-500 text-center max-w-md mb-4">
         {searchQuery && selectedCategory !== 'All' ? (
           <>
-            We couldn't find any products matching "{searchQuery}" in the {selectedCategory.replace(/_/g, ' ')} category.
+            We couldn&apos;t find any products matching &quot;{searchQuery}&quot; in the {selectedCategory.replace(/_/g, ' ')} category.
           </>
         ) : searchQuery ? (
           <>
-            We couldn't find any products matching "{searchQuery}".
+            We couldn&apos;t find any products matching &quot;{searchQuery}&quot;.
           </>
         ) : selectedCategory !== 'All' ? (
           <>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { PlusCircle, ListFilter, File } from 'lucide-react';
 import { getProducts, deleteProduct } from '@/app/actions/productActions';
@@ -41,11 +41,7 @@ const ProductTable = () => {
   const { toast } = useToast();
   const router = useRouter();
 
-  useEffect(() => {
-    loadProducts();
-  }, []);
-
-  const loadProducts = async () => {
+  const loadProducts = useCallback(async () => {
     try {
       const data = await getProducts();
       // Transform the data to match the Product interface
@@ -71,7 +67,11 @@ const ProductTable = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    loadProducts();
+  }, [loadProducts]);
 
   const handleDelete = async (id: string) => {
     try {

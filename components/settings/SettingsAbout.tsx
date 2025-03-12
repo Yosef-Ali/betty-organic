@@ -396,11 +396,12 @@ export function SettingsAbout() {
               {/* Images */}
               {aboutContent?.images.map((image, index) => (
                 <div key={`image-${index}`} className="relative group">
-                  <div className="aspect-video w-full">
-                    <img
+                  <div className="aspect-video w-full relative">
+                    <Image
                       src={image}
                       alt={`About image ${index + 1}`}
-                      className="object-cover w-full h-full rounded-md"
+                      fill
+                      className="object-cover rounded-md"
                     />
                   </div>
                   <Button

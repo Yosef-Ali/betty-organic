@@ -391,10 +391,11 @@ export function AboutSection() {
     return (
       <div className="relative w-full h-full rounded-md overflow-hidden bg-black">
         {thumbnails[videoUrl] && (
-          <img
+          <Image
             src={thumbnails[videoUrl]}
             alt="Video thumbnail"
-            className={`absolute inset-0 w-full h-full object-cover ${videoLoading[videoUrl] ? 'opacity-100' : 'opacity-0 transition-opacity duration-700'}`}
+            fill
+            className={`object-cover ${videoLoading[videoUrl] ? 'opacity-100' : 'opacity-0 transition-opacity duration-700'}`}
           />
         )}
         <video

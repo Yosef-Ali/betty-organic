@@ -106,7 +106,7 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
       console.error('Error updating customer:', error);
       toast.error('Failed to update customer information');
     }
-  }, [setCustomer]);
+  }, [customer, setCustomer, toast]);
 
   const handleToggleLockStatus = useCallback(() => {
     if (profile?.role === 'admin' && !isPending) {
@@ -114,7 +114,7 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
       const newStatus = orderStatus === 'processing' ? 'pending' : 'processing';
       setOrderStatus(newStatus);
     }
-  }, [profile?.role, setOrderStatus]);
+  }, [profile?.role, setOrderStatus, isPending, orderStatus]);
 
   useEffect(() => {
     if (isPending) {

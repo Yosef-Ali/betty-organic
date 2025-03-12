@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Table,
@@ -139,6 +139,27 @@ export function OrderDetails() {
   const router = useRouter();
   const { toast } = useToast();
 
+  const fetchOrders = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const response = await getOrders();
+      if (!response) {
+        throw new Error('Failed to fetch orders');
+      }
+      setOrders(response);
+      setFilteredOrders(response);
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch orders. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [toast]);
+
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
@@ -152,33 +173,6 @@ export function OrderDetails() {
     );
     setFilteredOrders(filtered);
   }, [searchTerm, orders]);
-
-  async function fetchOrders() {
-    setIsLoading(true);
-    try {
-      const response = await getOrders();
-
-      if (!Array.isArray(response)) {
-        throw new Error('Invalid orders response');
-      }
-
-      const sortedOrders = response.sort(
-        (a, b) =>
-          new Date(b.created_at ?? 0).getTime() -
-          new Date(a.created_at ?? 0).getTime(),
-      );
-
-      setOrders(sortedOrders);
-      setFilteredOrders(sortedOrders);
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to fetch orders',
-        variant: 'destructive',
-      });
-    }
-    setIsLoading(false);
-  }
 
   const handleDelete = async (id: string) => {
     try {
