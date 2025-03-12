@@ -23,6 +23,16 @@ export const productFormSchema = z.object({
     }),
   imageUrl: z.string().optional(),
   status: z.enum(['active', 'out_of_stock']).default('active'),
+  category: z.enum([
+    'All',
+    'Spices_Oil_Tuna',
+    'Flowers',
+    'Vegetables',
+    'Fruits',
+    'Herbs_Lettuce',
+    'Dry_Stocks_Bakery',
+    'Eggs_Dairy_products'
+  ]).default('All'),
 })
 
 export type ProductFormValues = z.infer<typeof productFormSchema>

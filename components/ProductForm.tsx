@@ -49,6 +49,7 @@ export function ProductForm({
       stock: 0,
       imageUrl: '',
       status: 'active',
+      category: 'All',
     },
   });
 

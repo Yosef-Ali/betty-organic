@@ -12,6 +12,24 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { UseFormReturn } from "react-hook-form"
 import { ProductFormValues } from "./ProductFormSchema"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+
+const PRODUCT_CATEGORIES = [
+  "All",
+  "Spices_Oil_Tuna",
+  "Flowers",
+  "Vegetables",
+  "Fruits",
+  "Herbs_Lettuce",
+  "Dry_Stocks_Bakery",
+  "Eggs_Dairy_products"
+] as const;
 
 interface ProductDetailsFormProps {
   form: UseFormReturn<ProductFormValues>
@@ -51,6 +69,30 @@ export function ProductDetailsForm({ form }: ProductDetailsFormProps) {
                   {...field}
                 />
               </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="category"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Category</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a category" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {PRODUCT_CATEGORIES.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category.replace(/_/g, ' ')}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <FormMessage />
             </FormItem>
           )}
