@@ -7,11 +7,19 @@ import {
 } from "@/components/ui/popover"
 import { Button } from "@/components/ui/button"
 import { Share2 } from "lucide-react"
+import { formatOrderId } from "@/lib/utils"
 
-export function SharePopup() {
+interface SharePopupProps {
+  orderId?: string;
+}
+
+export function SharePopup({ orderId }: SharePopupProps) {
   const handleShare = (platform: string) => {
     const url = window.location.href;
-    const text = `Check out my cart on Betty Organic!`;
+    const formattedId = orderId ? formatOrderId(orderId) : '';
+    const text = orderId
+      ? `Check out my order ${formattedId} from Betty Organic!`
+      : `Check out Betty Organic!`;
 
     switch (platform) {
       case 'facebook':

@@ -27,3 +27,17 @@ export function formatCurrency(amount: number): string {
     .format(amount)
     .replace('ETB', 'Br.');
 }
+
+/**
+ * Formats an order ID to ensure consistent display across the application
+ * @param orderId - The raw order ID
+ * @returns Formatted order ID with # prefix
+ */
+export const formatOrderId = (orderId: string) => {
+  // Remove any existing # prefix
+  const cleanId = orderId.replace('#', '');
+  // Ensure the ID is exactly 8 characters, pad with zeros if needed
+  const paddedId = cleanId.padStart(8, '0');
+  // Return with # prefix
+  return `#${paddedId}`;
+};

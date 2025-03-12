@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Check, Mail, Share2, Copy, ClipboardCheck } from "lucide-react";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatOrderId } from "@/lib/utils";
 import { DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -50,21 +50,22 @@ export function OrderConfirmationReceipt({
 
   // Create formatted content for email or clipboard
   const createEmailContent = (forClipboard = false) => {
-    const lineBreak = forClipboard ? "\n" : "%0D%0A";
+    const formattedOrderId = formatOrderId(orderNumber);
+    const content = `
+Betty Organic - Order Confirmation
+--------------------------------
+Order ID: ${formattedOrderId}
+Date: ${formatDate(orderDate.toISOString())}
 
-    const subject = `Your Betty Organic Order #${orderNumber}`;
-    const itemsList = items.map(item =>
-      `${item.name} (${item.grams}g): ETB ${((item.pricePerKg * item.grams) / 1000).toFixed(2)}`
-    ).join(lineBreak);
+Items:
+${items.map(item => `- ${item.name}: ${item.grams}g (${item.pricePerKg} Br/kg)`).join('\n')}
 
-    const body = `Thank you for your order from Betty Organic!${lineBreak}${lineBreak}` +
-      `Order Number: ${orderNumber}${lineBreak}` +
-      `Date: ${formatDate(orderDate.toISOString())}${lineBreak}${lineBreak}` +
-      `Your items:${lineBreak}` +
-      `${itemsList}${lineBreak}${lineBreak}` +
-      `Total Amount: ETB ${displayTotal.toFixed(2)}`;
+Total: ${displayTotal.toFixed(2)} Br
 
-    return { subject, body };
+Thank you for shopping with Betty Organic!
+    `.trim();
+
+    return content;
   };
 
   const handleSendEmail = (e: React.FormEvent) => {
@@ -74,8 +75,8 @@ export function OrderConfirmationReceipt({
     setIsSending(true);
 
     // Try to send via mailto
-    const { subject, body } = createEmailContent();
-    window.location.href = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${body}`;
+    const content = createEmailContent();
+    window.location.href = `mailto:${email}?subject=Order Confirmation - ${formatOrderId(orderNumber)}&body=${encodeURIComponent(content)}`;
 
     // Show success message after a short delay
     setTimeout(() => {
@@ -86,8 +87,8 @@ export function OrderConfirmationReceipt({
   };
 
   const handleCopyToClipboard = () => {
-    const { subject, body } = createEmailContent(true);
-    const fullText = `${subject}\n\n${body}`;
+    const content = createEmailContent(true);
+    const fullText = `${content}`;
 
     navigator.clipboard.writeText(fullText)
       .then(() => {
@@ -100,9 +101,11 @@ export function OrderConfirmationReceipt({
   };
 
   return (
-    <div className="space-y-6 py-4">
+    <div className="space-y-6 p-4">
       <DialogHeader>
-        <DialogTitle className="text-center">Order Confirmation</DialogTitle>
+        <DialogTitle className="text-xl font-semibold">
+          Order Confirmation - {formatOrderId(orderNumber)}
+        </DialogTitle>
       </DialogHeader>
 
       <div className="flex flex-col items-center justify-center text-center">
