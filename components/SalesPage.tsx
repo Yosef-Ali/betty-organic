@@ -65,6 +65,7 @@ const SalesPage: FC<SalesPageProps> = ({ user }) => {
   const [products, setProducts] = useState<ProductWithStatus[]>([]);
   const [recentlySelectedProducts, setRecentlySelectedProducts] = useState<ProductWithStatus[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<ProductCategory>("All");
+  const [searchQuery, setSearchQuery] = useState("");
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { items, addItem } = useSalesCartStore();
@@ -146,10 +147,18 @@ const SalesPage: FC<SalesPageProps> = ({ user }) => {
   }, [addItem, toast]);
 
   const filteredProducts = useMemo(() => {
-    return products.filter(product =>
-      selectedCategory === "All" || product.category === selectedCategory
-    );
-  }, [products, selectedCategory]);
+    return products.filter(product => {
+      const matchesCategory = selectedCategory === "All" || product.category === selectedCategory;
+      const matchesSearch = searchQuery === "" ||
+        product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        product.description?.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesCategory && matchesSearch;
+    });
+  }, [products, selectedCategory, searchQuery]);
+
+  const handleSearchChange = useCallback((query: string) => {
+    setSearchQuery(query);
+  }, []);
 
   const handleCategoryChange = useCallback((category: ProductCategory) => {
     setSelectedCategory(category);
@@ -203,6 +212,8 @@ const SalesPage: FC<SalesPageProps> = ({ user }) => {
         onCartClick={() => handleCartOpenChange(true)}
         selectedCategory={selectedCategory}
         onCategoryChange={handleCategoryChange}
+        searchQuery={searchQuery}
+        onSearchChange={handleSearchChange}
       />
       <Tabs defaultValue="all" className="flex-grow">
         <TabsContent value="all" className="m-0">
