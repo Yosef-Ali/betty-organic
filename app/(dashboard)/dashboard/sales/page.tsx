@@ -5,11 +5,24 @@ import SalesPage from '@/components/SalesPage';
 import { SalesPageSkeleton } from '@/components/sales/SalesPageSkeleton';
 
 export default async function SalesDashboardPage() {
-  const user = await getCurrentUser();
+  const userData = await getCurrentUser();
 
-  if (!user) {
+  if (!userData) {
     redirect('/auth/login');
   }
+
+  const formattedUser = {
+    id: userData.user.id,
+    user_metadata: {
+      full_name: userData.user.user_metadata?.full_name,
+    },
+    email: userData.user.email,
+    profile: {
+      id: userData.profile.id,
+      role: userData.profile.role,
+    },
+    isAdmin: userData.isAdmin,
+  };
 
   return (
     <div className="flex-1 space-y-4 pt-6">
@@ -22,7 +35,7 @@ export default async function SalesDashboardPage() {
         </div>
       </div>
       <Suspense fallback={<SalesPageSkeleton />}>
-        <SalesPage user={user} />
+        <SalesPage user={formattedUser} />
       </Suspense>
     </div>
   );

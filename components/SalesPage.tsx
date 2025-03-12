@@ -1,6 +1,6 @@
 'use client';
 
-import { FC, useState, useEffect, useCallback } from 'react';
+import { FC, useState, useEffect, useCallback, useMemo } from 'react';
 import { useSalesCartStore, SalesCartItem } from '@/store/salesCartStore';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { ProductGrid } from './ProductGrid';
@@ -12,6 +12,7 @@ import { createOrder } from '@/app/actions/orderActions';
 import { Order } from '@/types/order';
 import { User } from '@/types/user';
 import { SalesPageSkeleton } from './sales/SalesPageSkeleton';
+import { ProductCategory } from '@/types/supabase';
 
 export interface Product {
   id: string;
@@ -63,7 +64,7 @@ interface SalesPageProps {
 const SalesPage: FC<SalesPageProps> = ({ user }) => {
   const [products, setProducts] = useState<ProductWithStatus[]>([]);
   const [recentlySelectedProducts, setRecentlySelectedProducts] = useState<ProductWithStatus[]>([]);
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<ProductCategory>("All");
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { items, addItem } = useSalesCartStore();
@@ -144,11 +145,17 @@ const SalesPage: FC<SalesPageProps> = ({ user }) => {
     setIsCartOpen(true);
   }, [addItem, toast]);
 
-  const handleCategorySelect = useCallback((event: string[]) => {
-    setSelectedCategories(event);
+  const filteredProducts = useMemo(() => {
+    return products.filter(product =>
+      selectedCategory === "All" || product.category === selectedCategory
+    );
+  }, [products, selectedCategory]);
+
+  const handleCategoryChange = useCallback((category: ProductCategory) => {
+    setSelectedCategory(category);
     toast({
-      title: 'Category filter updated',
-      description: 'Product list has been filtered based on selected categories.',
+      title: 'Category Updated',
+      description: `Showing ${category.replace(/_/g, ' ')} products`,
     });
   }, [toast]);
 
@@ -191,13 +198,18 @@ const SalesPage: FC<SalesPageProps> = ({ user }) => {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <SalesHeader cartItemCount={items.length} onCartClick={() => handleCartOpenChange(true)} />
+      <SalesHeader
+        cartItemCount={items.length}
+        onCartClick={() => handleCartOpenChange(true)}
+        selectedCategory={selectedCategory}
+        onCategoryChange={handleCategoryChange}
+      />
       <Tabs defaultValue="all" className="flex-grow">
         <TabsContent value="all" className="m-0">
           {isLoading ? (
             <SalesPageSkeleton />
           ) : (
-            <ProductGrid products={products} onProductClick={handleProductClick} />
+            <ProductGrid products={filteredProducts} onProductClick={handleProductClick} />
           )}
         </TabsContent>
       </Tabs>
