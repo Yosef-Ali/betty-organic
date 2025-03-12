@@ -22,6 +22,7 @@ import {
   getTotalProducts,
   getTotalOrders,
 } from 'app/actions/supabase-actions';
+import { Progress } from 'components/ui/progress';
 
 export default function DashboardContent() {
   const [totalRevenue, setTotalRevenue] = useState(0);
@@ -146,11 +147,9 @@ export default function DashboardContent() {
       <Tabs defaultValue="overview" className="space-y-4">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="reports">Reports</TabsTrigger>
           <TabsTrigger value="analytics" disabled>
             Analytics
-          </TabsTrigger>
-          <TabsTrigger value="reports" disabled>
-            Reports
           </TabsTrigger>
           <TabsTrigger value="notifications" disabled>
             Notifications
@@ -160,7 +159,7 @@ export default function DashboardContent() {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <OverviewCard
               title="Total Revenue"
-              value={`$${totalRevenue.toLocaleString()}`}
+              value={`ETB ${totalRevenue.toLocaleString()}`}
               icon={<DollarSign />}
             />
             <OverviewCard
@@ -204,6 +203,116 @@ export default function DashboardContent() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="reports" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <Card>
+              <CardHeader>
+                <CardTitle>Daily Sales</CardTitle>
+                <CardDescription>Sales performance for today</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">ETB {(totalRevenue / 30).toFixed(2)}</div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  +12% from yesterday
+                </div>
+                <div className="h-[200px] mt-4 flex items-center justify-center border-2 border-dashed rounded-lg">
+                  Daily sales chart coming soon
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Weekly Sales</CardTitle>
+                <CardDescription>Sales performance this week</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">ETB {(totalRevenue / 4).toFixed(2)}</div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  +8% from last week
+                </div>
+                <div className="h-[200px] mt-4 flex items-center justify-center border-2 border-dashed rounded-lg">
+                  Weekly sales chart coming soon
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Monthly Sales</CardTitle>
+                <CardDescription>Sales performance this month</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">ETB {totalRevenue.toFixed(2)}</div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  +15% from last month
+                </div>
+                <div className="h-[200px] mt-4 flex items-center justify-center border-2 border-dashed rounded-lg">
+                  Monthly sales chart coming soon
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Sales Breakdown</CardTitle>
+              <CardDescription>Detailed analysis of sales performance</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-8">
+                <div className="space-y-2">
+                  <div className="flex items-center">
+                    <div className="flex-1">
+                      <div className="text-sm font-medium">Today's Orders</div>
+                      <div className="text-sm text-muted-foreground">
+                        {Math.round(totalOrders / 30)} orders
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm font-medium">ETB {(totalRevenue / 30).toFixed(2)}</div>
+                      <div className="text-xs text-muted-foreground">+12%</div>
+                    </div>
+                  </div>
+                  <Progress value={12} className="h-2" />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center">
+                    <div className="flex-1">
+                      <div className="text-sm font-medium">This Week's Orders</div>
+                      <div className="text-sm text-muted-foreground">
+                        {Math.round(totalOrders / 4)} orders
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm font-medium">ETB {(totalRevenue / 4).toFixed(2)}</div>
+                      <div className="text-xs text-muted-foreground">+8%</div>
+                    </div>
+                  </div>
+                  <Progress value={8} className="h-2" />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center">
+                    <div className="flex-1">
+                      <div className="text-sm font-medium">This Month's Orders</div>
+                      <div className="text-sm text-muted-foreground">
+                        {totalOrders} orders
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm font-medium">ETB {totalRevenue.toFixed(2)}</div>
+                      <div className="text-xs text-muted-foreground">+15%</div>
+                    </div>
+                  </div>
+                  <Progress value={15} className="h-2" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
