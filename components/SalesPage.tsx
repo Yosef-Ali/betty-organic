@@ -145,7 +145,7 @@ const SalesPage: FC<SalesPageProps> = ({ user }) => {
     });
 
     setIsCartOpen(true);
-  }, [addItem, toast]);
+  }, [addItem]);
 
   const filteredProducts = useMemo(() => {
     return products.filter(product => {

@@ -370,7 +370,7 @@ export function useSalesCartSheet({
         dispatch({ type: 'SET_SAVING', payload: false });
       }
     },
-    [state.profile, state.orderStatus, items, getTotalAmount, clearCart, onOrderCreate, onOpenChange, toast],
+    [state.profile, state.orderStatus, items, getTotalAmount, clearCart, onOrderCreate, onOpenChange, toast, user?.id],
   );
 
   const handleConfirmAction = useCallback(
@@ -398,7 +398,7 @@ export function useSalesCartSheet({
         });
       }
     },
-    [state.customer, handleSaveOrder, handleBackToCart, toast],
+    [state.customer, handleSaveOrder, handleBackToCart, toast, user?.id],
   );
 
   const handleConfirmDialog = useCallback(async (
@@ -410,7 +410,7 @@ export function useSalesCartSheet({
     } else {
       handleConfirmAction(action);
     }
-  }, [handleSaveOrder, handleConfirmAction]);
+  }, [handleSaveOrder, handleConfirmAction, user?.id]);
 
   const handleCloseCart = useCallback(() => {
     if (items.length > 0) {
@@ -429,6 +429,10 @@ export function useSalesCartSheet({
     },
     [clearCart, onOpenChange],
   );
+
+  const handleSubmit = useCallback(async () => {
+    // ... existing code ...
+  }, [user?.id]);
 
   return {
     profile: state.profile,

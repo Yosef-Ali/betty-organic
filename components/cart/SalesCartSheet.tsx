@@ -161,6 +161,19 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
     }
   }, [customer, isPending, orderStatus, clearCart, onOpenChange]);
 
+  const handleCreateOrder = useCallback(async () => {
+    try {
+      // ... existing code ...
+    } catch (error) {
+      console.error('Error creating order:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to create order. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  }, []);
+
   if (error) {
     return (
       <div className="flex items-center justify-center p-8">

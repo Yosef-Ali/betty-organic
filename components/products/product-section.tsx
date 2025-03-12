@@ -111,13 +111,10 @@ export function ProductSection() {
     fetchProducts();
   }, []);
 
-  const debouncedSearch = useCallback(
-    debounce((query: string) => {
-      setSearchQuery(query);
-      setIsSearching(false);
-    }, 500),
-    []
-  );
+  const debouncedSearch = useCallback((query: string) => {
+    setSearchQuery(query);
+    setIsSearching(false);
+  }, []);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
