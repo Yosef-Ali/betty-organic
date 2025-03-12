@@ -111,6 +111,9 @@ export function ProductTableContent({
           <TableCell className="hidden md:table-cell">
             {product.stock}
           </TableCell>
+          <TableCell className="hidden md:table-cell">
+            {product.category?.replace(/_/g, ' ') || 'All'}
+          </TableCell>
           <TableCell>
             <Badge variant={product.stock > 0 ? 'default' : 'destructive'}>
               {product.stock > 0 ? 'In Stock' : 'Out of Stock'}

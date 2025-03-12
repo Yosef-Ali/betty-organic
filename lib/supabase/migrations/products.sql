@@ -12,6 +12,32 @@ BEGIN
     END IF;
 END $$;
 
+-- Create category enum type if it doesn't exist
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_type
+        WHERE typname = 'product_category'
+    ) THEN
+        CREATE TYPE product_category AS ENUM (
+            'All',
+            'Spices_Oil_Tuna',
+            'Flowers',
+            'Vegetables',
+            'Fruits',
+            'Herbs_Lettuce',
+            'Dry_Stocks_Bakery',
+            'Eggs_Dairy_products'
+        );
+    END IF;
+END $$;
+
+-- Update category column to use enum type
+ALTER TABLE products
+ALTER COLUMN category TYPE product_category
+USING category::product_category;
+
 -- Update RLS policies for products
 ALTER TABLE products ENABLE ROW LEVEL SECURITY;
 
@@ -41,3 +67,4 @@ USING (
 
 -- Create index for better performance
 CREATE INDEX IF NOT EXISTS idx_products_created_by ON products(created_by);
+CREATE INDEX IF NOT EXISTS idx_products_category ON products(category);

@@ -119,6 +119,7 @@ const ProductTable = () => {
                 <TableHead>Name</TableHead>
                 <TableHead className="hidden sm:table-cell">Price</TableHead>
                 <TableHead className="hidden md:table-cell">Stock</TableHead>
+                <TableHead className="hidden md:table-cell">Category</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="hidden lg:table-cell">Updated</TableHead>
                 <TableHead className="text-right">Actions</TableHead>

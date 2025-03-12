@@ -1,4 +1,16 @@
 import * as z from 'zod'
+import { ProductCategory } from '@/types/supabase'
+
+const PRODUCT_CATEGORIES: ProductCategory[] = [
+  "All",
+  "Spices_Oil_Tuna",
+  "Flowers",
+  "Vegetables",
+  "Fruits",
+  "Herbs_Lettuce",
+  "Dry_Stocks_Bakery",
+  "Eggs_Dairy_products"
+]
 
 export const productFormSchema = z.object({
   id: z.string().optional(),
@@ -24,15 +36,15 @@ export const productFormSchema = z.object({
   imageUrl: z.string().optional(),
   status: z.enum(['active', 'out_of_stock']).default('active'),
   category: z.enum([
-    'All',
-    'Spices_Oil_Tuna',
-    'Flowers',
-    'Vegetables',
-    'Fruits',
-    'Herbs_Lettuce',
-    'Dry_Stocks_Bakery',
-    'Eggs_Dairy_products'
-  ]).default('All'),
+    "All",
+    "Spices_Oil_Tuna",
+    "Flowers",
+    "Vegetables",
+    "Fruits",
+    "Herbs_Lettuce",
+    "Dry_Stocks_Bakery",
+    "Eggs_Dairy_products"
+  ] as const).default('All'),
 })
 
 export type ProductFormValues = z.infer<typeof productFormSchema>

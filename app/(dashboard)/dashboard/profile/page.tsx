@@ -31,17 +31,13 @@ export default async function ProfilePage() {
             </p>
           </div>
         </div>
-        <Tabs defaultValue="profile" className="w-full">
-          <TabsList className="md:w-[400px]">
-            <TabsTrigger value="profile" className="w-1/2">
-              Profile
-            </TabsTrigger>
-            <TabsTrigger value="orders" className="w-1/2">
-              Order History
-            </TabsTrigger>
+        <Tabs defaultValue="profile" className="w-full space-y-6">
+          <TabsList className="md:w-[400px] grid grid-cols-2">
+            <TabsTrigger value="profile">Profile</TabsTrigger>
+            <TabsTrigger value="orders">Order History</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="profile">
+          <TabsContent value="profile" className="space-y-4">
             <Card>
               <CardHeader>
                 <CardTitle>Profile Information</CardTitle>
@@ -60,7 +56,7 @@ export default async function ProfilePage() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="orders">
+          <TabsContent value="orders" className="space-y-4">
             <Card>
               <CardHeader>
                 <CardTitle>Order History</CardTitle>

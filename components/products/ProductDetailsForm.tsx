@@ -19,8 +19,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { ProductCategory } from '@/types/supabase';
 
-const PRODUCT_CATEGORIES = [
+const PRODUCT_CATEGORIES: ProductCategory[] = [
   "All",
   "Spices_Oil_Tuna",
   "Flowers",
@@ -29,7 +30,7 @@ const PRODUCT_CATEGORIES = [
   "Herbs_Lettuce",
   "Dry_Stocks_Bakery",
   "Eggs_Dairy_products"
-] as const;
+];
 
 interface ProductDetailsFormProps {
   form: UseFormReturn<ProductFormValues>
@@ -43,6 +44,30 @@ export function ProductDetailsForm({ form }: ProductDetailsFormProps) {
         <CardDescription>Enter the details of your product</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
+        <FormField
+          control={form.control}
+          name="category"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-lg font-semibold">Category</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select a category" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {PRODUCT_CATEGORIES.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category.replace(/_/g, ' ')}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
         <FormField
           control={form.control}
           name="name"
@@ -69,30 +94,6 @@ export function ProductDetailsForm({ form }: ProductDetailsFormProps) {
                   {...field}
                 />
               </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="category"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Category</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a category" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {PRODUCT_CATEGORIES.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category.replace(/_/g, ' ')}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
               <FormMessage />
             </FormItem>
           )}

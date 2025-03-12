@@ -35,6 +35,7 @@ export async function createProduct(formData: FormData): Promise<Product> {
     const imageUrl =
       (formData.get('imageUrl') as string) || '/placeholder-product.svg';
     const status = (formData.get('status') as string) || 'active';
+    const category = (formData.get('category') as string) || 'All';
 
     if (!name || typeof name !== 'string') {
       throw new Error('Name is required');
@@ -69,7 +70,7 @@ export async function createProduct(formData: FormData): Promise<Product> {
         active: status === 'active',
         createdat: now,
         updatedat: now,
-        category: null,
+        category,
         created_by: session.user.id,
         unit: null,
       })
@@ -127,6 +128,7 @@ export async function updateProduct(
     const stockStr = formData.get('stock') as string;
     const imageUrl = formData.get('imageUrl') as string;
     const status = formData.get('status') as string;
+    const category = (formData.get('category') as string) || 'All';
 
     if (!name) {
       throw new Error('Name is required');
@@ -153,6 +155,7 @@ export async function updateProduct(
       stock,
       imageUrl: imageUrl || '/placeholder-product.svg',
       active: status === 'active',
+      category,
       updatedat: new Date().toISOString(),
     };
 
