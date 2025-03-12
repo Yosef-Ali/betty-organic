@@ -2,7 +2,7 @@
 
 import { FC, useState, useEffect, useCallback, useMemo } from 'react';
 import { useSalesCartStore, SalesCartItem } from '@/store/salesCartStore';
-import { Tabs, TabsContent } from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ProductGrid } from './ProductGrid';
 import { SalesHeader } from './SalesHeader';
 import { SalesCartSheet } from './cart/SalesCartSheet';
@@ -13,6 +13,7 @@ import { Order } from '@/types/order';
 import { User } from '@/types/user';
 import { SalesPageSkeleton } from './sales/SalesPageSkeleton';
 import { ProductCategory } from '@/types/supabase';
+import { OrderHistory } from './OrderHistory';
 
 export interface Product {
   id: string;
@@ -215,13 +216,20 @@ const SalesPage: FC<SalesPageProps> = ({ user }) => {
         searchQuery={searchQuery}
         onSearchChange={handleSearchChange}
       />
-      <Tabs defaultValue="all" className="flex-grow">
-        <TabsContent value="all" className="m-0">
+      <Tabs defaultValue="products" className="flex-grow">
+        <TabsList>
+          <TabsTrigger value="products">Products</TabsTrigger>
+          <TabsTrigger value="orders">Order History</TabsTrigger>
+        </TabsList>
+        <TabsContent value="products" className="m-0">
           {isLoading ? (
             <SalesPageSkeleton />
           ) : (
             <ProductGrid products={filteredProducts} onProductClick={handleProductClick} />
           )}
+        </TabsContent>
+        <TabsContent value="orders" className="m-0">
+          <OrderHistory userId={user.id} />
         </TabsContent>
       </Tabs>
       <SalesCartSheet
