@@ -207,7 +207,7 @@ const SalesPage: FC<SalesPageProps> = ({ user }) => {
   );
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col h-full">
       <SalesHeader
         cartItemCount={items.length}
         onCartClick={() => handleCartOpenChange(true)}
@@ -216,22 +216,13 @@ const SalesPage: FC<SalesPageProps> = ({ user }) => {
         searchQuery={searchQuery}
         onSearchChange={handleSearchChange}
       />
-      <Tabs defaultValue="products" className="flex-grow">
-        <TabsList>
-          <TabsTrigger value="products">Products</TabsTrigger>
-          <TabsTrigger value="orders">Order History</TabsTrigger>
-        </TabsList>
-        <TabsContent value="products" className="m-0">
-          {isLoading ? (
-            <SalesPageSkeleton />
-          ) : (
-            <ProductGrid products={filteredProducts} onProductClick={handleProductClick} />
-          )}
-        </TabsContent>
-        <TabsContent value="orders" className="m-0">
-          <OrderHistory userId={user.id} />
-        </TabsContent>
-      </Tabs>
+      <div className="flex-grow">
+        {isLoading ? (
+          <SalesPageSkeleton />
+        ) : (
+          <ProductGrid products={filteredProducts} onProductClick={handleProductClick} />
+        )}
+      </div>
       <SalesCartSheet
         isOpen={isCartOpen}
         onOpenChange={handleCartOpenChange}
