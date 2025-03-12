@@ -266,7 +266,7 @@ export default function DashboardContent() {
                 <div className="space-y-2">
                   <div className="flex items-center">
                     <div className="flex-1">
-                      <div className="text-sm font-medium">Today's Orders</div>
+                      <div className="text-sm font-medium">Today&apos;s Orders</div>
                       <div className="text-sm text-muted-foreground">
                         {Math.round(totalOrders / 30)} orders
                       </div>
@@ -282,7 +282,7 @@ export default function DashboardContent() {
                 <div className="space-y-2">
                   <div className="flex items-center">
                     <div className="flex-1">
-                      <div className="text-sm font-medium">This Week's Orders</div>
+                      <div className="text-sm font-medium">This Week&apos;s Orders</div>
                       <div className="text-sm text-muted-foreground">
                         {Math.round(totalOrders / 4)} orders
                       </div>
@@ -298,7 +298,7 @@ export default function DashboardContent() {
                 <div className="space-y-2">
                   <div className="flex items-center">
                     <div className="flex-1">
-                      <div className="text-sm font-medium">This Month's Orders</div>
+                      <div className="text-sm font-medium">This Month&apos;s Orders</div>
                       <div className="text-sm text-muted-foreground">
                         {totalOrders} orders
                       </div>
