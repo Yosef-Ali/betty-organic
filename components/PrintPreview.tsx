@@ -26,13 +26,13 @@ export const PrintPreview: FC<PrintPreviewProps> = ({
             <span>
               {item.name} ({item.grams}g)
             </span>
-            <span>${((item.pricePerKg * item.grams) / 1000).toFixed(2)}</span>
+            <span>Br {((item.pricePerKg * item.grams) / 1000).toFixed(2)}</span>
           </li>
         ))}
       </ul>
       <div className="flex justify-between font-bold">
         <span>Total:</span>
-        <span>${totalAmount.toFixed(2)}</span>
+        <span>Br {totalAmount.toFixed(2)}</span>
       </div>
     </div>
   );

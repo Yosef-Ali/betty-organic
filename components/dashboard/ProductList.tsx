@@ -87,7 +87,7 @@ export default function ProductList({ initialProducts }: ProductListProps) {
                     {product.status || 'Inactive'}
                   </Badge>
                 </TableCell>
-                <TableCell>${product.price.toFixed(2)}</TableCell>
+                <TableCell>Br {product.price.toFixed(2)}</TableCell>
                 <TableCell>{product.totalSales ?? 0}</TableCell>
                 <TableCell>
                   <Badge variant={product.stock > 0 ? 'default' : 'destructive'}>

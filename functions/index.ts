@@ -1,4 +1,3 @@
-
 import { checkProductAvailability, getProductPrice, getOrderStatus } from './supabaseFunctions';
 
 interface Response {
@@ -43,7 +42,7 @@ exports.productPricing = async (req: Request, res: Response) => {
   const price = await getProductPrice(productName);
   res.json({
     fulfillmentText: price !== null
-      ? `The price of ${productName} is $${price}.`
+      ? `The price of ${productName} is Br ${price}.`
       : `Sorry, we couldn't find the price for ${productName}.`,
   });
 }

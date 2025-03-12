@@ -18,7 +18,7 @@ export const SelectedItemsSheet: FC<SelectedItemsSheetProps> = ({ items, removeF
             <div className="flex items-center">
               <div className="flex items-center flex-1 max-w-[200px]">
                 <p className="font-bold text-lg">
-                  ${((item.pricePerKg * item.grams) / 1000).toFixed(2)}
+                  Br {((item.pricePerKg * item.grams) / 1000).toFixed(2)}
                 </p>
                 <span className="ml-2">
                   {item.grams >= 1000 ? `${(item.grams / 1000).toFixed(2)} kg` : `${item.grams} g`}

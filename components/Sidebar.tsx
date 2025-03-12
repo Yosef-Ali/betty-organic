@@ -81,6 +81,11 @@ export default function Sidebar({
       icon: <Package className="h-4 w-4" />,
       href: '/dashboard/products',
     },
+    {
+      label: 'Reports',
+      icon: <LayoutDashboard className="h-4 w-4" />,
+      href: '/dashboard/reports',
+    },
   ];
 
   const adminItems = [
@@ -182,9 +187,8 @@ export default function Sidebar({
   if (isMobile) {
     return (
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-background border-r transition-transform duration-300 ${
-          mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-background border-r transition-transform duration-300 ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
       >
         {sidebarContent}
       </aside>
@@ -214,9 +218,8 @@ function SidebarLink({
       <TooltipTrigger asChild>
         <Link
           href={href}
-          className={`flex items-center ${
-            expanded ? 'justify-start px-4' : 'justify-center'
-          } h-10 w-full rounded-md transition-colors hover:bg-accent hover:text-accent-foreground`}
+          className={`flex items-center ${expanded ? 'justify-start px-4' : 'justify-center'
+            } h-10 w-full rounded-md transition-colors hover:bg-accent hover:text-accent-foreground`}
           onClick={onClick}
         >
           {icon}
