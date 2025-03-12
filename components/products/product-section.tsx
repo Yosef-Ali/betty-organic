@@ -12,6 +12,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { useMarketingCartStore } from '@/store/cartStore';
+import { useUIStore } from '@/store/uiStore';
 
 const PRODUCT_CATEGORIES = [
   "All",
@@ -84,6 +85,7 @@ export function ProductSection() {
   const [selectedCategory, setSelectedCategory] = useState<typeof PRODUCT_CATEGORIES[number]>("All");
 
   const { items } = useMarketingCartStore();
+  const { setCartOpen } = useUIStore();
   const cartItemCount = items.length;
 
   useEffect(() => {
@@ -143,6 +145,11 @@ export function ProductSection() {
     return matchesSearch && matchesCategory;
   });
 
+  const handleCartOpen = (open: boolean) => {
+    setIsCartOpen(open);
+    setCartOpen(open);
+  };
+
   return (
     <div className="w-full py-24 sm:py-32">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
@@ -156,25 +163,40 @@ export function ProductSection() {
         </div>
 
         <div className="mt-10 flex flex-col items-center gap-4">
-          <div className="relative w-full max-w-md">
-            <input
-              type="text"
-              placeholder="Search products..."
-              value={searchQuery}
-              onChange={handleSearchChange}
-              className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-            />
-            <div className="absolute inset-y-0 left-0 flex items-center pl-3">
-              <Search className="h-5 w-5 text-gray-400" />
+          <div className="relative w-full max-w-md flex items-center gap-4">
+            <div className="relative flex-1">
+              <input
+                type="text"
+                placeholder="Search products..."
+                value={searchQuery}
+                onChange={handleSearchChange}
+                className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              <div className="absolute inset-y-0 left-0 flex items-center pl-3">
+                <Search className="h-5 w-5 text-gray-400" />
+              </div>
+              {searchQuery && (
+                <button
+                  onClick={clearSearch}
+                  className="absolute inset-y-0 right-0 flex items-center pr-3"
+                >
+                  <X className="h-5 w-5 text-gray-400" />
+                </button>
+              )}
             </div>
-            {searchQuery && (
-              <button
-                onClick={clearSearch}
-                className="absolute inset-y-0 right-0 flex items-center pr-3"
-              >
-                <X className="h-5 w-5 text-gray-400" />
-              </button>
-            )}
+            <Button
+              variant="outline"
+              size="icon"
+              className="relative shrink-0"
+              onClick={() => handleCartOpen(true)}
+            >
+              <ShoppingCart className="h-4 w-4" />
+              {items.length > 0 && (
+                <span className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
+                  {items.length}
+                </span>
+              )}
+            </Button>
           </div>
 
           <div className="w-full max-w-4xl">
@@ -250,7 +272,7 @@ export function ProductSection() {
             })}
         </div>
       </div>
-      <CartSheet isOpen={isCartOpen} onOpenChange={setIsCartOpen} />
+      <CartSheet isOpen={isCartOpen} onOpenChange={handleCartOpen} />
     </div>
   );
 }

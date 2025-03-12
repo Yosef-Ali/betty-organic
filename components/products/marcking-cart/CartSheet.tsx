@@ -53,7 +53,7 @@ export const CartSheet = ({ isOpen, onOpenChange }: CartSheetProps) => {
         onOpenChange(open);
         setCartOpen(open);
       }}>
-        <SheetTrigger asChild>
+        {/* <SheetTrigger asChild>
           <Button variant="outline" size="icon" className="relative">
             <ShoppingCart className="h-4 w-4" />
             {items.length > 0 && (
@@ -62,7 +62,7 @@ export const CartSheet = ({ isOpen, onOpenChange }: CartSheetProps) => {
               </span>
             )}
           </Button>
-        </SheetTrigger>
+        </SheetTrigger> */}
         <SheetContent className="flex w-full flex-col pr-0 sm:max-w-lg z-50">
           <SheetHeader>
             <SheetTitle>Shopping Cart ({items?.length})</SheetTitle>
