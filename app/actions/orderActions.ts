@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import type { Order } from '@/types/order';
 import crypto from 'crypto';
 import { getCurrentUser } from './auth';
+import { orderIdService } from '@/app/services/orderIdService';
 
 interface OrderItem {
   product_id: string;
@@ -115,12 +116,9 @@ export async function createOrder(orderData: Order) {
         error: new Error('Unauthorized: Invalid role for order creation'),
       };
     }
-    console.log('Order configuration:', {
-      profile_id,
-      customer_profile_id,
-      role,
-      orderItems: orderData.order_items.length,
-    });
+
+    // Generate new order display ID
+    const display_id = await orderIdService.generateOrderID();
 
     // Create the order
     const { data: order, error: orderError } = await supabase
@@ -132,6 +130,7 @@ export async function createOrder(orderData: Order) {
         status: orderData.status || 'pending',
         type:
           orderData.type || (role === 'customer' ? 'self_service' : 'store'),
+        display_id, // Add the generated display ID
       })
       .select()
       .single();
@@ -145,8 +144,7 @@ export async function createOrder(orderData: Order) {
         orderData,
       });
       throw new Error(
-        `Database error creating order: ${
-          orderError.message || 'Unknown error'
+        `Database error creating order: ${orderError.message || 'Unknown error'
         }`,
       );
     }
@@ -176,8 +174,7 @@ export async function createOrder(orderData: Order) {
       // If order items creation fails, delete the order
       await supabase.from('orders').delete().eq('id', order.id);
       throw new Error(
-        `Failed to create order items: ${
-          itemsError.message || 'Unknown error'
+        `Failed to create order items: ${itemsError.message || 'Unknown error'
         }`,
       );
     }

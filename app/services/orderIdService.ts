@@ -1,12 +1,9 @@
 import { createClient } from '@/lib/supabase/server';
-import { SupabaseClient } from '@supabase/supabase-js';
-import type { Database } from '@/lib/types/supabase';
 
 export class OrderIDService {
   private static instance: OrderIDService;
   private counterKey = 'order_counter';
   private prefix = 'BO';
-  private supabaseClient: SupabaseClient<Database> | null = null;
 
   private constructor() { }
 
@@ -15,13 +12,6 @@ export class OrderIDService {
       OrderIDService.instance = new OrderIDService();
     }
     return OrderIDService.instance;
-  }
-
-  private async getSupabaseClient(): Promise<SupabaseClient<Database>> {
-    if (!this.supabaseClient) {
-      this.supabaseClient = await createClient();
-    }
-    return this.supabaseClient;
   }
 
   /**
@@ -33,49 +23,29 @@ export class OrderIDService {
   }
 
   /**
-   * Gets the next sequential number for the current day
+   * Gets the next sequential number using the database function
    */
   private async getNextSequentialNumber(): Promise<number> {
-    const supabase = await this.getSupabaseClient();
+    const supabase = await createClient();
     const today = new Date().toISOString().split('T')[0];
     const counterKey = `${this.counterKey}_${today}`;
 
-    // Attempt to get the current counter
-    const { data: currentCounter } = await supabase
-      .from('system_counters')
-      .select('counter_value')
-      .eq('counter_key', counterKey)
-      .single();
+    // Use the database function to get and increment the counter
+    const { data, error } = await supabase
+      .rpc('get_and_increment_counter', {
+        counter_key_param: counterKey
+      });
 
-    if (!currentCounter) {
-      // Initialize counter for the day
-      const { error } = await supabase
-        .from('system_counters')
-        .insert({
-          counter_key: counterKey,
-          counter_value: 1,
-        });
-
-      if (error) {
-        throw new Error(`Failed to initialize counter: ${error.message}`);
-      }
-
-      return 1;
+    if (error) {
+      console.error('Failed to get next counter value:', error);
+      throw new Error(`Counter increment failed: ${error.message}`);
     }
 
-    // Increment the counter
-    const { data: updatedCounter, error: updateError } = await supabase
-      .from('system_counters')
-      .update({ counter_value: currentCounter.counter_value + 1 })
-      .eq('counter_key', counterKey)
-      .select()
-      .single();
+    // Log the result for debugging
+    console.log('Counter value received:', data);
 
-    if (updateError || !updatedCounter) {
-      throw new Error(`Failed to update counter: ${updateError?.message}`);
-    }
-
-    return updatedCounter.counter_value;
+    // The function returns the current counter value
+    return data || 1;
   }
 
   /**
@@ -88,20 +58,42 @@ export class OrderIDService {
   }
 
   /**
-   * Gets the current counter value for the day without incrementing
+   * Resets counter for a specific day (admin only)
    */
-  public async getCurrentCounter(): Promise<number> {
-    const supabase = await this.getSupabaseClient();
-    const today = new Date().toISOString().split('T')[0];
-    const counterKey = `${this.counterKey}_${today}`;
+  public async resetCounter(date: string): Promise<void> {
+    const supabase = await createClient();
+    const counterKey = `${this.counterKey}_${date}`;
 
-    const { data: counter } = await supabase
+    const { error } = await supabase
+      .rpc('reset_counter', {
+        counter_key_param: counterKey
+      });
+
+    if (error) {
+      console.error('Failed to reset counter:', error);
+      throw new Error(`Counter reset failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Gets the current counter value without incrementing (for debugging)
+   */
+  public async getCurrentValue(date: string): Promise<number> {
+    const supabase = await createClient();
+    const counterKey = `${this.counterKey}_${date}`;
+
+    const { data, error } = await supabase
       .from('system_counters')
       .select('counter_value')
       .eq('counter_key', counterKey)
       .single();
 
-    return counter?.counter_value || 0;
+    if (error) {
+      console.error('Failed to get current counter value:', error);
+      return 0;
+    }
+
+    return data?.counter_value || 0;
   }
 }
 

@@ -4,7 +4,6 @@ import { createClient } from '@/lib/supabase/server';
 import { createOrder } from './orderActions';
 import type { Order, OrderItem } from '@/types/order';
 import { getCurrentUser } from './auth';
-import { orderIdService } from '@/app/services/orderIdService';
 
 export async function handlePurchaseOrder(
   items: {
@@ -29,13 +28,10 @@ export async function handlePurchaseOrder(
       return { error: 'Profile not found', status: 404 };
     }
 
-    // Generate unique display ID
-    const displayId = await orderIdService.generateOrderID();
     const orderId = crypto.randomUUID();
 
     const orderData: Order = {
       id: orderId,
-      display_id: displayId,
       profile_id: profile.id, // This identifies who created the order
       customer_profile_id: profile.id, // This identifies the customer
       status: 'pending',
