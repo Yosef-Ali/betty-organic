@@ -49,6 +49,15 @@ export function ConfirmPurchaseDialog({
     items: typeof items;
     total: number;
   } | null>(null);
+  const [debugInfo, setDebugInfo] = useState<string | null>(null);
+
+  // Reset error when dialog opens
+  useEffect(() => {
+    if (open) {
+      setError(null);
+      setDebugInfo(null);
+    }
+  }, [open]);
 
   // Calculate total from items
   const calculateTotal = (orderItems: typeof items) => {
@@ -61,10 +70,17 @@ export function ConfirmPurchaseDialog({
   const handleCheckout = async () => {
     try {
       setError(null);
+      setDebugInfo(null);
       setIsSubmitting(true);
 
       const orderTotal = calculateTotal(items);
       console.log("Starting checkout with total:", orderTotal);
+      setDebugInfo("Processing order...");
+
+      // Validate items first
+      if (!items.length) {
+        throw new Error("Your cart is empty");
+      }
 
       const {
         data: order,
@@ -73,7 +89,10 @@ export function ConfirmPurchaseDialog({
       } = await handlePurchaseOrder(items, orderTotal);
 
       if (error) {
+        setDebugInfo(`Error response: status ${status}, message: ${error}`);
+
         if (status === 401) {
+          setDebugInfo("Authentication required - redirecting to login");
           router.push(
             `/auth/login?return_url=${encodeURIComponent(window.location.pathname)}`,
           );
@@ -83,8 +102,11 @@ export function ConfirmPurchaseDialog({
       }
 
       if (!order) {
+        setDebugInfo("No order data returned from API");
         throw new Error('No order data returned');
       }
+
+      setDebugInfo(`Order created successfully! ID: ${order.id}`);
 
       // Save the completed order data before clearing the cart
       setCompletedOrderData({
@@ -126,6 +148,8 @@ export function ConfirmPurchaseDialog({
       }
 
       setError(errorMessage);
+      setDebugInfo(`Full error: ${JSON.stringify(err, null, 2)}`);
+
       toast({
         title: 'Checkout Error',
         description: errorMessage,
@@ -192,6 +216,16 @@ export function ConfirmPurchaseDialog({
               <Alert variant="destructive" className="mt-4">
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
+            )}
+            {debugInfo && (
+              <div className="mt-2 text-xs text-muted-foreground">
+                <details>
+                  <summary>Debug info</summary>
+                  <pre className="mt-2 whitespace-pre-wrap break-all bg-muted p-2 rounded text-[10px]">
+                    {debugInfo}
+                  </pre>
+                </details>
+              </div>
             )}
             <DialogFooter>
               <Button
