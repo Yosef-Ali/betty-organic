@@ -13,7 +13,6 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect } from 'react';
 import { handlePurchaseOrder } from '@/app/actions/purchaseActions';
-import { createClient } from '@/lib/supabase/client';
 import type { Order } from '@/types/order';
 import { Share2 } from 'lucide-react';
 import { useMarketingCartStore } from '@/store/cartStore';
@@ -42,6 +41,7 @@ export function ConfirmPurchaseDialog({
   const router = useRouter();
   const clearCart = useMarketingCartStore(state => state.clearCart);
   const [error, setError] = useState<string | null>(null);
+  const [debug, setDebug] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderComplete, setOrderComplete] = useState(false);
   const [orderDetails, setOrderDetails] = useState<Order | null>(null);
@@ -49,17 +49,16 @@ export function ConfirmPurchaseDialog({
     items: typeof items;
     total: number;
   } | null>(null);
-  const [debugInfo, setDebugInfo] = useState<string | null>(null);
 
-  // Reset error when dialog opens
+  // Reset state when dialog opens
   useEffect(() => {
     if (open) {
       setError(null);
-      setDebugInfo(null);
+      setDebug(null);
+      setIsSubmitting(false);
     }
   }, [open]);
 
-  // Calculate total from items
   const calculateTotal = (orderItems: typeof items) => {
     return orderItems.reduce(
       (sum, item) => sum + (item.pricePerKg * item.grams) / 1000,
@@ -70,43 +69,29 @@ export function ConfirmPurchaseDialog({
   const handleCheckout = async () => {
     try {
       setError(null);
-      setDebugInfo(null);
+      setDebug('Starting checkout process...');
       setIsSubmitting(true);
 
       const orderTotal = calculateTotal(items);
-      console.log("Starting checkout with total:", orderTotal);
-      setDebugInfo("Processing order...");
+      setDebug(`Calculated total: ${orderTotal}`);
 
       // Validate items first
       if (!items.length) {
-        throw new Error("Your cart is empty");
+        throw new Error('Your cart is empty');
       }
 
+      setDebug('Creating order...');
       const {
         data: order,
         error,
         status,
       } = await handlePurchaseOrder(items, orderTotal);
 
-      if (error) {
-        setDebugInfo(`Error response: status ${status}, message: ${error}`);
-
-        if (status === 401) {
-          setDebugInfo("Authentication required - redirecting to login");
-          router.push(
-            `/auth/login?return_url=${encodeURIComponent(window.location.pathname)}`,
-          );
-          return;
-        }
-        throw new Error(error);
-      }
-
       if (!order) {
-        setDebugInfo("No order data returned from API");
         throw new Error('No order data returned');
       }
 
-      setDebugInfo(`Order created successfully! ID: ${order.id}`);
+      setDebug(`Order created successfully! ID: ${order.id}`);
 
       // Save the completed order data before clearing the cart
       setCompletedOrderData({
@@ -148,8 +133,8 @@ export function ConfirmPurchaseDialog({
       }
 
       setError(errorMessage);
-      setDebugInfo(`Full error: ${JSON.stringify(err, null, 2)}`);
-
+      setDebug(`Full error details: ${JSON.stringify(err, null, 2)}`);
+      
       toast({
         title: 'Checkout Error',
         description: errorMessage,
@@ -193,16 +178,20 @@ export function ConfirmPurchaseDialog({
             <DialogHeader>
               <DialogTitle>Confirm Order</DialogTitle>
               <DialogDescription>
-                Are you sure you want to place this order?
+                Please review your order details below
               </DialogDescription>
             </DialogHeader>
+
             <div className="space-y-4">
-              <p className="font-medium text-lg">
-                Total: ETB {calculateTotal(items).toFixed(2)}
-              </p>
-              <div className="text-sm text-muted-foreground">
-                <p className="font-medium">Order Summary:</p>
-                <ul className="divide-y divide-border mt-2">
+              <div className="bg-muted/30 p-4 rounded-lg">
+                <p className="font-semibold text-lg">
+                  Total: ETB {calculateTotal(items).toFixed(2)}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <h4 className="font-medium">Order Summary:</h4>
+                <ul className="divide-y divide-border">
                   {items.map(item => (
                     <li key={item.id} className="py-2 flex justify-between">
                       <span>{item.name} - {item.grams}g</span>
@@ -212,26 +201,30 @@ export function ConfirmPurchaseDialog({
                 </ul>
               </div>
             </div>
+
             {error && (
               <Alert variant="destructive" className="mt-4">
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
-            {debugInfo && (
+
+            {debug && process.env.NODE_ENV === 'development' && (
               <div className="mt-2 text-xs text-muted-foreground">
                 <details>
-                  <summary>Debug info</summary>
-                  <pre className="mt-2 whitespace-pre-wrap break-all bg-muted p-2 rounded text-[10px]">
-                    {debugInfo}
+                  <summary>Debug Info</summary>
+                  <pre className="mt-2 whitespace-pre-wrap break-all bg-muted p-2 rounded">
+                    {debug}
                   </pre>
                 </details>
               </div>
             )}
-            <DialogFooter>
+
+            <DialogFooter className="gap-2">
               <Button
                 variant="outline"
                 onClick={handleCancel}
                 type="button"
+                disabled={isSubmitting}
               >
                 Cancel
               </Button>
@@ -240,33 +233,16 @@ export function ConfirmPurchaseDialog({
                 disabled={isSubmitting}
                 className="relative"
               >
-                {isSubmitting && (
-                  <span className="absolute inset-0 flex items-center justify-center bg-primary">
-                    <svg
-                      className="animate-spin h-5 w-5 text-white"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      ></circle>
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      ></path>
-                    </svg>
-                  </span>
+                {isSubmitting ? (
+                  <>
+                    <span className="opacity-0">Confirm Order</span>
+                    <span className="absolute inset-0 flex items-center justify-center">
+                      Processing...
+                    </span>
+                  </>
+                ) : (
+                  'Confirm Order'
                 )}
-                <span className={isSubmitting ? "invisible" : ""}>
-                  {isSubmitting ? 'Processing...' : 'Confirm Order'}
-                </span>
               </Button>
             </DialogFooter>
           </>
