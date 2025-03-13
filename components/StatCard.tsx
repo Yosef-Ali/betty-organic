@@ -13,10 +13,10 @@ export function StatCard({ title, value, change, changePercentage }: StatCardPro
     <Card>
       <CardHeader className="pb-2">
         <CardDescription>{title}</CardDescription>
-        <CardTitle className="text-4xl">{value}</CardTitle>
+        <CardTitle className="text-2xl sm:text-3xl font-bold truncate">{value}</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="text-xs text-muted-foreground">
+        <div className="text-xs text-muted-foreground truncate">
           {change}
         </div>
       </CardContent>

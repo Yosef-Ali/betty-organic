@@ -7,6 +7,7 @@ import { Profile } from '@/lib/types/auth';
 
 interface OrderDetails {
   id: string;
+  display_id?: string;
   createdAt: string;
   updatedAt?: string;
   profile: Profile;
@@ -60,25 +61,26 @@ export function useOrderDetails(orderId: string) {
         // Transform the data to match our interface
         const transformedOrder: OrderDetails = {
           id: data.id,
+          display_id: data.display_id,
           createdAt: data.created_at,
           updatedAt: data.updated_at,
           profile: data.profile
             ? {
-                id: data.profile.id || defaultProfile.id,
-                name:
-                  data.profile.name ||
-                  data.profile.full_name ||
-                  defaultProfile.name,
-                email: data.profile.email || defaultProfile.email,
-                role: data.profile.role || defaultProfile.role,
-                status: 'active',
-                created_at:
-                  data.profile.created_at || defaultProfile.created_at,
-                updated_at:
-                  data.profile.updated_at || defaultProfile.updated_at,
-                avatar_url:
-                  data.profile.avatar_url || defaultProfile.avatar_url,
-              }
+              id: data.profile.id || defaultProfile.id,
+              name:
+                data.profile.name ||
+                data.profile.full_name ||
+                defaultProfile.name,
+              email: data.profile.email || defaultProfile.email,
+              role: data.profile.role || defaultProfile.role,
+              status: 'active',
+              created_at:
+                data.profile.created_at || defaultProfile.created_at,
+              updated_at:
+                data.profile.updated_at || defaultProfile.updated_at,
+              avatar_url:
+                data.profile.avatar_url || defaultProfile.avatar_url,
+            }
             : defaultProfile,
           items: data.order_items.map(item => ({
             id: item.id,

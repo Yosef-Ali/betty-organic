@@ -22,6 +22,7 @@ interface OrderDetailsProps {
 
 interface OrderWithProfile {
   id: string;
+  display_id?: string;
   items: Array<{
     id: string;
     product: {
@@ -32,6 +33,7 @@ interface OrderWithProfile {
   }>;
   profile: Profile;
   updatedAt?: string;
+  createdAt: string;
 }
 
 export default function OrderDetails({ orderId }: OrderDetailsProps) {
@@ -71,7 +73,14 @@ export default function OrderDetails({ orderId }: OrderDetailsProps) {
 
   return (
     <Card className="overflow-hidden">
-      <OrderHeader order={order} onTrashClick={() => setIsDialogOpen(true)} />
+      <OrderHeader
+        order={{
+          id: order.id,
+          display_id: order.display_id,
+          createdAt: order.createdAt
+        }}
+        onTrashClick={() => setIsDialogOpen(true)}
+      />
 
       <CardContent className="p-6 text-sm">
         <OrderItemsList items={itemsWithTotal} subtotal={subtotal} />
@@ -79,9 +88,14 @@ export default function OrderDetails({ orderId }: OrderDetailsProps) {
         <Separator className="my-4" />
         <>
           <ShippingBillingInfo
-            address={order.profile?.name || 'N/A'}
-            city={order.profile?.email || 'N/A'}
-            postalCode={order.profile?.email || 'N/A'}
+            profileName={order.profile?.name || 'Unknown Customer'}
+            shippingAddress={{
+              name: order.profile?.name || 'Unknown Customer',
+              street: 'N/A',
+              city: 'N/A',
+              state: 'N/A',
+              zipCode: 'N/A'
+            }}
           />
 
           <Separator className="my-4" />
@@ -112,7 +126,7 @@ export default function OrderDetails({ orderId }: OrderDetailsProps) {
               : 'Just now'}
           </time>
         </div>
-        <OrderPagination onPrevious={() => {}} onNext={() => {}} />
+        <OrderPagination onPrevious={() => { }} onNext={() => { }} />
       </CardFooter>
 
       <ConfirmOrderDeleteDialog

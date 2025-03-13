@@ -21,10 +21,18 @@ export async function getOrderDetails(orderId: string) {
       .from('orders')
       .select(
         `
-        *,
+        id,
+        display_id,
+        created_at,
+        updated_at,
         order_items!order_items_order_id_fkey (
-          *,
-          product:products!inner (*)
+          id,
+          product:products!inner (
+            id,
+            name
+          ),
+          price,
+          quantity
         ),
         customer:profiles!orders_customer_profile_id_fkey (
           id,
