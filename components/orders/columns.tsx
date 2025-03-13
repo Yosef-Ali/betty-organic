@@ -8,22 +8,25 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal } from 'lucide-react';
-import { ExtendedOrder } from '@/types';
+import { ExtendedOrder } from '@/types/order';
+import { formatOrderId } from '@/lib/utils';
 
 export const columns: ColumnDef<ExtendedOrder>[] = [
   {
     accessorKey: 'id',
     header: 'Order ID',
     cell: ({ row }) => (
-      <div className="cursor-pointer hover:underline">{row.original.id}</div>
+      <div className="cursor-pointer hover:underline">
+        {formatOrderId(row.original.display_id || row.original.id)}
+      </div>
     ),
     enableGlobalFilter: true,
   },
   {
     id: 'profile_name',
     header: 'Profile',
-    accessorFn: row => row.profile?.name || 'Unknown Customer',
-    cell: ({ row }) => row.original.profile?.name || 'Unknown Customer',
+    accessorFn: row => row.profiles?.name || 'Unknown Customer',
+    cell: ({ row }) => row.original.profiles?.name || 'Unknown Customer',
     enableGlobalFilter: true,
   },
   {
@@ -38,8 +41,8 @@ export const columns: ColumnDef<ExtendedOrder>[] = [
               status === 'completed'
                 ? 'default'
                 : status === 'pending'
-                ? 'secondary'
-                : 'destructive'
+                  ? 'secondary'
+                  : 'destructive'
             }
           >
             {status}
@@ -50,21 +53,21 @@ export const columns: ColumnDef<ExtendedOrder>[] = [
     enableGlobalFilter: true,
   },
   {
-    accessorKey: 'totalAmount',
+    accessorKey: 'total_amount',
     header: () => <div className="text-right">Amount</div>,
     cell: ({ row }) => (
       <div className="text-right font-medium">
-        Br {row.original.totalAmount?.toFixed(2) || '0.00'}
+        Br {row.original.total_amount?.toFixed(2) || '0.00'}
       </div>
     ),
     enableGlobalFilter: true,
   },
   {
-    accessorKey: 'createdAt',
+    accessorKey: 'created_at',
     header: () => <div className="text-right">Date</div>,
     cell: ({ row }) => (
       <div className="text-right">
-        {new Date(row.original.createdAt).toLocaleDateString()}
+        {new Date(row.original.created_at || '').toLocaleDateString()}
       </div>
     ),
     enableGlobalFilter: true,

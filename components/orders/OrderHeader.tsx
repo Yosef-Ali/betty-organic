@@ -4,10 +4,13 @@ import { Button } from '@/components/ui/button';
 import { Copy, Truck } from 'lucide-react';
 import { CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useState } from 'react';
+import { formatOrderId } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 interface OrderHeaderProps {
   order: {
     id: string;
+    display_id?: string;
     createdAt: string;
   };
   onTrashClick: () => void;
@@ -15,10 +18,20 @@ interface OrderHeaderProps {
 
 export default function OrderHeader({ order, onTrashClick }: OrderHeaderProps) {
   const [copied, setCopied] = useState(false);
+  const { toast } = useToast();
+
+  const formattedOrderId = formatOrderId(order.display_id || order.id);
+  const isLegacyId = !order.display_id;
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(order.id);
+    navigator.clipboard.writeText(formattedOrderId);
     setCopied(true);
+
+    toast({
+      title: "Copied to clipboard",
+      description: `Order ID ${formattedOrderId} copied to clipboard`,
+    });
+
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -26,7 +39,10 @@ export default function OrderHeader({ order, onTrashClick }: OrderHeaderProps) {
     <CardHeader className="flex flex-row items-start bg-muted/50">
       <div className="grid gap-0.5">
         <CardTitle className="group flex items-center gap-2 text-lg">
-          Order {order.id}
+          Order {formattedOrderId}
+          {isLegacyId && (
+            <span className="text-xs text-muted-foreground">(Legacy ID)</span>
+          )}
           <Button
             size="icon"
             variant="outline"

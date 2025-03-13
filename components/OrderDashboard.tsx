@@ -9,52 +9,10 @@ import { OrdersOverviewCard } from './OrdersOverviewCard';
 import { StatCard } from './StatCard';
 import OrderDetails from './OrderDetailsCard';
 import { getOrders, deleteOrder } from '../app/actions/orderActions';
-import { getProducts } from '../app/actions/productActions';
 import { getCustomers } from '../app/actions/profile';
 import { useToast } from '../hooks/use-toast';
 import OrderTable from './OrdersTable';
-
-type Product = {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  imageUrl: string;
-  createdAt: string;
-  updatedAt: string;
-};
-
-type OrderItem = {
-  id: string;
-  order_id: string;
-  price: number;
-  product_id: string;
-  product_name: string;
-  quantity: number;
-};
-
-type ExtendedOrder = {
-  id: string;
-  customerName: string;
-  items: OrderItem[];
-  customer: {
-    id: string;
-    name: string;
-    full_name: string;
-    email: string;
-    phone: string | null;
-    address: string | null;
-    imageUrl: string | null;
-    status: string | null;
-    created_at: string | null;
-    updated_at: string;
-  } | null;
-  type: OrderType;
-  totalAmount: number;
-  created_at: string | null;
-  updated_at: string | null;
-  status: string;
-};
+import type { ExtendedOrder, OrderItem } from '@/types/order';
 
 export const OrderType = {
   SALE: 'sale',
@@ -66,7 +24,6 @@ export type OrderType = (typeof OrderType)[keyof typeof OrderType];
 
 const OrderDashboard: React.FC = () => {
   const [orders, setOrders] = useState<ExtendedOrder[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
@@ -77,12 +34,12 @@ const OrderDashboard: React.FC = () => {
     const loadData = async () => {
       setIsLoading(true);
       try {
-        const [ordersResponse, customersResponse, productsResponse] =
-          await Promise.all([getOrders(), getCustomers(), getProducts()]);
+        const [ordersResponse, customersResponse] =
+          await Promise.all([getOrders(), getCustomers()]);
 
         if (!mounted) return;
 
-        if (!ordersResponse || !customersResponse || !productsResponse) {
+        if (!ordersResponse || !customersResponse) {
           throw new Error('Failed to fetch required data');
         }
 
@@ -90,50 +47,31 @@ const OrderDashboard: React.FC = () => {
         const customersData = Array.isArray(customersResponse)
           ? customersResponse
           : [];
-        const productsData = Array.isArray(productsResponse)
-          ? productsResponse
-          : [];
 
         const extendedOrders: ExtendedOrder[] = ordersData.map(order => {
           const customer = order.customer_profile_id
-            ? customersData.find(
-              (c: { id: string }) => c.id === order.customer_profile_id,
-            )
-            : null;
-
-          const customerData = customer
-            ? {
-              id: customer.id || '',
-              name: customer.fullName || 'Unknown',
-              full_name: customer.fullName || 'Unknown',
-              email: customer.email || 'No email',
-              phone: customer.phone || null,
-              address: customer.location || null,
-              imageUrl: customer.imageUrl || null,
-              status: customer.status || 'pending',
-              created_at: customer.created_at || new Date().toISOString(),
-              updated_at: customer.updated_at || new Date().toISOString(),
-            }
+            ? customersData.find(c => c.id === order.customer_profile_id)
             : null;
 
           return {
             id: order.id,
-            customerName: customerData?.name || 'Unknown',
-            items:
-              order.order_items?.map(item => ({
-                id: item.id,
-                order_id: item.order_id,
-                price: item.price || 0,
-                product_id: item.product_id,
-                product_name: item.product_name || 'Unknown Product',
-                quantity: item.quantity || 0,
-              })) || [],
-            customer: customerData,
+            display_id: order.display_id,
+            profile_id: order.profile_id,
+            customer_profile_id: order.customer_profile_id,
+            customerName: customer?.fullName || 'Unknown',
+            status: order.status,
             type: order.type as OrderType,
-            totalAmount: order.total_amount || 0,
-            created_at: order.created_at || new Date().toISOString(),
-            updated_at: order.updated_at || null,
-            status: order.status || 'pending',
+            total_amount: order.total_amount,
+            created_at: order.created_at,
+            updated_at: order.updated_at,
+            items: (order.order_items || []) as OrderItem[],
+            order_items: (order.order_items || []) as OrderItem[],
+            profiles: customer ? {
+              id: customer.id,
+              name: customer.fullName,
+              email: customer.email,
+              role: 'customer'
+            } : undefined
           };
         });
 
@@ -145,7 +83,6 @@ const OrderDashboard: React.FC = () => {
 
         if (mounted) {
           setOrders(sortedOrders);
-          setProducts(productsData);
 
           if (sortedOrders.length > 0 && !selectedOrderId) {
             setSelectedOrderId(sortedOrders[0].id);
@@ -163,7 +100,6 @@ const OrderDashboard: React.FC = () => {
           variant: 'destructive',
         });
         setOrders([]);
-        setProducts([]);
         if (selectedOrderId) {
           setSelectedOrderId(null);
         }
@@ -246,7 +182,7 @@ const OrderDashboard: React.FC = () => {
           const orderDate = new Date(order.created_at ?? 0);
           return orderDate >= startDate && orderDate < endDate;
         })
-        .reduce((sum, order) => sum + (order.totalAmount || 0), 0);
+        .reduce((sum, order) => sum + (order.total_amount || 0), 0);
     };
 
     const currentWeekTotal = computeTotal(startOfCurrentWeek, new Date());

@@ -9,6 +9,30 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      system_counters: {
+        Row: {
+          id: string
+          counter_key: string
+          counter_value: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          counter_key: string
+          counter_value: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          counter_key?: string
+          counter_value?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       about: {
         Row: {
           content: string
@@ -165,7 +189,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       orders: {
@@ -178,6 +202,7 @@ export type Database = {
           total_amount: number
           type: string
           updated_at: string | null
+          display_id: string | null
         }
         Insert: {
           created_at?: string | null
@@ -188,6 +213,7 @@ export type Database = {
           total_amount: number
           type: string
           updated_at?: string | null
+          display_id?: string | null
         }
         Update: {
           created_at?: string | null
@@ -198,6 +224,7 @@ export type Database = {
           total_amount?: number
           type?: string
           updated_at?: string | null
+          display_id?: string | null
         }
         Relationships: [
           {
@@ -213,7 +240,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       products: {
@@ -403,7 +430,7 @@ export type Tables<
   TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
   ? keyof (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
     Database[PublicTableNameOrOptions["schema"]]["Views"])
-  : never = never,
+  : never = never
 > = PublicTableNameOrOptions extends { schema: keyof Database }
   ? (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
     Database[PublicTableNameOrOptions["schema"]]["Views"])[TableName] extends {
@@ -427,7 +454,7 @@ export type TablesInsert<
   | { schema: keyof Database },
   TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
   ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
-  : never = never,
+  : never = never
 > = PublicTableNameOrOptions extends { schema: keyof Database }
   ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
     Insert: infer I
@@ -448,7 +475,7 @@ export type TablesUpdate<
   | { schema: keyof Database },
   TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
   ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
-  : never = never,
+  : never = never
 > = PublicTableNameOrOptions extends { schema: keyof Database }
   ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
     Update: infer U
@@ -469,7 +496,7 @@ export type Enums<
   | { schema: keyof Database },
   EnumName extends PublicEnumNameOrOptions extends { schema: keyof Database }
   ? keyof Database[PublicEnumNameOrOptions["schema"]]["Enums"]
-  : never = never,
+  : never = never
 > = PublicEnumNameOrOptions extends { schema: keyof Database }
   ? Database[PublicEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : PublicEnumNameOrOptions extends keyof PublicSchema["Enums"]
@@ -484,7 +511,7 @@ export type CompositeTypes<
     schema: keyof Database
   }
   ? keyof Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-  : never = never,
+  : never = never
 > = PublicCompositeTypeNameOrOptions extends { schema: keyof Database }
   ? Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof PublicSchema["CompositeTypes"]

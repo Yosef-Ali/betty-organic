@@ -45,8 +45,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal, Eye, PenLine } from 'lucide-react';
 import { format } from 'date-fns';
-import { OrderItem } from '@/types';
-import { ExtendedOrder } from '@/types/order';
+import { ExtendedOrder, OrderItem } from '@/types/order';
+import { formatOrderId } from '@/lib/utils';
 
 interface OrdersDataTableProps {
   orders: ExtendedOrder[];
@@ -97,11 +97,9 @@ export function OrdersDataTable({
     },
   });
 
-  // Calculate pagination details
   const totalPages = Math.ceil(table.getFilteredRowModel().rows.length / 12);
   const currentPage = table.getState().pagination.pageIndex + 1;
 
-  // Generate page numbers to display
   const getPageNumbers = () => {
     const pages: number[] = [];
     for (let i = 1; i <= totalPages; i++) {
@@ -176,26 +174,23 @@ export function OrdersDataTable({
                     >
                       <div className="card p-3 shadow rounded border w-full space-y-3 mb-3 overflow-x-hidden">
                         <div className="flex items-center gap-3">
-                          {row.original.customer && (
+                          {row.original.profiles && (
                             <Avatar className="h-9 w-9">
                               <AvatarImage
-                                src={
-                                  row.original.customer?.imageUrl ||
-                                  '/placeholder-customer.png'
-                                }
+                                src="/placeholder-customer.png"
                               />
                               <AvatarFallback>
-                                {row.original.customer?.name?.charAt(0) || '?'}
+                                {row.original.profiles.name?.charAt(0) || '?'}
                               </AvatarFallback>
                             </Avatar>
                           )}
                           <div className="space-y-2">
                             <p className="text-sm font-medium">
-                              {row.original.customer?.name ||
+                              {row.original.profiles?.name ||
                                 'Unknown Customer'}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              Order #{row.original.id || 'N/A'}
+                              {formatOrderId(row.original.display_id || row.original.id)}
                             </p>
                           </div>
                         </div>
@@ -213,37 +208,32 @@ export function OrdersDataTable({
                             <span className="text-sm text-muted-foreground">
                               Amount:
                             </span>
-                            <span>${row.original.amount}</span>
+                            <span>Br {row.original.total_amount.toFixed(2)}</span>
                           </div>
                           <div className="flex justify-between items-center">
                             <span className="text-sm text-muted-foreground">
                               Created:
                             </span>
                             <span className="text-sm">
-                              {formatDate(row.original.createdAt)}
+                              {formatDate(row.original.created_at)}
                             </span>
                           </div>
                           <div className="flex flex-wrap gap-2">
-                            {row.original.items
-                              ?.filter(
-                                (item: OrderItem | null): item is OrderItem =>
-                                  item !== null
-                              )
-                              ?.map((item: OrderItem) => (
-                                <div
-                                  key={`${row.id}-product-${item.product_id}`}
-                                >
-                                  <Image
-                                    src="/placeholder-product.png"
-                                    alt={item.product_name || 'Unknown product'}
-                                    width={48}
-                                    height={48}
-                                    className="rounded-full object-cover border"
-                                  />
-                                </div>
-                              ))}
-                            {(!row.original.items ||
-                              !row.original.items.length) && (
+                            {row.original.order_items?.map((item) => (
+                              <div
+                                key={`${row.id}-product-${item.product_id}`}
+                              >
+                                <Image
+                                  src="/placeholder-product.png"
+                                  alt={item.product_name || 'Unknown product'}
+                                  width={48}
+                                  height={48}
+                                  className="rounded-full object-cover border"
+                                />
+                              </div>
+                            ))}
+                            {(!row.original.order_items ||
+                              !row.original.order_items.length) && (
                                 <div className="text-muted-foreground text-sm">
                                   No products
                                 </div>

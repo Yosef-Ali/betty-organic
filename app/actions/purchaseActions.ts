@@ -2,8 +2,9 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { createOrder } from './orderActions';
-import type { Order } from '@/types/order';
+import type { Order, OrderItem } from '@/types/order';
 import { getCurrentUser } from './auth';
+import { orderIdService } from '@/app/services/orderIdService';
 
 export async function handlePurchaseOrder(
   items: {
@@ -28,8 +29,13 @@ export async function handlePurchaseOrder(
       return { error: 'Profile not found', status: 404 };
     }
 
+    // Generate unique display ID
+    const displayId = await orderIdService.generateOrderID();
+    const orderId = crypto.randomUUID();
+
     const orderData: Order = {
-      id: crypto.randomUUID(),
+      id: orderId,
+      display_id: displayId,
       profile_id: profile.id, // This identifies who created the order
       customer_profile_id: profile.id, // This identifies the customer
       status: 'pending',
@@ -37,6 +43,7 @@ export async function handlePurchaseOrder(
       total_amount: Number(total.toFixed(2)),
       order_items: items.map(item => ({
         id: crypto.randomUUID(),
+        order_id: orderId, // Reference to the parent order
         product_id: item.id,
         quantity: Math.max(1, Math.round(item.grams / 1000)),
         price: Number(((item.pricePerKg * item.grams) / 1000).toFixed(2)),

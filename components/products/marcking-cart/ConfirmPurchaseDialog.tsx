@@ -201,18 +201,6 @@ export function ConfirmPurchaseDialog({
               >
                 Cancel
               </Button>
-              {/* <Button
-                variant="outline"
-                disabled={isSubmitting}
-                onClick={() => {
-                  const message = `I just placed an order for ${items.length} items totaling ETB ${calculateTotal(items).toFixed(2)}!`;
-                  const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
-                  window.open(url, '_blank');
-                }}
-              >
-                <Share2 className="mr-2 h-4 w-4" />
-                Share via WhatsApp
-              </Button> */}
               <Button
                 onClick={handleCheckout}
                 disabled={isSubmitting}
@@ -250,7 +238,7 @@ export function ConfirmPurchaseDialog({
           </>
         ) : (
           <OrderConfirmationReceipt
-            orderNumber={orderDetails?.id || ''}
+            orderNumber={orderDetails?.display_id || orderDetails?.id || ''}
             orderDate={new Date()}
             items={completedOrderData?.items || []}
             total={completedOrderData?.total || 0}

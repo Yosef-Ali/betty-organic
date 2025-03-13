@@ -30,14 +30,26 @@ export function formatCurrency(amount: number): string {
 
 /**
  * Formats an order ID to ensure consistent display across the application
- * @param orderId - The raw order ID
- * @returns Formatted order ID with # prefix
+ * @param orderId - Either a display ID (BO-YYYYMMDD-XXXX) or internal UUID
+ * @returns Formatted order ID
  */
 export const formatOrderId = (orderId: string) => {
-  // Remove any existing # prefix
+  // If it's already in our display ID format (BO-YYYYMMDD-XXXX), return as is
+  if (orderId.startsWith('BO-') && orderId.length === 15) {
+    return orderId;
+  }
+
+  // For legacy or internal IDs, format with # prefix and padding
   const cleanId = orderId.replace('#', '');
-  // Ensure the ID is exactly 8 characters, pad with zeros if needed
-  const paddedId = cleanId.padStart(8, '0');
-  // Return with # prefix
+  const paddedId = cleanId.slice(-8).padStart(8, '0');
   return `#${paddedId}`;
+};
+
+/**
+ * Checks if an order ID is in the display ID format
+ * @param orderId - The order ID to check
+ * @returns boolean indicating if it's a display ID
+ */
+export const isDisplayOrderId = (orderId: string): boolean => {
+  return /^BO-\d{8}-\d{4}$/.test(orderId);
 };
