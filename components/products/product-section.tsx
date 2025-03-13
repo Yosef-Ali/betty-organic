@@ -229,8 +229,21 @@ export function ProductSection({
           )}
 
           {isError && (
-            <div className="col-span-full text-center py-8 text-red-500">
-              {errorMessage || 'Error loading products. Please try again later.'}
+            <div className="col-span-full text-center py-8">
+              <div className="flex flex-col items-center gap-4">
+                <div className="text-red-500 font-medium">
+                  {errorMessage || 'Error loading products. Please try again later.'}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={refreshProducts}
+                  className="flex items-center gap-2"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  Try Again
+                </Button>
+              </div>
             </div>
           )}
 

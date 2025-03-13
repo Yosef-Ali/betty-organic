@@ -8,8 +8,7 @@ import { cookies } from 'next/headers';
 export async function getProducts(): Promise<Product[]> {
   try {
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-      console.error('Missing Supabase environment variables');
-      return [];
+      throw new Error('Missing Supabase environment variables');
     }
 
     const supabase = createClient<Database>(
@@ -24,18 +23,17 @@ export async function getProducts(): Promise<Product[]> {
 
     if (error) {
       console.error('Supabase query error:', error);
-      return [];
+      throw new Error('Failed to fetch products from database');
     }
 
     if (!data) {
-      console.warn('No products found in the database');
-      return [];
+      throw new Error('No products found in the database');
     }
 
     return data;
   } catch (error) {
     console.error('Error in getProducts:', error instanceof Error ? error.message : 'Unknown error');
-    return [];
+    throw error;
   }
 }
 
