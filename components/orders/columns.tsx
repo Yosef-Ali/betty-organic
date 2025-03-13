@@ -6,10 +6,14 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal } from 'lucide-react';
 import { ExtendedOrder } from '@/types/order';
 import { formatOrderId } from '@/lib/utils';
+import { updateOrderStatus } from '@/app/actions/orderActions';
+import { toast } from 'sonner';
 
 export const columns: ColumnDef<ExtendedOrder>[] = [
   {
@@ -80,6 +84,19 @@ export const columns: ColumnDef<ExtendedOrder>[] = [
         onSelect: (id: string) => void;
       };
 
+      const handleStatusUpdate = async (status: string) => {
+        try {
+          const result = await updateOrderStatus(row.original.id, status);
+          if (result.success) {
+            toast.success('Order status updated successfully');
+          } else {
+            toast.error('Failed to update order status');
+          }
+        } catch (error) {
+          toast.error('Error updating order status');
+        }
+      };
+
       return (
         <div className="text-right">
           <DropdownMenu>
@@ -89,9 +106,25 @@ export const columns: ColumnDef<ExtendedOrder>[] = [
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
               <DropdownMenuItem onClick={() => meta.onSelect(row.original.id)}>
                 View
               </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Update Status</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => handleStatusUpdate('pending')}>
+                Pending
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleStatusUpdate('processing')}>
+                Processing
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleStatusUpdate('completed')}>
+                Completed
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleStatusUpdate('cancelled')}>
+                Cancelled
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => meta.onDelete(row.original.id)}>
                 Delete
               </DropdownMenuItem>

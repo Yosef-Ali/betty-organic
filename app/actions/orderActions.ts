@@ -284,3 +284,26 @@ export async function getOrders(customerId?: string) {
     return [];
   }
 }
+
+export async function updateOrderStatus(orderId: string, status: string) {
+  const supabase = await createClient();
+  try {
+    const { data, error } = await supabase
+      .from('orders')
+      .update({ status })
+      .eq('id', orderId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating order status:', error);
+      return { success: false, error };
+    }
+
+    revalidatePath('/dashboard/orders');
+    return { success: true, data };
+  } catch (error) {
+    console.error('Error in updateOrderStatus:', error);
+    return { success: false, error };
+  }
+}
