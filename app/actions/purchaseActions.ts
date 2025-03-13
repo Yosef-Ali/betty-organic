@@ -32,7 +32,10 @@ export async function handlePurchaseOrder(
 
     // Validate items before creating order
     if (!items || items.length === 0) {
-      throw new Error('No items provided for order');
+      return {
+        error: 'No items provided for order',
+        status: 400
+      };
     }
 
     // Create order with admin client to bypass RLS
@@ -53,7 +56,10 @@ export async function handlePurchaseOrder(
 
     if (profileError && profileError.code !== 'PGRST116') { // PGRST116 is "not found"
       console.error('Error checking profile:', profileError);
-      throw new Error('Failed to check user profile');
+      return {
+        error: 'Failed to check user profile',
+        status: 500
+      };
     }
 
     // If profile doesn't exist, create it
@@ -70,7 +76,10 @@ export async function handlePurchaseOrder(
 
       if (createProfileError) {
         console.error('Failed to create profile:', createProfileError);
-        throw new Error('Failed to create user profile');
+        return {
+          error: 'Failed to create user profile',
+          status: 500
+        };
       }
     }
 
@@ -89,12 +98,18 @@ export async function handlePurchaseOrder(
 
     if (orderError) {
       console.error('Failed to create order:', orderError);
-      throw new Error(`Failed to create order: ${orderError.message}`);
+      return {
+        error: `Failed to create order: ${orderError.message}`,
+        status: 500
+      };
     }
 
     if (!order) {
       console.error('No order data returned from insert');
-      throw new Error('No order data returned');
+      return {
+        error: 'No order data returned',
+        status: 500
+      };
     }
 
     console.log('Order created successfully:', order);
@@ -118,7 +133,10 @@ export async function handlePurchaseOrder(
       console.error('Failed to create order items:', itemsError);
       // Cleanup the order if items failed
       await supabaseAdmin.from('orders').delete().eq('id', order.id);
-      throw new Error(`Failed to create order items: ${itemsError.message}`);
+      return {
+        error: `Failed to create order items: ${itemsError.message}`,
+        status: 500
+      };
     }
 
     console.log('Order items created successfully');

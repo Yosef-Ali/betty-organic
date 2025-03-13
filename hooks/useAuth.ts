@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { User } from '@supabase/supabase-js';
+import type { User } from '@supabase/auth-helpers-nextjs';
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
@@ -10,24 +10,20 @@ export function useAuth() {
   const supabase = createClientComponentClient();
 
   useEffect(() => {
-    // Get initial session
-    const getSession = async () => {
+    const getUser = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        setUser(session?.user ?? null);
+        const { data: { user } } = await supabase.auth.getUser();
+        setUser(user);
       } catch (error) {
-        console.error('Error getting session:', error);
+        console.error('Error getting user:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    getSession();
+    getUser();
 
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       setLoading(false);
     });

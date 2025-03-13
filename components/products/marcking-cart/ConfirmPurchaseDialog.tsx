@@ -21,6 +21,7 @@ import { OrderConfirmationReceipt } from './OrderConfirmationReceipt';
 import { useAuth } from '@/hooks/useAuth';
 import { AlertCircle } from 'lucide-react';
 import { AlertTitle } from '@/components/ui/alert';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 interface ConfirmPurchaseDialogProps {
   isOpen: boolean;
@@ -95,10 +96,12 @@ export function ConfirmPurchaseDialog({ isOpen, onClose, items, total }: Confirm
       const result = await handlePurchaseOrder(items, total);
 
       if (result.error) {
+        console.error('Server error:', result.error);
         throw new Error(result.error);
       }
 
       if (!result.data) {
+        console.error('No order data returned');
         throw new Error('Failed to create order: No order data returned');
       }
 
@@ -135,90 +138,98 @@ export function ConfirmPurchaseDialog({ isOpen, onClose, items, total }: Confirm
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
-        {!orderComplete ? (
-          <>
-            <DialogHeader>
-              <DialogTitle>Confirm Purchase</DialogTitle>
-              <DialogDescription>
-                Please review your order details before confirming.
-              </DialogDescription>
-            </DialogHeader>
+    <ErrorBoundary
+      error={error ? new Error(error) : new Error('An unexpected error occurred')}
+      reset={() => {
+        setError(null);
+        setIsLoading(false);
+      }}
+    >
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-[425px]">
+          {!orderComplete ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>Confirm Purchase</DialogTitle>
+                <DialogDescription>
+                  Please review your order details before confirming.
+                </DialogDescription>
+              </DialogHeader>
 
-            {!user && (
-              <Alert className="mb-4">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Sign in Required</AlertTitle>
-                <AlertDescription>
-                  You need to be signed in to place an order. Click the button below to sign in or create an account.
-                </AlertDescription>
-                <div className="mt-4 flex gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => router.push('/auth/login')}
-                    className="w-full"
-                  >
-                    Sign in
-                  </Button>
-                  <Button
-                    variant="default"
-                    onClick={() => router.push('/auth/signup')}
-                    className="w-full"
-                  >
-                    Create Account
-                  </Button>
-                </div>
-              </Alert>
-            )}
-
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <h4 className="font-medium">Order Summary</h4>
-                {items.map((item) => (
-                  <div key={item.id} className="flex justify-between text-sm">
-                    <span>{item.name}</span>
-                    <span>{item.grams}g - ETB {((item.pricePerKg * item.grams) / 1000).toFixed(2)}</span>
+              {!user && (
+                <Alert className="mb-4">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Sign in Required</AlertTitle>
+                  <AlertDescription>
+                    You need to be signed in to place an order. Click the button below to sign in or create an account.
+                  </AlertDescription>
+                  <div className="mt-4 flex gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => router.push('/auth/login')}
+                      className="w-full"
+                    >
+                      Sign in
+                    </Button>
+                    <Button
+                      variant="default"
+                      onClick={() => router.push('/auth/signup')}
+                      className="w-full"
+                    >
+                      Create Account
+                    </Button>
                   </div>
-                ))}
-                <div className="flex justify-between font-medium pt-2 border-t">
-                  <span>Total</span>
-                  <span>ETB {total.toFixed(2)}</span>
-                </div>
-              </div>
-
-              {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
 
-              <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={onClose}>
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleConfirm}
-                  disabled={isLoading}
-                  className={!user ? "bg-primary hover:bg-primary/90" : ""}
-                >
-                  {isLoading ? "Processing..." : user ? "Confirm Order" : "Sign in to Order"}
-                </Button>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <h4 className="font-medium">Order Summary</h4>
+                  {items.map((item) => (
+                    <div key={item.id} className="flex justify-between text-sm">
+                      <span>{item.name}</span>
+                      <span>{item.grams}g - ETB {((item.pricePerKg * item.grams) / 1000).toFixed(2)}</span>
+                    </div>
+                  ))}
+                  <div className="flex justify-between font-medium pt-2 border-t">
+                    <span>Total</span>
+                    <span>ETB {total.toFixed(2)}</span>
+                  </div>
+                </div>
+
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
+
+                <div className="flex justify-end space-x-2">
+                  <Button variant="outline" onClick={onClose}>
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleConfirm}
+                    disabled={isLoading}
+                    className={!user ? "bg-primary hover:bg-primary/90" : ""}
+                  >
+                    {isLoading ? "Processing..." : user ? "Confirm Order" : "Sign in to Order"}
+                  </Button>
+                </div>
               </div>
-            </div>
-          </>
-        ) : (
-          orderDetails && completedOrderData && (
-            <OrderConfirmationReceipt
-              orderNumber={orderDetails?.display_id || orderDetails?.id || ''}
-              orderDate={new Date()}
-              items={completedOrderData.items}
-              total={completedOrderData.total}
-              onClose={onClose}
-            />
-          )
-        )}
-      </DialogContent>
-    </Dialog>
+            </>
+          ) : (
+            orderDetails && completedOrderData && (
+              <OrderConfirmationReceipt
+                orderNumber={orderDetails?.display_id || orderDetails?.id || ''}
+                orderDate={new Date()}
+                items={completedOrderData.items}
+                total={completedOrderData.total}
+                onClose={onClose}
+              />
+            )
+          )}
+        </DialogContent>
+      </Dialog>
+    </ErrorBoundary>
   );
 }
