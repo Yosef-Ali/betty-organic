@@ -40,10 +40,35 @@ export async function middleware(request: NextRequest) {
   // If there's no session and the user is trying to access a protected route
   if (!session && isProtectedRoute) {
     // Store the original URL to redirect back after sign in
-    const redirectUrl = new URL('/auth/signin', request.url);
+    const redirectUrl = new URL('/auth/login', request.url);
     redirectUrl.searchParams.set('redirectTo', request.nextUrl.pathname);
-
     return NextResponse.redirect(redirectUrl);
+  }
+
+  // Role-based access control for dashboard routes
+  if (session && request.nextUrl.pathname.startsWith('/dashboard')) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', session.user.id)
+      .single();
+
+    const userRole = profile?.role || 'customer';
+
+    // Admin routes
+    if (request.nextUrl.pathname.startsWith('/dashboard/admin') && userRole !== 'admin') {
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    }
+
+    // Sales routes
+    if (request.nextUrl.pathname.startsWith('/dashboard/sales') && !['admin', 'sales'].includes(userRole)) {
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    }
+
+    // Customer routes
+    if (request.nextUrl.pathname.startsWith('/dashboard/customer') && !['admin', 'sales', 'customer'].includes(userRole)) {
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    }
   }
 
   return response;
