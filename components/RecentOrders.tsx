@@ -54,7 +54,7 @@ export function RecentOrders() {
             <TableCell>{order.status}</TableCell>
             <TableCell>{order.type}</TableCell>
             <TableCell className="text-right">
-              ${order.total_amount.toFixed(2)}
+              Br {order.total_amount.toFixed(2)}
             </TableCell>
           </TableRow>
         ))}

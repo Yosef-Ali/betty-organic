@@ -49,7 +49,7 @@ export async function getRecentTransactions(): Promise<MappedTransaction[]> {
     type: transaction.type,
     status: transaction.status,
     date: transaction.created_at ? new Date(transaction.created_at).toISOString().split('T')[0] : '',
-    amount: `$${transaction.total_amount.toFixed(2)}`,
+    amount: `Br ${transaction.total_amount.toFixed(2)}`,
   }));
 }
 

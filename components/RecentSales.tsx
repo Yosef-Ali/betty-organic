@@ -44,7 +44,7 @@ export function RecentSales() {
             </p>
           </div>
           <div className="ml-auto font-medium">
-            +${sale.total_amount.toFixed(2)}
+            +Br {sale.total_amount.toFixed(2)}
           </div>
         </div>
       ))}
