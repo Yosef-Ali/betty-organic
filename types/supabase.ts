@@ -19,6 +19,42 @@ export type ProductCategory =
 export type Database = {
   public: {
     Tables: {
+      about_content: {
+        Row: {
+          id: string;
+          title: string;
+          content: string;
+          images: string[];
+          videos: string[];
+          active: boolean;
+          created_at: string | null;
+          updated_at: string | null;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          title: string;
+          content: string;
+          images?: string[];
+          videos?: string[];
+          active?: boolean;
+          created_at?: string | null;
+          updated_at?: string | null;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          title?: string;
+          content?: string;
+          images?: string[];
+          videos?: string[];
+          active?: boolean;
+          created_at?: string | null;
+          updated_at?: string | null;
+          created_by?: string | null;
+        };
+        Relationships: [];
+      };
       categories: {
         Row: {
           created_at: string | null;

@@ -108,7 +108,7 @@ export async function saveAbout(content: AboutContent) {
 
     // Validate UUID format
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(cleanContent.id)) {
+    if (!uuidRegex.test(cleanContent.id as string)) {
       throw new Error('Invalid UUID format');
     }
 

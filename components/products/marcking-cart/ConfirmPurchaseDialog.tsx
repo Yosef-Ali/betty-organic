@@ -18,6 +18,7 @@ import { Share2 } from 'lucide-react';
 import { useMarketingCartStore } from '@/store/cartStore';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { OrderConfirmationReceipt } from './OrderConfirmationReceipt';
+import { useAuth } from '@/hooks/useAuth';
 
 interface ConfirmPurchaseDialogProps {
   open: boolean;
@@ -39,6 +40,7 @@ export function ConfirmPurchaseDialog({
 }: ConfirmPurchaseDialogProps) {
   const { toast } = useToast();
   const router = useRouter();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const clearCart = useMarketingCartStore(state => state.clearCart);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -78,6 +80,17 @@ export function ConfirmPurchaseDialog({
       setError(null);
       setIsSubmitting(true);
 
+      // Check if user is authenticated
+      if (!user) {
+        toast({
+          title: 'Authentication Required',
+          description: 'Please sign in to place an order',
+          variant: 'destructive',
+        });
+        router.push('/auth/signin');
+        return;
+      }
+
       const orderTotal = calculateTotal(items);
 
       // Validate items
@@ -85,11 +98,32 @@ export function ConfirmPurchaseDialog({
         throw new Error('Your cart is empty');
       }
 
-      const { data: order, error: orderError } = await handlePurchaseOrder(items, orderTotal);
+      // Validate each item
+      items.forEach(item => {
+        if (!item.id || !item.name || item.pricePerKg <= 0 || item.grams <= 0) {
+          throw new Error(`Invalid item data: ${item.name || 'Unknown item'}`);
+        }
+      });
 
-      if (orderError || !order) {
-        throw new Error(typeof orderError === 'string' ? orderError : 'Failed to create order');
+      console.log('Submitting order with items:', JSON.stringify(items));
+      const { data: order, error: orderError, status } = await handlePurchaseOrder(items, orderTotal);
+
+      if (orderError) {
+        console.error('Order creation failed:', orderError);
+        throw new Error(orderError);
       }
+
+      if (!order) {
+        console.error('No order data returned');
+        throw new Error('Failed to create order: No order data returned');
+      }
+
+      if (status !== 200) {
+        console.error('Order creation failed with status:', status);
+        throw new Error('Failed to create order: Invalid response status');
+      }
+
+      console.log('Order created successfully:', order);
 
       // Set completed order data before clearing cart
       setCompletedOrderData({
@@ -110,6 +144,7 @@ export function ConfirmPurchaseDialog({
 
     } catch (err: unknown) {
       setIsSubmitting(false);
+      console.error('Checkout error:', err);
 
       let errorMessage = 'An unexpected error occurred during checkout';
       if (err instanceof Error) {
@@ -201,7 +236,7 @@ export function ConfirmPurchaseDialog({
               </Button>
               <Button
                 onClick={handleCheckout}
-                disabled={isSubmitting}
+                disabled={isSubmitting || !user}
                 className="relative"
               >
                 {isSubmitting ? (
@@ -211,6 +246,8 @@ export function ConfirmPurchaseDialog({
                       Processing...
                     </span>
                   </>
+                ) : !user ? (
+                  'Sign in to Order'
                 ) : (
                   'Confirm Order'
                 )}
