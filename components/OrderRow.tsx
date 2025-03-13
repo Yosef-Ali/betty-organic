@@ -21,7 +21,7 @@ export const OrderRow: React.FC<OrderRowProps> = ({ order, onSelectOrder }) => {
           imageUrl={order.customer?.imageUrl || '/public/uploads/default.jpg'}
         />
       </TableCell>
-      <TableCell>{order.id}</TableCell>
+      <TableCell>{order.display_id || order.id}</TableCell>
       <TableCell>{order.status}</TableCell>
       <TableCell>{order.type}</TableCell>
       <TableCell>{new Date(order.createdAt).toISOString().split('T')[0]}</TableCell>

@@ -29,21 +29,23 @@ export function formatCurrency(amount: number): string {
 }
 
 /**
- * Formats an order ID to ensure consistent display across the application
- * @param orderId - Either a display ID (BO-YYYYMMDD-XXXX) or internal UUID
- * @returns Formatted order ID
+ * Formats an order ID for display
+ * If it's a display_id (BO-YYYYMMDD-XXXX format), returns it as is
+ * If it's a UUID, returns a shortened version
+ * @param id The order ID to format
+ * @returns string The formatted order ID
  */
-export const formatOrderId = (orderId: string) => {
-  // If it's already in our display ID format (BO-YYYYMMDD-XXXX), return as is
-  if (orderId.startsWith('BO-') && orderId.length === 15) {
-    return orderId;
+export function formatOrderId(id: string): string {
+  if (!id) return 'N/A';
+
+  // If it's already in the BO-YYYYMMDD-XXXX format, return as is
+  if (id.startsWith('BO-')) {
+    return id;
   }
 
-  // For legacy or internal IDs, format with # prefix and padding
-  const cleanId = orderId.replace('#', '');
-  const paddedId = cleanId.slice(-8).padStart(8, '0');
-  return `#${paddedId}`;
-};
+  // For UUIDs, return a shortened version
+  return `#${id.slice(0, 8)}`;
+}
 
 /**
  * Checks if an order ID is in the display ID format

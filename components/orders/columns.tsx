@@ -17,7 +17,7 @@ export const columns: ColumnDef<ExtendedOrder>[] = [
     header: 'Order ID',
     cell: ({ row }) => (
       <div className="cursor-pointer hover:underline">
-        {formatOrderId(row.original.display_id || row.original.id)}
+        {row.original.display_id || formatOrderId(row.original.id)}
       </div>
     ),
     enableGlobalFilter: true,
