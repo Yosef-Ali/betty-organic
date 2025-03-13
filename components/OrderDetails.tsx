@@ -54,6 +54,7 @@ type ExtendedOrder = {
     quantity: number;
     price: number;
   }>;
+  display_id?: string;
 };
 
 const OrderDetailsContent: React.FC<{
@@ -90,7 +91,7 @@ const OrderDetailsContent: React.FC<{
           <TableCell className="font-medium">
             {order.customer?.name || 'N/A'}
           </TableCell>
-          <TableCell>{order.id}</TableCell>
+          <TableCell>{order.display_id || order.id}</TableCell>
           <TableCell>{order.status}</TableCell>
           <TableCell>{order.type}</TableCell>
           <TableCell>

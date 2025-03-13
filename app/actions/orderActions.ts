@@ -5,11 +5,13 @@ import type { Order } from '@/types/order';
 import crypto from 'crypto';
 import { getCurrentUser } from './auth';
 import { orderIdService } from '@/app/services/orderIdService';
+import { revalidatePath } from 'next/cache';
 
 interface OrderItem {
   product_id: string;
   quantity: number;
   price: number;
+  product_name: string;
 }
 
 export async function getOrderDetails(orderId: string) {
@@ -54,16 +56,18 @@ export async function getOrderDetails(orderId: string) {
   }
 }
 
-export async function createOrder(orderData: Order) {
+export async function createOrder(
+  items: OrderItem[],
+  customerId: string,
+  totalAmount: number,
+  status: string = 'pending'
+) {
   try {
     const supabase = await createClient();
     const authData = await getCurrentUser();
 
     if (!authData?.user) {
-      return {
-        data: null,
-        error: new Error('Session validation failed: Please sign in again'),
-      };
+      throw new Error('User not authenticated');
     }
 
     // Verify user role and permissions
@@ -81,8 +85,8 @@ export async function createOrder(orderData: Order) {
     console.log('Creating order with role:', role, 'userId:', userId);
 
     // Validate order data
-    if (!orderData?.order_items?.length) {
-      console.error('Missing order items in order data:', orderData);
+    if (!items?.length) {
+      console.error('Missing order items in order data:', items);
       return {
         data: null,
         error: new Error('Invalid order data: Missing order items'),
@@ -100,7 +104,7 @@ export async function createOrder(orderData: Order) {
     } else if (['admin', 'sales'].includes(role)) {
       // For admin/sales orders, profile_id is their ID and customer_profile_id is the selected customer
       profile_id = userId;
-      customer_profile_id = orderData.customer_profile_id;
+      customer_profile_id = customerId;
 
       if (!customer_profile_id) {
         console.error('Missing customer_profile_id for admin/sales order');
@@ -126,11 +130,10 @@ export async function createOrder(orderData: Order) {
       .insert({
         profile_id,
         customer_profile_id,
-        total_amount: orderData.total_amount,
-        status: orderData.status || 'pending',
-        type:
-          orderData.type || (role === 'customer' ? 'self_service' : 'store'),
-        display_id, // Add the generated display ID
+        total_amount: totalAmount,
+        status: status,
+        type: role === 'customer' ? 'self_service' : 'store',
+        display_id,
       })
       .select()
       .single();
@@ -141,24 +144,19 @@ export async function createOrder(orderData: Order) {
         profile_id,
         customer_profile_id,
         role,
-        orderData,
       });
       throw new Error(
-        `Database error creating order: ${orderError.message || 'Unknown error'
-        }`,
+        `Database error creating order: ${orderError.message || 'Unknown error'}`,
       );
     }
 
-    console.log('Order created successfully:', order);
-
     // Create order items
-    const orderItems = orderData.order_items.map(item => ({
-      id: crypto.randomUUID(),
+    const orderItems = items.map(item => ({
       order_id: order.id,
       product_id: item.product_id,
       quantity: item.quantity,
       price: item.price,
-      product_name: item.product_name,
+      product_name: item.product_name
     }));
 
     const { error: itemsError } = await supabase
@@ -174,23 +172,15 @@ export async function createOrder(orderData: Order) {
       // If order items creation fails, delete the order
       await supabase.from('orders').delete().eq('id', order.id);
       throw new Error(
-        `Failed to create order items: ${itemsError.message || 'Unknown error'
-        }`,
+        `Failed to create order items: ${itemsError.message || 'Unknown error'}`,
       );
     }
 
-    console.log('Order items created successfully for order:', order.id);
-
-    return {
-      data: { ...order, order_items: orderItems },
-      error: null,
-    };
-  } catch (err) {
-    console.error('Server error creating order:', err);
-    return {
-      data: null,
-      error: new Error('Failed to create order. Please try again.'),
-    };
+    revalidatePath('/dashboard/orders');
+    return { success: true, order };
+  } catch (error) {
+    console.error('Error creating order:', error);
+    return { success: false, error };
   }
 }
 

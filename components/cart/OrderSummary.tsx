@@ -273,11 +273,22 @@ ${storeInfo}`;
       initial={{ opacity: 0, x: '100%' }}
       animate={{ opacity: 1, x: '0%' }}
       exit={{ opacity: 0, x: '-100%' }}
-      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+      transition={{
+        type: 'spring',
+        stiffness: 300,
+        damping: 30,
+      }}
       className="space-y-4"
     >
       <div className="flex justify-between items-center mb-4">
-        <h3 className="font-semibold text-lg">Order Summary</h3>
+        <div>
+          <h3 className="font-semibold text-lg">Order Summary</h3>
+          {orderNumber && (
+            <p className="text-sm text-muted-foreground">
+              Order ID: {orderNumber}
+            </p>
+          )}
+        </div>
         <div className="flex space-x-2">
           <Button variant="outline" size="sm" onClick={onPrintPreview}>
             <Printer className="h-4 w-4 mr-2" />
@@ -311,9 +322,6 @@ ${storeInfo}`;
           </DropdownMenu>
         </div>
       </div>
-      {orderNumber && (
-        <p className="text-sm text-muted-foreground">Order #: {orderNumber}</p>
-      )}
       <div className="space-y-2 mb-4">
         {items.map(item => (
           <div key={item.id} className="flex justify-between text-sm">

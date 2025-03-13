@@ -18,6 +18,9 @@ interface MarketingCartStore {
   getTotalAmount: () => number
 }
 
+// Define the current version of the store
+const CURRENT_VERSION = 1
+
 export const useMarketingCartStore = create<MarketingCartStore>()(
   persist(
     (set, get) => ({
@@ -66,12 +69,16 @@ export const useMarketingCartStore = create<MarketingCartStore>()(
     {
       name: 'marketing-cart',
       storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({ items: state.items }),
-      version: 1,
-      onRehydrateStorage: () => (state) => {
-        if (!state) {
-          console.warn('Failed to rehydrate marketing cart state');
+      version: CURRENT_VERSION,
+      // Add migration function to handle state updates
+      migrate: (persistedState: any, version: number) => {
+        if (version === 0) {
+          // Handle migration from version 0 to 1
+          return {
+            items: persistedState.items || [],
+          }
         }
+        return persistedState as MarketingCartStore
       },
     }
   )

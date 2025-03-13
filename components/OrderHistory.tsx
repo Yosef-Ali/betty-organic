@@ -45,28 +45,26 @@ export function OrderHistory({ userId }: OrderHistoryProps) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function loadOrders() {
+    async function fetchOrders() {
       try {
-        setIsLoading(true);
-        const ordersData = await getOrders();
+        const ordersData = await getOrders(userId);
         setOrders(ordersData);
-      } catch (err) {
-        setError('Failed to load orders');
-        console.error('Error loading orders:', err);
+      } catch (error) {
+        console.error('Error fetching orders:', error);
       } finally {
         setIsLoading(false);
       }
     }
-
-    loadOrders();
+    fetchOrders();
   }, [userId]);
 
   if (isLoading) {
     return (
-      <div className="space-y-3">
-        <Skeleton className="h-20 w-full" />
-        <Skeleton className="h-20 w-full" />
-        <Skeleton className="h-20 w-full" />
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-full" />
+        <Skeleton className="h-8 w-full" />
+        <Skeleton className="h-8 w-full" />
+        <Skeleton className="h-8 w-full" />
       </div>
     );
   }
@@ -120,7 +118,9 @@ export function OrderHistory({ userId }: OrderHistoryProps) {
         <TableBody>
           {orders.map((order) => (
             <TableRow key={order.id}>
-              <TableCell className="font-medium">#{order.id.slice(0, 8)}</TableCell>
+              <TableCell className="font-medium">
+                {order.display_id || `#${order.id.slice(0, 8)}`}
+              </TableCell>
               <TableCell>
                 {order.created_at
                   ? format(new Date(order.created_at), 'MMM d, yyyy')

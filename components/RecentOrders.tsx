@@ -19,6 +19,7 @@ type RecentOrder = {
   profiles: {
     name: string;
   };
+  display_id?: string;
 };
 
 export function RecentOrders() {
@@ -47,7 +48,7 @@ export function RecentOrders() {
         {recentOrders.map(order => (
           <TableRow key={order.id}>
             <TableCell className="font-medium">
-              {order.id.slice(0, 8)}
+              {order.display_id || order.id.slice(0, 8)}
             </TableCell>
             <TableCell>{order.profiles.name}</TableCell>
             <TableCell>{order.status}</TableCell>
