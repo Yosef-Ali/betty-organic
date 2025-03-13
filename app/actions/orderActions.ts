@@ -12,6 +12,7 @@ interface OrderItem {
   product_id: string;
   quantity: number;
   price: number;
+  product_name: string;
 }
 
 export async function getOrderDetails(orderId: string) {
@@ -79,10 +80,11 @@ export async function createOrder(
       .from('orders')
       .insert([
         {
-          customer_id: customerId,
+          profile_id: authData.user.id,
+          customer_profile_id: customerId,
           total_amount: totalAmount,
           status: status,
-          created_by: authData.user.id,
+          type: 'store',
           display_id: displayId
         }
       ])
@@ -98,7 +100,8 @@ export async function createOrder(
       order_id: order.id,
       product_id: item.product_id,
       quantity: item.quantity,
-      price: item.price
+      price: item.price,
+      product_name: item.product_name
     }));
 
     const { error: itemsError } = await supabase
