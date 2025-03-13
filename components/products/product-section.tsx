@@ -2,10 +2,9 @@
 
 import { motion } from 'framer-motion';
 import { FruitCard } from './fruit-card';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, ShoppingCart, X, PackageSearch, RefreshCw } from 'lucide-react';
 import { CartSheet } from './marcking-cart/CartSheet';
-import { getProducts } from '@/app/actions/productActions';
 import { Product } from '@/lib/supabase/db.types';
 import debounce from 'lodash/debounce';
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -25,254 +24,117 @@ const PRODUCT_CATEGORIES = [
   "Eggs_Dairy_products"
 ] as const;
 
-function EmptyState({
-  searchQuery,
-  selectedCategory,
-  onReset
-}: {
-  searchQuery: string;
-  selectedCategory: string;
-  onReset: () => void;
-}) {
-  return (
-    <div className="col-span-full py-12 flex flex-col items-center justify-center">
-      <div className="rounded-full bg-gray-100/80 p-4 mb-4">
-        <PackageSearch className="h-8 w-8 text-gray-500" />
-      </div>
-      <h3 className="text-lg font-semibold text-gray-900 mb-1">
-        No products found
-      </h3>
-      <p className="text-sm text-gray-500 text-center max-w-md mb-4">
-        {searchQuery && selectedCategory !== 'All' ? (
-          <>
-            We couldn&apos;t find any products matching &quot;{searchQuery}&quot; in the {selectedCategory.replace(/_/g, ' ')} category.
-          </>
-        ) : searchQuery ? (
-          <>
-            We couldn&apos;t find any products matching &quot;{searchQuery}&quot;.
-          </>
-        ) : selectedCategory !== 'All' ? (
-          <>
-            No products available in the {selectedCategory.replace(/_/g, ' ')} category yet.
-          </>
-        ) : (
-          'No products available at the moment.'
-        )}
-      </p>
-      <div className="flex items-center gap-3">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onReset}
-          className="flex items-center gap-2"
-        >
-          <RefreshCw className="h-4 w-4" />
-          Reset filters
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-export function ProductSection() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isError, setIsError] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
+export function ProductSection({ initialProducts }: { initialProducts: Product[] }) {
+  const [products, setProducts] = useState<Product[]>(initialProducts);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
-  const [isCartOpen, setIsCartOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<typeof PRODUCT_CATEGORIES[number]>("All");
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const { isCartOpen, setCartOpen } = useUIStore();
 
-  const { items } = useMarketingCartStore();
-  const { setCartOpen } = useUIStore();
-  const cartItemCount = items.length;
-
-  useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        setIsLoading(true);
-        setIsError(false);
-        setErrorMessage('');
-
-        const data = await getProducts();
-
-        if (!data || !Array.isArray(data)) {
-          throw new Error('Invalid data format received');
-        }
-
-        setProducts(data);
-      } catch (error) {
-        setIsError(true);
-        const errorMsg = error instanceof Error
-          ? error.message
-          : 'Failed to fetch products';
-        setErrorMessage(errorMsg);
-        console.error('Error fetching products:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchProducts();
-  }, []);
-
-  const debouncedSearch = useCallback((query: string) => {
-    setSearchQuery(query);
-    setIsSearching(false);
-  }, []);
-
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const query = e.target.value;
-    setIsSearching(true);
-    debouncedSearch(query);
-  };
-
-  const clearSearch = () => {
-    setSearchQuery('');
-    setIsSearching(false);
-  };
-
-  const resetFilters = () => {
-    setSearchQuery('');
-    setSelectedCategory('All');
-    setIsSearching(false);
+  const refreshProducts = async () => {
+    try {
+      setIsRefreshing(true);
+      const response = await fetch('/api/products');
+      const newProducts = await response.json();
+      setProducts(newProducts);
+    } catch (error) {
+      console.error('Failed to refresh products:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   const filteredProducts = products.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = selectedCategory === "All" || product.category === selectedCategory;
-    return matchesSearch && matchesCategory;
+    const matchesSearch = !searchQuery ||
+      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      product.description?.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesCategory && matchesSearch;
   });
 
-  const handleCartOpen = (open: boolean) => {
-    setIsCartOpen(open);
-    setCartOpen(open);
-  };
-
   return (
-    <div className="w-full py-24 sm:py-32">
-      <div className="mx-auto max-w-7xl px-6 lg:px-8">
-        <div className="mx-auto max-w-2xl text-center">
-          <h2 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-            Our Products
-          </h2>
-          <p className="mt-2 text-lg leading-8 text-gray-600">
-            Fresh organic products delivered to your doorstep
-          </p>
+    <section className="py-12">
+      <div className="container px-4 md:px-6">
+        <div className="flex flex-col gap-4 mb-8">
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <input
+                  type="text"
+                  placeholder="Search products..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 pr-4 py-2 w-full sm:w-[300px] rounded-md border border-input bg-background text-sm"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2"
+                  >
+                    <X className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                  </button>
+                )}
+              </div>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={refreshProducts}
+                disabled={isRefreshing}
+                className="hidden sm:flex"
+              >
+                <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
+
+            <CartSheet isOpen={isCartOpen} onOpenChange={setCartOpen} />
+          </div>
+
+          <ScrollArea className="w-full">
+            <Tabs defaultValue="All" className="w-full">
+              <TabsList className="inline-flex h-9 items-center justify-start rounded-lg bg-muted p-1 text-muted-foreground w-full">
+                {PRODUCT_CATEGORIES.map((category) => (
+                  <TabsTrigger
+                    key={category}
+                    value={category}
+                    onClick={() => setSelectedCategory(category)}
+                    className={`inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow ${selectedCategory === category ? 'bg-white shadow' : ''
+                      }`}
+                  >
+                    {category.replace(/_/g, ' ')}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
+            <ScrollBar orientation="horizontal" className="invisible" />
+          </ScrollArea>
         </div>
 
-        <div className="mt-10 flex flex-col items-center gap-4">
-          <div className="relative w-full max-w-md flex items-center gap-4">
-            <div className="relative flex-1">
-              <input
-                type="text"
-                placeholder="Search products..."
-                value={searchQuery}
-                onChange={handleSearchChange}
-                className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-              <div className="absolute inset-y-0 left-0 flex items-center pl-3">
-                <Search className="h-5 w-5 text-gray-400" />
-              </div>
-              {searchQuery && (
-                <button
-                  onClick={clearSearch}
-                  className="absolute inset-y-0 right-0 flex items-center pr-3"
-                >
-                  <X className="h-5 w-5 text-gray-400" />
-                </button>
-              )}
-            </div>
-            <Button
-              variant="outline"
-              size="icon"
-              className="relative shrink-0"
-              onClick={() => handleCartOpen(true)}
-            >
-              <ShoppingCart className="h-4 w-4" />
-              {items.length > 0 && (
-                <span className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
-                  {items.length}
-                </span>
-              )}
+        {filteredProducts.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <PackageSearch className="h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold mb-2">No products found</h3>
+            <p className="text-muted-foreground mb-4">Try adjusting your search or filter criteria</p>
+            <Button variant="outline" onClick={() => {
+              setSearchQuery('');
+              setSelectedCategory("All");
+            }}>
+              Clear filters
             </Button>
           </div>
-
-          <div className="w-full max-w-4xl">
-            <Tabs defaultValue="All" className="w-full">
-              <ScrollArea className="w-full whitespace-nowrap rounded-md">
-                <TabsList className="inline-flex w-full min-w-max">
-                  {PRODUCT_CATEGORIES.map((category) => (
-                    <TabsTrigger
-                      key={category}
-                      value={category}
-                      onClick={() => setSelectedCategory(category)}
-                      className="data-[state=active]:bg-primary px-4"
-                    >
-                      {category.replace(/_/g, ' ')}
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
-                <ScrollBar orientation="horizontal" className="invisible" />
-              </ScrollArea>
-            </Tabs>
-          </div>
-        </div>
-
-        <div className="mt-10 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4">
-          {isLoading && (
-            <div className="col-span-full flex items-center justify-center py-12">
-              <div className="flex items-center gap-2">
-                <div className="animate-spin">
-                  <RefreshCw className="h-5 w-5 text-gray-500" />
-                </div>
-                <span className="text-sm text-gray-500">Loading products...</span>
-              </div>
-            </div>
-          )}
-
-          {isError && (
-            <div className="col-span-full text-center py-8 text-red-500">
-              {errorMessage || 'Error loading products. Please try again later.'}
-            </div>
-          )}
-
-          {!isLoading && !isError && filteredProducts.length === 0 && (
-            <EmptyState
-              searchQuery={searchQuery}
-              selectedCategory={selectedCategory}
-              onReset={resetFilters}
-            />
-          )}
-
-          {!isLoading &&
-            !isError &&
-            filteredProducts.map(product => {
-              const optimizedProduct = {
-                ...product,
-                imageUrl: product.imageUrl
-                  ? `${product.imageUrl}?w=500&q=75`
-                  : '/placeholder.svg',
-              };
-              return (
-                <motion.div
-                  key={product.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <FruitCard
-                    {...optimizedProduct}
-                    description={product.description || undefined}
-                    unit={product.unit || undefined}
-                  />
-                </motion.div>
-              );
-            })}
-        </div>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5 }}
+            className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"
+          >
+            {filteredProducts.map((product) => (
+              <FruitCard key={product.id} product={product} />
+            ))}
+          </motion.div>
+        )}
       </div>
-      <CartSheet isOpen={isCartOpen} onOpenChange={handleCartOpen} />
-    </div>
+    </section>
   );
 }

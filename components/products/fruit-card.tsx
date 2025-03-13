@@ -1,52 +1,33 @@
-"use client";
-
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { ShoppingCart, ImageIcon } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
 import { useMarketingCartStore } from "@/store/cartStore";
 import { useToast } from "@/hooks/use-toast";
+import { Product } from "@/lib/supabase/db.types";
 
 interface FruitCardProps {
-  id: string;
-  name: string;
-  price: number;
-  imageUrl: string;
-  description?: string;
-  unit?: string;
+  product: Product;
 }
 
-export function FruitCard({
-  id,
-  name,
-  price,
-  imageUrl,
-  description = '',
-  unit = 'piece'
-}: FruitCardProps) {
+export function FruitCard({ product }: FruitCardProps) {
   const [imageError, setImageError] = useState(false);
-  const hasValidImage = imageUrl && imageUrl.trim().length > 0 && !imageError;
+  const hasValidImage = product.imageUrl && product.imageUrl.trim().length > 0 && !imageError;
   const { addItem } = useMarketingCartStore();
-
-  // Convert unit to kg if it's lb
-  const displayUnit = unit && unit.toLowerCase() === 'lb' ? 'kg' : unit || 'piece';
-
   const { toast } = useToast();
 
   const handleAddToCart = () => {
-    const pricePerKg = unit && unit.toLowerCase() === 'lb' ? price * 2.20462 : price;
     const cartItem = {
-      id: String(id),
-      name: String(name),
-      imageUrl: String(imageUrl || ''),
-      pricePerKg: Number(pricePerKg.toFixed(2)),
+      id: product.id,
+      name: product.name,
+      imageUrl: product.imageUrl || '',
+      pricePerKg: Number(product.price.toFixed(2)),
       grams: 1000,
     };
     addItem(cartItem);
     toast({
       title: "Added to cart",
-      description: `${name} has been added to your cart`,
+      description: `${product.name} has been added to your cart`,
     });
   };
 
@@ -56,8 +37,8 @@ export function FruitCard({
         {hasValidImage ? (
           <button onClick={handleAddToCart} className="w-full h-full">
             <Image
-              src={imageUrl}
-              alt={name}
+              src={product.imageUrl || '/placeholder-product.svg'}
+              alt={product.name}
               fill
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 16.67vw"
               className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105"
@@ -81,13 +62,13 @@ export function FruitCard({
         </Button>
       </div>
       <div className="p-4">
-        <h3 className="font-semibold text-lg mb-1 text-gray-800">{name}</h3>
+        <h3 className="font-semibold text-lg mb-1 text-gray-800">{product.name}</h3>
         <p className="text-sm text-gray-600 mb-2 line-clamp-2">
-          {description || 'No description available'}
+          {product.description || 'No description available'}
         </p>
         <div className="flex items-center justify-between">
-          <span className="text-lg font-bold text-gray-900">ETB {price.toLocaleString()}</span>
-          <span className="text-sm text-gray-500">per {displayUnit}</span>
+          <span className="text-lg font-bold text-gray-900">ETB {product.price.toLocaleString()}</span>
+          <span className="text-sm text-gray-500">per kg</span>
         </div>
       </div>
     </div>
