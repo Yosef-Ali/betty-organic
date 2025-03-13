@@ -25,9 +25,25 @@ export async function middleware(request: NextRequest) {
 
   const { data: { session } } = await supabase.auth.getSession();
 
+  // Protected routes that require authentication
+  const protectedRoutes = [
+    '/dashboard',
+    '/checkout',
+    '/orders',
+    '/api/orders'
+  ];
+
+  const isProtectedRoute = protectedRoutes.some(route =>
+    request.nextUrl.pathname.startsWith(route)
+  );
+
   // If there's no session and the user is trying to access a protected route
-  if (!session && request.nextUrl.pathname.startsWith('/dashboard')) {
-    return NextResponse.redirect(new URL('/auth/signin', request.url));
+  if (!session && isProtectedRoute) {
+    // Store the original URL to redirect back after sign in
+    const redirectUrl = new URL('/auth/signin', request.url);
+    redirectUrl.searchParams.set('redirectTo', request.nextUrl.pathname);
+
+    return NextResponse.redirect(redirectUrl);
   }
 
   return response;
