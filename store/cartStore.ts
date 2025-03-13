@@ -22,25 +22,34 @@ export const useMarketingCartStore = create<MarketingCartStore>()(
   persist(
     (set, get) => ({
       items: [],
-      addItem: (newItem) => set((state) => {
-        const existingItem = state.items.find((item) => item.id === newItem.id);
-        if (existingItem) {
-          return {
-            items: state.items.map((item) =>
-              item.id === newItem.id ? { ...item, grams: item.grams + newItem.grams } : item
-            ),
-          };
-        }
-        return { items: [...state.items, newItem] };
-      }),
-      removeFromCart: (id) => set((state) => ({
-        items: state.items.filter((item) => item.id !== id),
-      })),
-      updateItemQuantity: (id: string, grams: number) => set((state) => ({
-        items: state.items.map((item) =>
-          item.id === id ? { ...item, grams } : item
-        ),
-      })),
+      addItem: (newItem) => {
+        if (!newItem?.id) return;
+        set((state) => {
+          const existingItem = state.items?.find((item) => item.id === newItem.id);
+          if (existingItem) {
+            return {
+              items: state.items.map((item) =>
+                item.id === newItem.id ? { ...item, grams: item.grams + newItem.grams } : item
+              ),
+            };
+          }
+          return { items: [...(state.items || []), newItem] };
+        });
+      },
+      removeFromCart: (id) => {
+        if (!id) return;
+        set((state) => ({
+          items: state.items?.filter((item) => item.id !== id) || [],
+        }));
+      },
+      updateItemQuantity: (id, grams) => {
+        if (!id) return;
+        set((state) => ({
+          items: state.items?.map((item) =>
+            item.id === id ? { ...item, grams: Math.max(100, grams) } : item
+          ) || [],
+        }));
+      },
       clearCart: () => {
         set({ items: [] });
         if (typeof window !== 'undefined') {
@@ -49,7 +58,7 @@ export const useMarketingCartStore = create<MarketingCartStore>()(
       },
       getTotalAmount: () => {
         const { items } = get();
-        return items.reduce((total, item) => {
+        return (items || []).reduce((total, item) => {
           return total + (item.pricePerKg * (item.grams / 1000));
         }, 0);
       },
@@ -57,6 +66,13 @@ export const useMarketingCartStore = create<MarketingCartStore>()(
     {
       name: 'marketing-cart',
       storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({ items: state.items }),
+      version: 1,
+      onRehydrateStorage: () => (state) => {
+        if (!state) {
+          console.warn('Failed to rehydrate marketing cart state');
+        }
+      },
     }
   )
 )

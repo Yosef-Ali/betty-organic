@@ -1,16 +1,24 @@
-import { CartItem as CartItemType } from '../../../types/cart';
+'use client';
+
 import Image from 'next/image';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Minus, Plus } from 'lucide-react';
+import { Minus, Plus, Trash2 } from 'lucide-react';
 import { useMarketingCartStore } from '@/store/cartStore';
+import { CartItem as CartItemType } from '@/types/cart';
 
 interface CartItemProps {
   item: CartItemType;
 }
 
 export function CartItem({ item }: CartItemProps) {
-  const { updateItemQuantity } = useMarketingCartStore();
+  const store = useMarketingCartStore();
+  const updateItemQuantity = store?.updateItemQuantity;
+  const removeFromCart = store?.removeFromCart;
+
+  if (!item || !updateItemQuantity || !removeFromCart) {
+    return null;
+  }
 
   const handleQuantityChange = (value: number) => {
     const newGrams = Math.max(100, item.grams + value); // Minimum 100g
@@ -20,49 +28,46 @@ export function CartItem({ item }: CartItemProps) {
   const handleDirectInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = parseFloat(e.target.value);
     if (!isNaN(value)) {
-      const newGrams = Math.round(value * 1000);
-      updateItemQuantity(item.id, newGrams);
+      const newGrams = Math.round(value * 1000); // Convert kg to grams
+      updateItemQuantity(item.id, Math.max(100, newGrams)); // Ensure minimum 100g
     }
   };
 
   return (
     <div className="flex items-center justify-between space-x-4 py-4">
-      <div className="sm:flex items-center space-x-4">
-        <div className="relative hidden sm:block h-16 w-16 overflow-hidden rounded-md" style={{ position: 'relative' }}>
+      <div className="flex items-center space-x-4">
+        <div className="relative h-16 w-16 overflow-hidden rounded-md">
           <Image
-            src={item.imageUrl}
+            src={item.imageUrl || '/placeholder-product.svg'}
             alt={item.name}
             fill
             sizes="64px"
             className="object-cover"
-            priority={false}
           />
         </div>
         <div>
-          <h3 className="font-medium">{item.name}</h3>
+          <h3 className="text-sm font-medium">{item.name}</h3>
           <p className="text-sm text-muted-foreground">
-            ETB {item.pricePerKg.toFixed(2)} per kg
+            ETB {item.pricePerKg.toFixed(2)}/kg
           </p>
         </div>
       </div>
-      <div className="flex items-center space-x-3">
+
+      <div className="flex items-center space-x-2">
         <Button
           variant="outline"
           size="icon"
           className="h-8 w-8"
           onClick={() => handleQuantityChange(-100)}
-          disabled={item.grams <= 100}
         >
           <Minus className="h-4 w-4" />
-          <span className="sr-only">Decrease quantity</span>
         </Button>
         <Input
           type="number"
-          min="0.1"
-          step="0.1"
           value={(item.grams / 1000).toFixed(1)}
           onChange={handleDirectInput}
-          className="w-16 text-center"
+          className="h-8 w-20 text-center"
+          step="0.1"
         />
         <Button
           variant="outline"
@@ -71,7 +76,14 @@ export function CartItem({ item }: CartItemProps) {
           onClick={() => handleQuantityChange(100)}
         >
           <Plus className="h-4 w-4" />
-          <span className="sr-only">Increase quantity</span>
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-destructive"
+          onClick={() => removeFromCart(item.id)}
+        >
+          <Trash2 className="h-4 w-4" />
         </Button>
       </div>
     </div>
