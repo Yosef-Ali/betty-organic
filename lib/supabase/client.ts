@@ -1,6 +1,7 @@
-import { createBrowserClient } from '@supabase/ssr';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/supabase';
 
-let supabaseClient: ReturnType<typeof createBrowserClient> | null = null;
+let supabaseClient: ReturnType<typeof createSupabaseClient<Database>> | null = null;
 let retryCount = 0;
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000; // 1 second
@@ -12,9 +13,9 @@ export const createClient = () => {
 
   if (!supabaseClient) {
     try {
-      supabaseClient = createBrowserClient(
+      supabaseClient = createSupabaseClient<Database>(
         process.env.NEXT_PUBLIC_SUPABASE_URL,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
       );
     } catch (error) {
       console.error('Failed to initialize Supabase client:', error);

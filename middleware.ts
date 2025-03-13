@@ -1,5 +1,6 @@
-import { createServerClient } from '@supabase/ssr';
-import { NextResponse, type NextRequest } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 
 type Role = 'admin' | 'sales' | 'customer' | '';
 
@@ -7,36 +8,22 @@ type Role = 'admin' | 'sales' | 'customer' | '';
 const PROTECTED_ROUTES = ['/dashboard'];
 
 export async function middleware(request: NextRequest) {
-  let response = NextResponse.next();
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    return NextResponse.next();
+  }
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return request.cookies.get(name)?.value;
-        },
-        set(name: string, value: string, options: any) {
-          response.cookies.set({
-            name,
-            value,
-            ...options,
-          });
-        },
-        remove(name: string, options: any) {
-          response.cookies.set({
-            name,
-            value: '',
-            ...options,
-          });
-        },
-      },
-    },
+  const response = NextResponse.next();
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   );
 
-  // Refresh session if expired
-  await supabase.auth.getUser();
+  const { data: { session } } = await supabase.auth.getSession();
+
+  // If there's no session and the user is trying to access a protected route
+  if (!session && request.nextUrl.pathname.startsWith('/dashboard')) {
+    return NextResponse.redirect(new URL('/auth/signin', request.url));
+  }
 
   const path = request.nextUrl.pathname;
 
@@ -60,7 +47,7 @@ export async function middleware(request: NextRequest) {
 
     // Allow all authenticated users to access their profile
     if (path === '/dashboard/profile') {
-      return response;
+      return NextResponse.next();
     }
 
     // Only allow admin and sales to access other dashboard routes
@@ -83,7 +70,7 @@ export async function middleware(request: NextRequest) {
       const { access_token, refresh_token, expires_in } = session;
 
       // Set tokens as cookies
-      response.cookies.set({
+      NextResponse.cookies.set({
         name: 'sb-access-token',
         value: access_token,
         path: '/',
@@ -92,7 +79,7 @@ export async function middleware(request: NextRequest) {
         maxAge: expires_in,
       });
 
-      response.cookies.set({
+      NextResponse.cookies.set({
         name: 'sb-refresh-token',
         value: refresh_token,
         path: '/',
@@ -107,8 +94,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    '/((?!api/auth/callback|_next/static|_next/image|favicon.ico|auth/login).*)',
-    '/auth/callback',
-  ],
+  matcher: ['/dashboard/:path*'],
 };

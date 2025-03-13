@@ -6,6 +6,8 @@ import { TestimonialsWrapper } from '@/components/testimonials/testimonials-wrap
 import { AboutSection } from 'components/AboutSection';
 import ChatWidget from 'components/ChatWidget';
 import { ProductSection } from '@/components/products/product-section';
+import { Product } from '@/lib/supabase/db.types';
+import { getProducts } from './actions';
 
 export const metadata: Metadata = {
   title: 'Betty Organic - Fresh Fruits & Vegetables',
@@ -14,7 +16,9 @@ export const metadata: Metadata = {
 
 export const revalidate = 0;
 
-export default function Home() {
+export default async function Home() {
+  const initialProducts = await getProducts();
+
   return (
     <>
       <main className="flex flex-col items-center bg-[#ffc600] relative border border-red-400">
@@ -22,7 +26,7 @@ export default function Home() {
         <div className="w-full max-w-[1440px] px-4 sm:px-6 lg:px-8">
           <div className="space-y-32">
             <section id="products">
-              <ProductSection />
+              <ProductSection initialProducts={initialProducts} />
             </section>
             <section id="about">
               <AboutSection />
