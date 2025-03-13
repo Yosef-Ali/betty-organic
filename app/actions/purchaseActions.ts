@@ -22,7 +22,8 @@ export async function handlePurchaseOrder(
   console.log('🔄 handlePurchaseOrder called with:', { itemCount: items.length, total });
 
   try {
-    const supabase = createClient();
+    // Use await with createClient() to get the SupabaseClient instance
+    const supabase = await createClient();
 
     // Try to insert directly into the database to bypass potential middleware issues
     try {
