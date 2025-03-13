@@ -99,7 +99,7 @@ export function ConfirmPurchaseDialog({
 
       setOrderDetails(order);
       setOrderComplete(true);
-      
+
       // Clear cart after setting all state
       clearCart();
 
@@ -110,7 +110,7 @@ export function ConfirmPurchaseDialog({
 
     } catch (err: unknown) {
       setIsSubmitting(false);
-      
+
       let errorMessage = 'An unexpected error occurred during checkout';
       if (err instanceof Error) {
         errorMessage = err.message;
@@ -141,7 +141,7 @@ export function ConfirmPurchaseDialog({
   };
 
   return (
-    <Dialog 
+    <Dialog
       open={open}
       onOpenChange={(open) => {
         if (!open && isSubmitting) {
