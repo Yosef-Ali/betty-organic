@@ -17,7 +17,7 @@ import type { Order } from '@/types/order';
 import { Share2 } from 'lucide-react';
 import { useMarketingCartStore } from '@/store/cartStore';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { OrderConfirmationReceipt } from '@/components/products/marcking-cart/OrderConfirmationReceipt';
+import { OrderConfirmationReceipt } from './OrderConfirmationReceipt';
 
 interface ConfirmPurchaseDialogProps {
   open: boolean;
@@ -41,7 +41,6 @@ export function ConfirmPurchaseDialog({
   const router = useRouter();
   const clearCart = useMarketingCartStore(state => state.clearCart);
   const [error, setError] = useState<string | null>(null);
-  const [debug, setDebug] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderComplete, setOrderComplete] = useState(false);
   const [orderDetails, setOrderDetails] = useState<Order | null>(null);
@@ -54,8 +53,16 @@ export function ConfirmPurchaseDialog({
   useEffect(() => {
     if (open) {
       setError(null);
-      setDebug(null);
       setIsSubmitting(false);
+    }
+  }, [open]);
+
+  // Reset completion state when dialog closes
+  useEffect(() => {
+    if (!open) {
+      setOrderComplete(false);
+      setOrderDetails(null);
+      setCompletedOrderData(null);
     }
   }, [open]);
 
@@ -69,31 +76,22 @@ export function ConfirmPurchaseDialog({
   const handleCheckout = async () => {
     try {
       setError(null);
-      setDebug('Starting checkout process...');
       setIsSubmitting(true);
 
       const orderTotal = calculateTotal(items);
-      setDebug(`Calculated total: ${orderTotal}`);
 
-      // Validate items first
-      if (!items.length) {
+      // Validate items
+      if (!items?.length) {
         throw new Error('Your cart is empty');
       }
 
-      setDebug('Creating order...');
-      const {
-        data: order,
-        error,
-        status,
-      } = await handlePurchaseOrder(items, orderTotal);
+      const { data: order, error: orderError } = await handlePurchaseOrder(items, orderTotal);
 
-      if (!order) {
-        throw new Error('No order data returned');
+      if (orderError || !order) {
+        throw new Error(typeof orderError === 'string' ? orderError : 'Failed to create order');
       }
 
-      setDebug(`Order created successfully! ID: ${order.id}`);
-
-      // Save the completed order data before clearing the cart
+      // Set completed order data before clearing cart
       setCompletedOrderData({
         items: [...items],
         total: orderTotal
@@ -101,45 +99,33 @@ export function ConfirmPurchaseDialog({
 
       setOrderDetails(order);
       setOrderComplete(true);
-      setIsSubmitting(false);
-
+      
       // Clear cart after setting all state
       clearCart();
 
       toast({
         title: 'Success',
         description: 'Order placed successfully!',
-        variant: 'default',
       });
 
     } catch (err: unknown) {
       setIsSubmitting(false);
-      const e = err as Error & {
-        code?: string;
-        details?: string;
-        hint?: string;
-      };
-
+      
       let errorMessage = 'An unexpected error occurred during checkout';
-
-      if (e.message && e.message !== '{}') {
-        errorMessage = e.message;
-      } else if (e.code) {
-        errorMessage = `Error ${e.code}: ${e.details || 'Unknown error'}`;
-      } else if (err instanceof Error) {
-        errorMessage = err.message || 'Unknown error occurred';
+      if (err instanceof Error) {
+        errorMessage = err.message;
       } else if (typeof err === 'object' && err !== null) {
-        errorMessage = JSON.stringify(err, null, 2);
+        errorMessage = JSON.stringify(err);
       }
 
       setError(errorMessage);
-      setDebug(`Full error details: ${JSON.stringify(err, null, 2)}`);
-
       toast({
         title: 'Checkout Error',
         description: errorMessage,
         variant: 'destructive',
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -155,23 +141,19 @@ export function ConfirmPurchaseDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={(open) => {
-      if (!open && isSubmitting) {
-        if (confirm("Are you sure you want to cancel? Your order is being processed.")) {
-          setIsSubmitting(false);
-        } else {
-          return;
+    <Dialog 
+      open={open}
+      onOpenChange={(open) => {
+        if (!open && isSubmitting) {
+          if (confirm("Are you sure you want to cancel? Your order is being processed.")) {
+            setIsSubmitting(false);
+          } else {
+            return;
+          }
         }
-      }
-
-      if (!open && orderComplete) {
-        setOrderComplete(false);
-        setOrderDetails(null);
-        setCompletedOrderData(null);
-      }
-
-      onOpenChange(open);
-    }}>
+        onOpenChange(open);
+      }}
+    >
       <DialogContent>
         {!orderComplete ? (
           <>
@@ -208,18 +190,7 @@ export function ConfirmPurchaseDialog({
               </Alert>
             )}
 
-            {debug && process.env.NODE_ENV === 'development' && (
-              <div className="mt-2 text-xs text-muted-foreground">
-                <details>
-                  <summary>Debug Info</summary>
-                  <pre className="mt-2 whitespace-pre-wrap break-all bg-muted p-2 rounded">
-                    {debug}
-                  </pre>
-                </details>
-              </div>
-            )}
-
-            <DialogFooter className="gap-2">
+            <DialogFooter className="gap-2 mt-6">
               <Button
                 variant="outline"
                 onClick={handleCancel}
@@ -247,15 +218,17 @@ export function ConfirmPurchaseDialog({
             </DialogFooter>
           </>
         ) : (
-          <OrderConfirmationReceipt
-            orderNumber={orderDetails?.display_id || orderDetails?.id || ''}
-            orderDate={new Date()}
-            items={completedOrderData?.items || []}
-            total={completedOrderData?.total || 0}
-            onClose={() => {
-              onOpenChange(false);
-            }}
-          />
+          orderDetails && completedOrderData && (
+            <OrderConfirmationReceipt
+              orderNumber={orderDetails?.display_id || orderDetails?.id || ''}
+              orderDate={new Date()}
+              items={completedOrderData.items}
+              total={completedOrderData.total}
+              onClose={() => {
+                onOpenChange(false);
+              }}
+            />
+          )
         )}
       </DialogContent>
     </Dialog>
