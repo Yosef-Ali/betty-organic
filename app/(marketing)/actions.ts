@@ -8,7 +8,7 @@ export async function getProducts(): Promise<Product[]> {
   try {
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
       console.error('Missing Supabase environment variables');
-      throw new Error('Missing Supabase configuration');
+      return [];
     }
 
     const supabase = createClient<Database>(
@@ -23,7 +23,7 @@ export async function getProducts(): Promise<Product[]> {
 
     if (error) {
       console.error('Supabase query error:', error);
-      throw new Error(`Failed to fetch products: ${error.message}`);
+      return [];
     }
 
     if (!data) {
@@ -34,6 +34,6 @@ export async function getProducts(): Promise<Product[]> {
     return data;
   } catch (error) {
     console.error('Error in getProducts:', error instanceof Error ? error.message : 'Unknown error');
-    throw error;
+    return [];
   }
 }

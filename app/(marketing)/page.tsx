@@ -14,19 +14,31 @@ export const metadata: Metadata = {
   description: 'Fresh organic fruits and vegetables delivered to your door',
 };
 
-export const revalidate = 0;
+// Increase revalidation time to reduce load on the database
+export const revalidate = 60; // Revalidate every 60 seconds
 
 export default async function Home() {
-  const initialProducts = await getProducts();
+  let initialProducts: Product[] = [];
+  let error = null;
+
+  try {
+    initialProducts = await getProducts();
+  } catch (e) {
+    console.error('Failed to fetch initial products:', e);
+    error = 'Unable to load products at this time. Please try again later.';
+  }
 
   return (
     <>
-      <main className="flex flex-col items-center bg-[#ffc600] relative border border-red-400">
+      <main className="flex flex-col items-center bg-[#ffc600] relative">
         <Hero />
         <div className="w-full max-w-[1440px] px-4 sm:px-6 lg:px-8">
           <div className="space-y-32">
             <section id="products">
-              <ProductSection initialProducts={initialProducts} />
+              <ProductSection
+                initialProducts={initialProducts}
+                error={error}
+              />
             </section>
             <section id="about">
               <AboutSection />

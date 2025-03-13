@@ -74,11 +74,17 @@ function EmptyState({
   );
 }
 
-export function ProductSection({ initialProducts = [] }: { initialProducts?: Product[] }) {
+export function ProductSection({
+  initialProducts = [],
+  error
+}: {
+  initialProducts?: Product[];
+  error?: string | null;
+}) {
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [isLoading, setIsLoading] = useState(!initialProducts.length);
-  const [isError, setIsError] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
+  const [isError, setIsError] = useState(!!error);
+  const [errorMessage, setErrorMessage] = useState(error || '');
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<typeof PRODUCT_CATEGORIES[number]>("All");
@@ -86,10 +92,14 @@ export function ProductSection({ initialProducts = [] }: { initialProducts?: Pro
   const { isCartOpen, setCartOpen } = useUIStore();
 
   useEffect(() => {
-    if (!initialProducts.length) {
+    if (error) {
+      setIsError(true);
+      setErrorMessage(error);
+    }
+    if (!initialProducts.length && !error) {
       refreshProducts();
     }
-  }, []);
+  }, [error, initialProducts.length]);
 
   const refreshProducts = async () => {
     try {
