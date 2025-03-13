@@ -134,7 +134,7 @@ export function ConfirmPurchaseDialog({
 
       setError(errorMessage);
       setDebug(`Full error details: ${JSON.stringify(err, null, 2)}`);
-      
+
       toast({
         title: 'Checkout Error',
         description: errorMessage,
