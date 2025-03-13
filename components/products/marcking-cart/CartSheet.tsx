@@ -24,6 +24,7 @@ export const CartSheet = ({ isOpen, onOpenChange }: CartSheetProps) => {
   const store = useMarketingCartStore();
   const items = store?.items ?? [];
   const clearCart = store?.clearCart;
+  const removeFromCart = store?.removeFromCart;
   const { setCartOpen } = useUIStore();
   const [isPurchaseDialogOpen, setIsPurchaseDialogOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -39,12 +40,10 @@ export const CartSheet = ({ isOpen, onOpenChange }: CartSheetProps) => {
   ) ?? 0;
 
   // Handle purchase dialog closing
-  const handlePurchaseDialogChange = (open: boolean) => {
-    setIsPurchaseDialogOpen(open);
-    if (!open) {
-      onOpenChange(false);
-      setCartOpen(false);
-    }
+  const handlePurchaseDialogClose = () => {
+    setIsPurchaseDialogOpen(false);
+    onOpenChange(false);
+    setCartOpen(false);
   };
 
   // Don't render until client-side hydration is complete
@@ -54,30 +53,44 @@ export const CartSheet = ({ isOpen, onOpenChange }: CartSheetProps) => {
 
   return (
     <>
-      <Sheet open={isOpen} onOpenChange={(open) => {
-        onOpenChange(open);
-        setCartOpen(open);
-      }}>
-        <SheetContent className="flex w-full flex-col pr-0 sm:max-w-lg z-50">
-          <SheetHeader>
-            <SheetTitle>Shopping Cart ({items?.length ?? 0})</SheetTitle>
+      <Sheet open={isOpen} onOpenChange={onOpenChange}>
+        <SheetContent className="w-full sm:max-w-lg flex flex-col h-full">
+          <SheetHeader className="space-y-0 pb-4">
+            <SheetTitle>Shopping Cart</SheetTitle>
           </SheetHeader>
-          <ScrollArea className="flex-1 pr-6">
-            {!items?.length ? (
-              <div className="flex h-full items-center justify-center">
-                <p className="text-muted-foreground">Your cart is empty</p>
+
+          <div className="flex-1 overflow-y-auto">
+            {items?.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                <p>Your cart is empty</p>
               </div>
             ) : (
-              <div className="flex flex-col">
-                {items.map(item => (
-                  <div key={item.id}>
-                    <CartItem item={item} />
-                    <Separator />
+              <div className="space-y-4">
+                {items.map((item) => (
+                  <div key={item.id} className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
+                    <div>
+                      <h3 className="font-medium">{item.name}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {item.grams}g - ETB {((item.pricePerKg * item.grams) / 1000).toFixed(2)}
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        if (removeFromCart) {
+                          removeFromCart(item.id);
+                        }
+                      }}
+                    >
+                      Remove
+                    </Button>
                   </div>
                 ))}
               </div>
             )}
-          </ScrollArea>
+          </div>
+
           {items?.length > 0 && (
             <div className="flex flex-col space-y-4 pr-6 pt-6">
               <div className="bg-muted/30 p-4 rounded-md">
@@ -117,8 +130,8 @@ export const CartSheet = ({ isOpen, onOpenChange }: CartSheetProps) => {
       </Sheet>
 
       <ConfirmPurchaseDialog
-        open={isPurchaseDialogOpen}
-        onOpenChange={handlePurchaseDialogChange}
+        isOpen={isPurchaseDialogOpen}
+        onClose={handlePurchaseDialogClose}
         items={items}
         total={totalAmount}
       />

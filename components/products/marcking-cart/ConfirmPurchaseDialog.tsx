@@ -19,10 +19,12 @@ import { useMarketingCartStore } from '@/store/cartStore';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { OrderConfirmationReceipt } from './OrderConfirmationReceipt';
 import { useAuth } from '@/hooks/useAuth';
+import { AlertCircle } from 'lucide-react';
+import { AlertTitle } from '@/components/ui/alert';
 
 interface ConfirmPurchaseDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  isOpen: boolean;
+  onClose: () => void;
   items: {
     id: string;
     name: string;
@@ -32,18 +34,13 @@ interface ConfirmPurchaseDialogProps {
   total: number;
 }
 
-export function ConfirmPurchaseDialog({
-  open,
-  onOpenChange,
-  items,
-  total,
-}: ConfirmPurchaseDialogProps) {
+export function ConfirmPurchaseDialog({ isOpen, onClose, items, total }: ConfirmPurchaseDialogProps) {
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
-  const { user, isLoading: isAuthLoading } = useAuth();
+  const { user } = useAuth();
   const clearCart = useMarketingCartStore(state => state.clearCart);
   const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderComplete, setOrderComplete] = useState(false);
   const [orderDetails, setOrderDetails] = useState<Order | null>(null);
   const [completedOrderData, setCompletedOrderData] = useState<{
@@ -53,46 +50,35 @@ export function ConfirmPurchaseDialog({
 
   // Reset state when dialog opens
   useEffect(() => {
-    if (open) {
+    if (isOpen) {
       setError(null);
-      setIsSubmitting(false);
     }
-  }, [open]);
+  }, [isOpen]);
 
   // Reset completion state when dialog closes
   useEffect(() => {
-    if (!open) {
+    if (!isOpen) {
       setOrderComplete(false);
       setOrderDetails(null);
       setCompletedOrderData(null);
     }
-  }, [open]);
+  }, [isOpen]);
 
-  const calculateTotal = (orderItems: typeof items) => {
-    return orderItems.reduce(
-      (sum, item) => sum + (item.pricePerKg * item.grams) / 1000,
-      0
-    );
-  };
+  const handleConfirm = async () => {
+    if (!user) {
+      toast({
+        title: "Sign in Required",
+        description: "Please sign in to place your order. You'll be redirected to the sign-in page.",
+        variant: "default",
+      });
+      router.push('/auth/login');
+      return;
+    }
 
-  const handleCheckout = async () => {
+    setIsLoading(true);
+    setError(null);
+
     try {
-      setError(null);
-      setIsSubmitting(true);
-
-      // Check if user is authenticated
-      if (!user) {
-        toast({
-          title: 'Authentication Required',
-          description: 'Please sign in to place an order',
-          variant: 'destructive',
-        });
-        router.push('/auth/signin');
-        return;
-      }
-
-      const orderTotal = calculateTotal(items);
-
       // Validate items
       if (!items?.length) {
         throw new Error('Your cart is empty');
@@ -106,153 +92,120 @@ export function ConfirmPurchaseDialog({
       });
 
       console.log('Submitting order with items:', JSON.stringify(items));
-      const { data: order, error: orderError, status } = await handlePurchaseOrder(items, orderTotal);
+      const result = await handlePurchaseOrder(items, total);
 
-      if (orderError) {
-        console.error('Order creation failed:', orderError);
-        throw new Error(orderError);
+      if (result.error) {
+        throw new Error(result.error);
       }
 
-      if (!order) {
-        console.error('No order data returned');
+      if (!result.data) {
         throw new Error('Failed to create order: No order data returned');
       }
-
-      if (status !== 200) {
-        console.error('Order creation failed with status:', status);
-        throw new Error('Failed to create order: Invalid response status');
-      }
-
-      console.log('Order created successfully:', order);
 
       // Set completed order data before clearing cart
       setCompletedOrderData({
         items: [...items],
-        total: orderTotal
+        total: total
       });
 
-      setOrderDetails(order);
+      setOrderDetails(result.data);
       setOrderComplete(true);
 
       // Clear cart after setting all state
       clearCart();
 
       toast({
-        title: 'Success',
-        description: 'Order placed successfully!',
+        title: "Success",
+        description: "Your order has been placed successfully!",
+        variant: "default",
       });
 
-    } catch (err: unknown) {
-      setIsSubmitting(false);
-      console.error('Checkout error:', err);
-
-      let errorMessage = 'An unexpected error occurred during checkout';
-      if (err instanceof Error) {
-        errorMessage = err.message;
-      } else if (typeof err === 'object' && err !== null) {
-        errorMessage = JSON.stringify(err);
-      }
-
+    } catch (error) {
+      console.error('Order error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
       setError(errorMessage);
       toast({
-        title: 'Checkout Error',
+        title: "Error",
         description: errorMessage,
-        variant: 'destructive',
+        variant: "destructive",
       });
     } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleCancel = () => {
-    if (isSubmitting) {
-      if (confirm("Are you sure you want to cancel? Your order is being processed.")) {
-        setIsSubmitting(false);
-        onOpenChange(false);
-      }
-    } else {
-      onOpenChange(false);
+      setIsLoading(false);
     }
   };
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(open) => {
-        if (!open && isSubmitting) {
-          if (confirm("Are you sure you want to cancel? Your order is being processed.")) {
-            setIsSubmitting(false);
-          } else {
-            return;
-          }
-        }
-        onOpenChange(open);
-      }}
-    >
-      <DialogContent>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[425px]">
         {!orderComplete ? (
           <>
             <DialogHeader>
-              <DialogTitle>Confirm Order</DialogTitle>
+              <DialogTitle>Confirm Purchase</DialogTitle>
               <DialogDescription>
-                Please review your order details below
+                Please review your order details before confirming.
               </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-4">
-              <div className="bg-muted/30 p-4 rounded-lg">
-                <p className="font-semibold text-lg">
-                  Total: ETB {calculateTotal(items).toFixed(2)}
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <h4 className="font-medium">Order Summary:</h4>
-                <ul className="divide-y divide-border">
-                  {items.map(item => (
-                    <li key={item.id} className="py-2 flex justify-between">
-                      <span>{item.name} - {item.grams}g</span>
-                      <span>ETB {((item.pricePerKg * item.grams) / 1000).toFixed(2)}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-
-            {error && (
-              <Alert variant="destructive" className="mt-4">
-                <AlertDescription>{error}</AlertDescription>
+            {!user && (
+              <Alert className="mb-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Sign in Required</AlertTitle>
+                <AlertDescription>
+                  You need to be signed in to place an order. Click the button below to sign in or create an account.
+                </AlertDescription>
+                <div className="mt-4 flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => router.push('/auth/login')}
+                    className="w-full"
+                  >
+                    Sign in
+                  </Button>
+                  <Button
+                    variant="default"
+                    onClick={() => router.push('/auth/signup')}
+                    className="w-full"
+                  >
+                    Create Account
+                  </Button>
+                </div>
               </Alert>
             )}
 
-            <DialogFooter className="gap-2 mt-6">
-              <Button
-                variant="outline"
-                onClick={handleCancel}
-                type="button"
-                disabled={isSubmitting}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleCheckout}
-                disabled={isSubmitting || !user}
-                className="relative"
-              >
-                {isSubmitting ? (
-                  <>
-                    <span className="opacity-0">Confirm Order</span>
-                    <span className="absolute inset-0 flex items-center justify-center">
-                      Processing...
-                    </span>
-                  </>
-                ) : !user ? (
-                  'Sign in to Order'
-                ) : (
-                  'Confirm Order'
-                )}
-              </Button>
-            </DialogFooter>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <h4 className="font-medium">Order Summary</h4>
+                {items.map((item) => (
+                  <div key={item.id} className="flex justify-between text-sm">
+                    <span>{item.name}</span>
+                    <span>{item.grams}g - ETB {((item.pricePerKg * item.grams) / 1000).toFixed(2)}</span>
+                  </div>
+                ))}
+                <div className="flex justify-between font-medium pt-2 border-t">
+                  <span>Total</span>
+                  <span>ETB {total.toFixed(2)}</span>
+                </div>
+              </div>
+
+              {error && (
+                <Alert variant="destructive">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+
+              <div className="flex justify-end space-x-2">
+                <Button variant="outline" onClick={onClose}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleConfirm}
+                  disabled={isLoading}
+                  className={!user ? "bg-primary hover:bg-primary/90" : ""}
+                >
+                  {isLoading ? "Processing..." : user ? "Confirm Order" : "Sign in to Order"}
+                </Button>
+              </div>
+            </div>
           </>
         ) : (
           orderDetails && completedOrderData && (
@@ -261,9 +214,7 @@ export function ConfirmPurchaseDialog({
               orderDate={new Date()}
               items={completedOrderData.items}
               total={completedOrderData.total}
-              onClose={() => {
-                onOpenChange(false);
-              }}
+              onClose={onClose}
             />
           )
         )}

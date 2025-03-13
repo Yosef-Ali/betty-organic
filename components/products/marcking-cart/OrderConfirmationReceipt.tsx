@@ -58,9 +58,9 @@ Order ID: ${formattedOrderId}
 Date: ${formatDate(orderDate.toISOString())}
 
 Items:
-${items.map(item => `- ${item.name}: ${item.grams}g (${item.pricePerKg} Br/kg)`).join('\n')}
+${items.map(item => `- ${item.name}: ${item.grams}g (${item.pricePerKg} ETB/kg)`).join('\n')}
 
-Total: ${displayTotal.toFixed(2)} Br
+Total: ${displayTotal.toFixed(2)} ETB
 
 Thank you for shopping with Betty Organic!
     `.trim();
