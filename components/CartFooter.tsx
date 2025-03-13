@@ -64,11 +64,14 @@ export const CartFooter: FC<CartFooterProps> = ({
   return (
     <CardFooter className="flex-col items-stretch gap-6 pt-4">
       <Separator />
-      <div className="flex justify-between items-center">
-        <span className="font-semibold text-lg">Total:</span>
-        <span className="font-bold text-2xl">
-          ${totalAmountWithDelivery.toFixed(2)}
-        </span>
+      {/* Improved Total Amount Section with better padding and justification */}
+      <div className="bg-muted/30 p-4 rounded-md">
+        <div className="flex justify-between items-center">
+          <span className="font-semibold text-xl">Total:</span>
+          <span className="font-bold text-2xl">
+            ${totalAmountWithDelivery.toFixed(2)}
+          </span>
+        </div>
       </div>
       <div className="flex items-center space-x-2">
         <Input

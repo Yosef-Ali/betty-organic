@@ -201,7 +201,7 @@ export function ConfirmPurchaseDialog({
               >
                 Cancel
               </Button>
-              <Button
+              {/* <Button
                 variant="outline"
                 disabled={isSubmitting}
                 onClick={() => {
@@ -212,7 +212,7 @@ export function ConfirmPurchaseDialog({
               >
                 <Share2 className="mr-2 h-4 w-4" />
                 Share via WhatsApp
-              </Button>
+              </Button> */}
               <Button
                 onClick={handleCheckout}
                 disabled={isSubmitting}

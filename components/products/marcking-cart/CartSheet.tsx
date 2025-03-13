@@ -4,15 +4,12 @@ import { useState } from 'react';
 import { useMarketingCartStore } from '@/store/cartStore';
 import { useUIStore } from '@/store/uiStore';
 import { Button } from '@/components/ui/button';
-import { ShoppingCart } from 'lucide-react';
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
 } from '@/components/ui/sheet';
-import { SharePopup } from './SharePopup';
 import { CartItem } from './CartItem';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
@@ -53,16 +50,6 @@ export const CartSheet = ({ isOpen, onOpenChange }: CartSheetProps) => {
         onOpenChange(open);
         setCartOpen(open);
       }}>
-        {/* <SheetTrigger asChild>
-          <Button variant="outline" size="icon" className="relative">
-            <ShoppingCart className="h-4 w-4" />
-            {items.length > 0 && (
-              <span className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
-                {items.length}
-              </span>
-            )}
-          </Button>
-        </SheetTrigger> */}
         <SheetContent className="flex w-full flex-col pr-0 sm:max-w-lg z-50">
           <SheetHeader>
             <SheetTitle>Shopping Cart ({items?.length})</SheetTitle>
@@ -84,33 +71,37 @@ export const CartSheet = ({ isOpen, onOpenChange }: CartSheetProps) => {
             )}
           </ScrollArea>
           {items.length > 0 && (
-            <div className="space-y-4 pr-6 pt-6">
-              <div className="flex items-center justify-between">
-                <span className="text-base font-semibold">Total Amount</span>
-                <span className="text-lg font-bold">
-                  ETB {totalAmount.toFixed(2)}
-                </span>
+            <div className="flex flex-col space-y-4 pr-6 pt-6">
+              {/* Improved Total Amount Section */}
+              <div className="bg-muted/30 p-4 rounded-md">
+                <div className="flex items-center">
+                  <span className="text-base font-semibold mr-auto">Total Amount</span>
+                  <span className="text-xl font-bold pl-4">
+                    ETB {totalAmount.toFixed(2)}
+                  </span>
+                </div>
               </div>
-              <div className="flex items-center justify-between gap-2">
+
+              <div className="flex items-center">
                 <Button
-                  className="flex-1"
+                  className="w-full flex-1 mr-2"
                   onClick={() => setIsPurchaseDialogOpen(true)}
                 >
                   Order Now
                 </Button>
-                <SharePopup />
+                <Button
+                  variant="destructive"
+                  className="flex-none"
+                  size="sm"
+                  onClick={() => {
+                    clearCart();
+                    onOpenChange(false);
+                    setCartOpen(false);
+                  }}
+                >
+                  Clear Cart
+                </Button>
               </div>
-              <Button
-                variant="destructive"
-                className="w-full mt-2"
-                onClick={() => {
-                  clearCart();
-                  onOpenChange(false);
-                  setCartOpen(false);
-                }}
-              >
-                Clear Cart
-              </Button>
             </div>
           )}
         </SheetContent>
