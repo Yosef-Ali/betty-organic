@@ -138,13 +138,7 @@ export function ConfirmPurchaseDialog({ isOpen, onClose, items, total }: Confirm
   };
 
   return (
-    <ErrorBoundary
-      error={error ? new Error(error) : new Error('An unexpected error occurred')}
-      reset={() => {
-        setError(null);
-        setIsLoading(false);
-      }}
-    >
+    <ErrorBoundary>
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="sm:max-w-[425px] relative">
           {isLoading && (
