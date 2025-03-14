@@ -30,7 +30,7 @@ export default function MarketingLayout({
           </header>
         }
       >
-        {/* <Navbar /> */}
+        {/* @ts-expect-error Async Server Component */}
         <Navigation />
       </Suspense>
       <main>{children}</main>
