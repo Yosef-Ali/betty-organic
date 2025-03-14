@@ -1,7 +1,6 @@
-export interface CartItem {
-  id: string;
+export interface CartItemType {
+  id: string | number;
   name: string;
   grams: number;
   pricePerKg: number;
-  imageUrl: string; // Add this field
 }

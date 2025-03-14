@@ -14,6 +14,7 @@ import { CartItem } from './CartItem';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { ConfirmPurchaseDialog } from './ConfirmPurchaseDialog';
+import { ShoppingCart } from 'lucide-react';
 
 interface CartSheetProps {
   isOpen: boolean;
@@ -39,6 +40,12 @@ export const CartSheet = ({ isOpen, onOpenChange }: CartSheetProps) => {
     0,
   ) ?? 0;
 
+  // Handle order now click
+  const handleOrderNowClick = () => {
+    console.log('Order button clicked, opening dialog');
+    setIsPurchaseDialogOpen(true);
+  };
+
   // Handle purchase dialog closing
   const handlePurchaseDialogClose = () => {
     setIsPurchaseDialogOpen(false);
@@ -52,7 +59,7 @@ export const CartSheet = ({ isOpen, onOpenChange }: CartSheetProps) => {
   }
 
   return (
-    <>
+    <div className="relative">
       <Sheet open={isOpen} onOpenChange={onOpenChange}>
         <SheetContent className="w-full sm:max-w-lg flex flex-col h-full">
           <SheetHeader className="space-y-0 pb-4">
@@ -105,7 +112,7 @@ export const CartSheet = ({ isOpen, onOpenChange }: CartSheetProps) => {
               <div className="flex items-center">
                 <Button
                   className="w-full flex-1 mr-2"
-                  onClick={() => setIsPurchaseDialogOpen(true)}
+                  onClick={handleOrderNowClick}
                 >
                   Order Now
                 </Button>
@@ -129,12 +136,14 @@ export const CartSheet = ({ isOpen, onOpenChange }: CartSheetProps) => {
         </SheetContent>
       </Sheet>
 
-      <ConfirmPurchaseDialog
-        isOpen={isPurchaseDialogOpen}
-        onClose={handlePurchaseDialogClose}
-        items={items}
-        total={totalAmount}
-      />
-    </>
+      <div className="z-50">
+        <ConfirmPurchaseDialog
+          isOpen={isPurchaseDialogOpen}
+          onClose={handlePurchaseDialogClose}
+          items={items}
+          total={totalAmount}
+        />
+      </div>
+    </div>
   );
 };

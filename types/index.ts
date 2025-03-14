@@ -1,7 +1,17 @@
+import type { Database } from './supabase';
+import type { Tables } from './supabase';
 
+type DbProduct = Tables<'products'>;
+type DbOrder = Tables<'orders'>;
+type DbOrderItem = Tables<'order_items'>;
+
+// Define types
+export type OrderType = 'online' | 'store' | 'wholesale';
+export type OrderStatus = 'pending' | 'processing' | 'completed' | 'cancelled';
+export type CustomerStatus = 'active' | 'inactive' | 'blocked';
 
 // Application Product type that extends database type
-export interface Product extends <DbProduct></DbProduct> {
+export interface Product extends DbProduct {
   totalSales: number  // Make totalSales required
 }
 
@@ -21,8 +31,14 @@ export interface OrderItem extends Omit<DbOrderItem, 'order_id' | 'product_id'> 
 }
 
 // Application Customer type
-export interface Customer extends Omit<DbCustomer, 'image_url'> {
+export interface Customer {
   imageUrl: string | null;
+  id: string;
+  full_name: string;
+  email: string;
+  phone: string;
+  location: string;
+  status: CustomerStatus;
 }
 
 // Dashboard specific types
@@ -43,23 +59,4 @@ export interface MappedTransaction {
   amount: number;
   status: string;
   email: string;
-}
-
-// Re-export shared types
-export type {
-  OrderType,
-  OrderStatus,
-  CustomerStatus,
-  OrderItem,
-  Customer
-}
-
-export interface Customer {
-  id: string;
-  full_name: string;
-  email: string;
-  phone: string;
-  location: string;
-  status: CustomerStatus;
-  imageUrl: string | null;
 }

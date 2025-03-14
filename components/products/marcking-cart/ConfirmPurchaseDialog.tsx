@@ -1,251 +1,88 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
-import { useState, useEffect } from 'react';
-import { handlePurchaseOrder } from '@/app/actions/purchaseActions';
-import type { Order } from '@/types/order';
-import { Share2, Loader2 } from 'lucide-react';
-import { useMarketingCartStore } from '@/store/cartStore';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { OrderConfirmationReceipt } from './OrderConfirmationReceipt';
-import { useAuth } from '@/hooks/useAuth';
-import { AlertCircle } from 'lucide-react';
-import { AlertTitle } from '@/components/ui/alert';
-import { ErrorBoundary } from '@/components/ErrorBoundary';
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { CartItemType } from "@/types/cart";
+import { useState } from "react";
+import { useMarketingCartStore } from "@/store/cartStore";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface ConfirmPurchaseDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  items: {
-    id: string;
-    name: string;
-    pricePerKg: number;
-    grams: number;
-  }[];
+  items: CartItemType[];
   total: number;
 }
 
-export function ConfirmPurchaseDialog({ isOpen, onClose, items, total }: ConfirmPurchaseDialogProps) {
-  const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
-  const router = useRouter();
-  const { user } = useAuth();
-  const clearCart = useMarketingCartStore(state => state.clearCart);
-  const [error, setError] = useState<string | null>(null);
-  const [orderComplete, setOrderComplete] = useState(false);
-  const [orderDetails, setOrderDetails] = useState<Order | null>(null);
-  const [completedOrderData, setCompletedOrderData] = useState<{
-    items: typeof items;
-    total: number;
-  } | null>(null);
-
-  // Reset state when dialog opens
-  useEffect(() => {
-    if (isOpen) {
-      setError(null);
-    }
-  }, [isOpen]);
-
-  // Reset completion state when dialog closes
-  useEffect(() => {
-    if (!isOpen) {
-      setOrderComplete(false);
-      setOrderDetails(null);
-      setCompletedOrderData(null);
-    }
-  }, [isOpen]);
+export const ConfirmPurchaseDialog = ({
+  isOpen,
+  onClose,
+  items,
+  total,
+}: ConfirmPurchaseDialogProps) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const clearCart = useMarketingCartStore((state) => state.clearCart);
 
   const handleConfirm = async () => {
-    if (!user) {
-      toast({
-        title: "Sign in Required",
-        description: "Please sign in to place your order. You'll be redirected to the sign-in page.",
-        variant: "default",
-      });
-      router.push('/auth/login');
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
     try {
-      // Validate items
-      if (!items?.length) {
-        throw new Error('Your cart is empty');
-      }
+      setIsSubmitting(true);
+      // Here you would typically send the order to your backend
+      console.log("Order confirmed:", { items, total });
 
-      // Validate each item
-      items.forEach(item => {
-        if (!item.id || !item.name || item.pricePerKg <= 0 || item.grams <= 0) {
-          throw new Error(`Invalid item data: ${item.name || 'Unknown item'}`);
-        }
-      });
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
-      console.log('Submitting order with items:', JSON.stringify(items));
-      const result = await handlePurchaseOrder(items, total);
-
-      if (result.error) {
-        console.error('Server error:', result.error);
-        throw new Error(result.error);
-      }
-
-      if (!result.data) {
-        console.error('No order data returned');
-        throw new Error('Failed to create order: No order data returned');
-      }
-
-      // Set completed order data before clearing cart
-      setCompletedOrderData({
-        items: [...items],
-        total: total
-      });
-
-      setOrderDetails(result.data);
-      setOrderComplete(true);
-
-      // Clear cart after setting all state
-      clearCart();
-
-      toast({
-        title: "Success",
-        description: "Your order has been placed successfully!",
-        variant: "default",
-      });
-
+      // Clear cart and close dialog
+      if (clearCart) clearCart();
+      onClose();
     } catch (error) {
-      console.error('Order error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
-      setError(errorMessage);
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive",
-      });
+      console.error("Error placing order:", error);
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <ErrorBoundary>
-      <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-[425px] relative">
-          {isLoading && (
-            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
-              <div className="flex flex-col items-center gap-2">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="text-sm text-muted-foreground">Processing your order...</p>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-md z-[100]">
+        <DialogHeader>
+          <DialogTitle>Confirm Your Order</DialogTitle>
+          <DialogDescription>
+            Please review your order details before confirming.
+          </DialogDescription>
+        </DialogHeader>
+
+        <ScrollArea className="max-h-[300px] mt-4">
+          <div className="space-y-4">
+            {items.map((item) => (
+              <div key={item.id} className="flex justify-between">
+                <span>{item.name} ({item.grams}g)</span>
+                <span>ETB {((item.pricePerKg * item.grams) / 1000).toFixed(2)}</span>
               </div>
+            ))}
+            <div className="pt-4 border-t flex justify-between font-bold">
+              <span>Total:</span>
+              <span>ETB {total.toFixed(2)}</span>
             </div>
-          )}
+          </div>
+        </ScrollArea>
 
-          {!orderComplete ? (
-            <>
-              <DialogHeader>
-                <DialogTitle>Confirm Purchase</DialogTitle>
-                <DialogDescription>
-                  Please review your order details before confirming.
-                </DialogDescription>
-              </DialogHeader>
-
-              {!user && (
-                <Alert className="mb-4">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertTitle>Sign in Required</AlertTitle>
-                  <AlertDescription>
-                    You need to be signed in to place an order. Click the button below to sign in or create an account.
-                  </AlertDescription>
-                  <div className="mt-4 flex gap-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => router.push('/auth/login')}
-                      className="w-full"
-                    >
-                      Sign in
-                    </Button>
-                    <Button
-                      variant="default"
-                      onClick={() => router.push('/auth/signup')}
-                      className="w-full"
-                    >
-                      Create Account
-                    </Button>
-                  </div>
-                </Alert>
-              )}
-
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <h4 className="font-medium">Order Summary</h4>
-                  {items.map((item) => (
-                    <div key={item.id} className="flex justify-between text-sm">
-                      <span>{item.name}</span>
-                      <span>{item.grams}g - ETB {((item.pricePerKg * item.grams) / 1000).toFixed(2)}</span>
-                    </div>
-                  ))}
-                  <div className="flex justify-between font-medium pt-2 border-t">
-                    <span>Total</span>
-                    <span>ETB {total.toFixed(2)}</span>
-                  </div>
-                </div>
-
-                {error && (
-                  <Alert variant="destructive">
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
-                )}
-
-                <div className="flex justify-end space-x-2">
-                  <Button
-                    variant="outline"
-                    onClick={onClose}
-                    disabled={isLoading}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={handleConfirm}
-                    disabled={isLoading}
-                    className={!user ? "bg-primary hover:bg-primary/90" : ""}
-                  >
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Processing...
-                      </>
-                    ) : user ? (
-                      "Confirm Order"
-                    ) : (
-                      "Sign in to Order"
-                    )}
-                  </Button>
-                </div>
-              </div>
-            </>
-          ) : (
-            orderDetails && completedOrderData && (
-              <OrderConfirmationReceipt
-                orderNumber={orderDetails?.display_id || orderDetails?.id || ''}
-                orderDate={new Date()}
-                items={completedOrderData.items}
-                total={completedOrderData.total}
-                onClose={onClose}
-              />
-            )
-          )}
-        </DialogContent>
-      </Dialog>
-    </ErrorBoundary>
+        <DialogFooter className="flex sm:justify-between gap-4 sm:gap-0">
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button onClick={handleConfirm} disabled={isSubmitting}>
+            {isSubmitting ? "Processing..." : "Confirm Order"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
-}
+};
