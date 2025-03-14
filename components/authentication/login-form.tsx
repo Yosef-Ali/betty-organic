@@ -159,7 +159,7 @@ export function LoginForm() {
               const result = await signInWithGoogle();
               if (result.error) {
                 console.error('Google sign in error:', result.error);
-                toast.error(`Sign in failed: ${result.error.message}`);
+                toast.error(`Sign in failed: ${result.error}`);
                 return;
               }
               if (result.redirect) {
