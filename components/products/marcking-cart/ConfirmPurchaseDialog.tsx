@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect } from 'react';
 import { handlePurchaseOrder } from '@/app/actions/purchaseActions';
 import type { Order } from '@/types/order';
-import { Share2 } from 'lucide-react';
+import { Share2, Loader2 } from 'lucide-react';
 import { useMarketingCartStore } from '@/store/cartStore';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { OrderConfirmationReceipt } from './OrderConfirmationReceipt';
@@ -146,7 +146,16 @@ export function ConfirmPurchaseDialog({ isOpen, onClose, items, total }: Confirm
       }}
     >
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[425px] relative">
+          {isLoading && (
+            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
+              <div className="flex flex-col items-center gap-2">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="text-sm text-muted-foreground">Processing your order...</p>
+              </div>
+            </div>
+          )}
+
           {!orderComplete ? (
             <>
               <DialogHeader>
@@ -204,7 +213,11 @@ export function ConfirmPurchaseDialog({ isOpen, onClose, items, total }: Confirm
                 )}
 
                 <div className="flex justify-end space-x-2">
-                  <Button variant="outline" onClick={onClose}>
+                  <Button
+                    variant="outline"
+                    onClick={onClose}
+                    disabled={isLoading}
+                  >
                     Cancel
                   </Button>
                   <Button
@@ -212,7 +225,16 @@ export function ConfirmPurchaseDialog({ isOpen, onClose, items, total }: Confirm
                     disabled={isLoading}
                     className={!user ? "bg-primary hover:bg-primary/90" : ""}
                   >
-                    {isLoading ? "Processing..." : user ? "Confirm Order" : "Sign in to Order"}
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Processing...
+                      </>
+                    ) : user ? (
+                      "Confirm Order"
+                    ) : (
+                      "Sign in to Order"
+                    )}
                   </Button>
                 </div>
               </div>
