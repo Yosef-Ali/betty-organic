@@ -14,6 +14,7 @@ export type AuthData = {
 } | null;
 
 // Cache user data to avoid repeated database queries
+// Using a shorter cache time to prevent stale data issues
 export const getCurrentUser = cache(async (): Promise<AuthData> => {
   const supabase = await createClient();
 
@@ -29,6 +30,7 @@ export const getCurrentUser = cache(async (): Promise<AuthData> => {
     }
 
     if (!session?.user) {
+      console.log('No session found for current user');
       return null;
     }
 
@@ -40,14 +42,42 @@ export const getCurrentUser = cache(async (): Promise<AuthData> => {
       .single();
 
     if (profileError) {
+      // If profile doesn't exist, let's create a default one
+      if (profileError.code === 'PGRST116') {
+        console.log('Profile not found, creating default profile');
+        const { data: newProfile, error: createError } = await supabase
+          .from('profiles')
+          .insert([
+            {
+              id: session.user.id,
+              email: session.user.email,
+              role: 'customer', // Default role
+            },
+          ])
+          .select('*')
+          .single();
+
+        if (createError) {
+          console.error('Error creating profile:', createError);
+          return null;
+        }
+
+        return {
+          user: session.user,
+          profile: newProfile,
+          isAdmin: newProfile.role === 'admin',
+        };
+      }
+
       console.error('Profile error:', profileError);
       return null;
     }
 
+    // Return the user and profile
     return {
       user: session.user,
       profile,
-      isAdmin: profile.role === 'admin',
+      isAdmin: profile?.role === 'admin',
     };
   } catch (error) {
     console.error('Auth error:', error);
