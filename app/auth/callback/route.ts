@@ -1,7 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { ResponseCookie } from 'next/dist/compiled/@edge-runtime/cookies';
 
 interface ProfileData {
   id: string;
@@ -19,12 +17,8 @@ export async function GET(request: Request) {
   const code = requestUrl.searchParams.get('code');
   const next = requestUrl.searchParams.get('next') || '/dashboard';
 
-  // Get the code verifier from cookies
-  const cookieStore = await cookies();
-  const pkceVerifier = cookieStore.get('pkce_verifier')?.value;
-
-  if (!code || !pkceVerifier) {
-    console.error('Missing auth parameters:', { hasCode: !!code, hasVerifier: !!pkceVerifier });
+  if (!code) {
+    console.error('Missing auth code');
     return NextResponse.redirect(
       new URL('/auth/error?error=invalid_request&message=Missing required authentication parameters', requestUrl)
     );
@@ -33,44 +27,14 @@ export async function GET(request: Request) {
   try {
     const supabase = await createClient();
 
-    // Exchange the code for a session using the code verifier
-    const { data: authData, error: authError } = await supabase.auth.exchangeCodeForSession(code, pkceVerifier);
+    // Exchange the code for a session
+    const { data: authData, error: authError } = await supabase.auth.exchangeCodeForSession(code);
 
     if (authError || !authData.session) {
       console.error('Auth error:', authError);
       return NextResponse.redirect(
         new URL(`/auth/error?error=${encodeURIComponent(authError?.message || 'session_error')}`, requestUrl)
       );
-    }
-
-    // Set session cookies
-    const response = NextResponse.redirect(new URL(next, requestUrl));
-
-    // Clear the code verifier cookie as it's no longer needed
-    response.cookies.set('pkce_verifier', '', {
-      path: '/',
-      maxAge: 0,
-      secure: process.env.NODE_ENV === 'production',
-      httpOnly: true,
-    });
-
-    // Set auth cookies with proper configuration
-    response.cookies.set('sb-access-token', authData.session.access_token, {
-      path: '/',
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24, // 24 hours
-      httpOnly: true,
-    });
-
-    if (authData.session.refresh_token) {
-      response.cookies.set('sb-refresh-token', authData.session.refresh_token, {
-        path: '/',
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 30, // 30 days
-        httpOnly: true,
-      });
     }
 
     // Check if user profile already exists
@@ -108,16 +72,7 @@ export async function GET(request: Request) {
       );
     }
 
-    // Set role in cookie
-    response.cookies.set('userRole', profileData.role, {
-      path: '/',
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-      httpOnly: true,
-    });
-
-    return response;
+    return NextResponse.redirect(new URL(next, requestUrl));
   } catch (error) {
     console.error('Callback error:', error);
     return NextResponse.redirect(

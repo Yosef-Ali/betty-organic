@@ -220,14 +220,10 @@ export async function signInWithGoogle() {
     }
 
     // Get the current URL origin to handle both development and production
-    let origin = process.env.NEXT_PUBLIC_SITE_URL;
-    if (!origin) {
-      // Fallback for development
-      origin =
-        process.env.NODE_ENV === 'production'
-          ? 'https://betty-organic.vercel.app'
-          : 'http://localhost:3000';
-    }
+    const origin = process.env.NEXT_PUBLIC_SITE_URL ||
+      (process.env.NODE_ENV === 'production'
+        ? 'https://betty-organic.vercel.app'
+        : 'http://localhost:3000');
 
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -237,7 +233,6 @@ export async function signInWithGoogle() {
           access_type: 'offline',
           prompt: 'consent',
         },
-        scopes: 'email profile',
       },
     });
 
@@ -247,40 +242,12 @@ export async function signInWithGoogle() {
     }
 
     if (!data?.url) {
-      console.error('No redirect URL received');
-      return { error: 'Authentication configuration error' };
+      return { error: 'No redirect URL received' };
     }
 
-    // Set the provider in a cookie instead of sessionStorage
-    setCookie('authProvider', 'google', {
-      path: '/',
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 5, // 5 minutes
-    });
-
-    // Clear any existing Supabase cookies to ensure clean state
-    setCookie('sb-access-token', '', {
-      path: '/',
-      maxAge: -1,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-    });
-    setCookie('sb-refresh-token', '', {
-      path: '/',
-      maxAge: -1,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-    });
-
-    return {
-      redirect: {
-        destination: data.url,
-        type: 'replace',
-      },
-    };
-  } catch (err) {
-    console.error('Unexpected error during Google sign-in:', err);
+    return { url: data.url };
+  } catch (error) {
+    console.error('Unexpected error during Google sign-in:', error);
     return { error: 'An unexpected error occurred' };
   }
 }

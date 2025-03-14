@@ -1,6 +1,7 @@
 'use server';
 
-import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 import type { Database } from '@/types/supabase';
 
 export async function createClient() {
@@ -15,30 +16,35 @@ export async function createClient() {
       throw new Error('Database configuration error');
     }
 
-    const client = createSupabaseClient<Database>(
+    return createServerClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
       {
-        auth: {
-          persistSession: false, // Don't persist session in server environment
-          flowType: 'pkce',
-          detectSessionInUrl: true,
-          debug: process.env.NODE_ENV === 'development'
+        cookies: {
+          get(name: string) {
+            return cookies().get(name)?.value;
+          },
+          set(name: string, value: string, options: CookieOptions) {
+            cookies().set(name, value, {
+              path: options.path ?? '/',
+              secure: options.secure ?? true,
+              sameSite: (options.sameSite as 'lax' | 'strict' | 'none') ?? 'lax',
+              maxAge: options.maxAge ?? 0,
+              httpOnly: options.httpOnly,
+            });
+          },
+          remove(name: string, options: CookieOptions) {
+            cookies().set(name, '', {
+              path: options.path ?? '/',
+              secure: options.secure ?? true,
+              sameSite: (options.sameSite as 'lax' | 'strict' | 'none') ?? 'lax',
+              maxAge: -1,
+              httpOnly: options.httpOnly,
+            });
+          },
         },
-        db: {
-          schema: 'public'
-        }
       }
     );
-
-    // Test the connection
-    const { error } = await client.from('about_content').select('id').limit(1);
-    if (error) {
-      console.error('Failed to connect to Supabase:', error.message);
-      throw new Error('Database connection error');
-    }
-
-    return client;
   } catch (error) {
     console.error('Error creating Supabase client:', error);
     throw new Error('Failed to initialize database connection');
