@@ -220,21 +220,41 @@ export async function signInWithGoogle() {
     }
 
     // Get the current URL origin to handle both development and production
-    const origin = process.env.NEXT_PUBLIC_SITE_URL ||
-      (process.env.NODE_ENV === 'production'
-        ? 'https://betty-organic.vercel.app'
-        : 'http://localhost:3000');
+    let origin = process.env.NEXT_PUBLIC_SITE_URL;
+    if (!origin) {
+      // Fallback for development
+      origin =
+        process.env.NODE_ENV === 'production'
+          ? 'https://betty-organic.vercel.app'
+          : 'http://localhost:3000';
+    }
+
+    // Generate PKCE code verifier and challenge
+    const codeVerifier = crypto.randomBytes(32).toString('hex');
+    const codeChallenge = crypto
+      .createHash('sha256')
+      .update(codeVerifier)
+      .digest('base64url');
+
+    // Store code verifier in a cookie for the callback
+    setCookie('code_verifier', codeVerifier, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 5, // 5 minutes
+      path: '/',
+    });
 
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${origin}/auth/callback`,
+        redirectTo: `${origin}/auth/callback?next=/dashboard`,
         queryParams: {
           access_type: 'offline',
           prompt: 'consent',
-        },
-        skipBrowserRedirect: true // This prevents automatic redirect
-      },
+          scope: 'email profile'
+        }
+      }
     });
 
     if (error) {
@@ -243,14 +263,40 @@ export async function signInWithGoogle() {
     }
 
     if (!data?.url) {
-      console.error('No redirect URL received from Supabase');
+      console.error('No redirect URL received');
       return { error: 'Authentication configuration error' };
     }
 
-    // Return the URL for client-side redirect
-    return { url: data.url };
-  } catch (error) {
-    console.error('Unexpected error during Google sign-in:', error);
+    // Set the provider in a cookie instead of sessionStorage
+    setCookie('authProvider', 'google', {
+      path: '/',
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 5, // 5 minutes
+    });
+
+    // Clear any existing Supabase cookies to ensure clean state
+    setCookie('sb-access-token', '', {
+      path: '/',
+      maxAge: -1,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+    });
+    setCookie('sb-refresh-token', '', {
+      path: '/',
+      maxAge: -1,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+    });
+
+    return {
+      redirect: {
+        destination: data.url,
+        type: 'replace',
+      },
+    };
+  } catch (err) {
+    console.error('Unexpected error during Google sign-in:', err);
     return { error: 'An unexpected error occurred' };
   }
 }
