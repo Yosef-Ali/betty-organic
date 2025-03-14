@@ -20,7 +20,10 @@ export async function createClient() {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
       {
         auth: {
-          persistSession: false // Don't persist session in server environment
+          persistSession: false, // Don't persist session in server environment
+          flowType: 'pkce',
+          detectSessionInUrl: true,
+          debug: process.env.NODE_ENV === 'development'
         },
         db: {
           schema: 'public'

@@ -229,22 +229,6 @@ export async function signInWithGoogle() {
           : 'http://localhost:3000';
     }
 
-    // Generate PKCE code verifier and challenge
-    const codeVerifier = crypto.randomBytes(32).toString('hex');
-    const codeChallenge = crypto
-      .createHash('sha256')
-      .update(codeVerifier)
-      .digest('base64url');
-
-    // Store code verifier in a cookie for the callback
-    setCookie('code_verifier', codeVerifier, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 5, // 5 minutes
-      path: '/',
-    });
-
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -252,8 +236,6 @@ export async function signInWithGoogle() {
         queryParams: {
           access_type: 'offline',
           prompt: 'consent',
-          code_challenge: codeChallenge,
-          code_challenge_method: 'S256',
         },
         scopes: 'email profile',
       },
