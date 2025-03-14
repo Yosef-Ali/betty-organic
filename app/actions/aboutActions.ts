@@ -19,77 +19,77 @@ export interface AboutContent {
 
 const DEFAULT_VIDEO = "https://xmumlfgzvrliepxcjqil.supabase.co/storage/v1/object/public/about_images//bettys.mp4";
 
+const DEFAULT_CONTENT: AboutContent = {
+  id: uuidv4(),
+  title: "About Betty's Organic",
+  content: "Welcome to Betty's Organic. Our content is currently being updated.",
+  images: [],
+  videos: [DEFAULT_VIDEO],
+  active: true,
+  created_at: null,
+  updated_at: null,
+  created_by: null
+};
+
 export async function getAbout() {
-  try {
-    const supabase = await createClient();
+  let retryCount = 0;
+  const maxRetries = 3;
 
-    // Test the connection first
-    const { data: testData, error: testError } = await supabase
-      .from('about_content')
-      .select('id')
-      .limit(1);
+  while (retryCount < maxRetries) {
+    try {
+      console.log(`Attempt ${retryCount + 1} to fetch about content`);
+      const supabase = await createClient();
 
-    if (testError) {
-      console.error('Supabase connection error:', testError);
-      throw new Error('Unable to connect to the database. Please try again later.');
-    }
+      const { data, error } = await supabase
+        .from('about_content')
+        .select('*')
+        .eq('active', true)
+        .maybeSingle();
 
-    const { data, error } = await supabase
-      .from('about_content')
-      .select('*')
-      .eq('active', true)
-      .maybeSingle();
+      if (error) {
+        console.error(`Error fetching about content (attempt ${retryCount + 1}):`, error);
+        throw error;
+      }
 
-    if (error) {
-      console.error('Error fetching about content:', error);
-      throw new Error('Failed to fetch about content. Please try again later.');
-    }
+      // If no data found, return default content
+      if (!data) {
+        console.log('No about content found, returning default content');
+        return DEFAULT_CONTENT;
+      }
 
-    // If no data found, return default content
-    if (!data) {
-      return {
-        id: uuidv4(),
-        title: "About Betty's Organic",
-        content: "Welcome to Betty's Organic. Our content is currently being updated.",
-        images: [],
-        videos: [DEFAULT_VIDEO],
-        active: true,
-        created_at: null,
-        updated_at: null,
-        created_by: null
+      // Create a properly typed object with all required fields
+      const rawData = data as unknown as { videos?: string[] } & Database['public']['Tables']['about_content']['Row'];
+      const aboutData: AboutContent = {
+        id: rawData.id,
+        title: rawData.title || DEFAULT_CONTENT.title,
+        content: rawData.content || DEFAULT_CONTENT.content,
+        images: rawData.images || [],
+        videos: rawData.videos || [DEFAULT_VIDEO],
+        active: rawData.active ?? true,
+        created_at: rawData.created_at,
+        updated_at: rawData.updated_at,
+        created_by: rawData.created_by
       };
+
+      return aboutData;
+    } catch (error) {
+      console.error(`Error in getAbout (attempt ${retryCount + 1}):`, error);
+      retryCount++;
+
+      if (retryCount === maxRetries) {
+        console.error('Max retries reached, returning default content');
+        return {
+          ...DEFAULT_CONTENT,
+          content: "We're currently experiencing technical difficulties. Our team is working to resolve this issue. Please check back later."
+        };
+      }
+
+      // Wait before retrying (exponential backoff)
+      await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
     }
-
-    // Create a properly typed object with all required fields
-    const rawData = data as unknown as { videos?: string[] } & Database['public']['Tables']['about_content']['Row'];
-    const aboutData: AboutContent = {
-      id: rawData.id,
-      title: rawData.title,
-      content: rawData.content,
-      images: rawData.images || [],
-      videos: rawData.videos || [DEFAULT_VIDEO],
-      active: rawData.active ?? true,
-      created_at: rawData.created_at,
-      updated_at: rawData.updated_at,
-      created_by: rawData.created_by
-    };
-
-    return aboutData;
-  } catch (error) {
-    console.error('Error in getAbout:', error);
-    // Return a default structure with a more informative message
-    return {
-      id: uuidv4(),
-      title: "About Betty's Organic",
-      content: "We're currently experiencing technical difficulties. Our team is working to resolve this issue. Please check back later.",
-      images: [],
-      videos: [DEFAULT_VIDEO],
-      active: true,
-      created_at: null,
-      updated_at: null,
-      created_by: null
-    };
   }
+
+  return DEFAULT_CONTENT;
 }
 
 export async function saveAbout(content: AboutContent) {
