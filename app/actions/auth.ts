@@ -7,6 +7,12 @@ import { AuthError, AuthState, Profile } from '@/lib/types/auth';
 import { User } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 
+function setCookie(name: string, value: string, options: { path: string; secure: boolean; sameSite: 'lax' | 'strict' | 'none'; maxAge: number }) {
+  // Get the underlying setCookie function from the cookies instance
+  const cookieStore = cookies();
+  (cookieStore as any).set(name, value, options);
+}
+
 export type AuthData = {
   user: User;
   profile: Profile;
@@ -41,43 +47,59 @@ export const getCurrentUser = cache(async (): Promise<AuthData> => {
       .eq('id', session.user.id)
       .single();
 
-    if (profileError) {
-      // If profile doesn't exist, let's create a default one
-      if (profileError.code === 'PGRST116') {
-        console.log('Profile not found, creating default profile');
+    // If profile doesn't exist, create one
+    if (profileError && profileError.code === 'PGRST116') {
+      console.log('Profile not found, creating default profile');
 
-        const newProfileData = {
-          id: session.user.id,
-          email: session.user.email || '',
-          name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
-          role: (session.user.user_metadata?.role as Profile['role']) || 'customer',
-          status: 'active' as const,
-          auth_provider: session.user.app_metadata?.provider || 'email',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
+      const newProfileData = {
+        id: session.user.id,
+        email: session.user.email || '',
+        name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
+        role: session.user.user_metadata?.role || 'customer',
+        status: 'active' as const,
+        auth_provider: session.user.app_metadata?.provider || 'email',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
 
-        const { data: newProfile, error: createError } = await supabase
-          .from('profiles')
-          .insert(newProfileData)
-          .select('*')
-          .single();
+      const { data: newProfile, error: createError } = await supabase
+        .from('profiles')
+        .insert(newProfileData)
+        .select('*')
+        .single();
 
-        if (createError) {
-          console.error('Error creating profile:', createError);
-          return null;
-        }
-
-        return {
-          user: session.user,
-          profile: newProfile as Profile,
-          isAdmin: newProfile.role === 'admin',
-        };
+      if (createError) {
+        console.error('Error creating profile:', createError);
+        return null;
       }
 
+      // Set role in cookie
+      setCookie('userRole', newProfile.role, {
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+      });
+
+      return {
+        user: session.user,
+        profile: newProfile as Profile,
+        isAdmin: newProfile.role === 'admin',
+      };
+    }
+
+    if (profileError) {
       console.error('Profile error:', profileError);
       return null;
     }
+
+    // Set role in cookie
+    setCookie('userRole', profile.role, {
+      path: '/',
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+    });
 
     // Return the user and profile
     return {

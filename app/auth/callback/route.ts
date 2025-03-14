@@ -1,6 +1,12 @@
 import { createClient } from '@/lib/supabase/server';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+import { ResponseCookie } from 'next/dist/compiled/@edge-runtime/cookies';
+
+function setCookie(name: string, value: string, options: { path: string; secure: boolean; sameSite: 'lax' | 'strict' | 'none'; maxAge: number; httpOnly?: boolean }) {
+  const cookieStore = cookies();
+  (cookieStore as any).set(name, value, options);
+}
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
@@ -12,7 +18,6 @@ export async function GET(request: Request) {
   }
 
   try {
-    const cookieStore = await cookies();
     const supabase = await createClient();
 
     if (!supabase.auth) {
@@ -29,24 +34,20 @@ export async function GET(request: Request) {
     }
 
     // Set auth cookies
-    await cookieStore.set('sb-access-token', authData.session.access_token, {
+    setCookie('sb-access-token', authData.session.access_token, {
       path: '/',
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 60 * 60 * 24, // 24 hours
-    });
+    } satisfies Partial<ResponseCookie>);
 
     if (authData.session.refresh_token) {
-      await cookieStore.set(
-        'sb-refresh-token',
-        authData.session.refresh_token,
-        {
-          path: '/',
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax',
-          maxAge: 60 * 60 * 24 * 30, // 30 days
-        },
-      );
+      setCookie('sb-refresh-token', authData.session.refresh_token, {
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 30, // 30 days
+      } satisfies Partial<ResponseCookie>);
     }
 
     // Check if user profile already exists
@@ -57,17 +58,17 @@ export async function GET(request: Request) {
       .single();
 
     // Create or update user profile, preserving existing role if present
-    const { data: profile, error: profileError } = await supabase
+    const profileData = {
+      id: authData.session.user.id,
+      email: authData.session.user.email!,
+      name: authData.session.user.user_metadata?.full_name || authData.session.user.email?.split('@')[0] || 'User',
+      role: existingProfile?.role || 'customer',
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error: profileError } = await supabase
       .from('profiles')
-      .upsert(
-        {
-          id: authData.session.user.id,
-          email: authData.session.user.email,
-          role: existingProfile?.role || 'customer', // Preserve existing role or set default
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'id' },
-      )
+      .upsert(profileData)
       .select()
       .single();
 
