@@ -233,6 +233,7 @@ export async function signInWithGoogle() {
           access_type: 'offline',
           prompt: 'consent',
         },
+        skipBrowserRedirect: true // This prevents automatic redirect
       },
     });
 
@@ -242,9 +243,11 @@ export async function signInWithGoogle() {
     }
 
     if (!data?.url) {
-      return { error: 'No redirect URL received' };
+      console.error('No redirect URL received from Supabase');
+      return { error: 'Authentication configuration error' };
     }
 
+    // Return the URL for client-side redirect
     return { url: data.url };
   } catch (error) {
     console.error('Unexpected error during Google sign-in:', error);

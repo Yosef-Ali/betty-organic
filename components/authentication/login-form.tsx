@@ -162,10 +162,11 @@ export function LoginForm() {
                 toast.error(`Sign in failed: ${result.error}`);
                 return;
               }
-              if (result.redirect) {
-                window.location.href = result.redirect.destination;
+              if (result.url) {
+                // Redirect to Google's OAuth page
+                window.location.href = result.url;
               } else {
-                toast.error('No redirect URL received');
+                toast.error('Authentication configuration error');
               }
             } catch (error) {
               console.error('Google sign in error:', error);
