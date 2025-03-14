@@ -8,7 +8,8 @@ export async function middleware(request: NextRequest) {
     request.nextUrl.pathname.startsWith('/auth') ||
     request.nextUrl.pathname.startsWith('/_next') ||
     request.nextUrl.pathname.startsWith('/api/auth') ||
-    request.nextUrl.pathname.includes('.')
+    request.nextUrl.pathname.includes('.') ||
+    request.nextUrl.pathname === '/'
   ) {
     return NextResponse.next();
   }
@@ -32,7 +33,6 @@ export async function middleware(request: NextRequest) {
           return request.cookies.get(name)?.value;
         },
         set(name: string, value: string, options: CookieOptions) {
-          // Don't set cookies for middleware, just read them
           response.cookies.set({
             name,
             value,
@@ -40,7 +40,6 @@ export async function middleware(request: NextRequest) {
           });
         },
         remove(name: string, options: CookieOptions) {
-          // Don't remove cookies for middleware, just read them
           response.cookies.set({
             name,
             value: '',
@@ -52,86 +51,84 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // Get user session
-  const { data: { session } } = await supabase.auth.getSession();
+  try {
+    // Get user session
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
-  // Debug session information
-  console.log(`Middleware session check: ${session ? 'Session found' : 'No session'}`);
-  if (session) {
-    console.log(`User ID: ${session.user.id}`);
-  }
+    if (sessionError) {
+      console.error('Session error:', sessionError);
+      return redirectToLogin(request);
+    }
 
-  // Protected routes that require authentication
-  const protectedRoutes = [
-    '/dashboard',
-    '/checkout',
-    '/orders',
-    '/api/orders'
-  ];
+    // Protected routes that require authentication
+    const protectedRoutes = [
+      '/dashboard',
+      '/checkout',
+      '/orders',
+      '/api/orders',
+      '/profile'
+    ];
 
-  const isProtectedRoute = protectedRoutes.some(route =>
-    request.nextUrl.pathname.startsWith(route)
-  );
+    const isProtectedRoute = protectedRoutes.some(route =>
+      request.nextUrl.pathname.startsWith(route)
+    );
 
-  // If there's no session and the user is trying to access a protected route
-  if (!session && isProtectedRoute) {
-    // Store the original URL to redirect back after sign in
-    const redirectUrl = new URL('/auth/login', request.url);
-    redirectUrl.searchParams.set('redirectTo', request.nextUrl.pathname);
-    return NextResponse.redirect(redirectUrl);
-  }
+    // If there's no session and the user is trying to access a protected route
+    if (!session && isProtectedRoute) {
+      return redirectToLogin(request);
+    }
 
-  // Role-based access control for dashboard routes
-  if (session && request.nextUrl.pathname.startsWith('/dashboard')) {
-    try {
-      const { data: profile, error } = await supabase
+    // If we have a session, get the user's profile for role-based access
+    if (session) {
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('role')
+        .select('role, status')
         .eq('id', session.user.id)
         .single();
 
-      if (error) {
-        console.error('Error fetching profile:', error);
-        // If we can't fetch the profile, let's create a default one
-        const { data: newProfile, error: createError } = await supabase
-          .from('profiles')
-          .insert([
-            {
-              id: session.user.id,
-              email: session.user.email,
-              role: 'customer', // Default role
-            },
-          ])
-          .select('*')
-          .single();
-
-        if (createError) {
-          console.error('Error creating profile:', createError);
-        }
+      if (profileError && profileError.code !== 'PGRST116') {
+        console.error('Error fetching profile:', profileError);
+        return redirectToLogin(request);
       }
 
       const userRole = profile?.role || 'customer';
+      const userStatus = profile?.status || 'active';
 
-      // Admin routes
-      if (request.nextUrl.pathname.startsWith('/dashboard/admin') && userRole !== 'admin') {
-        return NextResponse.redirect(new URL('/dashboard', request.url));
+      // Check if user is inactive
+      if (userStatus === 'inactive') {
+        return redirectToLogin(request);
       }
 
-      // Sales routes
-      if (request.nextUrl.pathname.startsWith('/dashboard/sales') && !['admin', 'sales'].includes(userRole)) {
-        return NextResponse.redirect(new URL('/dashboard', request.url));
-      }
+      // Role-based route protection
+      if (request.nextUrl.pathname.startsWith('/dashboard')) {
+        // Admin-only routes
+        if (request.nextUrl.pathname.startsWith('/dashboard/admin') && userRole !== 'admin') {
+          return NextResponse.redirect(new URL('/dashboard', request.url));
+        }
 
-      // Customer routes
-      if (request.nextUrl.pathname.startsWith('/dashboard/customer') && !['admin', 'sales', 'customer'].includes(userRole)) {
-        return NextResponse.redirect(new URL('/dashboard', request.url));
+        // Sales routes - accessible by admin and sales
+        if (request.nextUrl.pathname.startsWith('/dashboard/sales') && !['admin', 'sales'].includes(userRole)) {
+          return NextResponse.redirect(new URL('/dashboard', request.url));
+        }
+
+        // Customer routes - accessible by all authenticated users
+        if (request.nextUrl.pathname.startsWith('/dashboard/customer') && !['admin', 'sales', 'customer'].includes(userRole)) {
+          return NextResponse.redirect(new URL('/dashboard', request.url));
+        }
       }
-    } catch (err) {
-      console.error('Middleware error:', err);
     }
-  }
 
-  return response;
+    return response;
+  } catch (err) {
+    console.error('Middleware error:', err);
+    return redirectToLogin(request);
+  }
+}
+
+function redirectToLogin(request: NextRequest) {
+  const redirectUrl = new URL('/auth/login', request.url);
+  redirectUrl.searchParams.set('redirectTo', request.nextUrl.pathname);
+  return NextResponse.redirect(redirectUrl);
 }
 
 export const config = {

@@ -45,15 +45,21 @@ export const getCurrentUser = cache(async (): Promise<AuthData> => {
       // If profile doesn't exist, let's create a default one
       if (profileError.code === 'PGRST116') {
         console.log('Profile not found, creating default profile');
+
+        const newProfileData = {
+          id: session.user.id,
+          email: session.user.email || '',
+          name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
+          role: (session.user.user_metadata?.role as Profile['role']) || 'customer',
+          status: 'active' as const,
+          auth_provider: session.user.app_metadata?.provider || 'email',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+
         const { data: newProfile, error: createError } = await supabase
           .from('profiles')
-          .insert([
-            {
-              id: session.user.id,
-              email: session.user.email,
-              role: 'customer', // Default role
-            },
-          ])
+          .insert(newProfileData)
           .select('*')
           .single();
 
@@ -64,7 +70,7 @@ export const getCurrentUser = cache(async (): Promise<AuthData> => {
 
         return {
           user: session.user,
-          profile: newProfile,
+          profile: newProfile as Profile,
           isAdmin: newProfile.role === 'admin',
         };
       }
@@ -76,7 +82,7 @@ export const getCurrentUser = cache(async (): Promise<AuthData> => {
     // Return the user and profile
     return {
       user: session.user,
-      profile,
+      profile: profile as Profile,
       isAdmin: profile?.role === 'admin',
     };
   } catch (error) {

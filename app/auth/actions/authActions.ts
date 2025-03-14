@@ -3,6 +3,7 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import crypto from 'crypto';
+import { Profile } from '@/lib/types/auth';
 
 // Helper function to create Supabase client with anon key
 async function createClient() {
@@ -60,36 +61,111 @@ export async function signIn(formData: FormData) {
   const password = formData.get('password') as string;
 
   const supabase = await createClient();
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
 
-  if (error) {
-    return { error: error.message };
-  }
+  try {
+    // Sign in with email and password
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
-  // Fetch user profile to preserve role
-  const { data: profileData, error: profileError } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', data.user?.id)
-    .single();
-  if (!profileError && profileData) {
+    if (error) {
+      return { error: error.message };
+    }
+
+    if (!data.user) {
+      return { error: 'No user data returned' };
+    }
+
+    // Fetch or create user profile
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', data.user.id)
+      .single();
+
+    if (profileError && profileError.code === 'PGRST116') {
+      // Profile doesn't exist, create one
+      const { data: newProfile, error: createError } = await supabase
+        .from('profiles')
+        .insert({
+          id: data.user.id,
+          email: data.user.email || '',
+          name: data.user.user_metadata?.full_name || data.user.email?.split('@')[0] || 'User',
+          role: (data.user.user_metadata?.role as Profile['role']) || 'customer',
+          status: 'active' as const,
+          auth_provider: 'email',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .select('*')
+        .single();
+
+      if (createError) {
+        console.error('Error creating profile:', createError);
+        return { error: 'Failed to create user profile' };
+      }
+
+      // Set role in cookie
+      const cookieStore = await cookies();
+      await cookieStore.set('userRole', newProfile.role, {
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+      });
+
+      return {
+        success: true,
+        data: {
+          user: data.user,
+          profile: newProfile,
+        },
+        redirect: {
+          destination: '/dashboard',
+          type: 'replace',
+        },
+      };
+    }
+
+    if (profileError) {
+      console.error('Error fetching profile:', profileError);
+      return { error: 'Failed to fetch user profile' };
+    }
+
+    // Set role in cookie
     const cookieStore = await cookies();
-    await cookieStore.set('userRole', profileData.role, {
+    await cookieStore.set('userRole', profile.role, {
       path: '/',
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 7, // 7 days
     });
-  }
 
-  return {
-    redirect: {
-      destination: '/dashboard',
-      type: 'replace',
-    },
-  };
+    // Update last login time
+    await supabase
+      .from('profiles')
+      .update({
+        last_login: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', data.user.id);
+
+    return {
+      success: true,
+      data: {
+        user: data.user,
+        profile,
+      },
+      redirect: {
+        destination: '/dashboard',
+        type: 'replace',
+      },
+    };
+  } catch (error) {
+    console.error('Sign in error:', error);
+    return { error: 'An unexpected error occurred' };
+  }
 }
 
 export async function signUp(formData: FormData) {
