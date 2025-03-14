@@ -103,88 +103,27 @@ export async function signIn(formData: FormData) {
       return { error: error.message };
     }
 
-    if (!data.user) {
-      return { error: 'No user data returned' };
+    if (!data?.user) {
+      return { error: 'No user returned from authentication' };
     }
 
-    // Fetch or create user profile
+    // Fetch user profile
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', data.user.id)
       .single();
 
-    if (profileError && profileError.code === 'PGRST116') {
-      // Profile doesn't exist, create one
-      const { data: newProfile, error: createError } = await supabase
-        .from('profiles')
-        .insert({
-          id: data.user.id,
-          email: data.user.email || '',
-          name: data.user.user_metadata?.full_name || data.user.email?.split('@')[0] || 'User',
-          role: (data.user.user_metadata?.role as Profile['role']) || 'customer',
-          status: 'active' as const,
-          auth_provider: 'email',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .select('*')
-        .single();
-
-      if (createError) {
-        console.error('Error creating profile:', createError);
-        return { error: 'Failed to create user profile' };
-      }
-
-      // Set role in cookie
-      setCookie('userRole', newProfile.role, {
-        path: '/',
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 7, // 7 days
-      });
-
-      return {
-        success: true,
-        data: {
-          user: data.user,
-          profile: newProfile,
-        },
-        redirect: {
-          destination: '/dashboard',
-          type: 'replace',
-        },
-      };
-    }
-
-    if (profileError) {
-      console.error('Error fetching profile:', profileError);
-      return { error: 'Failed to fetch user profile' };
-    }
-
-    // Set role in cookie
-    setCookie('userRole', profile.role, {
-      path: '/',
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
+    // Set auth cookie to ensure session persistence
+    await supabase.auth.setSession({
+      access_token: data.session.access_token,
+      refresh_token: data.session.refresh_token,
     });
-
-    // Update last login time
-    await supabase
-      .from('profiles')
-      .update({
-        last_login: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', data.user.id);
 
     return {
       success: true,
-      data: {
-        user: data.user,
-        profile,
-      },
+      user: data.user,
+      profile,
       redirect: {
         destination: '/dashboard',
         type: 'replace',

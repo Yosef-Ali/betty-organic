@@ -53,43 +53,17 @@ export function LoginForm() {
 
       if (result.error) {
         toast.error(result.error);
+        setIsPending(false);
         return;
       }
 
       if (result.redirect) {
-        router.push(result.redirect.destination);
-      } else {
-        toast.error('No redirect URL received');
+        // Force a full page refresh to ensure auth state is updated
+        window.location.href = result.redirect.destination;
       }
     } catch (error) {
-      let errorMessage = 'An unexpected error occurred';
-      
-      if (error instanceof Error) {
-        errorMessage = error.message;
-      } else if (typeof error === 'object' && error !== null) {
-        // Enhanced error object handling
-        if ('message' in error) {
-          errorMessage = String(error.message);
-        } else if (Object.keys(error).length === 0) {
-          // Handle empty error object case
-          errorMessage = 'Authentication failed. Please check your credentials and try again.';
-        } else {
-          // If error object has content but no message property
-          errorMessage = `Authentication failed: ${JSON.stringify(error)}`;
-        }
-      }
-
-      toast.error(errorMessage);
-      // Enhanced error logging with more context
-      console.error('Login error:', {
-        error,
-        errorMessage,
-        timestamp: new Date().toISOString(),
-        path: window.location.pathname,
-        type: typeof error,
-        isEmpty: error instanceof Object ? Object.keys(error).length === 0 : false
-      });
-    } finally {
+      console.error('Login error:', error);
+      toast.error('An unexpected error occurred');
       setIsPending(false);
     }
   };
