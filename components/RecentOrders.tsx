@@ -19,7 +19,7 @@ type RecentOrder = {
   total_amount: number;
   type: string;
   profiles: {
-    name: string;
+    name: string | null;
   };
   display_id?: string;
 };
@@ -105,9 +105,9 @@ export function RecentOrders() {
                 <TableCell>{order.profiles?.name || 'Unknown'}</TableCell>
                 <TableCell>
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${order.status === 'confirmed' ? 'bg-green-100 text-green-800' :
-                      order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                        order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
-                          'bg-gray-100 text-gray-800'
+                    order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                      order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                        'bg-gray-100 text-gray-800'
                     }`}>
                     {order.status}
                   </span>

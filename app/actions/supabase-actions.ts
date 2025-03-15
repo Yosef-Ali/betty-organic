@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { Database } from '@/types/supabase';
 
 export async function getSupabaseClient() {
-  return await createClient<Database>();
+  return await createClient();
 }
 
 export async function getRecentOrders(limit = 5) {
@@ -13,7 +13,7 @@ export async function getRecentOrders(limit = 5) {
     // Explicitly avoid caching by using the cache option
     const { data, error } = await supabase
       .from('orders')
-      .select('*, profiles!orders_customer_profile_id_fkey(name)')
+      .select('*, profiles!inner(name)')
       .order('created_at', { ascending: false })
       .limit(limit);
 
@@ -65,7 +65,7 @@ export async function getTotalCustomers() {
   const supabase = await getSupabaseClient();
   try {
     const { count, error } = await supabase
-      .from('customers')
+      .from('profiles')
       .select('*', { count: 'exact', head: true });
 
     if (error) throw error;
