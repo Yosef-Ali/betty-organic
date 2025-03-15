@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useReducer } from 'react';
 import { useSalesCartStore } from '@/store/salesCartStore';
 import { usePathname } from 'next/navigation';
 import { createOrder } from '@/app/actions/orderActions';
-import { Order } from '@/types/order';
+import { Order, OrderItem } from '@/types/order';
 import { Customer } from '@/types/customer';
 import { useToast } from '@/hooks/use-toast';
 
@@ -147,12 +147,9 @@ export function useSalesCartSheet({
     } : null,
     orderStatus: user?.profile?.role === 'admin' ? 'processing' : 'pending'
   });
+
   const { toast } = useToast();
-  const {
-    items,
-    clearCart,
-    getTotalAmount
-  } = useSalesCartStore();
+  const { items, clearCart, getTotalAmount } = useSalesCartStore();
 
   useEffect(() => {
     if (items.length === 0) {
@@ -247,18 +244,18 @@ export function useSalesCartSheet({
         }
       }
     } catch (error) {
-      console.error('Error sharing:', error);
+      const e = error as Error;
+      console.error('Error sharing:', e);
       toast({
         variant: 'destructive',
         title: 'Error',
-        description:
-          error instanceof Error ? error.message : 'Failed to share order',
+        description: e.message || 'Failed to share order',
       });
     }
   }, [items, getTotalAmount, toast]);
 
   const handleSaveOrder = useCallback(
-    async (customerData: any) => {
+    async (customerData: Partial<Customer>) => {
       try {
         if (!customerData?.id || !customerData?.name) {
           toast({
@@ -278,9 +275,6 @@ export function useSalesCartSheet({
           return;
         }
 
-        // Use profile ID from state or user object
-        const profileId = state.profile?.id || user?.id;
-
         // Check if user has required role permissions first
         if (!state.profile?.role || !['admin', 'sales'].includes(state.profile.role)) {
           toast({
@@ -291,59 +285,29 @@ export function useSalesCartSheet({
           return;
         }
 
-        if (
-          !state.profile.role ||
-          !['admin', 'sales'].includes(state.profile.role)
-        ) {
-          toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: 'Insufficient permissions to create orders',
-          });
-          return;
-        }
-
         dispatch({ type: 'SET_CUSTOMER', payload: customerData });
         dispatch({ type: 'SET_SAVING', payload: true });
 
         const totalAmount = getTotalAmount();
-        const orderData: Order = {
-          id: '',
-          profile_id: state.profile.id,
-          customer_profile_id: customerData.id,
-          status: state.orderStatus,
-          total_amount: totalAmount,
-          type: 'store',
-          order_items: items.map(item => ({
-            id: '',
-            order_id: '',
-            product_id: item.id,
-            quantity: Math.round(item.grams),
-            price: (item.pricePerKg * item.grams) / 1000,
-            product_name: item.name,
-          })),
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
 
-        let success = false;
-        if (onOrderCreate) {
-          success = await onOrderCreate(orderData);
-        } else {
-          const { data: order, error: orderError } = await createOrder(
-            orderData,
-          );
+        // Prepare order items
+        const orderItems: OrderItem[] = items.map(item => ({
+          product_id: item.id,
+          quantity: Math.round(item.grams),
+          price: (item.pricePerKg * item.grams) / 1000,
+          product_name: item.name
+        }));
 
-          if (orderError) {
-            throw new Error(orderError.message || 'Failed to save order');
-          }
-          success = true;
-          if (order?.id) {
-            dispatch({ type: 'SET_ORDER_NUMBER', payload: order.id });
-          }
-        }
+        // Create order
+        const orderResult = await createOrder(
+          orderItems,
+          customerData.id,
+          totalAmount,
+          state.orderStatus
+        );
 
-        if (success) {
+        if (orderResult.success && orderResult.order) {
+          dispatch({ type: 'SET_ORDER_NUMBER', payload: orderResult.order.id });
           dispatch({ type: 'SET_ORDER_SAVED', payload: true });
           clearCart();
           onOpenChange(false);
@@ -353,24 +317,25 @@ export function useSalesCartSheet({
             description: `Order saved successfully for customer ${customerData.name}!`,
           });
         } else {
+          const errorMessage = orderResult.error?.message || 'Order creation failed. Please try again.';
           toast({
             variant: 'destructive',
             title: 'Error',
-            description: 'Order creation failed. Please try again.',
+            description: errorMessage,
           });
         }
-      } catch (error: any) {
+      } catch (error) {
+        const e = error as Error;
         toast({
           variant: 'destructive',
           title: 'Error',
-          description:
-            error.message || 'Failed to save order. Please try again.',
+          description: e.message || 'Failed to save order. Please try again.',
         });
       } finally {
         dispatch({ type: 'SET_SAVING', payload: false });
       }
     },
-    [state.profile, state.orderStatus, items, getTotalAmount, clearCart, onOrderCreate, onOpenChange, toast, user?.id],
+    [state.profile, state.orderStatus, items, getTotalAmount, clearCart, onOpenChange, toast],
   );
 
   const handleConfirmAction = useCallback(
@@ -390,27 +355,28 @@ export function useSalesCartSheet({
           handleBackToCart();
         }
       } catch (error) {
-        console.error('Error in handleConfirmAction:', error);
+        const e = error as Error;
+        console.error('Error in handleConfirmAction:', e);
         toast({
           variant: 'destructive',
           title: 'Error',
-          description: error instanceof Error ? error.message : 'An unexpected error occurred',
+          description: e.message || 'An unexpected error occurred',
         });
       }
     },
-    [state.customer, handleSaveOrder, handleBackToCart, toast, user?.id],
+    [state.customer, handleSaveOrder, handleBackToCart, toast],
   );
 
   const handleConfirmDialog = useCallback(async (
     action: 'save' | 'cancel',
-    selectedCustomer: any,
+    selectedCustomer: Partial<Customer> | null,
   ) => {
     if (action === 'save' && selectedCustomer) {
       await handleSaveOrder(selectedCustomer);
     } else {
       handleConfirmAction(action);
     }
-  }, [handleSaveOrder, handleConfirmAction, user?.id]);
+  }, [handleSaveOrder, handleConfirmAction]);
 
   const handleCloseCart = useCallback(() => {
     if (items.length > 0) {
@@ -429,10 +395,6 @@ export function useSalesCartSheet({
     },
     [clearCart, onOpenChange],
   );
-
-  const handleSubmit = useCallback(async () => {
-    // ... existing code ...
-  }, [user?.id]);
 
   return {
     profile: state.profile,

@@ -1,8 +1,8 @@
 import { Customer } from '@/types/customer';
 
 export interface OrderItem {
-  id: string;
-  order_id: string;
+  id?: string;
+  order_id?: string;
   price: number;
   product_id: string;
   product_name: string;

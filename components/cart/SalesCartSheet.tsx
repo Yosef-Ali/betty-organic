@@ -114,7 +114,7 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
       const newStatus = orderStatus === 'processing' ? 'pending' : 'processing';
       setOrderStatus(newStatus);
     }
-  }, [profile?.role, setOrderStatus, isPending, orderStatus]);
+  }, [profile?.role, isPending, orderStatus, setOrderStatus]);
 
   useEffect(() => {
     if (isPending) {
@@ -148,31 +148,6 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
     },
     [handleConfirmDialog, isPending],
   );
-
-  const handleDeleteClick = useCallback(() => {
-    clearCart();
-    onOpenChange(false);
-  }, [clearCart, onOpenChange]);
-
-  const handleCancelClick = useCallback(() => {
-    if (!customer || !isPending || orderStatus === 'completed') {
-      clearCart();
-      onOpenChange(false);
-    }
-  }, [customer, isPending, orderStatus, clearCart, onOpenChange]);
-
-  const handleCreateOrder = useCallback(async () => {
-    try {
-      // ... existing code ...
-    } catch (error) {
-      console.error('Error creating order:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to create order. Please try again.',
-        variant: 'destructive',
-      });
-    }
-  }, []);
 
   if (error) {
     return (

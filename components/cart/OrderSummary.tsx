@@ -166,7 +166,7 @@ export const OrderSummary: FC<OrderSummaryProps> = ({
         address: selectedCustomer.address || prev.address
       }));
     }
-  }, [selectedCustomer]);
+  }, [selectedCustomer, setCustomerDetails]);
 
   const formatDate = () => {
     return new Date().toLocaleDateString('en-US', {
@@ -265,7 +265,7 @@ ${storeInfo}`;
         address: selectedCustomer.address || prev.address
       }));
     }
-  }, [selectedCustomer]);
+  }, [selectedCustomer, setCustomerDetails]);
 
   return (
     <motion.div

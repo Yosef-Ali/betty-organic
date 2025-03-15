@@ -14,6 +14,12 @@ interface OrderItem {
   product_name: string;
 }
 
+interface OrderResponse {
+  success: boolean;
+  order?: Order;
+  error?: Error;
+}
+
 export async function getOrderDetails(orderId: string) {
   const supabase = await createClient();
   try {
@@ -69,7 +75,7 @@ export async function createOrder(
   customerId: string,
   totalAmount: number,
   status: string = 'pending'
-) {
+): Promise<OrderResponse> {
   try {
     console.log('[DASHBOARD DEBUG] Starting order creation with:',
       JSON.stringify({
@@ -92,7 +98,7 @@ export async function createOrder(
     if (!authData.profile?.role) {
       console.error('[DASHBOARD DEBUG] No role found in profile:', authData.profile);
       return {
-        data: null,
+        success: false,
         error: new Error('Unauthorized: User role not found'),
       };
     }
@@ -105,7 +111,7 @@ export async function createOrder(
     if (!items?.length) {
       console.error('[DASHBOARD DEBUG] Missing order items in order data:', items);
       return {
-        data: null,
+        success: false,
         error: new Error('Invalid order data: Missing order items'),
       };
     }
@@ -126,14 +132,14 @@ export async function createOrder(
       if (!customer_profile_id) {
         console.error('[DASHBOARD DEBUG] Missing customer_profile_id for admin/sales order');
         return {
-          data: null,
+          success: false,
           error: new Error('Customer must be selected for admin/sales orders'),
         };
       }
     } else {
       console.error('[DASHBOARD DEBUG] Invalid role for order creation:', role);
       return {
-        data: null,
+        success: false,
         error: new Error('Unauthorized: Invalid role for order creation'),
       };
     }
@@ -165,9 +171,10 @@ export async function createOrder(
         customer_profile_id,
         role,
       });
-      throw new Error(
-        `Database error creating order: ${orderError.message || 'Unknown error'}`,
-      );
+      return {
+        success: false,
+        error: new Error(`Database error creating order: ${orderError.message || 'Unknown error'}`),
+      };
     }
 
     console.log('[DASHBOARD DEBUG] Order created successfully:', order.id);
@@ -197,9 +204,10 @@ export async function createOrder(
       console.log('[DASHBOARD DEBUG] Cleaning up failed order...');
       await supabase.from('orders').delete().eq('id', order.id);
 
-      throw new Error(
-        `Failed to create order items: ${itemsError.message || 'Unknown error'}`,
-      );
+      return {
+        success: false,
+        error: new Error(`Failed to create order items: ${itemsError.message || 'Unknown error'}`),
+      };
     }
 
     console.log('[DASHBOARD DEBUG] Order items created successfully');
@@ -207,10 +215,21 @@ export async function createOrder(
     revalidatePath('/dashboard/orders');
 
     console.log('[DASHBOARD DEBUG] Order creation completed successfully');
-    return { success: true, order };
+    // Include the required properties in the returned order object
+    return {
+      success: true,
+      order: {
+        ...order,
+        customer_profile_id,
+        order_items: orderItems
+      }
+    };
   } catch (error) {
     console.error('[DASHBOARD DEBUG] Error creating order:', error);
-    return { success: false, error };
+    return {
+      success: false,
+      error: error instanceof Error ? error : new Error('Unknown error occurred')
+    };
   }
 }
 
