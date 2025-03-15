@@ -23,14 +23,3 @@ export const getCurrentUser = cache(async () => {
 
   return { user, profile };
 });
-
-export async function signOut() {
-  try {
-    const supabase = await createClient();
-    await supabase.auth.signOut();
-    return redirect('/auth/login');
-  } catch (error) {
-    console.error('Sign out error:', error);
-    return redirect('/auth/login');
-  }
-}

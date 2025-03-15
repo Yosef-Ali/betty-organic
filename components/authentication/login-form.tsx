@@ -15,7 +15,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { signIn, signInWithGoogle } from '@/app/auth/actions/authActions';
+import { signIn, signInWithGoogle } from '@/app/actions/auth';
 import Link from 'next/link';
 import { toast } from 'sonner';
 

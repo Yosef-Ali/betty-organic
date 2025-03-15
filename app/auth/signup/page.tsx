@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { signUp } from '@/app/auth/actions/authActions'
+import { signUp } from '@/app/actions/auth'
 import { SignupForm, SignupFormType } from "@/components/authentication/signup-form"
 import { toast } from 'sonner'
 import Image from "next/image"
