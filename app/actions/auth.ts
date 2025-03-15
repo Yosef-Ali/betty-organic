@@ -7,8 +7,7 @@ import { AuthError, AuthState, Profile } from '@/lib/types/auth';
 import { User } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 
-function setCookie(name: string, value: string, options: { path: string; secure: boolean; sameSite: 'lax' | 'strict' | 'none'; maxAge: number }) {
-  // Get the underlying setCookie function from the cookies instance
+function setCookie(name: string, value: string, options: { path: string; secure: boolean; sameSite: 'lax' | 'strict' | 'none'; maxAge: number; httpOnly: boolean }) {
   const cookieStore = cookies();
   (cookieStore as any).set(name, value, options);
 }
@@ -79,6 +78,7 @@ export const getCurrentUser = cache(async (): Promise<AuthData> => {
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         maxAge: 60 * 60 * 24 * 7, // 7 days
+        httpOnly: true,
       });
 
       return {
@@ -99,6 +99,7 @@ export const getCurrentUser = cache(async (): Promise<AuthData> => {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 7, // 7 days
+      httpOnly: true,
     });
 
     // Return the user and profile

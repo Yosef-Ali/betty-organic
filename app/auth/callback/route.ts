@@ -1,12 +1,15 @@
 import { createClient } from '@/lib/supabase/server';
-import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
-import { ResponseCookie } from 'next/dist/compiled/@edge-runtime/cookies';
-import { createGoogleUserProfile } from '@/app/auth/actions/authActions';
 
-function setCookie(name: string, value: string, options: { path: string; secure: boolean; sameSite: 'lax' | 'strict' | 'none'; maxAge: number; httpOnly?: boolean }) {
-  const cookieStore = cookies();
-  (cookieStore as any).set(name, value, options);
+interface ProfileData {
+  id: string;
+  email: string;
+  name: string;
+  role: 'customer' | 'sales' | 'admin';
+  status: string;
+  auth_provider: string;
+  updated_at: string;
+  created_at?: string;
 }
 
 export async function GET(request: Request) {
@@ -15,73 +18,65 @@ export async function GET(request: Request) {
   const next = requestUrl.searchParams.get('next') || '/dashboard';
 
   if (!code) {
-    return NextResponse.redirect(new URL('/auth/error', requestUrl));
+    console.error('Missing auth code');
+    return NextResponse.redirect(
+      new URL('/auth/error?error=invalid_request&message=Missing required authentication parameters', requestUrl)
+    );
   }
 
   try {
     const supabase = await createClient();
 
-    if (!supabase.auth) {
-      console.error('Supabase client auth is undefined');
-      return NextResponse.redirect(new URL('/auth/error', requestUrl));
-    }
-
-    const { data: authData, error: authError } =
-      await supabase.auth.exchangeCodeForSession(code);
+    // Exchange the code for a session
+    const { data: authData, error: authError } = await supabase.auth.exchangeCodeForSession(code);
 
     if (authError || !authData.session) {
       console.error('Auth error:', authError);
-      return NextResponse.redirect(new URL('/auth/error', requestUrl));
+      return NextResponse.redirect(
+        new URL(`/auth/error?error=${encodeURIComponent(authError?.message || 'session_error')}`, requestUrl)
+      );
     }
 
-    // Set auth cookies
-    setCookie('sb-access-token', authData.session.access_token, {
-      path: '/',
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24, // 24 hours
-      httpOnly: true,
-    } satisfies Partial<ResponseCookie>);
+    // Check if user profile already exists
+    const { data: existingProfile } = await supabase
+      .from('profiles')
+      .select('role, status')
+      .eq('id', authData.session.user.id)
+      .single();
 
-    if (authData.session.refresh_token) {
-      setCookie('sb-refresh-token', authData.session.refresh_token, {
-        path: '/',
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 30, // 30 days
-        httpOnly: true,
-      } satisfies Partial<ResponseCookie>);
+    // Create or update user profile, preserving existing role if present
+    const profileData: ProfileData = {
+      id: authData.session.user.id,
+      email: authData.session.user.email!,
+      name: authData.session.user.user_metadata?.full_name || authData.session.user.email?.split('@')[0] || 'User',
+      role: existingProfile?.role || 'customer',
+      status: existingProfile?.status || 'active',
+      auth_provider: authData.session.user.app_metadata?.provider || 'email',
+      updated_at: new Date().toISOString(),
+    };
+
+    if (!existingProfile) {
+      profileData.created_at = new Date().toISOString();
     }
 
-    // Set provider in cookie
-    setCookie('authProvider', authData.session.user.app_metadata.provider || 'email', {
-      path: '/',
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24, // 24 hours
-      httpOnly: true,
-    });
-
-    // Create or update user profile
-    const { error: profileError } = await createGoogleUserProfile(authData.session.user);
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .upsert(profileData)
+      .select()
+      .single();
 
     if (profileError) {
-      console.error('Profile creation error:', profileError);
-      return NextResponse.redirect(new URL('/auth/error', requestUrl));
+      console.error('Profile error:', profileError);
+      return NextResponse.redirect(
+        new URL(`/auth/error?error=${encodeURIComponent('profile_error')}`, requestUrl)
+      );
     }
-
-    // Set session cookie
-    setCookie('session', 'active', {
-      path: '/',
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24, // 24 hours
-      httpOnly: true,
-    });
 
     return NextResponse.redirect(new URL(next, requestUrl));
   } catch (error) {
     console.error('Callback error:', error);
-    return NextResponse.redirect(new URL('/auth/error', requestUrl));
+    return NextResponse.redirect(
+      new URL(`/auth/error?error=${encodeURIComponent('unexpected_error')}`, requestUrl)
+    );
   }
 }
