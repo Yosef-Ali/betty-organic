@@ -1,19 +1,13 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { cookies } from 'next/headers';
-import type { SupabaseAuthSession } from '@/lib/types/auth';
 
 export async function POST(request: Request) {
   const requestBody = await request.json();
   const { event, session } = requestBody;
-  const cookieStore = cookies();
-
-  if (!process.env.ENCRYPTION_SECRET) {
-    throw new Error('ENCRYPTION_SECRET environment variable is required');
-  }
 
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
       await supabase.auth.signOut();
@@ -21,15 +15,10 @@ export async function POST(request: Request) {
     }
 
     if (session?.access_token && session?.refresh_token) {
-      const { data, error } = await supabase.auth.setSession(
-        {
-          access_token: session.access_token,
-          refresh_token: session.refresh_token,
-        },
-        {
-          encryptionSecret: process.env.ENCRYPTION_SECRET,
-        },
-      );
+      const { data, error } = await supabase.auth.setSession({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token,
+      });
 
       if (error) throw error;
 
