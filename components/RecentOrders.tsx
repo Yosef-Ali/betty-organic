@@ -24,13 +24,31 @@ type RecentOrder = {
 
 export function RecentOrders() {
   const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    async function fetchRecentOrders() {
+  // Function to fetch orders that can be called multiple times
+  const fetchRecentOrders = async () => {
+    setIsLoading(true);
+    try {
       const orders = await getRecentOrders();
       setRecentOrders(orders);
+    } catch (error) {
+      console.error('Error fetching recent orders:', error);
+    } finally {
+      setIsLoading(false);
     }
+  };
+
+  // Initial load
+  useEffect(() => {
     fetchRecentOrders();
+
+    // Set up periodic refresh every 15 seconds
+    const refreshInterval = setInterval(() => {
+      fetchRecentOrders();
+    }, 15000);
+
+    return () => clearInterval(refreshInterval);
   }, []);
 
   return (
@@ -45,19 +63,33 @@ export function RecentOrders() {
         </TableRow>
       </TableHeader>
       <TableBody>
-        {recentOrders.map(order => (
-          <TableRow key={order.id}>
-            <TableCell className="font-medium">
-              {order.display_id || order.id.slice(0, 8)}
-            </TableCell>
-            <TableCell>{order.profiles.name}</TableCell>
-            <TableCell>{order.status}</TableCell>
-            <TableCell>{order.type}</TableCell>
-            <TableCell className="text-right">
-              Br {order.total_amount.toFixed(2)}
+        {isLoading && recentOrders.length === 0 ? (
+          <TableRow>
+            <TableCell colSpan={5} className="text-center py-4">
+              Loading recent orders...
             </TableCell>
           </TableRow>
-        ))}
+        ) : recentOrders.length === 0 ? (
+          <TableRow>
+            <TableCell colSpan={5} className="text-center py-4">
+              No recent orders found
+            </TableCell>
+          </TableRow>
+        ) : (
+          recentOrders.map(order => (
+            <TableRow key={order.id}>
+              <TableCell className="font-medium">
+                {order.display_id || order.id.slice(0, 8)}
+              </TableCell>
+              <TableCell>{order.profiles?.name || 'Unknown'}</TableCell>
+              <TableCell>{order.status}</TableCell>
+              <TableCell>{order.type}</TableCell>
+              <TableCell className="text-right">
+                Br {order.total_amount.toFixed(2)}
+              </TableCell>
+            </TableRow>
+          ))
+        )}
       </TableBody>
     </Table>
   );

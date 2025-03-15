@@ -4,6 +4,8 @@ import { Product } from '@/lib/supabase/db.types';
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/supabase';
 import { cookies } from 'next/headers';
+import { revalidatePath } from 'next/cache';
+import { orderIdService } from '@/app/services/orderIdService';
 
 export async function getProducts(): Promise<Product[]> {
   try {
@@ -77,14 +79,19 @@ export async function createOrder(orderData: {
       throw new Error('Profile not found');
     }
 
+    // Generate order display ID
+    const display_id = await orderIdService.generateOrderID();
+
     // Create the order
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .insert({
         profile_id: profile.id,
+        customer_profile_id: profile.id, // Set customer profile ID properly
         total_amount: orderData.total,
-        status: 'pending',
+        status: 'confirmed', // Change from 'pending' to 'confirmed'
         type: 'retail',
+        display_id, // Add the display ID
       })
       .select()
       .single();
@@ -111,6 +118,10 @@ export async function createOrder(orderData: {
       console.error('Error creating order items:', itemsError);
       throw new Error('Failed to create order items');
     }
+
+    // Revalidate dashboard paths to refresh the orders data
+    revalidatePath('/dashboard/orders');
+    revalidatePath('/dashboard'); // Also revalidate the main dashboard
 
     return { success: true, order };
   } catch (error) {

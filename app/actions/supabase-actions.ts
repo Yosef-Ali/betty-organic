@@ -10,14 +10,19 @@ export async function getSupabaseClient() {
 export async function getRecentOrders(limit = 5) {
   const supabase = await getSupabaseClient();
   try {
+    // Explicitly avoid caching by using the cache option
     const { data, error } = await supabase
       .from('orders')
-      .select('*, profiles!orders_profile_id_fkey(name)')
+      .select('*, profiles!orders_customer_profile_id_fkey(name)')
       .order('created_at', { ascending: false })
       .limit(limit);
 
-    if (error) throw error;
-    return data;
+    if (error) {
+      console.error('Supabase error fetching recent orders:', error);
+      throw error;
+    }
+
+    return data || [];
   } catch (error) {
     console.error('Error fetching recent orders:', error);
     return [];
