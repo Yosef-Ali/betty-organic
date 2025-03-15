@@ -1,9 +1,11 @@
 'use server';
 
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { createClient as createAdminClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
-import { Database } from './database.types';
+import { Database } from '@/types/supabase';
 
+// Regular client for normal operations
 export async function createClient() {
   try {
     const supabase = createServerClient<Database>(
@@ -37,7 +39,7 @@ export async function createClient() {
               console.error('Error removing cookie:', error instanceof Error ? error.message : 'Unknown error');
               throw new Error(`Failed to remove authentication cookie: ${error instanceof Error ? error.message : 'Unknown error'}`);
             }
-          },
+          }
         },
       }
     );
@@ -48,3 +50,15 @@ export async function createClient() {
     throw new Error('Failed to initialize Supabase client');
   }
 }
+
+// Admin client for privileged operations
+export const supabaseAdmin = createAdminClient<Database>(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  }
+);

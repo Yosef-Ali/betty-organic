@@ -1,6 +1,6 @@
 'use server';
 
-import { supabaseAdmin } from '@/lib/supabase/admin';
+import { supabaseAdmin } from '@/lib/supabase/server';
 import type { Order } from '@/types/order';
 import { getCurrentUser } from './auth';
 import { v4 as uuidv4 } from 'uuid';
