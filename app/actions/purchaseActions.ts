@@ -20,40 +20,42 @@ export async function handlePurchaseOrder(
     console.log('[ORDER DEBUG] Starting order creation with items:', JSON.stringify(items));
     console.log('[ORDER DEBUG] Total amount:', total);
 
-    // Get current user if available, otherwise use guest flow
-    let userId = uuidv4(); // Generate a unique ID for guest users
-    try {
-      const authData = await getCurrentUser();
-      console.log('[ORDER DEBUG] Auth data:', JSON.stringify(authData));
-      if (authData?.user?.id) {
-        userId = authData.user.id;
-      }
-    } catch (error) {
-      console.log('[ORDER DEBUG] No authenticated user, proceeding as guest:', error);
-    }
-
-    // Validate items before creating order
-    if (!items || items.length === 0) {
-      console.error('[ORDER DEBUG] No items provided for order');
+    // Input validation
+    if (!items?.length) {
       return {
         error: 'No items provided for order',
         status: 400
       };
     }
 
+    if (!total || total <= 0) {
+      return {
+        error: 'Invalid total amount',
+        status: 400
+      };
+    }
+
+    // Get current user if available, otherwise use guest flow
+    let userId: string;
+    let userRole = 'customer';
+    try {
+      const authData = await getCurrentUser();
+      console.log('[ORDER DEBUG] Auth data:', JSON.stringify(authData));
+      if (authData?.user?.id) {
+        userId = authData.user.id;
+        userRole = authData.profile?.role || 'customer';
+      } else {
+        userId = uuidv4(); // Generate a unique ID for guest users
+        console.log('[ORDER DEBUG] Created guest user ID:', userId);
+      }
+    } catch (error) {
+      console.log('[ORDER DEBUG] Error getting current user:', error);
+      userId = uuidv4();
+    }
+
     // Generate a display ID for the order
     const display_id = await orderIdService.generateOrderID();
     console.log('[ORDER DEBUG] Generated order ID:', display_id);
-
-    // Create order with admin client to bypass RLS
-    console.log('[ORDER DEBUG] Creating order with data:', {
-      profile_id: userId,
-      customer_profile_id: userId,
-      status: 'pending',
-      type: 'online',
-      total_amount: Number(total.toFixed(2)),
-      display_id
-    });
 
     // First, ensure the user exists in the profiles table
     const { data: profile, error: profileError } = await supabaseAdmin
@@ -77,7 +79,7 @@ export async function handlePurchaseOrder(
         .from('profiles')
         .insert({
           id: userId,
-          role: 'customer',
+          role: userRole,
           status: 'active',
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -93,17 +95,23 @@ export async function handlePurchaseOrder(
       console.log('[ORDER DEBUG] New profile created successfully');
     }
 
-    // Now create the order
+    // Now create the order with required fields
+    const orderData = {
+      profile_id: userId,
+      customer_profile_id: userId,
+      status: 'pending',
+      type: 'online',
+      total_amount: Number(total.toFixed(2)),
+      display_id,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    console.log('[ORDER DEBUG] Creating order with data:', orderData);
+
     const { data: order, error: orderError } = await supabaseAdmin
       .from('orders')
-      .insert({
-        profile_id: userId,
-        customer_profile_id: userId,
-        status: 'pending',
-        type: 'online',
-        total_amount: Number(total.toFixed(2)),
-        display_id,
-      })
+      .insert(orderData)
       .select()
       .single();
 

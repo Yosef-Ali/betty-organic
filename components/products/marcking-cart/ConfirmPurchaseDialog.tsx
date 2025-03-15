@@ -13,6 +13,8 @@ import { CartItemType } from "@/types/cart";
 import { useState } from "react";
 import { useMarketingCartStore } from "@/store/cartStore";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { handlePurchaseOrder } from "@/app/actions/purchaseActions";
+import { toast } from "sonner";
 
 interface ConfirmPurchaseDialogProps {
   isOpen: boolean;
@@ -33,17 +35,31 @@ export const ConfirmPurchaseDialog = ({
   const handleConfirm = async () => {
     try {
       setIsSubmitting(true);
-      // Here you would typically send the order to your backend
-      console.log("Order confirmed:", { items, total });
+      console.log("[DEBUG] Starting order confirmation with:", {
+        itemCount: items.length,
+        total
+      });
 
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (!items.length) {
+        throw new Error("No items in cart");
+      }
 
-      // Clear cart and close dialog
-      if (clearCart) clearCart();
+      const result = await handlePurchaseOrder(items, total);
+      console.log("[DEBUG] Purchase order result:", result);
+
+      if (!result.data) {
+        throw new Error(result.error || "Failed to create order");
+      }
+
+      toast.success("Order created successfully!");
+
+      if (clearCart) {
+        clearCart();
+      }
       onClose();
     } catch (error) {
-      console.error("Error placing order:", error);
+      console.error("[DEBUG] Error placing order:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to place order");
     } finally {
       setIsSubmitting(false);
     }
