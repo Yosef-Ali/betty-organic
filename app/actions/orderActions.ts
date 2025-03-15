@@ -53,13 +53,13 @@ export async function getOrderDetails(orderId: string) {
       .single();
 
     if (orderError) {
-      console.error('Error fetching order details:', orderError);
+      console.error('[DASHBOARD DEBUG] Error fetching order details:', orderError);
       return { data: null, error: orderError };
     }
 
     return { data: order, error: null };
   } catch (error) {
-    console.error('Error in getOrderDetails:', error);
+    console.error('[DASHBOARD DEBUG] Error in getOrderDetails:', error);
     return { data: null, error };
   }
 }
@@ -71,7 +71,7 @@ export async function createOrder(
   status: string = 'pending'
 ) {
   try {
-    console.log('Dashboard: Starting order creation with:',
+    console.log('[DASHBOARD DEBUG] Starting order creation with:',
       JSON.stringify({
         itemCount: items?.length,
         customerId,
@@ -84,13 +84,13 @@ export async function createOrder(
     const authData = await getCurrentUser();
 
     if (!authData?.user) {
-      console.error('Dashboard: User not authenticated');
+      console.error('[DASHBOARD DEBUG] User not authenticated');
       throw new Error('User not authenticated');
     }
 
     // Verify user role and permissions
     if (!authData.profile?.role) {
-      console.error('Dashboard: No role found in profile:', authData.profile);
+      console.error('[DASHBOARD DEBUG] No role found in profile:', authData.profile);
       return {
         data: null,
         error: new Error('Unauthorized: User role not found'),
@@ -99,11 +99,11 @@ export async function createOrder(
 
     const role = authData.profile.role;
     const userId = authData.user.id;
-    console.log('Dashboard: Creating order with role:', role, 'userId:', userId);
+    console.log('[DASHBOARD DEBUG] Creating order with role:', role, 'userId:', userId);
 
     // Validate order data
     if (!items?.length) {
-      console.error('Dashboard: Missing order items in order data:', items);
+      console.error('[DASHBOARD DEBUG] Missing order items in order data:', items);
       return {
         data: null,
         error: new Error('Invalid order data: Missing order items'),
@@ -124,14 +124,14 @@ export async function createOrder(
       customer_profile_id = customerId;
 
       if (!customer_profile_id) {
-        console.error('Dashboard: Missing customer_profile_id for admin/sales order');
+        console.error('[DASHBOARD DEBUG] Missing customer_profile_id for admin/sales order');
         return {
           data: null,
           error: new Error('Customer must be selected for admin/sales orders'),
         };
       }
     } else {
-      console.error('Dashboard: Invalid role for order creation:', role);
+      console.error('[DASHBOARD DEBUG] Invalid role for order creation:', role);
       return {
         data: null,
         error: new Error('Unauthorized: Invalid role for order creation'),
@@ -139,12 +139,12 @@ export async function createOrder(
     }
 
     // Generate new order display ID
-    console.log('Dashboard: Generating order ID...');
+    console.log('[DASHBOARD DEBUG] Generating order ID...');
     const display_id = await orderIdService.generateOrderID();
-    console.log('Dashboard: Generated order ID:', display_id);
+    console.log('[DASHBOARD DEBUG] Generated order ID:', display_id);
 
     // Create the order
-    console.log('Dashboard: Creating order in database...');
+    console.log('[DASHBOARD DEBUG] Creating order in database...');
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .insert({
@@ -159,7 +159,7 @@ export async function createOrder(
       .single();
 
     if (orderError) {
-      console.error('Dashboard: Database error creating order:', {
+      console.error('[DASHBOARD DEBUG] Database error creating order:', {
         error: orderError,
         profile_id,
         customer_profile_id,
@@ -170,10 +170,10 @@ export async function createOrder(
       );
     }
 
-    console.log('Dashboard: Order created successfully:', order.id);
+    console.log('[DASHBOARD DEBUG] Order created successfully:', order.id);
 
     // Create order items
-    console.log('Dashboard: Creating order items...');
+    console.log('[DASHBOARD DEBUG] Creating order items...');
     const orderItems = items.map(item => ({
       order_id: order.id,
       product_id: item.product_id,
@@ -187,14 +187,14 @@ export async function createOrder(
       .insert(orderItems);
 
     if (itemsError) {
-      console.error('Dashboard: Error creating order items:', {
+      console.error('[DASHBOARD DEBUG] Error creating order items:', {
         error: itemsError,
         orderId: order.id,
         items: orderItems.length,
       });
 
       // If order items creation fails, delete the order
-      console.log('Dashboard: Cleaning up failed order...');
+      console.log('[DASHBOARD DEBUG] Cleaning up failed order...');
       await supabase.from('orders').delete().eq('id', order.id);
 
       throw new Error(
@@ -202,14 +202,14 @@ export async function createOrder(
       );
     }
 
-    console.log('Dashboard: Order items created successfully');
-    console.log('Dashboard: Revalidating paths...');
+    console.log('[DASHBOARD DEBUG] Order items created successfully');
+    console.log('[DASHBOARD DEBUG] Revalidating paths...');
     revalidatePath('/dashboard/orders');
 
-    console.log('Dashboard: Order creation completed successfully');
+    console.log('[DASHBOARD DEBUG] Order creation completed successfully');
     return { success: true, order };
   } catch (error) {
-    console.error('Dashboard: Error creating order:', error);
+    console.error('[DASHBOARD DEBUG] Error creating order:', error);
     return { success: false, error };
   }
 }
@@ -223,20 +223,20 @@ export async function deleteOrder(orderId: string) {
       .eq('order_id', orderId);
 
     if (itemsError.error) {
-      console.error('Error deleting order items:', itemsError.error);
+      console.error('[DASHBOARD DEBUG] Error deleting order items:', itemsError.error);
       throw itemsError.error;
     }
 
     const orderError = await supabase.from('orders').delete().eq('id', orderId);
 
     if (orderError.error) {
-      console.error('Error deleting order:', orderError.error);
+      console.error('[DASHBOARD DEBUG] Error deleting order:', orderError.error);
       throw orderError.error;
     }
 
     return { success: true };
   } catch (error) {
-    console.error('Error in deleteOrder:', error);
+    console.error('[DASHBOARD DEBUG] Error in deleteOrder:', error);
     return { success: false, error };
   }
 }
@@ -245,7 +245,6 @@ export async function getOrders(customerId?: string) {
   const supabase = await createClient();
   try {
     const authData = await getCurrentUser();
-
     if (!authData?.user) {
       throw new Error('Not authenticated');
     }
@@ -296,13 +295,13 @@ export async function getOrders(customerId?: string) {
     const ordersError = await query;
 
     if (ordersError.error) {
-      console.error('Supabase error fetching orders:', ordersError.error);
+      console.error('[DASHBOARD DEBUG] Supabase error fetching orders:', ordersError.error);
       throw ordersError.error;
     }
 
     return ordersError.data || [];
   } catch (error) {
-    console.error('Error fetching orders:', error);
+    console.error('[DASHBOARD DEBUG] Error fetching orders:', error);
     return [];
   }
 }
@@ -318,14 +317,14 @@ export async function updateOrderStatus(orderId: string, status: string) {
       .single();
 
     if (error) {
-      console.error('Error updating order status:', error);
+      console.error('[DASHBOARD DEBUG] Error updating order status:', error);
       return { success: false, error };
     }
 
     revalidatePath('/dashboard/orders');
     return { success: true, data };
   } catch (error) {
-    console.error('Error in updateOrderStatus:', error);
+    console.error('[DASHBOARD DEBUG] Error in updateOrderStatus:', error);
     return { success: false, error };
   }
 }

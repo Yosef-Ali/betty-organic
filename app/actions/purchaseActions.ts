@@ -4,6 +4,8 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 import type { Order } from '@/types/order';
 import { getCurrentUser } from './auth';
 import { v4 as uuidv4 } from 'uuid';
+import { orderIdService } from '@/app/services/orderIdService';
+import { revalidatePath } from 'next/cache';
 
 export async function handlePurchaseOrder(
   items: {
@@ -15,36 +17,42 @@ export async function handlePurchaseOrder(
   total: number,
 ) {
   try {
-    console.log('Starting order creation with items:', JSON.stringify(items));
-    console.log('Total amount:', total);
+    console.log('[ORDER DEBUG] Starting order creation with items:', JSON.stringify(items));
+    console.log('[ORDER DEBUG] Total amount:', total);
 
     // Get current user if available, otherwise use guest flow
     let userId = uuidv4(); // Generate a unique ID for guest users
     try {
       const authData = await getCurrentUser();
-      console.log('Auth data:', authData);
+      console.log('[ORDER DEBUG] Auth data:', JSON.stringify(authData));
       if (authData?.user?.id) {
         userId = authData.user.id;
       }
     } catch (error) {
-      console.log('No authenticated user, proceeding as guest:', error);
+      console.log('[ORDER DEBUG] No authenticated user, proceeding as guest:', error);
     }
 
     // Validate items before creating order
     if (!items || items.length === 0) {
+      console.error('[ORDER DEBUG] No items provided for order');
       return {
         error: 'No items provided for order',
         status: 400
       };
     }
 
+    // Generate a display ID for the order
+    const display_id = await orderIdService.generateOrderID();
+    console.log('[ORDER DEBUG] Generated order ID:', display_id);
+
     // Create order with admin client to bypass RLS
-    console.log('Creating order with data:', {
+    console.log('[ORDER DEBUG] Creating order with data:', {
       profile_id: userId,
       customer_profile_id: userId,
       status: 'pending',
       type: 'online',
-      total_amount: Number(total.toFixed(2))
+      total_amount: Number(total.toFixed(2)),
+      display_id
     });
 
     // First, ensure the user exists in the profiles table
@@ -55,7 +63,7 @@ export async function handlePurchaseOrder(
       .single();
 
     if (profileError && profileError.code !== 'PGRST116') { // PGRST116 is "not found"
-      console.error('Error checking profile:', profileError);
+      console.error('[ORDER DEBUG] Error checking profile:', profileError);
       return {
         error: 'Failed to check user profile',
         status: 500
@@ -64,6 +72,7 @@ export async function handlePurchaseOrder(
 
     // If profile doesn't exist, create it
     if (!profile) {
+      console.log('[ORDER DEBUG] Creating new profile for user:', userId);
       const { error: createProfileError } = await supabaseAdmin
         .from('profiles')
         .insert({
@@ -75,12 +84,13 @@ export async function handlePurchaseOrder(
         });
 
       if (createProfileError) {
-        console.error('Failed to create profile:', createProfileError);
+        console.error('[ORDER DEBUG] Failed to create profile:', createProfileError);
         return {
           error: 'Failed to create user profile',
           status: 500
         };
       }
+      console.log('[ORDER DEBUG] New profile created successfully');
     }
 
     // Now create the order
@@ -92,12 +102,13 @@ export async function handlePurchaseOrder(
         status: 'pending',
         type: 'online',
         total_amount: Number(total.toFixed(2)),
+        display_id,
       })
       .select()
       .single();
 
     if (orderError) {
-      console.error('Failed to create order:', orderError);
+      console.error('[ORDER DEBUG] Failed to create order:', orderError);
       return {
         error: `Failed to create order: ${orderError.message}`,
         status: 500
@@ -105,14 +116,14 @@ export async function handlePurchaseOrder(
     }
 
     if (!order) {
-      console.error('No order data returned from insert');
+      console.error('[ORDER DEBUG] No order data returned from insert');
       return {
         error: 'No order data returned',
         status: 500
       };
     }
 
-    console.log('Order created successfully:', order);
+    console.log('[ORDER DEBUG] Order created successfully:', order);
 
     // Create order items using the admin client
     const orderItems = items.map(item => ({
@@ -123,14 +134,14 @@ export async function handlePurchaseOrder(
       product_name: item.name
     }));
 
-    console.log('Creating order items:', JSON.stringify(orderItems));
+    console.log('[ORDER DEBUG] Creating order items:', JSON.stringify(orderItems));
 
     const { error: itemsError } = await supabaseAdmin
       .from('order_items')
       .insert(orderItems);
 
     if (itemsError) {
-      console.error('Failed to create order items:', itemsError);
+      console.error('[ORDER DEBUG] Failed to create order items:', itemsError);
       // Cleanup the order if items failed
       await supabaseAdmin.from('orders').delete().eq('id', order.id);
       return {
@@ -139,10 +150,15 @@ export async function handlePurchaseOrder(
       };
     }
 
-    console.log('Order items created successfully');
+    console.log('[ORDER DEBUG] Order items created successfully');
+
+    // Revalidate the dashboard paths to show the new order
+    revalidatePath('/dashboard/orders');
+    revalidatePath('/dashboard');
+
     return { data: order, status: 200 };
   } catch (err) {
-    console.error('Purchase order error:', err);
+    console.error('[ORDER DEBUG] Purchase order error:', err);
     return {
       error: err instanceof Error ? err.message : 'An unexpected error occurred',
       status: 500
