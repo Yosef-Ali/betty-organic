@@ -71,16 +71,26 @@ export async function createOrder(
   status: string = 'pending'
 ) {
   try {
+    console.log('Dashboard: Starting order creation with:',
+      JSON.stringify({
+        itemCount: items?.length,
+        customerId,
+        totalAmount,
+        status
+      })
+    );
+
     const supabase = await createClient();
     const authData = await getCurrentUser();
 
     if (!authData?.user) {
+      console.error('Dashboard: User not authenticated');
       throw new Error('User not authenticated');
     }
 
     // Verify user role and permissions
     if (!authData.profile?.role) {
-      console.error('No role found in profile:', authData.profile);
+      console.error('Dashboard: No role found in profile:', authData.profile);
       return {
         data: null,
         error: new Error('Unauthorized: User role not found'),
@@ -89,12 +99,11 @@ export async function createOrder(
 
     const role = authData.profile.role;
     const userId = authData.user.id;
-
-    console.log('Creating order with role:', role, 'userId:', userId);
+    console.log('Dashboard: Creating order with role:', role, 'userId:', userId);
 
     // Validate order data
     if (!items?.length) {
-      console.error('Missing order items in order data:', items);
+      console.error('Dashboard: Missing order items in order data:', items);
       return {
         data: null,
         error: new Error('Invalid order data: Missing order items'),
@@ -115,14 +124,14 @@ export async function createOrder(
       customer_profile_id = customerId;
 
       if (!customer_profile_id) {
-        console.error('Missing customer_profile_id for admin/sales order');
+        console.error('Dashboard: Missing customer_profile_id for admin/sales order');
         return {
           data: null,
           error: new Error('Customer must be selected for admin/sales orders'),
         };
       }
     } else {
-      console.error('Invalid role for order creation:', role);
+      console.error('Dashboard: Invalid role for order creation:', role);
       return {
         data: null,
         error: new Error('Unauthorized: Invalid role for order creation'),
@@ -130,9 +139,12 @@ export async function createOrder(
     }
 
     // Generate new order display ID
+    console.log('Dashboard: Generating order ID...');
     const display_id = await orderIdService.generateOrderID();
+    console.log('Dashboard: Generated order ID:', display_id);
 
     // Create the order
+    console.log('Dashboard: Creating order in database...');
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .insert({
@@ -147,7 +159,7 @@ export async function createOrder(
       .single();
 
     if (orderError) {
-      console.error('Database error creating order:', {
+      console.error('Dashboard: Database error creating order:', {
         error: orderError,
         profile_id,
         customer_profile_id,
@@ -158,7 +170,10 @@ export async function createOrder(
       );
     }
 
+    console.log('Dashboard: Order created successfully:', order.id);
+
     // Create order items
+    console.log('Dashboard: Creating order items...');
     const orderItems = items.map(item => ({
       order_id: order.id,
       product_id: item.product_id,
@@ -172,22 +187,29 @@ export async function createOrder(
       .insert(orderItems);
 
     if (itemsError) {
-      console.error('Error creating order items:', {
+      console.error('Dashboard: Error creating order items:', {
         error: itemsError,
         orderId: order.id,
         items: orderItems.length,
       });
+
       // If order items creation fails, delete the order
+      console.log('Dashboard: Cleaning up failed order...');
       await supabase.from('orders').delete().eq('id', order.id);
+
       throw new Error(
         `Failed to create order items: ${itemsError.message || 'Unknown error'}`,
       );
     }
 
+    console.log('Dashboard: Order items created successfully');
+    console.log('Dashboard: Revalidating paths...');
     revalidatePath('/dashboard/orders');
+
+    console.log('Dashboard: Order creation completed successfully');
     return { success: true, order };
   } catch (error) {
-    console.error('Error creating order:', error);
+    console.error('Dashboard: Error creating order:', error);
     return { success: false, error };
   }
 }

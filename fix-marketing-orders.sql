@@ -1,6 +1,6 @@
 -- Fix for marketing page order creation - More permissive policy for any authenticated user
+-- This version checks if policies exist before trying to create them
 
--- First ensure any authenticated user can create orders and order items
 DO $$
 BEGIN
     -- Drop existing restrictive policies
@@ -10,6 +10,7 @@ BEGIN
     DROP POLICY IF EXISTS "Enable insert access for all authenticated users" ON public.orders;
     DROP POLICY IF EXISTS "Customers can create orders" ON public.orders;
     DROP POLICY IF EXISTS "Sales can create orders" ON public.orders;
+    DROP POLICY IF EXISTS "Anyone authenticated can create orders" ON public.orders;
 
     -- Create completely permissive insert policy for authenticated users
     CREATE POLICY "Anyone authenticated can create orders"
@@ -22,6 +23,7 @@ BEGIN
     DROP POLICY IF EXISTS "Enable insert for authenticated users" ON public.order_items;
     DROP POLICY IF EXISTS "Enable insert access for admin and sales" ON public.order_items;
     DROP POLICY IF EXISTS "Anyone can insert order items" ON public.order_items;
+    DROP POLICY IF EXISTS "Anyone authenticated can create order items" ON public.order_items;
 
     -- Create completely permissive insert policy for order items
     CREATE POLICY "Anyone authenticated can create order items"
@@ -29,9 +31,15 @@ BEGIN
     FOR INSERT
     WITH CHECK (auth.role() IN ('authenticated', 'anon'));
 
-    -- If we need to temporarily bypass RLS completely, uncomment these:
-    -- ALTER TABLE public.orders DISABLE ROW LEVEL SECURITY;
-    -- ALTER TABLE public.order_items DISABLE ROW LEVEL SECURITY;
+    -- Make sure RLS is enabled on both tables
+    ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE public.order_items ENABLE ROW LEVEL SECURITY;
+
+    -- Also grant necessary permissions
+    GRANT ALL ON public.orders TO authenticated;
+    GRANT ALL ON public.orders TO anon;
+    GRANT ALL ON public.order_items TO authenticated;
+    GRANT ALL ON public.order_items TO anon;
 END
 $$;
 
@@ -54,24 +62,17 @@ CREATE TABLE IF NOT EXISTS public.error_logs (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- If needed, run a test to check if order creation works
-/*
-INSERT INTO public.orders (
-  id,
-  profile_id,
-  customer_profile_id,
-  total_amount,
-  status,
-  type,
-  display_id
-)
-VALUES (
-  gen_random_uuid(),
-  '00000000-0000-0000-0000-000000000000',  -- Replace with an actual user ID from your system
-  '00000000-0000-0000-0000-000000000000',  -- Replace with an actual customer ID
-  100,
-  'pending',
-  'online',
-  'TEST-ORDER-ID'
-);
-*/
+-- Add a test query to verify policies are applied correctly
+-- Replace this with an actual query to verify policy setup
+SELECT
+    tablename,
+    policyname,
+    permissive,
+    roles,
+    cmd,
+    qual,
+    with_check
+FROM
+    pg_policies
+WHERE
+    tablename IN ('orders', 'order_items');

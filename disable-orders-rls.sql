@@ -17,13 +17,13 @@ RETURNS TABLE (table_name text, rls_enabled boolean) AS $$
 BEGIN
   RETURN QUERY
   SELECT
-    tables.table_name::text,
+    tables.tablename::text,
     tables.rowsecurity AS rls_enabled
   FROM
     pg_tables AS tables
   WHERE
     tables.schemaname = 'public'
-    AND tables.table_name IN ('orders', 'order_items');
+    AND tables.tablename IN ('orders', 'order_items');
 END;
 $$ LANGUAGE plpgsql;
 
