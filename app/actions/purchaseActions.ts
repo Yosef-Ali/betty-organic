@@ -38,19 +38,23 @@ export async function handlePurchaseOrder(
     // Get current user if available, otherwise use guest flow
     let userId: string;
     let userRole = 'customer';
+    let userEmail: string;
     try {
       const authData = await getCurrentUser();
       console.log('[ORDER DEBUG] Auth data:', JSON.stringify(authData));
       if (authData?.user?.id) {
         userId = authData.user.id;
         userRole = authData.profile?.role || 'customer';
+        userEmail = authData.user.email || `${userId}@guest.bettyorganic.com`;
       } else {
         userId = uuidv4(); // Generate a unique ID for guest users
+        userEmail = `guest-${userId}@guest.bettyorganic.com`;
         console.log('[ORDER DEBUG] Created guest user ID:', userId);
       }
     } catch (error) {
       console.log('[ORDER DEBUG] Error getting current user:', error);
       userId = uuidv4();
+      userEmail = `guest-${userId}@guest.bettyorganic.com`;
     }
 
     // Generate a display ID for the order
@@ -79,6 +83,7 @@ export async function handlePurchaseOrder(
         .from('profiles')
         .insert({
           id: userId,
+          email: userEmail,
           role: userRole,
           status: 'active',
           created_at: new Date().toISOString(),
