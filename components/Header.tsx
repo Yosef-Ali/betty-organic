@@ -26,7 +26,7 @@ import {
   Users,
 } from 'lucide-react';
 import Breadcrumb from './Breadcrumb';
-import { signOut } from '@/app/auth/actions/authActions';
+import { signOut } from '@/app/actions/auth';
 
 interface HeaderProps {
   onMobileMenuToggle: () => void;

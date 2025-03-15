@@ -2,7 +2,7 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { verifyEmail } from '../actions/authActions';
+import { verifyEmail } from '@/app/actions/auth';
 
 function VerifyEmailContent() {
   const [verificationStatus, setVerificationStatus] = useState<{

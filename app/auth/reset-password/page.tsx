@@ -7,7 +7,7 @@ import * as z from 'zod'
 import Image from 'next/image'
 import Link from 'next/link'
 import { toast } from 'sonner'
-import { resetPassword } from '@/app/auth/actions/authActions'
+import { resetPassword } from '@/app/actions/auth'
 import {
   Form,
   FormControl,
@@ -53,9 +53,10 @@ export default function ResetPasswordPage() {
         setSubmitted(true)
         toast.success(message || 'Reset instructions sent to your email')
       }
-    } catch (error) {
-      console.error('Password reset error:', error)
-      toast.error(error?.message || 'Failed to send reset instructions. Please try again.');
+    } catch (err) {
+      console.error('Password reset error:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Failed to send reset instructions. Please try again.'
+      toast.error(errorMessage);
     } finally {
       setIsSubmitting(false)
     }
