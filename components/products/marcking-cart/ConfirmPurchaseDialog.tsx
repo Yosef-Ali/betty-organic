@@ -15,6 +15,8 @@ import { useMarketingCartStore } from "@/store/cartStore";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { handlePurchaseOrder } from "@/app/actions/purchaseActions";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/components/providers/AuthProvider";
 
 interface ConfirmPurchaseDialogProps {
   isOpen: boolean;
@@ -31,21 +33,28 @@ export const ConfirmPurchaseDialog = ({
 }: ConfirmPurchaseDialogProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const clearCart = useMarketingCartStore((state) => state.clearCart);
+  const router = useRouter();
+  const { user } = useAuth();
 
   const handleConfirm = async () => {
     try {
+      // Check if user is signed in
+      if (!user) {
+        // Store cart items in session storage before redirecting
+        sessionStorage.setItem('pendingOrder', JSON.stringify({ items, total }));
+        // Redirect to sign in page with return URL
+        router.push(`/auth/login?returnTo=${encodeURIComponent('/marketing')}`);
+        onClose();
+        return;
+      }
+
       setIsSubmitting(true);
-      console.log("[DEBUG] Starting order confirmation with:", {
-        itemCount: items.length,
-        total
-      });
 
       if (!items.length) {
         throw new Error("No items in cart");
       }
 
       const result = await handlePurchaseOrder(items, total);
-      console.log("[DEBUG] Purchase order result:", result);
 
       if (!result.data) {
         throw new Error(result.error || "Failed to create order");
@@ -53,12 +62,15 @@ export const ConfirmPurchaseDialog = ({
 
       toast.success("Order created successfully!");
 
-      if (clearCart) {
-        clearCart();
-      }
+      // Clear the cart and close the dialog
+      clearCart();
       onClose();
+
+      // Redirect to orders page
+      router.push('/dashboard/orders');
+      router.refresh();
     } catch (error) {
-      console.error("[DEBUG] Error placing order:", error);
+      console.error("Error placing order:", error);
       toast.error(error instanceof Error ? error.message : "Failed to place order");
     } finally {
       setIsSubmitting(false);
@@ -69,9 +81,13 @@ export const ConfirmPurchaseDialog = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md z-[100]">
         <DialogHeader>
-          <DialogTitle>Confirm Your Order</DialogTitle>
+          <DialogTitle>
+            {user ? "Confirm Your Order" : "Sign In Required"}
+          </DialogTitle>
           <DialogDescription>
-            Please review your order details before confirming.
+            {user
+              ? "Please review your order details before confirming."
+              : "You need to sign in to complete your order. Click confirm to proceed to sign in."}
           </DialogDescription>
         </DialogHeader>
 
@@ -95,7 +111,7 @@ export const ConfirmPurchaseDialog = ({
             Cancel
           </Button>
           <Button onClick={handleConfirm} disabled={isSubmitting}>
-            {isSubmitting ? "Processing..." : "Confirm Order"}
+            {isSubmitting ? "Processing..." : user ? "Confirm Order" : "Sign In to Continue"}
           </Button>
         </DialogFooter>
       </DialogContent>

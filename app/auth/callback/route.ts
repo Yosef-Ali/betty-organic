@@ -15,7 +15,8 @@ interface ProfileData {
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
-  const next = requestUrl.searchParams.get('next') || '/dashboard';
+  const returnTo = requestUrl.searchParams.get('returnTo');
+  const next = returnTo || '/dashboard';
 
   if (!code) {
     console.error('Missing auth code');
@@ -76,6 +77,11 @@ export async function GET(request: Request) {
       access_token: authData.session.access_token,
       refresh_token: authData.session.refresh_token,
     });
+
+    // Check for pending order in session storage
+    if (next.includes('/marketing')) {
+      response.headers.set('X-Check-Pending-Order', 'true');
+    }
 
     return response;
   } catch (error) {
