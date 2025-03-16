@@ -149,6 +149,18 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
     [handleConfirmDialog, isPending],
   );
 
+  const handleDeleteClick = useCallback(() => {
+    clearCart();
+    onOpenChange(false);
+  }, [clearCart, onOpenChange]);
+
+  const handleCancelClick = useCallback(() => {
+    if (!customer || !isPending || orderStatus === 'completed') {
+      clearCart();
+      onOpenChange(false);
+    }
+  }, [customer, isPending, orderStatus, clearCart, onOpenChange]);
+
   if (error) {
     return (
       <div className="flex items-center justify-center p-8">

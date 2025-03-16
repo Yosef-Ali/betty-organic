@@ -1,64 +1,52 @@
 'use server';
 
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
-import { createClient as createAdminClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
-import { Database } from '@/types/supabase';
+import type { Database } from '@/types/supabase';
 
-// Regular client for normal operations
 export async function createClient() {
   try {
-    const supabase = createServerClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      console.error('Missing NEXT_PUBLIC_SUPABASE_URL environment variable');
+      throw new Error('Database configuration error');
+    }
+
+    if (!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      console.error('Missing NEXT_PUBLIC_SUPABASE_ANON_KEY environment variable');
+      throw new Error('Database configuration error');
+    }
+
+    return createServerClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
       {
         cookies: {
-          async get(name: string) {
-            try {
-              const cookieStore = await cookies();
-              return cookieStore.get(name)?.value;
-            } catch (error) {
-              console.error('Error getting cookie:', error instanceof Error ? error.message : 'Unknown error');
-              return undefined;
-            }
+          get(name: string) {
+            return cookies().get(name)?.value;
           },
-          async set(name: string, value: string, options: CookieOptions) {
-            try {
-              const cookieStore = await cookies();
-              cookieStore.set(name, value, options);
-            } catch (error) {
-              console.error('Error setting cookie:', error instanceof Error ? error.message : 'Unknown error');
-              throw new Error(`Failed to set authentication cookie: ${error instanceof Error ? error.message : 'Unknown error'}`);
-            }
+          set(name: string, value: string, options: CookieOptions) {
+            cookies().set(name, value, {
+              path: options.path ?? '/',
+              secure: options.secure ?? true,
+              sameSite: (options.sameSite as 'lax' | 'strict' | 'none') ?? 'lax',
+              maxAge: options.maxAge ?? 0,
+              httpOnly: options.httpOnly,
+            });
           },
-          async remove(name: string, options: CookieOptions) {
-            try {
-              const cookieStore = await cookies();
-              cookieStore.set(name, '', { ...options, maxAge: 0 });
-            } catch (error) {
-              console.error('Error removing cookie:', error instanceof Error ? error.message : 'Unknown error');
-              throw new Error(`Failed to remove authentication cookie: ${error instanceof Error ? error.message : 'Unknown error'}`);
-            }
-          }
+          remove(name: string, options: CookieOptions) {
+            cookies().set(name, '', {
+              path: options.path ?? '/',
+              secure: options.secure ?? true,
+              sameSite: (options.sameSite as 'lax' | 'strict' | 'none') ?? 'lax',
+              maxAge: -1,
+              httpOnly: options.httpOnly,
+            });
+          },
         },
       }
     );
-
-    return supabase;
   } catch (error) {
-    console.error('Error creating Supabase client:', error instanceof Error ? error.message : 'Unknown error');
-    throw new Error('Failed to initialize Supabase client');
+    console.error('Error creating Supabase client:', error);
+    throw new Error('Failed to initialize database connection');
   }
 }
-
-// Admin client for privileged operations
-export const supabaseAdmin = createAdminClient<Database>(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-);

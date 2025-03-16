@@ -1,17 +1,14 @@
 'use client';
 
-import { User } from '@supabase/supabase-js';
 import { UserButton } from './UserButton';
 import { Button } from './ui/button';
 import Link from 'next/link';
+import { useAuth } from './providers/AuthProvider';
 
-interface NavbarUserSectionProps {
-  user: User | null | undefined;
-  profile?: { role?: string } | null;
-}
+export function NavbarUserSection() {
+  const { user, profile, isLoading } = useAuth();
 
-export function NavbarUserSection({ user, profile }: NavbarUserSectionProps) {
-  if (user === undefined) {
+  if (isLoading || user === undefined) {
     return null;
   }
 

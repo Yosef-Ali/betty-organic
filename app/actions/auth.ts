@@ -7,6 +7,11 @@ import { AuthError, AuthState, Profile } from '@/lib/types/auth';
 import { User } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 
+function setCookie(name: string, value: string, options: { path: string; secure: boolean; sameSite: 'lax' | 'strict' | 'none'; maxAge: number; httpOnly: boolean }) {
+  const cookieStore = cookies();
+  (cookieStore as any).set(name, value, options);
+}
+
 export type AuthData = {
   user: User;
   profile: Profile;
@@ -14,6 +19,7 @@ export type AuthData = {
 } | null;
 
 // Cache user data to avoid repeated database queries
+// Using a shorter cache time to prevent stale data issues
 export const getCurrentUser = cache(async (): Promise<AuthData> => {
   const supabase = await createClient();
 
@@ -29,6 +35,7 @@ export const getCurrentUser = cache(async (): Promise<AuthData> => {
     }
 
     if (!session?.user) {
+      console.log('No session found for current user');
       return null;
     }
 
@@ -39,15 +46,67 @@ export const getCurrentUser = cache(async (): Promise<AuthData> => {
       .eq('id', session.user.id)
       .single();
 
+    // If profile doesn't exist, create one
+    if (profileError && profileError.code === 'PGRST116') {
+      console.log('Profile not found, creating default profile');
+
+      const newProfileData = {
+        id: session.user.id,
+        email: session.user.email || '',
+        name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
+        role: session.user.user_metadata?.role || 'customer',
+        status: 'active' as const,
+        auth_provider: session.user.app_metadata?.provider || 'email',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      const { data: newProfile, error: createError } = await supabase
+        .from('profiles')
+        .insert(newProfileData)
+        .select('*')
+        .single();
+
+      if (createError) {
+        console.error('Error creating profile:', createError);
+        return null;
+      }
+
+      // Set role in cookie
+      setCookie('userRole', newProfile.role, {
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+        httpOnly: true,
+      });
+
+      return {
+        user: session.user,
+        profile: newProfile as Profile,
+        isAdmin: newProfile.role === 'admin',
+      };
+    }
+
     if (profileError) {
       console.error('Profile error:', profileError);
       return null;
     }
 
+    // Set role in cookie
+    setCookie('userRole', profile.role, {
+      path: '/',
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+      httpOnly: true,
+    });
+
+    // Return the user and profile
     return {
       user: session.user,
-      profile,
-      isAdmin: profile.role === 'admin',
+      profile: profile as Profile,
+      isAdmin: profile?.role === 'admin',
     };
   } catch (error) {
     console.error('Auth error:', error);
@@ -71,157 +130,17 @@ export async function isCustomerUser() {
   return authData?.profile?.role === 'customer' || false;
 }
 
-export async function signUp(formData: FormData) {
-  const supabase = await createClient();
-
-  const email = formData.get("email") as string;
-  const password = formData.get("password") as string;
-  const full_name = formData.get("full_name") as string;
-
-  const { error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: {
-        full_name,
-      },
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
-    },
-  });
-
-  if (error) {
-    return { success: false, error: error.message };
-  }
-
-  return { success: true, error: null };
-}
-
-export async function signIn(formData: FormData) {
-  const supabase = await createClient();
-
-  const email = formData.get("email") as string;
-  const password = formData.get("password") as string;
-
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
-
-  if (error) {
-    return { error: error.message };
-  }
-
-  return { error: null, redirect: { destination: '/dashboard' } };
-}
-
-export async function signInWithGoogle() {
-  const supabase = await createClient();
-
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: {
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback?provider=google`,
-      queryParams: {
-        access_type: 'offline',
-        prompt: 'consent',
-      },
-    },
-  });
-
-  if (error) {
-    return { error: error.message };
-  }
-
-  return { error: null, url: data.url };
-}
-
-// New functions for reset password, verification, and sign out
-
-export async function resetPassword(formData: FormData) {
-  const supabase = await createClient();
-
-  const email = formData.get("email") as string;
-
-  if (!email) {
-    return { error: "Email is required", success: false };
-  }
-
-  const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/update-password`,
-  });
-
-  if (error) {
-    return { error: error.message, success: false };
-  }
-
-  return {
-    success: true,
-    message: "Reset instructions have been sent to your email"
-  };
-}
-
-export async function verifyEmail(email: string, code: string) {
-  const supabase = await createClient();
-
-  try {
-    const { error } = await supabase.auth.verifyOtp({
-      email,
-      token: code,
-      type: 'email',
-    });
-
-    if (error) {
-      return { error: error.message };
-    }
-
-    return {
-      message: "Email verified successfully. You can now log in.",
-      success: true
-    };
-  } catch (err) {
-    console.error('Email verification error:', err);
-    return {
-      error: "Failed to verify email. The link may have expired."
-    };
-  }
-}
-
 export async function signOut() {
-  const supabase = await createClient();
-
   try {
-    const { error } = await supabase.auth.signOut();
+    const supabase = await createClient();
 
-    if (error) {
-      return { error: error.message };
-    }
+    // Sign out from Supabase - this will automatically handle cookie cleanup
+    await supabase.auth.signOut();
 
-    return { error: null };
-  } catch (err) {
-    console.error('Sign out error:', err);
-    return { error: "Failed to sign out" };
+    // Redirect to login page
+    return redirect('/auth/login');
+  } catch (error) {
+    console.error('Sign out error:', error);
+    return redirect('/auth/login');
   }
-}
-
-export async function updatePassword(formData: FormData) {
-  const supabase = await createClient();
-
-  const password = formData.get("password") as string;
-
-  if (!password) {
-    return { error: "Password is required", success: false };
-  }
-
-  const { error } = await supabase.auth.updateUser({
-    password,
-  });
-
-  if (error) {
-    return { error: error.message, success: false };
-  }
-
-  return {
-    success: true,
-    message: "Password updated successfully"
-  };
 }
