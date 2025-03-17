@@ -29,6 +29,7 @@ import Breadcrumb from './Breadcrumb';
 import { signOut } from '@/app/actions/auth';
 import { Profile } from '@/lib/types/auth';
 import { toast } from 'sonner';
+import { NotificationBell } from './dashboard/NotificationBell';
 
 interface HeaderProps {
   onMobileMenuToggle: () => void;
@@ -152,6 +153,8 @@ export default function Header({ onMobileMenuToggle, profile }: HeaderProps) {
     }));
   };
 
+  const isAdminOrSales = profile?.role === 'admin' || profile?.role === 'sales';
+
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background/80 px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:p-6">
       <Button
@@ -172,6 +175,12 @@ export default function Header({ onMobileMenuToggle, profile }: HeaderProps) {
           className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[336px]"
         />
       </div>
+
+      {isAdminOrSales && (
+        <div className="flex items-center gap-2">
+          <NotificationBell />
+        </div>
+      )}
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
