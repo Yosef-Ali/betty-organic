@@ -4,7 +4,7 @@ import * as React from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
   Form,
@@ -15,9 +15,11 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { signIn, signInWithGoogle } from '@/app/auth/actions/authActions';
+import { signIn, signInWithGoogle } from '@/app/actions/auth';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertCircle } from 'lucide-react';
 
 const formSchema = z.object({
   email: z.string().email({
@@ -32,11 +34,25 @@ type FormData = z.infer<typeof formSchema>;
 
 interface LoginFormProps {
   returnTo?: string | null;
+  isLoading?: boolean;
+  setIsLoading?: (isLoading: boolean) => void;
 }
 
-export function LoginForm({ returnTo }: LoginFormProps) {
+export function LoginForm({ returnTo, isLoading, setIsLoading }: LoginFormProps) {
   const router = useRouter();
-  const [isPending, setIsPending] = React.useState(false);
+  const searchParams = useSearchParams();
+  const [isPending, setIsPending] = React.useState(isLoading || false);
+  const [authError, setAuthError] = React.useState<string | null>(null);
+
+  // Extract error messages from URL
+  React.useEffect(() => {
+    const error = searchParams.get('error');
+    if (error === 'account_inactive') {
+      setAuthError('Your account has been deactivated. Please contact support.');
+    } else if (error) {
+      setAuthError('Authentication failed. Please try again.');
+    }
+  }, [searchParams]);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -47,7 +63,9 @@ export function LoginForm({ returnTo }: LoginFormProps) {
   });
 
   const onSubmit = async (formData: FormData) => {
+    setAuthError(null);
     setIsPending(true);
+    if (setIsLoading) setIsLoading(true);
 
     try {
       const data = new FormData();
@@ -57,53 +75,71 @@ export function LoginForm({ returnTo }: LoginFormProps) {
 
       if (result.error) {
         toast.error(result.error);
+        setAuthError(result.error);
         setIsPending(false);
+        if (setIsLoading) setIsLoading(false);
         return;
       }
 
-      if (result.redirect) {
+      if (result.success) {
         // If there's a returnTo URL, use it, otherwise use the default redirect
-        const redirectUrl = returnTo || result.redirect.destination;
-        window.location.href = redirectUrl;
+        const redirectUrl = returnTo || (result.redirect?.destination || '/dashboard');
+        router.push(redirectUrl);
       }
     } catch (error) {
       console.error('Login error:', error);
-      toast.error('An unexpected error occurred');
+      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+      toast.error(errorMessage);
+      setAuthError(errorMessage);
       setIsPending(false);
+      if (setIsLoading) setIsLoading(false);
     }
   };
 
   const handleGoogleSignIn = async () => {
     try {
+      setAuthError(null);
       setIsPending(true);
-      const result = await signInWithGoogle();
+      if (setIsLoading) setIsLoading(true);
+
+      const result = await signInWithGoogle(returnTo || undefined);
+
       if (result.error) {
         console.error('Google sign in error:', result.error);
         toast.error(`Sign in failed: ${result.error}`);
+        setAuthError(result.error);
+        setIsPending(false);
+        if (setIsLoading) setIsLoading(false);
         return;
       }
+
       if (result.url) {
-        // Add returnTo parameter to the OAuth URL if it exists
-        const url = new URL(result.url);
-        if (returnTo) {
-          url.searchParams.append('returnTo', returnTo);
-        }
-        window.location.href = url.toString();
+        window.location.href = result.url;
       } else {
         toast.error('Authentication configuration error');
+        setAuthError('Authentication configuration error');
+        setIsPending(false);
+        if (setIsLoading) setIsLoading(false);
       }
     } catch (error) {
       console.error('Google sign in error:', error);
-      toast.error(
-        'An error occurred during Google sign in. Please try again.',
-      );
-    } finally {
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred during Google sign in';
+      toast.error(errorMessage);
+      setAuthError(errorMessage);
       setIsPending(false);
+      if (setIsLoading) setIsLoading(false);
     }
   };
 
   return (
     <div className="grid gap-6">
+      {authError && (
+        <Alert variant="destructive" className="animate-in fade-in-50">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{authError}</AlertDescription>
+        </Alert>
+      )}
+
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <FormField
@@ -113,7 +149,7 @@ export function LoginForm({ returnTo }: LoginFormProps) {
               <FormItem>
                 <FormLabel>Email</FormLabel>
                 <FormControl>
-                  <Input placeholder="name@example.com" {...field} />
+                  <Input placeholder="name@example.com" autoComplete="email" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -126,7 +162,7 @@ export function LoginForm({ returnTo }: LoginFormProps) {
               <FormItem>
                 <FormLabel>Password</FormLabel>
                 <FormControl>
-                  <Input type="password" placeholder="••••••••" {...field} />
+                  <Input type="password" placeholder="••••••••" autoComplete="current-password" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -144,6 +180,7 @@ export function LoginForm({ returnTo }: LoginFormProps) {
           </Button>
         </form>
       </Form>
+
       <div className="mt-4 text-center text-sm">
         <Link
           href="/auth/reset-password"
@@ -152,6 +189,7 @@ export function LoginForm({ returnTo }: LoginFormProps) {
           Forgot password?
         </Link>
       </div>
+
       <div className="relative my-4">
         <div className="absolute inset-0 flex items-center">
           <div className="w-full border-t" />
@@ -162,6 +200,7 @@ export function LoginForm({ returnTo }: LoginFormProps) {
           </span>
         </div>
       </div>
+
       <Button
         type="button"
         variant="outline"
@@ -189,6 +228,7 @@ export function LoginForm({ returnTo }: LoginFormProps) {
         </svg>
         Continue with Google
       </Button>
+
       <div className="text-center text-sm">
         Don&apos;t have an account?{' '}
         <Link href="/auth/signup" className="text-primary hover:underline">

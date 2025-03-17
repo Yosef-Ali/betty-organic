@@ -1,16 +1,15 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
 
 export async function middleware(request: NextRequest) {
-  // Skip middleware for authentication-related routes and public assets
+  // Skip middleware for public routes and assets
   if (
-    request.nextUrl.pathname.startsWith('/auth') ||
     request.nextUrl.pathname.startsWith('/_next') ||
-    request.nextUrl.pathname.startsWith('/api/auth') ||
+    request.nextUrl.pathname.startsWith('/api/public') ||
     request.nextUrl.pathname.includes('.') ||
-    request.nextUrl.pathname === '/'
+    request.nextUrl.pathname === '/' ||
+    request.nextUrl.pathname === '/marketing'
   ) {
     return NextResponse.next();
   }
@@ -47,7 +46,19 @@ export async function middleware(request: NextRequest) {
       }
     );
 
-    // Get user session
+    // Auth routes don't need session validation, but we'll pass through the session if it exists
+    if (request.nextUrl.pathname.startsWith('/auth')) {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      // If user is already logged in and trying to access auth pages, redirect to dashboard
+      if (session && !request.nextUrl.pathname.startsWith('/auth/logout')) {
+        return NextResponse.redirect(new URL('/dashboard', request.url));
+      }
+
+      return response;
+    }
+
+    // For all other routes, validate session
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
     if (sessionError) {
@@ -81,36 +92,41 @@ export async function middleware(request: NextRequest) {
         .eq('id', session.user.id)
         .single();
 
-      // Set user role in response header for client access
+      // Set user role in response header for client access (secure way to make role available to client)
       response.headers.set('x-user-role', profile?.role || 'customer');
       response.headers.set('x-user-id', session.user.id);
-      response.headers.set('x-user-email', session.user.email || '');
       response.headers.set('x-user-authenticated', 'true');
 
-      // Check if user is inactive
+      // Check if user is inactive and deny access
       if (profile?.status === 'inactive') {
-        return redirectToLogin(request);
+        // Sign out the inactive user
+        await supabase.auth.signOut();
+        return NextResponse.redirect(
+          new URL('/auth/login?error=account_inactive', request.url)
+        );
       }
 
       // Role-based route protection
       if (request.nextUrl.pathname.startsWith('/dashboard')) {
-        // Admin-only routes
+        // Only admin and sales can access dashboard (except profile)
         if (
-          request.nextUrl.pathname.startsWith('/dashboard/admin') &&
-          profile?.role !== 'admin'
+          !request.nextUrl.pathname.startsWith('/dashboard/profile') &&
+          !['admin', 'sales'].includes(profile?.role || '')
         ) {
-          return NextResponse.redirect(new URL('/dashboard', request.url));
+          return NextResponse.redirect(new URL('/', request.url));
         }
 
-        // Sales routes - accessible by admin and sales
+        // Admin-only routes
         if (
-          request.nextUrl.pathname.startsWith('/dashboard/sales') &&
-          !['admin', 'sales'].includes(profile?.role || '')
+          (request.nextUrl.pathname.startsWith('/dashboard/admin') ||
+            request.nextUrl.pathname.startsWith('/dashboard/users/manage')) &&
+          profile?.role !== 'admin'
         ) {
           return NextResponse.redirect(new URL('/dashboard', request.url));
         }
       }
 
+      // Attach session to response
       return response;
     }
 
@@ -123,7 +139,7 @@ export async function middleware(request: NextRequest) {
 
 function redirectToLogin(request: NextRequest) {
   const redirectUrl = new URL('/auth/login', request.url);
-  redirectUrl.searchParams.set('redirect', request.nextUrl.pathname);
+  redirectUrl.searchParams.set('returnTo', request.nextUrl.pathname);
   return NextResponse.redirect(redirectUrl);
 }
 
@@ -134,7 +150,7 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * - public folder
+     * - public folder (public assets)
      */
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:jpg|jpeg|gif|png|svg|ico)|public).*)',
   ],

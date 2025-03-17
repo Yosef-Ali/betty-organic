@@ -208,7 +208,7 @@ export async function signUp(formData: FormData) {
   return { error: 'Failed to create user' };
 }
 
-export async function signInWithGoogle() {
+export async function signInWithGoogle(returnTo?: string) {
   const supabase = await createClient();
   try {
     // First check if we have existing session
@@ -232,6 +232,7 @@ export async function signInWithGoogle() {
         queryParams: {
           access_type: 'offline',
           prompt: 'consent',
+          returnTo: returnTo || '/dashboard',
         },
         skipBrowserRedirect: true // This prevents automatic redirect
       },
@@ -250,7 +251,7 @@ export async function signInWithGoogle() {
     // Return the URL for client-side redirect
     return { url: data.url };
   } catch (error) {
-    console.error('Unexpected error during Google sign-in:', error);
+    console.error('Error in Google sign-in:', error);
     return { error: 'An unexpected error occurred' };
   }
 }

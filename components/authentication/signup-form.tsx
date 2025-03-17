@@ -16,6 +16,9 @@ import { Input } from '../ui/input';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Alert, AlertDescription } from '../ui/alert';
+import { AlertCircle } from 'lucide-react';
+import { signUp } from '@/app/actions/auth';
+import { toast } from 'sonner';
 
 const formSchema = z
   .object({
@@ -32,13 +35,15 @@ const formSchema = z
 export type SignupFormType = z.infer<typeof formSchema>;
 
 interface SignupFormProps {
-  onSubmit: (values: SignupFormType) => Promise<void>;
+  onSubmit?: (values: SignupFormType) => Promise<void>;
+  isLoading?: boolean;
+  setIsLoading?: (isLoading: boolean) => void;
 }
 
-export function SignupForm({ onSubmit }: SignupFormProps) {
+export function SignupForm({ onSubmit, isLoading, setIsLoading }: SignupFormProps) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isPending, setIsPending] = useState(isLoading || false);
 
   const form = useForm<SignupFormType>({
     resolver: zodResolver(formSchema),
@@ -52,19 +57,44 @@ export function SignupForm({ onSubmit }: SignupFormProps) {
 
   async function handleSubmit(values: SignupFormType) {
     setError(null);
-    setIsLoading(true);
+    setIsPending(true);
+    if (setIsLoading) setIsLoading(true);
 
     try {
-      // Remove confirmPassword before submitting
+      // If an external onSubmit handler is provided, use it
+      if (onSubmit) {
+        await onSubmit(values);
+        return;
+      }
+
+      // Otherwise, use the built-in signup handler
       const { confirmPassword, ...submitData } = values;
-      await onSubmit(submitData);
+
+      const formData = new FormData();
+      formData.append('email', submitData.email);
+      formData.append('password', submitData.password);
+      formData.append('full_name', submitData.full_name);
+
+      const result = await signUp(formData);
+
+      if (result.error) {
+        setError(result.error);
+        toast.error(result.error);
+        return;
+      }
+
+      if (result.success) {
+        toast.success(result.message || 'Account created successfully');
+        router.push('/auth/verify');
+      }
     } catch (err: any) {
-      setError(
-        err?.message || 'An unexpected error occurred. Please try again.',
-      );
+      const errorMessage = err?.message || 'An unexpected error occurred. Please try again.';
+      setError(errorMessage);
+      toast.error(errorMessage);
       console.error('Form submission error:', err);
     } finally {
-      setIsLoading(false);
+      setIsPending(false);
+      if (setIsLoading) setIsLoading(false);
     }
   }
 
@@ -72,10 +102,12 @@ export function SignupForm({ onSubmit }: SignupFormProps) {
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
         {error && (
-          <Alert variant="destructive">
+          <Alert variant="destructive" className="animate-in fade-in-50">
+            <AlertCircle className="h-4 w-4" />
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
+
         <FormField
           control={form.control}
           name="full_name"
@@ -83,12 +115,13 @@ export function SignupForm({ onSubmit }: SignupFormProps) {
             <FormItem>
               <FormLabel>Name</FormLabel>
               <FormControl>
-                <Input placeholder="Your name" {...field} />
+                <Input placeholder="Your name" autoComplete="name" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
+
         <FormField
           control={form.control}
           name="email"
@@ -96,12 +129,13 @@ export function SignupForm({ onSubmit }: SignupFormProps) {
             <FormItem>
               <FormLabel>Email</FormLabel>
               <FormControl>
-                <Input placeholder="email@example.com" {...field} />
+                <Input placeholder="email@example.com" autoComplete="email" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
+
         <FormField
           control={form.control}
           name="password"
@@ -109,12 +143,13 @@ export function SignupForm({ onSubmit }: SignupFormProps) {
             <FormItem>
               <FormLabel>Password</FormLabel>
               <FormControl>
-                <Input type="password" placeholder="••••••••" {...field} />
+                <Input type="password" placeholder="••••••••" autoComplete="new-password" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
+
         <FormField
           control={form.control}
           name="confirmPassword"
@@ -122,14 +157,22 @@ export function SignupForm({ onSubmit }: SignupFormProps) {
             <FormItem>
               <FormLabel>Confirm Password</FormLabel>
               <FormControl>
-                <Input type="password" placeholder="••••••••" {...field} />
+                <Input type="password" placeholder="••••••••" autoComplete="new-password" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full" disabled={isLoading}>
-          {isLoading ? 'Creating account...' : 'Sign up'}
+
+        <Button type="submit" className="w-full" disabled={isPending}>
+          {isPending ? (
+            <>
+              <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              Creating account...
+            </>
+          ) : (
+            'Sign up'
+          )}
         </Button>
       </form>
     </Form>

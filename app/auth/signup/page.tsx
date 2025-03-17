@@ -1,38 +1,13 @@
-'use client'
+'use client';
 
-import { useRouter } from 'next/navigation'
-import { signUp } from '@/app/actions/auth'
-import { SignupForm, SignupFormType } from "@/components/authentication/signup-form"
-import { toast } from 'sonner'
-import Image from "next/image"
-import Link from 'next/link'
+import { useState } from 'react';
+import { SignupForm } from "@/components/authentication/signup-form";
+import Image from "next/image";
+import Link from 'next/link';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function SignupPage() {
-  const router = useRouter()
-
-  const handleSubmit = async (values: SignupFormType) => {
-    try {
-      const formData = new FormData()
-      formData.append('email', values.email)
-      formData.append('password', values.password)
-      formData.append('full_name', values.full_name)
-
-      const result = await signUp(formData)
-
-      if (result.error) {
-        toast.error(result.error)
-        return
-      }
-
-      if (result.success) {
-        toast.success('Please check your email to verify your account')
-        router.push('/auth/verify')  // Redirect to verification page
-      }
-    } catch (error) {
-      console.error('Signup error:', error)
-      toast.error('Signup failed. Please try again.')
-    }
-  }
+  const [isLoading, setIsLoading] = useState(false);
 
   return (
     <div className="grid h-screen lg:grid-cols-2">
@@ -41,7 +16,7 @@ export default function SignupPage() {
           <Link href="/" className="flex items-center gap-2 font-medium">
             <Image
               src="/logo.jpeg"
-              alt="Company Logo"
+              alt="Betty's Organic"
               width={24}
               height={24}
               className="rounded-md"
@@ -50,15 +25,23 @@ export default function SignupPage() {
           </Link>
         </div>
         <div className="flex flex-1 items-center justify-center">
-          <div className="w-full max-w-xs">
-            <SignupForm onSubmit={handleSubmit} />
-            <div className="mt-4 text-center text-sm">
-              Already have an account?{' '}
-              <Link href="/auth/login" className="font-medium text-primary hover:underline">
-                Log in
-              </Link>
-            </div>
-          </div>
+          <Card className="w-full max-w-md">
+            <CardHeader className="space-y-1">
+              <CardTitle className="text-2xl font-bold">Create an account</CardTitle>
+              <CardDescription>
+                Enter your information to create an account
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <SignupForm isLoading={isLoading} setIsLoading={setIsLoading} />
+              <div className="mt-4 text-center text-sm">
+                Already have an account?{' '}
+                <Link href="/auth/login" className="font-medium text-primary hover:underline">
+                  Log in
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
       <div className="relative hidden bg-muted lg:block">
@@ -72,5 +55,5 @@ export default function SignupPage() {
         />
       </div>
     </div>
-  )
+  );
 }
