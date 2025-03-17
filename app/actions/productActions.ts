@@ -1,6 +1,7 @@
 'use server';
 
 import { Product } from '@/lib/supabase/db.types';
+import { ProductCategory } from '@/types/supabase';
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { v4 as uuidv4 } from 'uuid';
@@ -70,7 +71,7 @@ export async function createProduct(formData: FormData): Promise<Product> {
         active: status === 'active',
         createdat: now,
         updatedat: now,
-        category,
+        category: category as ProductCategory,
         created_by: session.user.id,
         unit: null,
       })
@@ -155,7 +156,7 @@ export async function updateProduct(
       stock,
       imageUrl: imageUrl || '/placeholder-product.svg',
       active: status === 'active',
-      category,
+      category: category as ProductCategory,
       updatedat: new Date().toISOString(),
     };
 

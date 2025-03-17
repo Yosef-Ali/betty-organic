@@ -16,7 +16,7 @@ export interface OrderItem {
 
 export interface Order {
   id: string;
-  display_id?: string;
+  display_id: string | null;
   profile_id: string;
   customer_profile_id: string;
   total_amount: number;
@@ -40,7 +40,7 @@ export interface OrderWithProducts extends Order {
 
 export interface ExtendedOrder extends Order {
   id: string;
-  display_id?: string;
+  display_id: string | null;
   customerName: string;
   items: OrderItem[];
   status: string;

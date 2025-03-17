@@ -59,14 +59,15 @@ export const ConfirmPurchaseDialog = ({
       if (!result.data) {
         throw new Error(result.error || "Failed to create order");
       }
-
-      toast.success("Order created successfully!");
+      // Show success message with order ID
+      // Assuming 'display_id' is a typo and should be 'id' based on the context provided
+      toast.success(`Order #${result.data.id} created successfully!`);
 
       // Clear the cart and close the dialog
       clearCart();
       onClose();
 
-      // Redirect to orders page
+      // Redirect to orders page and ensure refresh
       router.push('/dashboard/orders');
       router.refresh();
     } catch (error) {

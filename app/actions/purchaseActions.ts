@@ -1,6 +1,6 @@
 'use server';
 
-import { supabaseAdmin } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase/server';
 import type { Order } from '@/types/order';
 import { getCurrentUser } from './auth';
 import { v4 as uuidv4 } from 'uuid';
@@ -22,6 +22,7 @@ export async function handlePurchaseOrder(
 
     // Input validation
     if (!items?.length) {
+      console.log('[ORDER DEBUG] No items provided');
       return {
         error: 'No items provided for order',
         status: 400
@@ -29,6 +30,7 @@ export async function handlePurchaseOrder(
     }
 
     if (!total || total <= 0) {
+      console.log('[ORDER DEBUG] Invalid total amount:', total);
       return {
         error: 'Invalid total amount',
         status: 400
@@ -61,8 +63,11 @@ export async function handlePurchaseOrder(
     const display_id = await orderIdService.generateOrderID();
     console.log('[ORDER DEBUG] Generated order ID:', display_id);
 
+    // Get Supabase client
+    const supabase = await createClient();
+
     // First, ensure the user exists in the profiles table
-    const { data: profile, error: profileError } = await supabaseAdmin
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('id')
       .eq('id', userId)
@@ -79,7 +84,7 @@ export async function handlePurchaseOrder(
     // If profile doesn't exist, create it
     if (!profile) {
       console.log('[ORDER DEBUG] Creating new profile for user:', userId);
-      const { error: createProfileError } = await supabaseAdmin
+      const { error: createProfileError } = await supabase
         .from('profiles')
         .insert({
           id: userId,
@@ -114,7 +119,7 @@ export async function handlePurchaseOrder(
 
     console.log('[ORDER DEBUG] Creating order with data:', orderData);
 
-    const { data: order, error: orderError } = await supabaseAdmin
+    const { data: order, error: orderError } = await supabase
       .from('orders')
       .insert(orderData)
       .select()
@@ -149,14 +154,14 @@ export async function handlePurchaseOrder(
 
     console.log('[ORDER DEBUG] Creating order items:', JSON.stringify(orderItems));
 
-    const { error: itemsError } = await supabaseAdmin
+    const { error: itemsError } = await supabase
       .from('order_items')
       .insert(orderItems);
 
     if (itemsError) {
       console.error('[ORDER DEBUG] Failed to create order items:', itemsError);
       // Cleanup the order if items failed
-      await supabaseAdmin.from('orders').delete().eq('id', order.id);
+      await supabase.from('orders').delete().eq('id', order.id);
       return {
         error: `Failed to create order items: ${itemsError.message}`,
         status: 500
