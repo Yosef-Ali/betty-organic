@@ -83,7 +83,41 @@ export default function OrderDetails({ orderId }: OrderDetailsProps) {
       />
 
       <CardContent className="p-6 text-sm">
-        <OrderItemsList items={itemsWithTotal} subtotal={subtotal} />
+        <div className="grid gap-3">
+          <div className="font-semibold">Order Details</div>
+          <ul className="grid gap-3">
+            {itemsWithTotal.map(item => (
+              <li key={item.id} className="flex items-center justify-between">
+                <span className="text-muted-foreground">
+                  {item.product?.name || 'Unknown Product'} x{' '}
+                  <span>{(item.quantity / 1000).toFixed(3)} kg</span>
+                </span>
+                <span>Br {item.total.toFixed(2)}</span>
+              </li>
+            ))}
+          </ul>
+
+          <Separator className="my-2" />
+
+          <ul className="grid gap-3">
+            <li className="flex items-center justify-between">
+              <span className="text-muted-foreground">Subtotal</span>
+              <span>Br {subtotal.toFixed(2)}</span>
+            </li>
+            <li className="flex items-center justify-between">
+              <span className="text-muted-foreground">Shipping</span>
+              <span className="text-muted-foreground">Br {(0).toFixed(2)}</span>
+            </li>
+            <li className="flex items-center justify-between">
+              <span className="text-muted-foreground">Tax</span>
+              <span className="text-muted-foreground">Br {(0).toFixed(2)}</span>
+            </li>
+            <li className="flex items-center justify-between font-semibold">
+              <span className="text-muted-foreground">Total</span>
+              <span>Br {subtotal.toFixed(2)}</span>
+            </li>
+          </ul>
+        </div>
 
         <Separator className="my-4" />
         <>
