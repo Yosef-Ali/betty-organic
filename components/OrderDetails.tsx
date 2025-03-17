@@ -99,7 +99,7 @@ const OrderDetailsContent: React.FC<{
               ? formatDistanceToNow(new Date(order.created_at), { addSuffix: true })
               : 'N/A'}
           </TableCell>
-          <TableCell>{order.total_amount}</TableCell>
+          <TableCell>Br {order.total_amount.toFixed(2)}</TableCell>
           <TableCell>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
