@@ -14,10 +14,12 @@ const navItems: NavItem[] = [
 
 export async function Navbar() {
   try {
+    // Auth Flow Step 1: Get current user data from auth action
     const authData = await getCurrentUser();
     const user = authData?.user || null;
     const profile = authData?.profile || null;
 
+    // The rest of the component uses this auth data
     return (
       <header className="border-b bg-white/80 backdrop-blur-sm fixed top-0 left-0 right-0 z-50">
         <div className="container flex h-16 items-center justify-between px-4">

@@ -112,7 +112,7 @@ export async function signIn(formData: FormData) {
       user: data.user,
       profile,
       redirect: {
-        destination: '/dashboard',
+        destination: '/',
         type: 'replace',
       },
     };
