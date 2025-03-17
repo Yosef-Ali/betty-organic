@@ -5,10 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Minus, Plus, Trash2 } from 'lucide-react';
 import { useMarketingCartStore } from '@/store/cartStore';
-import { MarketingCartItem } from '@/store/cartStore';
+import { CartItem as CartItemType } from '@/types/cart';
 
 interface CartItemProps {
-  item: MarketingCartItem;
+  item: CartItemType;
 }
 
 export function CartItem({ item }: CartItemProps) {

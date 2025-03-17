@@ -33,7 +33,16 @@ export const CartItem: FC<CartItemProps> = ({ item, index, updateGrams, removeFr
     <div className="mb-6 px-2">
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-start">
-          <Image src={item.imageUrl} alt={item.name} className="w-16 h-16 rounded-md mr-4 object-cover" width={64} height={64} />
+          <div className="relative hidden sm:block h-16 w-16 overflow-hidden rounded-md" style={{ position: 'relative' }}>
+            <Image
+              src={item.imageUrl || '/placeholder-product.svg'}
+              alt={item.name}
+              fill
+              sizes="64px"
+              className="object-cover"
+              priority={false}
+            />
+          </div>
           <div>
             <h3 className="font-semibold text-lg">{item.name}</h3>
             <p className="text-sm text-muted-foreground">Br {item.pricePerKg.toFixed(2)} per kg</p>

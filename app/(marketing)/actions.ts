@@ -10,6 +10,7 @@ import { orderIdService } from '@/app/services/orderIdService';
 export async function getProducts(): Promise<Product[]> {
   try {
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      console.error('Missing Supabase environment variables');
       throw new Error('Missing Supabase environment variables');
     }
 
@@ -18,20 +19,24 @@ export async function getProducts(): Promise<Product[]> {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     );
 
+    console.log('Fetching products from Supabase...');
     const { data, error } = await supabase
       .from('products')
       .select('*')
+      .eq('active', true)
       .order('createdat', { ascending: false });
 
     if (error) {
       console.error('Supabase query error:', error);
-      throw new Error('Failed to fetch products from database');
+      throw new Error(`Failed to fetch products: ${error.message}`);
     }
 
     if (!data) {
-      throw new Error('No products found in the database');
+      console.log('No products found in the database');
+      return [];
     }
 
+    console.log(`Successfully fetched ${data.length} products`);
     return data;
   } catch (error) {
     console.error('Error in getProducts:', error instanceof Error ? error.message : 'Unknown error');

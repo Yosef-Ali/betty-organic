@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useMarketingCartStore } from '@/store/cartStore';
 import { useUIStore } from '@/store/uiStore';
 import { Button } from '@/components/ui/button';
@@ -14,7 +14,6 @@ import { CartItem } from './CartItem';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { ConfirmPurchaseDialog } from './ConfirmPurchaseDialog';
-import { ShoppingCart } from 'lucide-react';
 
 interface CartSheetProps {
   isOpen: boolean;
@@ -22,29 +21,15 @@ interface CartSheetProps {
 }
 
 export const CartSheet = ({ isOpen, onOpenChange }: CartSheetProps) => {
-  const store = useMarketingCartStore();
-  const items = store?.items ?? [];
-  const clearCart = store?.clearCart;
-  const removeFromCart = store?.removeFromCart;
+  const { items } = useMarketingCartStore();
+  const { clearCart } = useMarketingCartStore();
   const { setCartOpen } = useUIStore();
   const [isPurchaseDialogOpen, setIsPurchaseDialogOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
 
-  // Handle hydration mismatch
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  const totalAmount = items?.reduce(
-    (total, item) => total + (item.pricePerKg * (item.grams / 1000)),
+  const totalAmount = items.reduce(
+    (total, item) => total + item.pricePerKg * (item.grams / 1000),
     0,
-  ) ?? 0;
-
-  // Handle order now click
-  const handleOrderNowClick = () => {
-    console.log('Order button clicked, opening dialog');
-    setIsPurchaseDialogOpen(true);
-  };
+  );
 
   // Handle purchase dialog closing
   const handlePurchaseDialogClose = () => {
@@ -53,53 +38,35 @@ export const CartSheet = ({ isOpen, onOpenChange }: CartSheetProps) => {
     setCartOpen(false);
   };
 
-  // Don't render until client-side hydration is complete
-  if (!mounted) {
-    return null;
-  }
-
   return (
-    <div className="relative">
-      <Sheet open={isOpen} onOpenChange={onOpenChange}>
-        <SheetContent className="w-full sm:max-w-lg flex flex-col h-full">
-          <SheetHeader className="space-y-0 pb-4">
-            <SheetTitle>Shopping Cart</SheetTitle>
+    <>
+      <Sheet open={isOpen} onOpenChange={(open) => {
+        onOpenChange(open);
+        setCartOpen(open);
+      }}>
+        <SheetContent className="flex w-full flex-col pr-0 sm:max-w-lg z-50">
+          <SheetHeader>
+            <SheetTitle>Shopping Cart ({items?.length})</SheetTitle>
           </SheetHeader>
-
-          <div className="flex-1 overflow-y-auto">
+          <ScrollArea className="flex-1 pr-6">
             {items?.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-                <p>Your cart is empty</p>
+              <div className="flex h-full items-center justify-center">
+                <p className="text-muted-foreground">Your cart is empty</p>
               </div>
             ) : (
-              <div className="space-y-4">
-                {items.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
-                    <div>
-                      <h3 className="font-medium">{item.name}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {item.grams}g - ETB {((item.pricePerKg * item.grams) / 1000).toFixed(2)}
-                      </p>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        if (removeFromCart) {
-                          removeFromCart(item.id);
-                        }
-                      }}
-                    >
-                      Remove
-                    </Button>
+              <div className="flex flex-col">
+                {items?.map(item => (
+                  <div key={item.id}>
+                    <CartItem item={item} />
+                    <Separator />
                   </div>
                 ))}
               </div>
             )}
-          </div>
-
-          {items?.length > 0 && (
+          </ScrollArea>
+          {items.length > 0 && (
             <div className="flex flex-col space-y-4 pr-6 pt-6">
+              {/* Improved Total Amount Section */}
               <div className="bg-muted/30 p-4 rounded-md">
                 <div className="flex items-center">
                   <span className="text-base font-semibold mr-auto">Total Amount</span>
@@ -112,7 +79,7 @@ export const CartSheet = ({ isOpen, onOpenChange }: CartSheetProps) => {
               <div className="flex items-center">
                 <Button
                   className="w-full flex-1 mr-2"
-                  onClick={handleOrderNowClick}
+                  onClick={() => setIsPurchaseDialogOpen(true)}
                 >
                   Order Now
                 </Button>
@@ -121,11 +88,9 @@ export const CartSheet = ({ isOpen, onOpenChange }: CartSheetProps) => {
                   className="flex-none"
                   size="sm"
                   onClick={() => {
-                    if (clearCart) {
-                      clearCart();
-                      onOpenChange(false);
-                      setCartOpen(false);
-                    }
+                    clearCart();
+                    onOpenChange(false);
+                    setCartOpen(false);
                   }}
                 >
                   Clear Cart
@@ -136,14 +101,12 @@ export const CartSheet = ({ isOpen, onOpenChange }: CartSheetProps) => {
         </SheetContent>
       </Sheet>
 
-      <div className="z-50">
-        <ConfirmPurchaseDialog
-          isOpen={isPurchaseDialogOpen}
-          onClose={handlePurchaseDialogClose}
-          items={items}
-          total={totalAmount}
-        />
-      </div>
-    </div>
+      <ConfirmPurchaseDialog
+        isOpen={isPurchaseDialogOpen}
+        onClose={handlePurchaseDialogClose}
+        items={items}
+        total={totalAmount}
+      />
+    </>
   );
 };

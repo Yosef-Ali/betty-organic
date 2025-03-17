@@ -4,7 +4,7 @@ import Image from 'next/image'
 import { motion } from 'framer-motion'
 import { ShoppingCart } from 'lucide-react'
 import { Product } from '@/types'
-import { useCart } from '@/store/cart'
+import { useMarketingCartStore } from '@/store/cartStore'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 
@@ -13,7 +13,17 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product }: ProductCardProps) {
-  const { addItem } = useCart()
+  const { addItem } = useMarketingCartStore()
+
+  const handleAddToCart = () => {
+    addItem({
+      id: product.id,
+      name: product.name,
+      imageUrl: product.imageUrl || '/placeholder-product.svg',
+      pricePerKg: product.price,
+      grams: 1000 // Default to 1kg
+    })
+  }
 
   return (
     <motion.div
@@ -24,11 +34,11 @@ export function ProductCard({ product }: ProductCardProps) {
     >
       <Card
         className="overflow-hidden h-full group relative cursor-pointer"
-        onClick={() => addItem(product)}
+        onClick={handleAddToCart}
       >
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10" />
         <Image
-          src={product.image}
+          src={product.imageUrl || '/placeholder-product.svg'}
           alt={product.name}
           width={300}
           height={300}
@@ -45,12 +55,12 @@ export function ProductCard({ product }: ProductCardProps) {
             <h3 className="font-semibold text-lg sm:text-xl mb-1">{product.name}</h3>
             <p className="text-sm mb-2 line-clamp-2">{product.description}</p>
             <div className="flex items-center justify-between">
-              <p className="text-lg font-bold">${product.price.toFixed(2)}/kg</p>
+              <p className="text-lg font-bold">ETB {product.price.toFixed(2)}/kg</p>
               <Button
                 size="icon"
                 onClick={(e) => {
                   e.stopPropagation()
-                  addItem(product)
+                  handleAddToCart()
                 }}
                 className="bg-white text-black hover:bg-white/90 rounded-full"
               >
@@ -64,4 +74,3 @@ export function ProductCard({ product }: ProductCardProps) {
     </motion.div>
   )
 }
-
