@@ -3,15 +3,15 @@
 import { UserButton } from './UserButton';
 import { Button } from './ui/button';
 import Link from 'next/link';
-import { useAuth } from './providers/AuthProvider';
+import { User } from '@supabase/supabase-js';
+import { Profile } from '@/lib/types/auth';
 
-export function NavbarUserSection() {
-  const { user, profile, isLoading } = useAuth();
+interface NavbarUserSectionProps {
+  user: User | null;
+  profile: Profile | null;
+}
 
-  if (isLoading || user === undefined) {
-    return null;
-  }
-
+export function NavbarUserSection({ user, profile }: NavbarUserSectionProps) {
   return (
     <nav className="flex items-center gap-4">
       {user ? (

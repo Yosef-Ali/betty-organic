@@ -1,5 +1,4 @@
-// components/marketing/Navbar.tsx
-import { getCurrentUser } from '@/lib/auth';
+import { getCurrentUser } from '@/app/actions/auth';
 import { NavbarUserSection } from './NavbarUserSection';
 
 interface NavItem {
@@ -13,11 +12,11 @@ const navItems: NavItem[] = [
   { href: '/contact', label: 'Contact' },
 ];
 
-interface NavbarProps {}
-
-export async function Navbar({}: NavbarProps) {
+export async function Navbar() {
   try {
-    const { user, profile } = await getCurrentUser();
+    const authData = await getCurrentUser();
+    const user = authData?.user || null;
+    const profile = authData?.profile || null;
 
     return (
       <header className="border-b bg-white/80 backdrop-blur-sm fixed top-0 left-0 right-0 z-50">

@@ -3,7 +3,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { cache } from 'react';
-import { AuthError, Profile } from '@/lib/types/auth';
+import { AuthError, Profile, AuthResponse } from '@/lib/types/auth';
 import { User } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 
@@ -229,18 +229,30 @@ export async function signInWithGoogle(returnTo?: string) {
 }
 
 // Sign out the current user
-export async function signOut() {
+export async function signOut(): Promise<AuthResponse<null>> {
   try {
     const supabase = await createClient();
 
-    // Sign out from Supabase - this will automatically handle cookie cleanup
-    await supabase.auth.signOut();
+    // Sign out from Supabase
+    const { error } = await supabase.auth.signOut();
 
-    // Redirect to login page
-    return redirect('/auth/login');
+    if (error) {
+      return { error: error.message, success: false, data: null };
+    }
+
+    return {
+      error: null,
+      success: true,
+      data: null,
+      redirectTo: '/auth/login'
+    };
   } catch (error) {
     console.error('Sign out error:', error);
-    return redirect('/auth/login');
+    return {
+      error: error instanceof Error ? error.message : 'Failed to sign out',
+      success: false,
+      data: null
+    };
   }
 }
 
@@ -285,6 +297,63 @@ export async function updatePassword(password: string) {
     success: true,
     message: 'Password updated successfully',
   };
+}
+
+// Create or update profile for Google authenticated users
+export async function createGoogleUserProfile(user: { id: string; email: string; user_metadata?: Record<string, any> }) {
+  const supabase = await createClient();
+
+  try {
+    // Check for existing profile first
+    let existingProfile: Profile | null = null;
+    const { data, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError && !data) {
+      existingProfile = null;
+    } else {
+      existingProfile = data as Profile;
+    }
+
+    // Ensure we have valid user metadata
+    const userMetadata = user.user_metadata || {};
+    const fullName = userMetadata.full_name || userMetadata.name || user.email?.split('@')[0] || 'Unknown User';
+
+    // Prepare profile data according to Profile interface
+    const profileData: Profile = {
+      id: user.id,
+      name: fullName,
+      email: user.email,
+      role: existingProfile?.role || 'customer',
+      status: 'active',
+      auth_provider: 'google',
+      avatar_url: userMetadata.avatar_url || userMetadata.picture || undefined,
+      updated_at: new Date().toISOString(),
+      created_at: existingProfile?.created_at || new Date().toISOString(),
+      phone: existingProfile?.phone,
+      address: existingProfile?.address
+    };
+
+    // Upsert the profile with all fields
+    const { error: upsertError } = await supabase
+      .from('profiles')
+      .upsert(profileData, {
+        onConflict: 'id'
+      });
+
+    if (upsertError) {
+      console.error('Profile upsert error:', upsertError);
+      throw upsertError;
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.error('Error in createGoogleUserProfile:', err);
+    return { error: err instanceof Error ? err.message : 'Failed to create user profile' };
+  }
 }
 
 // Email verification

@@ -21,13 +21,15 @@ export interface UpdatePasswordFormType {
 export interface Profile {
   id: string;
   email: string;
-  name: string;
+  name: string | null;
   role: 'admin' | 'sales' | 'customer';
-  status: 'active' | 'inactive';
-  auth_provider?: string;
-  avatar_url?: string;
-  created_at?: string;
-  updated_at?: string;
+  status: string | null;
+  auth_provider: string | null;
+  avatar_url?: string | null;
+  created_at: string | null;
+  updated_at: string;
+  phone?: string | null;
+  address?: string | null;
 }
 
 export interface AuthResponse<T = unknown> {

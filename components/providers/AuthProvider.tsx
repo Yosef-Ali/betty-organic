@@ -7,13 +7,15 @@ import { useRouter } from 'next/navigation';
 
 type Profile = {
   id: string;
-  role: string;
-  name: string;
+  role: 'admin' | 'sales' | 'customer';
+  name: string | null;
   email: string;
-  status: string;
-  auth_provider: string;
-  created_at: string;
+  status: string | null;
+  auth_provider: string | null;
+  created_at: string | null;
   updated_at: string;
+  avatar_url?: string | null;
+  address?: string | null;
 };
 
 type AuthContextType = {
@@ -21,6 +23,10 @@ type AuthContextType = {
   profile: Profile | null;
   isLoading: boolean;
   error: Error | null;
+  setUser: (user: User | null) => void;
+  setProfile: (profile: Profile | null) => void;
+  setIsLoading: (loading: boolean) => void;
+  setError: (error: Error | null) => void;
 };
 
 const AuthContext = createContext<AuthContextType>({
@@ -28,6 +34,10 @@ const AuthContext = createContext<AuthContextType>({
   profile: null,
   isLoading: true,
   error: null,
+  setUser: () => { },
+  setProfile: () => { },
+  setIsLoading: () => { },
+  setError: () => { },
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -103,7 +113,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   return (
-    <AuthContext.Provider value={{ user, profile, isLoading, error }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        profile,
+        isLoading,
+        error,
+        setUser,
+        setProfile,
+        setIsLoading,
+        setError
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

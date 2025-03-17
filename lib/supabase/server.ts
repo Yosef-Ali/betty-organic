@@ -20,19 +20,29 @@ export async function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     {
       cookies: {
-        getAll() {
-          return cookieStore.getAll().map(cookie => ({
-            name: cookie.name,
-            value: cookie.value,
-          }));
+        get(name: string) {
+          return cookieStore.get(name)?.value;
         },
-        setAll(cookies) {
+        set(name: string, value: string, options: any) {
           try {
-            cookies.forEach(cookie => {
-              cookieStore.set(cookie.name, cookie.value, cookie.options);
+            cookieStore.set(name, value, {
+              ...options,
+              sameSite: 'lax',
+              secure: process.env.NODE_ENV === 'production',
+              maxAge: 60 * 60 * 24 * 7 // 7 days
             });
           } catch (error) {
-            // Handle cookie setting errors in development
+            console.error('Error setting cookie:', error);
+          }
+        },
+        remove(name: string, options: any) {
+          try {
+            cookieStore.set(name, '', {
+              ...options,
+              maxAge: -1
+            });
+          } catch (error) {
+            console.error('Error removing cookie:', error);
           }
         }
       }

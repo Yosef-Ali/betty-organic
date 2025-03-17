@@ -38,10 +38,13 @@ export async function GET(request: Request) {
       );
     }
 
-    // Create or update user profile
+    // Get the auth provider from session
+    const authProvider = authData.session.user.app_metadata?.provider || 'email';
+
+    // Check for existing profile
     const { data: existingProfile } = await supabase
       .from('profiles')
-      .select('role, status')
+      .select('role, status, created_at')
       .eq('id', authData.session.user.id)
       .single();
 
@@ -49,16 +52,19 @@ export async function GET(request: Request) {
       id: authData.session.user.id,
       email: authData.session.user.email!,
       name: authData.session.user.user_metadata?.full_name || authData.session.user.email?.split('@')[0] || 'User',
-      role: existingProfile?.role || 'customer',
+      role: existingProfile?.role || 'customer', // Preserve existing role
       status: existingProfile?.status || 'active',
-      auth_provider: authData.session.user.app_metadata?.provider || 'email',
+      auth_provider: authProvider,
       updated_at: new Date().toISOString(),
-      created_at: existingProfile ? undefined : new Date().toISOString(),
+      created_at: existingProfile?.created_at || new Date().toISOString(),
     };
 
     const { error: profileError } = await supabase
       .from('profiles')
-      .upsert(profileData)
+      .upsert(profileData, {
+        onConflict: 'id',
+        ignoreDuplicates: false, // Ensure update happens
+      })
       .select()
       .single();
 
@@ -72,10 +78,26 @@ export async function GET(request: Request) {
     // Create response with redirect
     const response = NextResponse.redirect(new URL(next, requestUrl));
 
-    // Set session cookie
-    await supabase.auth.setSession({
+    // Set session with error handling
+    const { error: sessionError } = await supabase.auth.setSession({
       access_token: authData.session.access_token,
       refresh_token: authData.session.refresh_token,
+    });
+
+    if (sessionError) {
+      console.error('Session error:', sessionError);
+      return NextResponse.redirect(
+        new URL(`/auth/error?error=${encodeURIComponent('session_error')}`, requestUrl)
+      );
+    }
+
+    // Set auth cookie
+    response.cookies.set('sb-auth-token', authData.session.access_token, {
+      path: '/',
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 7, // 7 days
     });
 
     // Check for pending order in session storage

@@ -27,15 +27,12 @@ import {
 } from 'lucide-react';
 import Breadcrumb from './Breadcrumb';
 import { signOut } from '@/app/actions/auth';
+import { Profile } from '@/lib/types/auth';
+import { toast } from 'sonner';
 
 interface HeaderProps {
   onMobileMenuToggle: () => void;
-  profile?: {
-    role?: string;
-    name?: string;
-    email?: string;
-    avatar_url?: string;
-  };
+  profile?: Profile | null;
 }
 
 const allNavItems = [
@@ -98,18 +95,21 @@ export default function Header({ onMobileMenuToggle, profile }: HeaderProps) {
       setIsSigningOut(true);
       console.log('Starting sign out process...');
 
-      const result = await signOut();
-      console.log('Sign out result:', result);
+      const { success, error, redirectTo } = await signOut();
+      console.log('Sign out result:', { success, error, redirectTo });
 
-      if (result.error) {
-        console.error('Sign out failed:', result.error);
+      if (error) {
+        console.error('Sign out failed:', error);
+        toast.error('Failed to sign out. Please try again.');
         return;
       }
 
-      console.log('Sign out successful, redirecting...');
-      // Short delay to ensure cookies are cleared
-      await new Promise(resolve => setTimeout(resolve, 100));
-      window.location.replace('/auth/login');
+      // Use router for navigation if redirectTo is provided
+      if (redirectTo) {
+        router.push(redirectTo);
+      } else {
+        router.push('/auth/login');
+      }
     } catch (err) {
       console.error('Sign out error:', err);
     } finally {
