@@ -66,10 +66,11 @@ export default function OrderDetails({ orderId }: OrderDetailsProps) {
   // Process items with safe type checking and calculations
   const itemsWithTotal = order.items.map(item => ({
     ...item,
-    total: item.price * item.quantity,
+    total: Number(item.price) * Number(item.quantity),
   }));
 
-  const subtotal = itemsWithTotal.reduce((acc, item) => acc + item.total, 0);
+  // Calculate subtotal from items
+  const subtotal = itemsWithTotal.reduce((acc, item) => acc + Number(item.total), 0);
 
   return (
     <Card className="overflow-hidden">
@@ -140,7 +141,7 @@ export default function OrderDetails({ orderId }: OrderDetailsProps) {
               email: order.profile?.email || 'No Email',
               role: order.profile?.role || 'customer',
               status: 'active',
-              auth_provider: order.profile?.auth_provider || null,
+              auth_provider: 'email',
               created_at: order.profile?.created_at || new Date().toISOString(),
               updated_at: order.profile?.updated_at || new Date().toISOString(),
               avatar_url: order.profile?.avatar_url || undefined,
