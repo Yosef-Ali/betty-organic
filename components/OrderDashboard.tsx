@@ -128,29 +128,22 @@ const OrderDashboard: React.FC = () => {
         async (payload) => {
           console.log('Orders change received:', payload);
 
-          // Reload data when changes are detected
-          await loadData();
+          if (payload.eventType === 'DELETE') {
+            // Remove the deleted order from state immediately
+            setOrders(prevOrders => prevOrders.filter(order => order.id !== payload.old.id));
 
-          // Provide feedback to the user
-          if (payload.eventType === 'INSERT') {
-            toast({
-              title: 'New Order',
-              description: 'A new order has been created.',
-            });
-          } else if (payload.eventType === 'UPDATE') {
-            toast({
-              title: 'Order Updated',
-              description: `Order ${payload.new.id} has been updated.`,
-            });
-          } else if (payload.eventType === 'DELETE') {
-            toast({
-              title: 'Order Deleted',
-              description: 'An order has been deleted.',
-            });
-            // If the deleted order is the currently selected one, clear the selection
+            // If the deleted order was selected, clear selection
             if (selectedOrderId === payload.old.id) {
               setSelectedOrderId(null);
             }
+
+            toast({
+              title: 'Order Deleted',
+              description: 'The order has been removed from the system.',
+            });
+          } else {
+            // For other changes (INSERT, UPDATE), reload the full data
+            await loadData();
           }
         }
       )

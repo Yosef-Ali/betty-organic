@@ -194,15 +194,15 @@ export type Database = {
       }
       orders: {
         Row: {
-          created_at: string | null
-          customer_profile_id: string | null
           id: string
+          display_id: string | null
+          created_at: string | null
+          updated_at: string | null
+          customer_profile_id: string | null
           profile_id: string
           status: string
           total_amount: number
           type: string
-          updated_at: string | null
-          display_id: string | null
         }
         Insert: {
           created_at?: string | null

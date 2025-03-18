@@ -25,36 +25,25 @@ export async function getOrderDetails(orderId: string) {
   try {
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .select(
-        `
+      .select(`
         id,
         display_id,
         created_at,
         updated_at,
-        order_items!order_items_order_id_fkey (
+        status,
+        total_amount,
+        type,
+        profile_id,
+        customer_profile_id,
+        order_items (
           id,
-          product:products!inner (
-            id,
-            name
-          ),
+          order_id,
+          product_id,
+          quantity,
           price,
-          quantity
-        ),
-        customer:profiles!orders_customer_profile_id_fkey (
-          id,
-          name,
-          email,
-          role,
-          address
-        ),
-        seller:profiles!orders_profile_id_fkey (
-          id,
-          name,
-          email,
-          role
+          product_name
         )
-      `,
-      )
+      `)
       .eq('id', orderId)
       .single();
 
@@ -236,23 +225,30 @@ export async function createOrder(
 export async function deleteOrder(orderId: string) {
   const supabase = await createClient();
   try {
-    const itemsError = await supabase
+    // First delete all order items
+    const { error: itemsError } = await supabase
       .from('order_items')
       .delete()
       .eq('order_id', orderId);
 
-    if (itemsError.error) {
-      console.error('[DASHBOARD DEBUG] Error deleting order items:', itemsError.error);
-      throw itemsError.error;
+    if (itemsError) {
+      console.error('[DASHBOARD DEBUG] Error deleting order items:', itemsError);
+      throw itemsError;
     }
 
-    const orderError = await supabase.from('orders').delete().eq('id', orderId);
+    // Then delete the order
+    const { error: orderError } = await supabase
+      .from('orders')
+      .delete()
+      .eq('id', orderId);
 
-    if (orderError.error) {
-      console.error('[DASHBOARD DEBUG] Error deleting order:', orderError.error);
-      throw orderError.error;
+    if (orderError) {
+      console.error('[DASHBOARD DEBUG] Error deleting order:', orderError);
+      throw orderError;
     }
 
+    // Revalidate the orders page to trigger a refresh
+    revalidatePath('/dashboard/orders');
     return { success: true };
   } catch (error) {
     console.error('[DASHBOARD DEBUG] Error in deleteOrder:', error);
