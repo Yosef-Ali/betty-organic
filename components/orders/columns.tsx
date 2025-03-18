@@ -20,7 +20,7 @@ export const columns: ColumnDef<ExtendedOrder>[] = [
     accessorKey: 'id',
     header: 'Order ID',
     cell: ({ row }) => (
-      <div className="cursor-pointer hover:underline">
+      <div>
         {row.original.display_id || formatOrderId(row.original.id)}
       </div>
     ),
@@ -82,9 +82,11 @@ export const columns: ColumnDef<ExtendedOrder>[] = [
       const meta = table.options.meta as {
         onDelete: (id: string) => Promise<void>;
         onSelect: (id: string) => void;
+        handleActionClick?: (e: React.MouseEvent, id: string, action: string) => void;
       };
 
-      const handleStatusUpdate = async (status: string) => {
+      const handleStatusUpdate = async (e: React.MouseEvent, status: string) => {
+        e.stopPropagation(); // Prevent row click
         try {
           const result = await updateOrderStatus(row.original.id, status);
           if (result.success) {
@@ -97,35 +99,54 @@ export const columns: ColumnDef<ExtendedOrder>[] = [
         }
       };
 
+      const handleClick = (e: React.MouseEvent, action: string) => {
+        e.stopPropagation(); // Prevent the row click event
+
+        if (meta.handleActionClick) {
+          meta.handleActionClick(e, row.original.id, action);
+        } else {
+          // Fallback to old behavior if handleActionClick is not provided
+          if (action === 'view') {
+            meta.onSelect(row.original.id);
+          } else if (action === 'delete') {
+            meta.onDelete(row.original.id);
+          }
+        }
+      };
+
       return (
         <div className="text-right">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => e.stopPropagation()} // Prevent row click
+              >
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => meta.onSelect(row.original.id)}>
+              <DropdownMenuItem onClick={(e) => handleClick(e, 'view')}>
                 View
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuLabel>Update Status</DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => handleStatusUpdate('pending')}>
+              <DropdownMenuItem onClick={(e) => handleStatusUpdate(e, 'pending')}>
                 Pending
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleStatusUpdate('processing')}>
+              <DropdownMenuItem onClick={(e) => handleStatusUpdate(e, 'processing')}>
                 Processing
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleStatusUpdate('completed')}>
+              <DropdownMenuItem onClick={(e) => handleStatusUpdate(e, 'completed')}>
                 Completed
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleStatusUpdate('cancelled')}>
+              <DropdownMenuItem onClick={(e) => handleStatusUpdate(e, 'cancelled')}>
                 Cancelled
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => meta.onDelete(row.original.id)}>
+              <DropdownMenuItem onClick={(e) => handleClick(e, 'delete')}>
                 Delete
               </DropdownMenuItem>
             </DropdownMenuContent>

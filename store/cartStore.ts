@@ -9,6 +9,14 @@ export interface MarketingCartItem {
   grams: number
 }
 
+export interface CartItem {
+  id: string;
+  name: string;
+  price: number;
+  quantity: number;
+  image?: string;
+}
+
 interface MarketingCartStore {
   items: MarketingCartItem[]
   addItem: (item: MarketingCartItem) => void

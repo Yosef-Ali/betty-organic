@@ -49,28 +49,32 @@ const OrderDashboard: React.FC = () => {
           : [];
 
         const extendedOrders: ExtendedOrder[] = ordersData.map(order => {
-          const customer = order.customer_profile_id
-            ? customersData.find(c => c.id === order.customer_profile_id)
+          // Use type assertion to avoid TypeScript errors for properties that may not be recognized
+          const orderAny = order as any;
+
+          // Get customer info either from the customer property or from customersData
+          const customerFromProps = orderAny.customer_profile_id
+            ? customersData.find(c => c.id === orderAny.customer_profile_id)
             : null;
 
           return {
             id: order.id,
-            display_id: order.display_id,
+            display_id: orderAny.display_id || null,
             profile_id: order.profile_id,
-            customer_profile_id: order.customer_profile_id,
-            customerName: customer?.fullName || 'Unknown',
+            customer_profile_id: orderAny.customer_profile_id || null,
+            customerName: customerFromProps?.fullName || 'Unknown',
             status: order.status,
             type: order.type as OrderType,
-            total_amount: order.total_amount,
+            total_amount: order.total_amount || 0,
             created_at: order.created_at,
             updated_at: order.updated_at,
-            items: (order.order_items || []) as OrderItem[],
-            order_items: (order.order_items || []) as OrderItem[],
-            profiles: customer ? {
-              id: customer.id,
-              name: customer.fullName,
-              email: customer.email,
-              role: 'customer'
+            items: (orderAny.order_items || []) as OrderItem[],
+            order_items: (orderAny.order_items || []) as OrderItem[],
+            profiles: customerFromProps ? {
+              id: customerFromProps.id,
+              name: customerFromProps.fullName || null,
+              email: customerFromProps.email,
+              role: 'customer' // Default to customer role
             } : undefined
           };
         });

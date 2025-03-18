@@ -74,6 +74,22 @@ export function OrdersDataTable({
 }: OrdersDataTableProps) {
   const [globalFilter, setGlobalFilter] = useState('');
 
+  // Add handleRowClick function to show detail view
+  const handleRowClick = (orderId: string) => {
+    onSelectOrder(orderId);
+  };
+
+  // Add handleActionClick to prevent event propagation
+  const handleActionClick = (e: React.MouseEvent, id: string, action: string) => {
+    e.stopPropagation(); // Prevent row click event from firing
+
+    if (action === 'view') {
+      onSelectOrder(id);
+    } else if (action === 'delete') {
+      onDeleteOrder(id);
+    }
+  };
+
   const table = useReactTable({
     data: orders,
     columns,
@@ -94,6 +110,7 @@ export function OrdersDataTable({
     meta: {
       onDelete: onDeleteOrder,
       onSelect: onSelectOrder,
+      handleActionClick: handleActionClick,
     },
   });
 
@@ -167,7 +184,11 @@ export function OrdersDataTable({
               table.getRowModel().rows.map(row => (
                 <React.Fragment key={row.id + '-fragment'}>
                   {/* Mobile TableRow wrapper */}
-                  <TableRow key={row.id + '-mobile'} className="md:hidden">
+                  <TableRow
+                    key={row.id + '-mobile'}
+                    className="md:hidden"
+                    onClick={() => handleRowClick(row.original.id)}
+                  >
                     <TableCell
                       colSpan={columns.length}
                       className="p-2 md:p-0 w-screen md:w-auto"
@@ -244,7 +265,11 @@ export function OrdersDataTable({
                         <div className="flex justify-end">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="h-8 w-8 p-0">
+                              <Button
+                                variant="ghost"
+                                className="h-8 w-8 p-0"
+                                onClick={(e) => e.stopPropagation()} // Prevent row click
+                              >
                                 <span className="sr-only">Open menu</span>
                                 <MoreHorizontal className="h-4 w-4" />
                               </Button>
@@ -252,15 +277,23 @@ export function OrdersDataTable({
                             <DropdownMenuContent align="end">
                               <DropdownMenuLabel>Actions</DropdownMenuLabel>
                               <DropdownMenuItem
-                                onClick={() => onSelectOrder(row.original.id)}
+                                onClick={(e) => handleActionClick(e, row.original.id, 'view')}
                               >
                                 <Eye className="mr-2 h-4 w-4" />
                                 View details
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={(e) => handleActionClick(e, row.original.id, 'edit')}
+                              >
                                 <PenLine className="mr-2 h-4 w-4" />
                                 Edit status
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={(e) => handleActionClick(e, row.original.id, 'delete')}
+                              >
+                                <PenLine className="mr-2 h-4 w-4" />
+                                Delete order
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -271,7 +304,8 @@ export function OrdersDataTable({
                   {/* Desktop Table Row */}
                   <TableRow
                     key={row.id}
-                    className="hidden md:table-row border-b transition-colors hover:bg-muted/50"
+                    className="hidden md:table-row border-b transition-colors hover:bg-muted/50 cursor-pointer"
+                    onClick={() => handleRowClick(row.original.id)}
                   >
                     {row.getVisibleCells().map(cell => (
                       <TableCell

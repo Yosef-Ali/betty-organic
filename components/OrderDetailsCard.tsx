@@ -34,6 +34,7 @@ interface OrderWithProfile {
   profile: Profile;
   updatedAt?: string;
   createdAt: string;
+  total_amount?: number; // Added total_amount property
 }
 
 export default function OrderDetails({ orderId }: OrderDetailsProps) {
@@ -71,6 +72,9 @@ export default function OrderDetails({ orderId }: OrderDetailsProps) {
 
   // Calculate subtotal from items
   const subtotal = itemsWithTotal.reduce((acc, item) => acc + Number(item.total), 0);
+
+  // Use the original order total amount if available instead of recalculating
+  const totalAmount = (order as any).total_amount || subtotal;
 
   return (
     <Card className="overflow-hidden">
@@ -115,7 +119,7 @@ export default function OrderDetails({ orderId }: OrderDetailsProps) {
             </li>
             <li className="flex items-center justify-between font-semibold">
               <span className="text-muted-foreground">Total</span>
-              <span>Br {subtotal.toFixed(2)}</span>
+              <span>Br {totalAmount.toFixed(2)}</span>
             </li>
           </ul>
         </div>
