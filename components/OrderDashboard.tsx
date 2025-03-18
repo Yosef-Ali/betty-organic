@@ -13,6 +13,7 @@ import { getCustomers } from '../app/actions/profile';
 import { useToast } from '../hooks/use-toast';
 import OrderTable from './OrdersTable';
 import type { ExtendedOrder, OrderItem } from '@/types/order';
+import { createClient } from '@/lib/supabase/client';
 
 export const OrderType = {
   SALE: 'sale',
@@ -27,105 +28,162 @@ const OrderDashboard: React.FC = () => {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
+  const supabase = createClient();
 
-  useEffect(() => {
-    let mounted = true;
+  // Function to convert database orders to ExtendedOrder format
+  const processOrders = useCallback((ordersData: any[], customersData: any[]) => {
+    return ordersData.map(order => {
+      // Use type assertion to avoid TypeScript errors for properties that may not be recognized
+      const orderAny = order as any;
 
-    const loadData = async () => {
-      setIsLoading(true);
-      try {
-        const [ordersResponse, customersResponse] =
-          await Promise.all([getOrders(), getCustomers()]);
+      // Get customer info either from the customer property or from customersData
+      const customerFromProps = orderAny.customer_profile_id
+        ? customersData.find(c => c.id === orderAny.customer_profile_id)
+        : null;
 
-        if (!mounted) return;
+      return {
+        id: order.id,
+        display_id: orderAny.display_id || null,
+        profile_id: order.profile_id,
+        customer_profile_id: orderAny.customer_profile_id || null,
+        customerName: customerFromProps?.fullName || 'Unknown',
+        status: order.status,
+        type: order.type as OrderType,
+        total_amount: order.total_amount || 0,
+        created_at: order.created_at,
+        updated_at: order.updated_at,
+        items: (orderAny.order_items || []) as OrderItem[],
+        order_items: (orderAny.order_items || []) as OrderItem[],
+        profiles: customerFromProps ? {
+          id: customerFromProps.id,
+          name: customerFromProps.fullName || null,
+          email: customerFromProps.email,
+          role: 'customer' // Default to customer role
+        } : undefined
+      };
+    });
+  }, []);
 
-        if (!ordersResponse || !customersResponse) {
-          throw new Error('Failed to fetch required data');
-        }
+  // Function to load initial data
+  const loadData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const [ordersResponse, customersResponse] =
+        await Promise.all([getOrders(), getCustomers()]);
 
-        const ordersData = Array.isArray(ordersResponse) ? ordersResponse : [];
-        const customersData = Array.isArray(customersResponse)
-          ? customersResponse
-          : [];
-
-        const extendedOrders: ExtendedOrder[] = ordersData.map(order => {
-          // Use type assertion to avoid TypeScript errors for properties that may not be recognized
-          const orderAny = order as any;
-
-          // Get customer info either from the customer property or from customersData
-          const customerFromProps = orderAny.customer_profile_id
-            ? customersData.find(c => c.id === orderAny.customer_profile_id)
-            : null;
-
-          return {
-            id: order.id,
-            display_id: orderAny.display_id || null,
-            profile_id: order.profile_id,
-            customer_profile_id: orderAny.customer_profile_id || null,
-            customerName: customerFromProps?.fullName || 'Unknown',
-            status: order.status,
-            type: order.type as OrderType,
-            total_amount: order.total_amount || 0,
-            created_at: order.created_at,
-            updated_at: order.updated_at,
-            items: (orderAny.order_items || []) as OrderItem[],
-            order_items: (orderAny.order_items || []) as OrderItem[],
-            profiles: customerFromProps ? {
-              id: customerFromProps.id,
-              name: customerFromProps.fullName || null,
-              email: customerFromProps.email,
-              role: 'customer' // Default to customer role
-            } : undefined
-          };
-        });
-
-        const sortedOrders = extendedOrders.sort(
-          (a, b) =>
-            new Date(b.created_at ?? 0).getTime() -
-            new Date(a.created_at ?? 0).getTime(),
-        );
-
-        if (mounted) {
-          setOrders(sortedOrders);
-
-          if (sortedOrders.length > 0 && !selectedOrderId) {
-            setSelectedOrderId(sortedOrders[0].id);
-          }
-        }
-      } catch (error) {
-        if (!mounted) return;
-
-        console.error('Error fetching data:', error);
-        const errorMessage =
-          error instanceof Error ? error.message : 'Failed to fetch data';
-        toast({
-          title: 'Error',
-          description: `${errorMessage}. Please try again.`,
-          variant: 'destructive',
-        });
-        setOrders([]);
-        if (selectedOrderId) {
-          setSelectedOrderId(null);
-        }
-      } finally {
-        if (mounted) {
-          setIsLoading(false);
-        }
+      if (!ordersResponse || !customersResponse) {
+        throw new Error('Failed to fetch required data');
       }
-    };
 
+      const ordersData = Array.isArray(ordersResponse) ? ordersResponse : [];
+      const customersData = Array.isArray(customersResponse)
+        ? customersResponse
+        : [];
+
+      const extendedOrders = processOrders(ordersData, customersData);
+
+      const sortedOrders = extendedOrders.sort(
+        (a, b) =>
+          new Date(b.created_at ?? 0).getTime() -
+          new Date(a.created_at ?? 0).getTime(),
+      );
+
+      setOrders(sortedOrders);
+
+      if (sortedOrders.length > 0 && !selectedOrderId) {
+        setSelectedOrderId(sortedOrders[0].id);
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to fetch data';
+      toast({
+        title: 'Error',
+        description: `${errorMessage}. Please try again.`,
+        variant: 'destructive',
+      });
+      setOrders([]);
+      if (selectedOrderId) {
+        setSelectedOrderId(null);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, [processOrders, toast, selectedOrderId]);
+
+  // Setup Supabase real-time subscriptions
+  useEffect(() => {
     loadData();
 
+    // Subscribe to changes on the orders table
+    const ordersSubscription = supabase
+      .channel('table-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen to all changes (insert, update, delete)
+          schema: 'public',
+          table: 'orders',
+        },
+        async (payload) => {
+          console.log('Orders change received:', payload);
+
+          // Reload data when changes are detected
+          await loadData();
+
+          // Provide feedback to the user
+          if (payload.eventType === 'INSERT') {
+            toast({
+              title: 'New Order',
+              description: 'A new order has been created.',
+            });
+          } else if (payload.eventType === 'UPDATE') {
+            toast({
+              title: 'Order Updated',
+              description: `Order ${payload.new.id} has been updated.`,
+            });
+          } else if (payload.eventType === 'DELETE') {
+            toast({
+              title: 'Order Deleted',
+              description: 'An order has been deleted.',
+            });
+            // If the deleted order is the currently selected one, clear the selection
+            if (selectedOrderId === payload.old.id) {
+              setSelectedOrderId(null);
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    // Subscribe to changes on the order_items table as well
+    const orderItemsSubscription = supabase
+      .channel('order-items-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'order_items',
+        },
+        async () => {
+          // Reload data when order items change
+          await loadData();
+        }
+      )
+      .subscribe();
+
+    // Cleanup function to remove subscriptions
     return () => {
-      mounted = false;
+      supabase.removeChannel(ordersSubscription);
+      supabase.removeChannel(orderItemsSubscription);
     };
-  }, [toast, selectedOrderId]);
+  }, [loadData, supabase, toast, selectedOrderId]);
 
   const handleDelete = async (id: string) => {
     try {
       const result = await deleteOrder(id);
       if (result.success) {
-        setOrders(prevOrders => prevOrders.filter(order => order.id !== id));
         toast({
           title: 'Order deleted',
           description: 'The order has been successfully deleted.',
