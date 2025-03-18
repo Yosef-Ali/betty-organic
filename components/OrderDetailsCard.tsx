@@ -140,6 +140,7 @@ export default function OrderDetails({ orderId }: OrderDetailsProps) {
               email: order.profile?.email || 'No Email',
               role: order.profile?.role || 'customer',
               status: 'active',
+              auth_provider: order.profile?.auth_provider || null,
               created_at: order.profile?.created_at || new Date().toISOString(),
               updated_at: order.profile?.updated_at || new Date().toISOString(),
               avatar_url: order.profile?.avatar_url || undefined,
