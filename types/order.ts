@@ -1,62 +1,42 @@
-import { Customer } from '@/types/customer';
-
-export interface OrderItem {
-  id?: string;
-  order_id?: string;
-  price: number;
+export type OrderItem = {
+  id: string;
   product_id: string;
   product_name: string;
   quantity: number;
+  price: number;
   product?: {
-    id: string;
     name: string;
-    imageUrl: string;
-  } | null;
-}
+  };
+};
 
-export interface Order {
+export type Order = {
   id: string;
-  display_id?: string | null; // Make display_id optional and allow null
-  profile_id: string;
-  customer_profile_id: string;
-  total_amount: number;
+  display_id?: string;
   status: string;
   type: string;
-  created_at?: string | null;
-  updated_at?: string | null;
-  profiles?: {
-    id: string;
-    name: string | null;
-    email: string;
-    role: string;
-  };
-  order_items: OrderItem[];
-  order_number?: string;
-}
-
-export interface OrderWithProducts extends Order {
-  order_items: OrderItem[];
-}
-
-export interface ExtendedOrder extends Order {
-  id: string;
-  display_id?: string | null;
-  customerName: string;
-  items: OrderItem[];
-  status: string;
+  created_at: string;
+  updated_at?: string;
   total_amount: number;
-  created_at?: string | null;
-  profiles?: {
+  customer: {
     id: string;
     name: string | null;
     email: string;
     role: string;
   };
+  items: OrderItem[];
+};
+
+// Type guard for Order
+export function isOrder(order: any): order is Order {
+  return !!order &&
+    typeof order.id === 'string' &&
+    typeof order.status === 'string' &&
+    typeof order.total_amount === 'number';
 }
 
-export interface Product {
-  id: string;
-  name: string;
-  imageUrl: string;
-  price: number;
-}
+// Response type for API calls
+export type OrderResponse = {
+  success: boolean;
+  order?: Order;
+  error?: string;
+};

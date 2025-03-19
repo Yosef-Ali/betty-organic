@@ -12,7 +12,7 @@ import { getOrders, deleteOrder } from '../app/actions/orderActions';
 import { getCustomers } from '../app/actions/profile';
 import { useToast } from '../hooks/use-toast';
 import OrderTable from './OrdersTable';
-import type { ExtendedOrder, OrderItem } from '@/types/order';
+import type { Order, OrderItem } from '@/types/order';
 import { createClient } from '@/lib/supabase/client';
 
 export const OrderType = {
@@ -24,7 +24,7 @@ export const OrderType = {
 export type OrderType = (typeof OrderType)[keyof typeof OrderType];
 
 const OrderDashboard: React.FC = () => {
-  const [orders, setOrders] = useState<ExtendedOrder[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
@@ -43,23 +43,31 @@ const OrderDashboard: React.FC = () => {
 
       return {
         id: order.id,
-        display_id: orderAny.display_id || null,
-        profile_id: order.profile_id,
-        customer_profile_id: orderAny.customer_profile_id || null,
-        customerName: customerFromProps?.fullName || 'Unknown',
+        display_id: orderAny.display_id || undefined,
         status: order.status,
         type: order.type as OrderType,
         total_amount: order.total_amount || 0,
         created_at: order.created_at,
-        updated_at: order.updated_at,
-        items: (orderAny.order_items || []) as OrderItem[],
-        order_items: (orderAny.order_items || []) as OrderItem[],
-        profiles: customerFromProps ? {
+        updated_at: order.updated_at || undefined,
+        customer: customerFromProps ? {
           id: customerFromProps.id,
           name: customerFromProps.fullName || null,
           email: customerFromProps.email,
-          role: 'customer' // Default to customer role
-        } : undefined
+          role: 'customer'
+        } : {
+          id: 'unknown',
+          name: 'Unknown Customer',
+          email: 'N/A',
+          role: 'customer'
+        },
+        items: (orderAny.order_items || []).map((item: any) => ({
+          id: item.id,
+          product_id: item.product_id,
+          product_name: item.product_name,
+          quantity: item.quantity,
+          price: item.price,
+          product: item.product ? { name: item.product.name } : undefined
+        }))
       };
     });
   }, []);

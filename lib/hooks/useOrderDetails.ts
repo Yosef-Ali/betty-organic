@@ -46,6 +46,10 @@ export function useOrderDetails(orderId: string) {
           throw error;
         }
 
+        if (!data) {
+          throw new Error('Order not found');
+        }
+
         // Create default profile if data.profile is missing
         const defaultProfile: Profile = {
           id: 'temp-id',
@@ -58,38 +62,30 @@ export function useOrderDetails(orderId: string) {
           avatar_url: null,
         };
 
+        // Check if data is a SelectQueryError
+        if ('code' in data && 'message' in data) {
+          console.error('Query error in fetchOrderDetails:', data.message);
+          throw new Error(`Database error: ${data.message}`);
+        }
+
         // Transform the data to match our interface
         const transformedOrder: OrderDetails = {
           id: data.id,
           display_id: data.display_id,
           createdAt: data.created_at,
           updatedAt: data.updated_at,
-          profile: data.profile
-            ? {
-              id: data.profile.id || defaultProfile.id,
-              name:
-                data.profile.name ||
-                data.profile.full_name ||
-                defaultProfile.name,
-              email: data.profile.email || defaultProfile.email,
-              role: data.profile.role || defaultProfile.role,
-              status: 'active',
-              created_at:
-                data.profile.created_at || defaultProfile.created_at,
-              updated_at:
-                data.profile.updated_at || defaultProfile.updated_at,
-              avatar_url:
-                data.profile.avatar_url || defaultProfile.avatar_url,
-            }
-            : defaultProfile,
-          items: data.order_items.map(item => ({
+          // Safely access profile or customer properties only if data is not an error object
+          profile: isSelectQueryError(data)
+            ? defaultProfile
+            : (data.profile || data.customer || defaultProfile),
+          items: Array.isArray(data.order_items) ? data.order_items.map(item => ({
             id: item.id,
             product: {
-              name: item.product.name,
+              name: item.product?.name || item.product_name || 'Unknown Product',
             },
             price: item.price,
             quantity: item.quantity,
-          })),
+          })) : [],
         };
 
         setOrder(transformedOrder);
@@ -102,6 +98,11 @@ export function useOrderDetails(orderId: string) {
           isAuth: isAuthError,
         });
       }
+    }
+
+    // Helper function to check if an object is a SelectQueryError
+    function isSelectQueryError(obj: any): boolean {
+      return obj && typeof obj === 'object' && 'code' in obj && 'message' in obj;
     }
 
     fetchOrderDetails();

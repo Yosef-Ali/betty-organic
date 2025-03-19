@@ -76,6 +76,15 @@ export default function OrderDetails({ orderId }: OrderDetailsProps) {
   // Use the original order total amount if available instead of recalculating
   const totalAmount = (order as any).total_amount || subtotal;
 
+  // Safely access profile information with fallbacks
+  const profileName = order.profile?.name || 'Unknown Customer';
+  const profileEmail = order.profile?.email || 'No Email';
+  const profileId = order.profile?.id || 'temp-id';
+  const profileRole = order.profile?.role || 'customer';
+  const profileCreatedAt = order.profile?.created_at || new Date().toISOString();
+  const profileUpdatedAt = order.profile?.updated_at || new Date().toISOString();
+  const profileAvatarUrl = order.profile?.avatar_url || undefined;
+
   return (
     <Card className="overflow-hidden">
       <OrderHeader
@@ -127,9 +136,9 @@ export default function OrderDetails({ orderId }: OrderDetailsProps) {
         <Separator className="my-4" />
         <>
           <ShippingBillingInfo
-            profileName={order.profile?.name || 'Unknown Customer'}
+            profileName={profileName}
             shippingAddress={{
-              name: order.profile?.name || 'Unknown Customer',
+              name: profileName,
               street: 'N/A',
               city: 'N/A',
               state: 'N/A',
@@ -140,15 +149,15 @@ export default function OrderDetails({ orderId }: OrderDetailsProps) {
           <Separator className="my-4" />
           <ProfileDetails
             profile={{
-              id: order.profile?.id || 'temp-id',
-              name: order.profile?.name || 'Unknown Customer',
-              email: order.profile?.email || 'No Email',
-              role: order.profile?.role || 'customer',
+              id: profileId,
+              name: profileName,
+              email: profileEmail,
+              role: profileRole,
               status: 'active',
               auth_provider: 'email',
-              created_at: order.profile?.created_at || new Date().toISOString(),
-              updated_at: order.profile?.updated_at || new Date().toISOString(),
-              avatar_url: order.profile?.avatar_url || undefined,
+              created_at: profileCreatedAt,
+              updated_at: profileUpdatedAt,
+              avatar_url: profileAvatarUrl,
             }}
           />
         </>

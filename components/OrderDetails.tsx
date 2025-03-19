@@ -1,15 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import {
   Card,
   CardContent,
@@ -18,174 +10,49 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from './ui/dropdown-menu';
-import { File, PlusCircle, MoreHorizontal } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
 import { formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
-import { getOrders, deleteOrder } from '@/app/actions/orderActions';
+import { Trash2 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import type { Order } from '@/types/order';
+import { deleteOrder } from '@/app/actions/orderActions';
 
-type ExtendedOrder = {
-  id: string;
-  customer: {
-    id: string;
-    name: string | null;
-    email: string;
-    role: string;
-  } | null;
-  type: string;
-  status: string;
-  created_at: string | null;
-  total_amount: number;
-  order_items: Array<{
-    id: string;
-    order_id: string;
-    product_id: string;
-    product_name: string;
-    quantity: number;
-    price: number;
-  }>;
-  display_id?: string;
+export type OrderDetailsProps = {
+  orderId: string;
 };
 
-const OrderDetailsContent: React.FC<{
-  orders: ExtendedOrder[];
-  isLoading: boolean;
-  onDelete: (id: string) => Promise<void>;
-}> = ({ orders, isLoading, onDelete }) => {
-  const router = useRouter();
-
-  if (isLoading) {
-    return (
-      <TableRow>
-        <TableCell colSpan={7} className="h-24 text-center">
-          Loading...
-        </TableCell>
-      </TableRow>
-    );
-  }
-
-  if (orders.length === 0) {
-    return (
-      <TableRow>
-        <TableCell colSpan={7} className="h-24 text-center">
-          No orders found.
-        </TableCell>
-      </TableRow>
-    );
-  }
-
-  return (
-    <>
-      {orders.map((order: ExtendedOrder) => (
-        <TableRow key={order.id}>
-          <TableCell className="font-medium">
-            {order.customer?.name || 'N/A'}
-          </TableCell>
-          <TableCell>{order.display_id || order.id}</TableCell>
-          <TableCell>{order.status}</TableCell>
-          <TableCell>{order.type}</TableCell>
-          <TableCell>
-            {order.created_at
-              ? formatDistanceToNow(new Date(order.created_at), { addSuffix: true })
-              : 'N/A'}
-          </TableCell>
-          <TableCell>Br {order.total_amount.toFixed(2)}</TableCell>
-          <TableCell>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button aria-haspopup="true" size="icon" variant="ghost">
-                  <MoreHorizontal className="h-4 w-4" />
-                  <span className="sr-only">Toggle menu</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                <DropdownMenuItem
-                  onSelect={() => router.push(`/dashboard/orders/${order.id}/edit`)}
-                >
-                  Edit
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onSelect={() => router.push(`/dashboard/orders/${order.id}`)}
-                >
-                  View Details
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => onDelete(order.id)}>
-                  Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </TableCell>
-        </TableRow>
-      ))}
-    </>
-  );
-};
-
-export function OrderDetails() {
-  const [orders, setOrders] = useState<ExtendedOrder[]>([]);
-  const [filteredOrders, setFilteredOrders] = useState<ExtendedOrder[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
+export function OrderDetails({ orderId }: OrderDetailsProps) {
   const router = useRouter();
   const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [order, setOrder] = useState<Order | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const fetchOrders = useCallback(async () => {
+  // Fetch order data implementation here...
+
+  const handleDelete = async () => {
     setIsLoading(true);
     try {
-      const response = await getOrders();
-      if (!response) {
-        throw new Error('Failed to fetch orders');
+      const result = await deleteOrder(orderId);
+      if (result.success) {
+        toast({
+          title: 'Order deleted',
+          description: 'The order has been successfully deleted.',
+        });
+        router.push('/dashboard/orders');
       }
-      setOrders(response);
-      setFilteredOrders(response);
-    } catch (error) {
-      console.error('Error fetching orders:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to fetch orders. Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [toast]);
-
-  useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
-
-  useEffect(() => {
-    const filtered = orders.filter(
-      order =>
-        (order.customer?.name?.toLowerCase() ?? '').includes(
-          searchTerm.toLowerCase(),
-        ) || order.id.toLowerCase().includes(searchTerm.toLowerCase()),
-    );
-    setFilteredOrders(filtered);
-  }, [searchTerm, orders]);
-
-  const handleDelete = async (id: string) => {
-    try {
-      const result = await deleteOrder(id);
-      if (!result.success) {
-        throw new Error(result.error?.toString() || 'Failed to delete order');
-      }
-      setOrders(prevOrders => prevOrders.filter(order => order.id !== id));
-      toast({
-        title: 'Order deleted',
-        description: 'The order has been successfully deleted.',
-      });
     } catch (error) {
       console.error('Error deleting order:', error);
       toast({
@@ -193,99 +60,131 @@ export function OrderDetails() {
         description: 'Failed to delete the order. Please try again.',
         variant: 'destructive',
       });
+    } finally {
+      setIsLoading(false);
+      setIsDeleteDialogOpen(false);
     }
   };
 
-  const renderTable = (orders: ExtendedOrder[]) => (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Customer</TableHead>
-          <TableHead>Order ID</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Type</TableHead>
-          <TableHead>Date</TableHead>
-          <TableHead>Amount</TableHead>
-          <TableHead>
-            <span className="sr-only">Actions</span>
-          </TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        <OrderDetailsContent
-          orders={orders}
-          isLoading={isLoading}
-          onDelete={handleDelete}
-        />
-      </TableBody>
-    </Table>
-  );
+  if (!orderId) {
+    return (
+      <div className="p-6 text-center text-muted-foreground">
+        Select an order to view details
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card className="mx-auto max-w-2xl">
+        <CardHeader className="text-center">
+          <CardTitle className="text-destructive">Error</CardTitle>
+          <CardDescription>{error}</CardDescription>
+        </CardHeader>
+        <CardFooter className="justify-center">
+          <Button onClick={() => router.push('/auth/signin')}>
+            Return to Sign In
+          </Button>
+        </CardFooter>
+      </Card>
+    );
+  }
+
+  if (!order || isLoading) {
+    return (
+      <div className="p-6 text-center text-muted-foreground">
+        Loading order details...
+      </div>
+    );
+  }
 
   return (
-    <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">
-      <Tabs defaultValue="all">
-        <div className="flex items-center">
-          <TabsList>
-            <TabsTrigger value="all">All Orders</TabsTrigger>
-            <TabsTrigger value="no-orders">No Orders</TabsTrigger>
-          </TabsList>
-          <div className="ml-auto flex items-center gap-2">
-            <Input
-              type="search"
-              placeholder="Search orders..."
-              className="h-8 w-[150px] lg:w-[250px]"
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-            />
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild></DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuSeparator />
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <Button size="sm" variant="outline" className="h-8 gap-1">
-              <File className="h-3.5 w-3.5" />
-              <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                Export
-              </span>
-            </Button>
-            <Button
-              size="sm"
-              className="h-8 gap-1"
-              onClick={() => router.push('/dashboard/orders/new')}
-            >
-              <PlusCircle className="h-3.5 w-3.5" />
-              <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                Add Order
-              </span>
-            </Button>
+    <Card className="overflow-hidden">
+      <CardHeader className="border-b bg-muted/50 px-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>Order #{order.id}</CardTitle>
+            <CardDescription>
+              Created {formatDistanceToNow(new Date(order.created_at))} ago
+            </CardDescription>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsDeleteDialogOpen(true)}
+          >
+            <Trash2 className="h-5 w-5" />
+          </Button>
+        </div>
+      </CardHeader>
+
+      <CardContent className="p-6 text-sm">
+        <div className="space-y-4">
+          {order.items.map(item => (
+            <div key={item.id} className="flex justify-between">
+              <div>
+                <p className="font-medium">{item.product?.name || item.product_name}</p>
+                <p className="text-muted-foreground">
+                  {item.quantity} × Br {item.price}
+                </p>
+              </div>
+              <p>Br {(item.price * item.quantity).toFixed(2)}</p>
+            </div>
+          ))}
+        </div>
+
+        <Separator className="my-4" />
+
+        <div className="space-y-2">
+          <h3 className="font-medium">Customer Details</h3>
+          <p>{order.customer.name || 'Unknown Customer'}</p>
+          <p>{order.customer.email}</p>
+        </div>
+
+        <Separator className="my-4" />
+
+        <div className="space-y-2">
+          <div className="flex justify-between">
+            <p>Subtotal</p>
+            <p>Br {order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0).toFixed(2)}</p>
+          </div>
+          <div className="flex justify-between font-medium">
+            <p>Total</p>
+            <p>Br {order.total_amount.toFixed(2)}</p>
           </div>
         </div>
-        <TabsContent value="all">
-          <Card>
-            <CardHeader>
-              <CardTitle>Orders</CardTitle>
-              <CardDescription>
-                Manage your orders and view their details.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>{renderTable(filteredOrders)}</CardContent>
-            <CardFooter>
-              <div className="text-xs text-muted-foreground">
-                Showing of orders
-              </div>
-            </CardFooter>
-          </Card>
-        </TabsContent>
-        <TabsContent value="no-orders">
-          <Card>
-            <CardHeader>
-              <CardTitle>Orders with No Details</CardTitle>
-            </CardHeader>
-            <CardContent></CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-    </main>
+      </CardContent>
+
+      <CardFooter className="flex items-center justify-between border-t bg-muted/50 px-6 py-3">
+        <p className="text-xs text-muted-foreground">
+          Status: <span className="font-medium">{order.status}</span>
+        </p>
+        {order.updated_at && (
+          <p className="text-xs text-muted-foreground">
+            Last updated: {formatDistanceToNow(new Date(order.updated_at))} ago
+          </p>
+        )}
+      </CardFooter>
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the order and its associated data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete Order
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </Card>
   );
 }
