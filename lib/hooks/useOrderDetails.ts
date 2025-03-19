@@ -21,6 +21,44 @@ interface OrderDetails {
   }>;
 }
 
+// Define type for SelectQueryError
+interface SelectQueryError {
+  code: string;
+  message: string;
+}
+
+// Define OrderData interface to type the response from API
+interface OrderData {
+  id: string;
+  display_id?: string;
+  created_at: string;
+  updated_at?: string;
+  profile?: Profile;
+  customer?: Profile;
+  order_items?: Array<{
+    id: string;
+    product?: { name: string };
+    product_name?: string;
+    price: number;
+    quantity: number;
+  }>;
+}
+
+// Helper function to check if an object is a SelectQueryError
+function isSelectQueryError(obj: any): obj is SelectQueryError {
+  return obj && typeof obj === 'object' && 'code' in obj && 'message' in obj;
+}
+
+// Helper function to check if object is an error with message
+function hasErrorMessage(obj: any): obj is { message: string } {
+  return obj && typeof obj === 'object' && 'message' in obj && typeof obj.message === 'string';
+}
+
+// Helper function to check if object is OrderData
+function isOrderData(obj: any): obj is OrderData {
+  return obj && typeof obj === 'object' && 'id' in obj;
+}
+
 export function useOrderDetails(orderId: string) {
   const [order, setOrder] = useState<OrderDetails | null>(null);
   const [error, setError] = useState<{
@@ -36,10 +74,10 @@ export function useOrderDetails(orderId: string) {
         const { data, error } = await getOrderDetails(orderId);
 
         if (error) {
-          if (error.message?.includes('permission denied')) {
+          if (hasErrorMessage(error) && error.message.includes('permission denied')) {
             throw new Error('You do not have permission to view this order');
           }
-          if (error.message?.includes('JWT expired')) {
+          if (hasErrorMessage(error) && error.message.includes('JWT expired')) {
             router.push('/auth/signin');
             return;
           }
@@ -60,49 +98,56 @@ export function useOrderDetails(orderId: string) {
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
           avatar_url: null,
+          auth_provider: 'none',
         };
 
-        // Check if data is a SelectQueryError
-        if ('code' in data && 'message' in data) {
+        // Check if data is a SelectQueryError and throw early
+        if (isSelectQueryError(data)) {
           console.error('Query error in fetchOrderDetails:', data.message);
           throw new Error(`Database error: ${data.message}`);
         }
 
+        // Check if data is valid OrderData
+        if (!isOrderData(data)) {
+          throw new Error('Invalid order data structure received');
+        }
+
+        // At this point, TypeScript knows data is OrderData
+        const orderData = data;
+
         // Transform the data to match our interface
         const transformedOrder: OrderDetails = {
-          id: data.id,
-          display_id: data.display_id,
-          createdAt: data.created_at,
-          updatedAt: data.updated_at,
-          // Safely access profile or customer properties only if data is not an error object
-          profile: isSelectQueryError(data)
-            ? defaultProfile
-            : (data.profile || data.customer || defaultProfile),
-          items: Array.isArray(data.order_items) ? data.order_items.map(item => ({
-            id: item.id,
-            product: {
-              name: item.product?.name || item.product_name || 'Unknown Product',
-            },
-            price: item.price,
-            quantity: item.quantity,
-          })) : [],
+          id: orderData.id,
+          display_id: orderData.display_id,
+          createdAt: orderData.created_at,
+          updatedAt: orderData.updated_at,
+          // Safely access profile or customer properties
+          profile: orderData.profile || orderData.customer || defaultProfile,
+          items: Array.isArray(orderData.order_items)
+            ? orderData.order_items.map(item => ({
+              id: item.id,
+              product: {
+                name: item.product?.name || item.product_name || 'Unknown Product',
+              },
+              price: item.price,
+              quantity: item.quantity,
+            }))
+            : [],
         };
 
         setOrder(transformedOrder);
-      } catch (error: any) {
-        const isAuthError =
-          error.message?.includes('JWT expired') ||
-          error.message?.includes('Authentication required');
+      } catch (err: any) {
+        const errorMessage = hasErrorMessage(err) ? err.message : 'Failed to load order details';
+        const isAuthError = hasErrorMessage(err) && (
+          err.message.includes('JWT expired') ||
+          err.message.includes('Authentication required')
+        );
+
         setError({
-          message: error.message || 'Failed to load order details',
+          message: errorMessage,
           isAuth: isAuthError,
         });
       }
-    }
-
-    // Helper function to check if an object is a SelectQueryError
-    function isSelectQueryError(obj: any): boolean {
-      return obj && typeof obj === 'object' && 'code' in obj && 'message' in obj;
     }
 
     fetchOrderDetails();
@@ -117,8 +162,8 @@ export function useOrderDetails(orderId: string) {
       } else {
         console.error('Error deleting order:', result.error);
       }
-    } catch (error) {
-      console.error('Error deleting order:', error);
+    } catch (err) {
+      console.error('Error deleting order:', err);
     }
   };
 

@@ -1,5 +1,5 @@
 export type OrderItem = {
-  id: string;
+  id?: string;
   product_id: string;
   product_name: string;
   quantity: number;
@@ -7,23 +7,26 @@ export type OrderItem = {
   product?: {
     name: string;
   };
+  order_id?: string;
 };
 
 export type Order = {
   id: string;
-  display_id?: string;
+  profile_id: string;
+  customer_profile_id: string;
+  total_amount: number;
   status: string;
   type: string;
-  created_at: string;
-  updated_at?: string;
-  total_amount: number;
-  customer: {
+  display_id?: string;
+  created_at: string | null;
+  updated_at?: string | null;
+  order_items: OrderItem[];
+  customer?: {
     id: string;
     name: string | null;
     email: string;
     role: string;
   };
-  items: OrderItem[];
 };
 
 // Type guard for Order
@@ -38,5 +41,5 @@ export function isOrder(order: any): order is Order {
 export type OrderResponse = {
   success: boolean;
   order?: Order;
-  error?: string;
+  error?: Error | string;
 };

@@ -49,6 +49,11 @@ const OrderDashboard: React.FC = () => {
         total_amount: order.total_amount || 0,
         created_at: order.created_at,
         updated_at: order.updated_at || undefined,
+        // Add missing required properties from Order type
+        profile_id: orderAny.profile_id || null,
+        customer_profile_id: orderAny.customer_profile_id || null,
+        order_items: orderAny.order_items || [],
+        // Keep these for existing code compatibility
         customer: customerFromProps ? {
           id: customerFromProps.id,
           name: customerFromProps.fullName || null,
