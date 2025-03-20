@@ -101,9 +101,9 @@ export default function OrderDetails({ orderId }: OrderDetailsProps) {
               <li key={item.id} className="flex items-center justify-between">
                 <span className="text-muted-foreground">
                   {item.product?.name || 'Unknown Product'} x{' '}
-                  <span>{item.price} kg</span>
+                  <span>{item.price} /kg</span>
                 </span>
-                <span>Br {item.total}</span>
+                <span>Br {item.total.toFixed(3)}</span>
               </li>
             ))}
           </ul>
