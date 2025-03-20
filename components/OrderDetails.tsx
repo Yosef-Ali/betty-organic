@@ -105,7 +105,7 @@ export function OrderDetails({ orderId }: OrderDetailsProps) {
           <div>
             <CardTitle>Order #{order.id}</CardTitle>
             <CardDescription>
-              Created {formatDistanceToNow(new Date(order.created_at))} ago
+              Created {formatDistanceToNow(new Date(order.created_at ?? Date.now()))} ago
             </CardDescription>
           </div>
           <Button
@@ -120,7 +120,7 @@ export function OrderDetails({ orderId }: OrderDetailsProps) {
 
       <CardContent className="p-6 text-sm">
         <div className="space-y-4">
-          {order.items.map(item => (
+          {order.items?.length ? order.items.map(item => (
             <div key={item.id} className="flex justify-between">
               <div>
                 <p className="font-medium">{item.product?.name || item.product_name}</p>
@@ -130,36 +130,36 @@ export function OrderDetails({ orderId }: OrderDetailsProps) {
               </div>
               <p>Br {(item.price * item.quantity).toFixed(2)}</p>
             </div>
-          ))}
+          )) : (
+            <p>No items in this order</p>
+          )}
         </div>
 
         <Separator className="my-4" />
 
         <div className="space-y-2">
           <h3 className="font-medium">Customer Details</h3>
-          <p>{order.customer.name || 'Unknown Customer'}</p>
-          <p>{order.customer.email}</p>
+          <p>{order.customer?.name || 'Unknown Customer'}</p>
+          <p>{order.customer?.email || 'No email provided'}</p>
         </div>
-
-        <Separator className="my-4" />
 
         <div className="space-y-2">
           <div className="flex justify-between">
             <p>Subtotal</p>
-            <p>Br {order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0).toFixed(2)}</p>
+            <p>Br {order.items?.reduce((sum, item) => sum + (item.price * item.quantity), 0).toFixed(2) || "0.00"}</p>
           </div>
           <div className="flex justify-between font-medium">
             <p>Total</p>
-            <p>Br {order.total_amount.toFixed(2)}</p>
+            <p>Br {order.total_amount?.toFixed(2) || "0.00"}</p>
           </div>
         </div>
       </CardContent>
 
       <CardFooter className="flex items-center justify-between border-t bg-muted/50 px-6 py-3">
         <p className="text-xs text-muted-foreground">
-          Status: <span className="font-medium">{order.status}</span>
+          Status: <span className="font-medium">{order?.status}</span>
         </p>
-        {order.updated_at && (
+        {order?.updated_at && (
           <p className="text-xs text-muted-foreground">
             Last updated: {formatDistanceToNow(new Date(order.updated_at))} ago
           </p>
@@ -185,6 +185,6 @@ export function OrderDetails({ orderId }: OrderDetailsProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </Card>
+    </Card >
   );
 }

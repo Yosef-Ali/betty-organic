@@ -21,6 +21,7 @@ export type Order = {
   created_at: string | null;
   updated_at?: string | null;
   order_items: OrderItem[];
+  items?: OrderItem[];
   customer?: {
     id: string;
     name: string | null;
