@@ -1,76 +1,55 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
-import fs from 'fs/promises';
-import path from 'path';
+import { NextRequest, NextResponse } from "next/server";
+import OpenAI from "openai";
+
+// Initialize OpenAI client
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 export async function POST(req: NextRequest) {
-  // Use the correct environment variable - either GEMINI_API_KEY or GOOGLE_AI_API_KEY
-  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
-
-  if (!apiKey) {
-    console.error("Missing Gemini API key in environment variables");
-    return NextResponse.json({
-      success: false,
-      error: "Server configuration error: Missing API key"
-    }, { status: 500 });
-  }
-
-  const genAI = new GoogleGenerativeAI(apiKey);
-
   try {
-    const { base64Image, mimeType } = await req.json();
-
-    // Read reference image
-    const refImagePath = path.join(process.cwd(), 'public/fruits/strawberrie.jpeg');
-    const refImageBuffer = await fs.readFile(refImagePath);
-    const refImageBase64 = refImageBuffer.toString('base64');
-
-    const model = genAI.getGenerativeModel({
-      model: "gemini-2.0-flash-exp-image-generation",
-      safetySettings: [
-        {
-          category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-          threshold: HarmBlockThreshold.BLOCK_NONE,
-        },
-      ],
-    });
-
-    const prompt = "Generate a professional ecommerce product image that matches the following style reference. Match the composition, lighting, and background quality of the reference image. The generated image should look like it belongs in the same product catalog.";
-
-    const result = await model.generateContent([
-      prompt,
-      {
-        inlineData: {
-          mimeType: 'image/jpeg',
-          data: refImageBase64
-        }
-      },
-      {
-        inlineData: {
-          mimeType: mimeType,
-          data: base64Image
-        }
-      }
-    ]);
-
-    const response = await result.response;
-    const imagePart = response.candidates?.[0]?.content?.parts
-      ?.find(part => part.inlineData);
-
-    if (!imagePart?.inlineData) {
-      throw new Error('No image generated');
+    // Check if API key is configured
+    if (!process.env.OPENAI_API_KEY) {
+      return NextResponse.json(
+        { error: "Server configuration error: Missing API key" },
+        { status: 500 }
+      );
     }
 
-    return NextResponse.json({
-      success: true,
-      image: imagePart.inlineData.data
+    // Parse the request body
+    const formData = await req.formData();
+    const imageFile = formData.get("image") as File | null;
+    const prompt = formData.get("prompt") as string || "A professional product image with clean background";
+
+    // Validate input
+    if (!imageFile) {
+      return NextResponse.json(
+        { error: "No image provided" },
+        { status: 400 }
+      );
+    }
+
+    // Convert file to base64
+    const buffer = await imageFile.arrayBuffer();
+    const base64Image = Buffer.from(buffer).toString("base64");
+    const dataURI = `data:${imageFile.type};base64,${base64Image}`;
+
+    // Generate image using OpenAI
+    const response = await openai.images.edit({
+      image: await fetch(dataURI).then(r => r.blob()),
+      prompt,
+      n: 1,
+      size: "1024x1024",
     });
 
-  } catch (error) {
-    console.error("Generation error:", error);
-    return NextResponse.json({
-      success: false,
-      error: error instanceof Error ? error.message : "Image generation failed"
-    }, { status: 500 });
+    // Return the generated image URL
+    return NextResponse.json({ imageUrl: response.data[0].url });
+
+  } catch (error: any) {
+    console.error("Error generating image:", error);
+    return NextResponse.json(
+      { error: `Error generating image: ${error.message}` },
+      { status: 500 }
+    );
   }
 }
