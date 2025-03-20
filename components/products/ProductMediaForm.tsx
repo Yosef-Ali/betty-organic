@@ -262,101 +262,103 @@ export function ProductMediaForm({
               <FormControl>
                 <div className="space-y-4">
                   {/* Main Preview Area */}
-                  <div className="relative aspect-square w-full overflow-hidden rounded-lg border bg-muted"></div>
-                  {(isGenerating || isUploading) ? (
-                    <div className="absolute inset-0 flex items-center justify-center bg-muted/50 z-10">
-                      <div className="flex flex-col items-center gap-2">
-                        <Loader2 className="h-8 w-8 animate-spin" />
-                        <span className="text-sm font-medium">
-                          {isGenerating ? 'Enhancing image...' : 'Uploading image...'}
-                        </span>
+                  <div className="relative aspect-square w-full overflow-hidden rounded-lg border bg-muted">
+                    {(isGenerating || isUploading) && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-muted/50 z-10">
+                        <div className="flex flex-col items-center gap-2">
+                          <Loader2 className="h-8 w-8 animate-spin" />
+                          <span className="text-sm font-medium">
+                            {isGenerating ? 'Enhancing image...' : 'Uploading image...'}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                    <Image
+                      alt="Product preview"
+                      className="object-cover"
+                      fill
+                      src={currentImageUrl}
+                      sizes="(max-width: 768px) 100vw, 300px"
+                      priority
+                    />
+                  </div>
+
+                  {/* Upload Controls */}
+                  <div className="flex items-center gap-4">
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      disabled={isLoading || isGenerating || isUploading}
+                      className="cursor-pointer flex-1"
+                    />
+                  </div>
+
+                  {/* Image Generation Controls */}
+                  {selectedFile && (
+                    <div className="space-y-3 p-3 border rounded-md">
+                      <FormLabel className="text-sm">Additional instructions for image enhancement</FormLabel>
+                      <Textarea
+                        placeholder="E.g., Make it more vibrant, Remove background, etc."
+                        value={additionalPrompt}
+                        onChange={(e) => setAdditionalPrompt(e.target.value)}
+                        disabled={isGenerating || isUploading}
+                        className="resize-none"
+                        rows={2}
+                      />
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          onClick={generateImage}
+                          disabled={isGenerating || isUploading}
+                          className="flex-1"
+                        >
+                          {isGenerating ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                              Enhancing...
+                            </>
+                          ) : (
+                            'Enhance Image'
+                          )}
+                        </Button>
+                        <Button
+                          type="button"
+                          onClick={saveGeneratedImage}
+                          disabled={isUploading || isGenerating || !selectedFile}
+                          className="flex-1"
+                          variant="secondary"
+                        >
+                          {isUploading ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                              Saving...
+                            </>
+                          ) : (
+                            'Save Image'
+                          )}
+                        </Button>
                       </div>
                     </div>
-                  ) : null}
-                  <Image
-                    alt="Product preview"
-                    className="object-cover"
-                    fill
-                    src={currentImageUrl}
-                    sizes="(max-width: 768px) 100vw, 300px"
-                    priority
-                  />
-                </div>
+                  )}
 
-                {/* Upload Controls */}
-                <div className="flex items-center gap-4">
-                  <Input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    disabled={isLoading || isGenerating || isUploading}
-                    className="cursor-pointer flex-1"
-                  />
-                </div>
-
-                {/* Image Generation Controls */}
-                {selectedFile && (
-                  <div className="space-y-3 p-3 border rounded-md">
-                    <FormLabel className="text-sm">Additional instructions for image enhancement</FormLabel>
-                    <Textarea
-                      placeholder="E.g., Make it more vibrant, Remove background, etc."
-                      value={additionalPrompt}
-                      onChange={(e) => setAdditionalPrompt(e.target.value)}
-                      disabled={isGenerating || isUploading}
-                      className="resize-none"
-                      rows={2}
+                  {/* Image Selector */}
+                  <div className="space-y-2">
+                    <FormLabel className="text-sm">Select from library</FormLabel>
+                    <ImageSelector
+                      value={field.value}
+                      onChange={url => {
+                        if (previewUrl) {
+                          URL.revokeObjectURL(previewUrl);
+                          setPreviewUrl('');
+                        }
+                        setSelectedFile(null);
+                        field.onChange(url);
+                      }}
+                      onDelete={handleDeleteImage}
                     />
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        onClick={generateImage}
-                        disabled={isGenerating || isUploading}
-                        className="flex-1"
-                      >
-                        {isGenerating ? (
-                          <>
-                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                            Enhancing...
-                          </>
-                        ) : (
-                          'Enhance Image'
-                        )}
-                      </Button>
-                      <Button
-                        type="button"
-                        onClick={saveGeneratedImage}
-                        disabled={isUploading || isGenerating || !selectedFile}
-                        className="flex-1"
-                        variant="secondary"
-                      >
-                        {isUploading ? (
-                          <>
-                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                            Saving...
-                          </>
-                        ) : (
-                          'Save Image'
-                        )}
-                      </Button>
-                    </div>
                   </div>
-                )}
-
-                {/* Image Selector */}
-                <div className="space-y-2"></div>
-                <FormLabel className="text-sm">Select from library</FormLabel>
-                <ImageSelector
-                  value={field.value}
-                  onChange={url => {
-                    if (previewUrl) {
-                      URL.revokeObjectURL(previewUrl);
-                      setPreviewUrl('');
-                    }
-                    setSelectedFile(null);
-                    field.onChange(url);
-                  }}
-                  onDelete={handleDeleteImage}
-                />
+                </div>
               </FormControl>
               <FormDescription>
                 Upload a new image or select from the image library
