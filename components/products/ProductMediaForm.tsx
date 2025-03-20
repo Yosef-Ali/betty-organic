@@ -35,7 +35,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ProductFormValues, ImageUploadResponse } from './ProductFormSchema';
 import { X } from 'lucide-react';
 
-const DEFAULT_PRODUCT_IMAGE = '/placeholder-product.jpg';
+const DEFAULT_PRODUCT_IMAGE = '/fruits/strawberrie.jpg';
 
 interface ProductMediaFormProps {
   form: UseFormReturn<ProductFormValues>;
