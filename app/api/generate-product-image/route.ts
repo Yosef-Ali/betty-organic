@@ -4,7 +4,18 @@ import fs from 'fs/promises';
 import path from 'path';
 
 export async function POST(req: NextRequest) {
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+  // Use the correct environment variable - either GEMINI_API_KEY or GOOGLE_AI_API_KEY
+  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
+
+  if (!apiKey) {
+    console.error("Missing Gemini API key in environment variables");
+    return NextResponse.json({
+      success: false,
+      error: "Server configuration error: Missing API key"
+    }, { status: 500 });
+  }
+
+  const genAI = new GoogleGenerativeAI(apiKey);
 
   try {
     const { base64Image, mimeType } = await req.json();
