@@ -30,7 +30,7 @@ import {
 
 import { Input } from '@/components/ui/input';
 import { columns } from './columns';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
@@ -73,10 +73,29 @@ export function OrdersDataTable({
   isLoading,
 }: OrdersDataTableProps) {
   const [globalFilter, setGlobalFilter] = useState('');
+  const [tableData, setTableData] = useState<ExtendedOrder[]>(orders);
+
+  // Update tableData when orders prop changes
+  useEffect(() => {
+    setTableData(orders);
+  }, [orders]);
 
   // Add handleRowClick function to show detail view
   const handleRowClick = (orderId: string) => {
     onSelectOrder(orderId);
+  };
+
+  // Handle order deletion with local state update for real-time UI updates
+  const handleDeleteOrder = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+
+    try {
+      await onDeleteOrder(id);
+      // Update the local state immediately after successful deletion
+      setTableData(currentData => currentData.filter(order => order.id !== id));
+    } catch (error) {
+      console.error('Failed to delete order:', error);
+    }
   };
 
   // Add handleActionClick to prevent event propagation
@@ -86,12 +105,12 @@ export function OrdersDataTable({
     if (action === 'view') {
       onSelectOrder(id);
     } else if (action === 'delete') {
-      onDeleteOrder(id);
+      handleDeleteOrder(e, id);
     }
   };
 
   const table = useReactTable({
-    data: orders,
+    data: tableData,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
@@ -108,7 +127,7 @@ export function OrdersDataTable({
       },
     },
     meta: {
-      onDelete: onDeleteOrder,
+      onDelete: handleDeleteOrder,
       onSelect: onSelectOrder,
       handleActionClick: handleActionClick,
     },
@@ -291,6 +310,7 @@ export function OrdersDataTable({
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={(e) => handleActionClick(e, row.original.id, 'delete')}
+                                className="text-destructive"
                               >
                                 <PenLine className="mr-2 h-4 w-4" />
                                 Delete order
