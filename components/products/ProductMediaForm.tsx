@@ -103,6 +103,7 @@ export function ProductMediaForm({
       const base64Image = (base64String as string).split(',')[1];
 
       // Call Gemini API
+      // Use local reference image for development
       const response = await fetch('/api/generate-product-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -165,14 +166,13 @@ export function ProductMediaForm({
     setPreviewUrl(newPreviewUrl);
     setSelectedFile(file);
 
-    // Create form data for upload
-    const formData = new FormData();
-    formData.append('file', file);
-
     try {
-      const uploadResponse = (await uploadImage(
-        formData,
-      )) as ImageUploadResponse;
+      // Create a copy of the file to avoid issues with the original
+      const fileForUpload = new File([file], file.name, { type: file.type });
+      const formData = new FormData();
+      formData.append('file', fileForUpload);
+
+      const uploadResponse = await uploadImage(formData) as ImageUploadResponse;
       if (!uploadResponse.success) {
         throw new Error(uploadResponse.error || 'Failed to upload image');
       }
@@ -208,7 +208,7 @@ export function ProductMediaForm({
       // Reset form to previous value
       form.setValue('imageUrl', initialData?.imageUrl || '');
     } finally {
-      setSelectedFile(null);
+      // Don't clear selectedFile here as we might need it for generation
     }
   };
 
