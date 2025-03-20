@@ -103,7 +103,7 @@ export default function OrderDetails({ orderId }: OrderDetailsProps) {
                   {item.product?.name || 'Unknown Product'} x{' '}
                   <span>{item.price} /kg</span>
                 </span>
-                <span>Br {item.total.toFixed(3)}</span>
+                <span>Br {(item.total / 1000).toFixed(2)}</span>
               </li>
             ))}
           </ul>
