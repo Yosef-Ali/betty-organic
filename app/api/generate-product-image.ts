@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     const { base64Image, mimeType } = await req.json();
 
     // Read reference image
-    const refImagePath = path.join(process.cwd(), 'public/fruits/strawberrie.jpg');
+    const refImagePath = path.join(process.cwd(), 'public/fruits/strawberrie.jpeg');
     const refImageBuffer = await fs.readFile(refImagePath);
     const refImageBase64 = refImageBuffer.toString('base64');
 
