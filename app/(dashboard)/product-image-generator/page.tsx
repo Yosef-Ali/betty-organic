@@ -21,7 +21,7 @@ export default function ProductImageGeneratorPage() {
 
       <div className="space-y-6">
         <p className="text-sm text-muted-foreground">
-          Our AI will style your product photos to match our brand's consistent, professional aesthetic.
+          Our AI will style your product photos to match our brand&apos;s consistent, professional aesthetic.
           Simply upload your image and click the generate button.
         </p>
 
