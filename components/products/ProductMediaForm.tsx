@@ -357,18 +357,15 @@ export function ProductMediaForm({
                   }}
                   onDelete={handleDeleteImage}
                 />
-              </div>
-            </div>
               </FormControl>
-      <FormDescription>
-        Upload a new image or select from the image library
-      </FormDescription>
-      <FormMessage />
-    </FormItem>
-  )
-}
+              <FormDescription>
+                Upload a new image or select from the image library
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
         />
-      </CardContent >
-    </Card >
+      </CardContent>
+    </Card>
   );
 }
