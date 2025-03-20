@@ -101,7 +101,7 @@ export default function OrderDetails({ orderId }: OrderDetailsProps) {
               <li key={item.id} className="flex items-center justify-between">
                 <span className="text-muted-foreground">
                   {item.product?.name || 'Unknown Product'} x{' '}
-                  <span>{(item.quantity / 1000).toFixed(3)} kg</span>
+                  <span>{Number(item.quantity).toFixed(0)} g</span>
                 </span>
                 <span>Br {item.total.toFixed(2)}</span>
               </li>
