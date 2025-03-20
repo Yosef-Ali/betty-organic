@@ -95,15 +95,13 @@ export default function OrderDetails({ orderId }: OrderDetailsProps) {
 
       <CardContent className="p-6 text-sm">
         <div className="grid gap-3">
-          <div className="font-semibold">Order Details</div>
+          <div className="font-semibold">Order Detailsooooooo</div>
           <ul className="grid gap-3">
             {itemsWithTotal.map(item => (
               <li key={item.id} className="flex items-center justify-between">
                 <span className="text-muted-foreground">
                   {item.product?.name || 'Unknown Product'} x{' '}
-                  <span>{item.price} kg</span>
-                  <span>{item.total} kg</span>
-                  <span>{item.quantity} kg</span>
+                  <span>{(item.price / 1000).toFixed(3)} kg</span>
                 </span>
                 <span>Br {item.total.toFixed(2)}</span>
               </li>
