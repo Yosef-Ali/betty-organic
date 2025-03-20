@@ -29,6 +29,17 @@ export type Order = {
   };
 };
 
+// Extended Order type that includes profile data for the orders data table
+export type ExtendedOrder = Order & {
+  profiles?: {
+    id: string;
+    name: string | null;
+    email: string;
+    role: string;
+    avatar_url?: string | null;
+  };
+};
+
 // Type guard for Order
 export function isOrder(order: any): order is Order {
   return !!order &&

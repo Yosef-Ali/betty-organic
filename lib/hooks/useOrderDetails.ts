@@ -19,6 +19,7 @@ interface OrderDetails {
     price: number;
     quantity: number;
   }>;
+  total_amount: number;
 }
 
 // Define type for SelectQueryError
@@ -42,6 +43,7 @@ interface OrderData {
     price: number;
     quantity: number;
   }>;
+  total_amount?: number;
 }
 
 // Helper function to check if an object is a SelectQueryError
@@ -133,6 +135,7 @@ export function useOrderDetails(orderId: string) {
               quantity: item.quantity,
             }))
             : [],
+          total_amount: orderData.total_amount || 0,
         };
 
         setOrder(transformedOrder);
