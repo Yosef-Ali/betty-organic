@@ -47,6 +47,7 @@ import { MoreHorizontal, Eye, PenLine } from 'lucide-react';
 import { format } from 'date-fns';
 import { ExtendedOrder, OrderItem } from '@/types/order';
 import { formatOrderId } from '@/lib/utils';
+import { createClient } from '@supabase/supabase-js';
 
 interface OrdersDataTableProps {
   orders: ExtendedOrder[];
@@ -66,6 +67,11 @@ const formatDate = (dateString: string | null | undefined): string => {
   }
 };
 
+// Supabase client initialization - use environment variables
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseKey);
+
 export function OrdersDataTable({
   orders,
   onSelectOrder,
@@ -80,19 +86,96 @@ export function OrdersDataTable({
     setTableData(orders);
   }, [orders]);
 
+  // Set up Supabase real-time subscription
+  useEffect(() => {
+    // Subscribe to changes on the orders table
+    const subscription = supabase
+      .channel('orders-changes')
+      .on('postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'orders'
+        },
+        (payload) => {
+          // Fetch the complete order with relations when a new order is inserted
+          // This is needed because the payload might not include the join data
+          const fetchNewOrder = async () => {
+            const { data, error } = await supabase
+              .from('orders')
+              .select('*, profiles:profile_id(*), order_items(*)')
+              .eq('id', payload.new.id)
+              .single();
+
+            if (data && !error) {
+              setTableData(currentData => [data as ExtendedOrder, ...currentData]);
+            }
+          };
+
+          fetchNewOrder();
+        }
+      )
+      .on('postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'orders'
+        },
+        (payload) => {
+          // Fetch updated order with all relations
+          const fetchUpdatedOrder = async () => {
+            const { data, error } = await supabase
+              .from('orders')
+              .select('*, profiles:profile_id(*), order_items(*)')
+              .eq('id', payload.new.id)
+              .single();
+
+            if (data && !error) {
+              setTableData(currentData =>
+                currentData.map(order =>
+                  order.id === payload.new.id ? (data as ExtendedOrder) : order
+                )
+              );
+            }
+          };
+
+          fetchUpdatedOrder();
+        }
+      )
+      .on('postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'orders'
+        },
+        (payload) => {
+          // Remove the deleted order from the state
+          setTableData(currentData =>
+            currentData.filter(order => order.id !== payload.old.id)
+          );
+        }
+      )
+      .subscribe();
+
+    // Cleanup subscription when component unmounts
+    return () => {
+      supabase.removeChannel(subscription);
+    };
+  }, []);
+
   // Add handleRowClick function to show detail view
   const handleRowClick = (orderId: string) => {
     onSelectOrder(orderId);
   };
 
-  // Handle order deletion with local state update for real-time UI updates
+  // Handle order deletion - now we don't need to manually update the UI
+  // as the real-time subscription will handle that
   const handleDeleteOrder = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
 
     try {
       await onDeleteOrder(id);
-      // Update the local state immediately after successful deletion
-      setTableData(currentData => currentData.filter(order => order.id !== id));
+      // No need to update local state manually as the real-time subscription will handle it
     } catch (error) {
       console.error('Failed to delete order:', error);
     }

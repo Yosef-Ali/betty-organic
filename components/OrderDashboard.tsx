@@ -127,10 +127,10 @@ const OrderDashboard: React.FC = () => {
   // Setup Supabase real-time subscriptions
   useEffect(() => {
     loadData();
-    
-    // Create a single channel for all subscriptions
-    const channel = supabase
-      .channel('orders-realtime')
+
+    // Subscribe to changes on the orders table
+    const ordersSubscription = supabase
+      .channel('table-changes')
       .on(
         'postgres_changes',
         {
@@ -138,37 +138,33 @@ const OrderDashboard: React.FC = () => {
           schema: 'public',
           table: 'orders',
         },
-        (payload) => {
+        async (payload) => {
           console.log('Orders change received:', payload);
+
           if (payload.eventType === 'DELETE') {
             // Remove the deleted order from state immediately
             setOrders(prevOrders => prevOrders.filter(order => order.id !== payload.old.id));
-            
-            // If the deleted order was selected, select the first available order or clear selection
+
+            // If the deleted order was selected, clear selection
             if (selectedOrderId === payload.old.id) {
-              setSelectedOrderId(prevOrders => {
-                const filteredOrders = prevOrders.filter(order => order.id !== payload.old.id);
-                return filteredOrders.length > 0 ? filteredOrders[0].id : null;
-              });
+              setSelectedOrderId(null);
             }
-            
+
             toast({
               title: 'Order Deleted',
               description: 'The order has been removed from the system.',
             });
-          } else if (payload.eventType === 'INSERT') {
-            // For new orders, reload the data to get the complete order with relations
-            loadData();
-          } else if (payload.eventType === 'UPDATE') {
-            // For updates, we can update the specific order in state
-            setOrders(prevOrders => 
-              prevOrders.map(order => 
-                order.id === payload.new.id ? { ...order, ...payload.new } : order
-              )
-            );
+          } else {
+            // For other changes (INSERT, UPDATE), reload the full data
+            await loadData();
           }
         }
       )
+      .subscribe();
+
+    // Subscribe to changes on the order_items table as well
+    const orderItemsSubscription = supabase
+      .channel('order-items-changes')
       .on(
         'postgres_changes',
         {
@@ -176,22 +172,17 @@ const OrderDashboard: React.FC = () => {
           schema: 'public',
           table: 'order_items',
         },
-        (payload) => {
-          console.log('Order items change received:', payload);
-          // For order items changes, reload the data to ensure we have complete information
-          loadData();
+        async () => {
+          // Reload data when order items change
+          await loadData();
         }
       )
-      .subscribe((status) => {
-        console.log('Subscription status:', status);
-        if (status !== 'SUBSCRIBED') {
-          console.error('Failed to subscribe to real-time changes:', status);
-        }
-      });
+      .subscribe();
 
-    // Cleanup function to remove subscription
+    // Cleanup function to remove subscriptions
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(ordersSubscription);
+      supabase.removeChannel(orderItemsSubscription);
     };
   }, [loadData, supabase, toast, selectedOrderId]);
 
@@ -203,10 +194,11 @@ const OrderDashboard: React.FC = () => {
           title: 'Order deleted',
           description: 'The order has been successfully deleted.',
         });
-        
-        // No need to manually update state here as the real-time subscription will handle it
+        if (selectedOrderId === id) {
+          setSelectedOrderId(orders[0]?.id || null);
+        }
       } else {
-        throw new Error(result.error?.message || 'Failed to delete order');
+        throw new Error('Failed to delete order');
       }
     } catch (error) {
       console.error('Error deleting order:', error);
