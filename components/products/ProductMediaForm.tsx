@@ -1,7 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import Image from 'next/image';
+import { Button } from '@/components/ui/button';
+import { Loader2 } from 'lucide-react';
 import { UseFormReturn } from 'react-hook-form';
 import { uploadImage } from '@/app/actions/upload-image';
 import { deleteStorageImage } from '@/app/actions/deleteStorageImage';
@@ -48,6 +50,7 @@ export function ProductMediaForm({
 }: ProductMediaFormProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>('');
+  const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();
 
   const handleDeleteImage = async (imageUrl: string) => {
@@ -76,6 +79,75 @@ export function ProductMediaForm({
       });
     }
   };
+
+  const generateImage = useCallback(async () => {
+    if (!selectedFile) {
+      toast({
+        title: 'Error',
+        description: 'Please select an image first',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      // Convert file to base64
+      const reader = new FileReader();
+      const base64Promise = new Promise((resolve, reject) => {
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+      });
+      reader.readAsDataURL(selectedFile);
+      const base64String = await base64Promise;
+      const base64Image = (base64String as string).split(',')[1];
+
+      // Call Gemini API
+      const response = await fetch('/api/generate-product-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          base64Image,
+          mimeType: selectedFile.type,
+        }),
+      });
+
+      const data = await response.json();
+      if (!data.success) throw new Error(data.error);
+
+      // Convert base64 to file
+      const generateFile = await fetch(`data:${selectedFile.type};base64,${data.image}`);
+      const generatedBlob = await generateFile.blob();
+      const generatedFile = new File([generatedBlob], `generated-${selectedFile.name}`, { type: selectedFile.type });
+
+      // Upload generated image
+      const formData = new FormData();
+      formData.append('file', generatedFile);
+
+      const uploadResponse = await uploadImage(formData) as ImageUploadResponse;
+      if (!uploadResponse.success) {
+        throw new Error(uploadResponse.error || 'Failed to upload generated image');
+      }
+
+      if (uploadResponse.imageUrl) {
+        form.setValue('imageUrl', uploadResponse.imageUrl);
+        form.trigger('imageUrl');
+        toast({
+          title: 'Success',
+          description: 'Image generated and uploaded successfully.',
+        });
+      }
+    } catch (error) {
+      console.error('Error generating image:', error);
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to generate image',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [selectedFile, form, toast]);
 
   const handleImageUpload = async (
     event: React.ChangeEvent<HTMLInputElement>,
@@ -204,6 +276,25 @@ export function ProductMediaForm({
 
                   {/* Image Selector */}
                   <div className="space-y-2">
+                    {/* Generate Button */}
+                    {selectedFile && (
+                      <Button
+                        type="button"
+                        onClick={generateImage}
+                        disabled={isGenerating}
+                        className="w-full mb-4"
+                      >
+                        {isGenerating ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            Generating...
+                          </>
+                        ) : (
+                          'Generate Enhanced Image'
+                        )}
+                      </Button>
+                    )}
+
                     <FormLabel className="text-sm">Select from library</FormLabel>
                     <ImageSelector
                       value={field.value}
