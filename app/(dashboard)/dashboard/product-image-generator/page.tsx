@@ -24,8 +24,7 @@ export default function ProductImageGeneratorPage() {
           Our AI will style your product photos to match our brand&apos;s consistent, professional aesthetic.
           Simply upload your image and click the generate button.
         </p>
-
-        <ImageToImageApp />
+        <ProductImageGeneratorPage />
       </div>
     </DashboardShell>
   );
