@@ -1,28 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI, Part } from "@google/generative-ai";
 
 export async function POST(req: NextRequest) {
   try {
     const apiKey = process.env.GEMINI_API_KEY;
 
-    // Check if API key is configured
     if (!apiKey) {
       return NextResponse.json(
-        { error: "Server configuration error: Missing Gemini API key" },
+        { error: "Missing Gemini API key" },
         { status: 500 }
       );
     }
 
-    // Initialize the Gemini API
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-pro-vision" });
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.0-flash-exp-image-generation"
+    });
 
-    // Parse the request body
     const formData = await req.formData();
-    const imageFile = formData.get("image") as File | null;
-    const prompt = formData.get("prompt") as string || "Transform this into a professional product image with clean background";
+    const imageFile = formData.get("image") as File;
+    const prompt = formData.get("prompt")?.toString() || "Transform this into a professional product image";
 
-    // Validate input
     if (!imageFile) {
       return NextResponse.json(
         { error: "No image provided" },
@@ -30,26 +28,26 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Convert file to base64
+    // Convert image to base64
     const buffer = await imageFile.arrayBuffer();
     const base64Image = Buffer.from(buffer).toString("base64");
     const mimeType = imageFile.type;
 
-    // Prepare image parts for Gemini
-    const imagePart = {
-      inlineData: {
-        data: base64Image,
-        mimeType
+    // Prepare parts array with correct typing
+    const parts: Part[] = [
+      { text: prompt },
+      {
+        inlineData: {
+          mimeType,
+          data: base64Image
+        }
       }
-    };
+    ];
 
-    // Generate content using Gemini
-    const result = await model.generateContent([prompt, imagePart]);
+    const result = await model.generateContent(parts);
     const response = await result.response;
 
-    // Validate the response structure
     if (!response?.candidates?.[0]?.content?.parts) {
-      console.error('Invalid response structure from Gemini:', response);
       return NextResponse.json(
         { error: "Invalid response from image generation service" },
         { status: 500 }
@@ -61,22 +59,20 @@ export async function POST(req: NextRequest) {
     )?.inlineData;
 
     if (!imageData) {
-      console.error('No image data in response:', response);
       return NextResponse.json(
-        { error: "Image generation failed - no image data returned" },
+        { error: "No image data in response" },
         { status: 500 }
       );
     }
 
-    // Return the generated image data
     return NextResponse.json({
       imageUrl: `data:${imageData.mimeType};base64,${imageData.data}`
     });
 
   } catch (error: any) {
-    console.error("Error generating image:", error);
+    console.error("Image generation error:", error);
     return NextResponse.json(
-      { error: `Error generating image: ${error.message}` },
+      { error: error.message || "Internal server error" },
       { status: 500 }
     );
   }
