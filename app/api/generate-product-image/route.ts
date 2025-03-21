@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { GoogleGenerativeAI, Part } from "@google/generative-ai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export async function POST(req: NextRequest) {
   try {
@@ -17,34 +17,17 @@ export async function POST(req: NextRequest) {
       model: "gemini-2.0-flash-exp-image-generation"
     });
 
-    const formData = await req.formData();
-    const imageFile = formData.get("image") as File;
-    const prompt = formData.get("prompt")?.toString() || "Transform this into a professional product image";
+    const data = await req.json();
+    const prompt = data.prompt || "A professional product image";
 
-    if (!imageFile) {
+    if (!prompt) {
       return NextResponse.json(
-        { error: "No image provided" },
+        { error: "No prompt provided" },
         { status: 400 }
       );
     }
 
-    // Convert image to base64
-    const buffer = await imageFile.arrayBuffer();
-    const base64Image = Buffer.from(buffer).toString("base64");
-    const mimeType = imageFile.type;
-
-    // Prepare parts array with correct typing
-    const parts: Part[] = [
-      { text: prompt },
-      {
-        inlineData: {
-          mimeType,
-          data: base64Image
-        }
-      }
-    ];
-
-    const result = await model.generateContent(parts);
+    const result = await model.generateContent(prompt);
     const response = await result.response;
 
     if (!response?.candidates?.[0]?.content?.parts) {
@@ -66,6 +49,8 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({
+      success: true,
+      image: imageData.data,
       imageUrl: `data:${imageData.mimeType};base64,${imageData.data}`
     });
 
