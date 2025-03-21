@@ -3,7 +3,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export async function POST(req: NextRequest) {
   try {
-    const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY;
 
     // Check if API key is configured
     if (!apiKey) {
@@ -46,13 +46,24 @@ export async function POST(req: NextRequest) {
     // Generate content using Gemini
     const result = await model.generateContent([prompt, imagePart]);
     const response = await result.response;
-    const imageData = response?.candidates?.[0]?.content?.parts?.find(
+
+    // Validate the response structure
+    if (!response?.candidates?.[0]?.content?.parts) {
+      console.error('Invalid response structure from Gemini:', response);
+      return NextResponse.json(
+        { error: "Invalid response from image generation service" },
+        { status: 500 }
+      );
+    }
+
+    const imageData = response.candidates[0].content.parts.find(
       part => part.inlineData?.mimeType?.startsWith("image/")
     )?.inlineData;
 
     if (!imageData) {
+      console.error('No image data in response:', response);
       return NextResponse.json(
-        { error: "Failed to generate image" },
+        { error: "Image generation failed - no image data returned" },
         { status: 500 }
       );
     }

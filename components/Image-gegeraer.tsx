@@ -365,6 +365,17 @@ const ImageToImageApp = () => {
                         src={image}
                         alt={`Generated ${index + 1}`}
                         className="rounded-md border border-gray-700 w-full h-auto"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                          const parent = (e.target as HTMLElement).parentElement;
+                          if (parent) {
+                            parent.innerHTML = `
+                              <div class="p-4 bg-red-100 border border-red-400 text-red-700 rounded-md">
+                                Failed to load generated image - invalid image data
+                              </div>
+                            `;
+                          }
+                        }}
                       />
                       {results.nsfw[index] && (
                         <div className="absolute top-1 right-1 bg-red-500/80 text-white px-2 py-1 rounded-md text-xs font-semibold flex items-center gap-1">
