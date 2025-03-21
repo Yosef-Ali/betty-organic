@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import Image from "next/image";
-import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 interface ProductImageGeneratorProps {
   onImageGenerated?: (imageData: string) => void;
@@ -60,15 +60,15 @@ export function ProductImageGenerator({ onImageGenerated }: ProductImageGenerato
       <Card>
         <CardHeader>
           <CardTitle>Product Description</CardTitle>
-          <CardDescription>Describe the product you want to generate</CardDescription>
+          <CardDescription>Describe the product for Gemini to visualize</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col items-center justify-center">
           <div className="w-full space-y-4">
-            <Input
-              placeholder="Enter product description (e.g., 'Organic honey jar with honeycomb')"
+            <Textarea
+              placeholder="Describe your product in detail (e.g., 'A glass jar of organic honey with visible honeycomb, soft lighting, professional product photography style')"
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              className="w-full"
+              className="w-full min-h-[100px]"
             />
             {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
           </div>
@@ -85,7 +85,7 @@ export function ProductImageGenerator({ onImageGenerated }: ProductImageGenerato
               </>
             ) : (
               <>
-                Generate Professional Image
+                Generate with Gemini
               </>
             )}
           </Button>
@@ -94,9 +94,9 @@ export function ProductImageGenerator({ onImageGenerated }: ProductImageGenerato
 
       <Card>
         <CardHeader>
-          <CardTitle>Generated Professional Image</CardTitle>
+          <CardTitle>Generated Product Image</CardTitle>
           <CardDescription>
-            AI-generated professional product image
+            Gemini-generated visualization of your product
           </CardDescription>
         </CardHeader>
         <CardContent className="flex items-center justify-center">
@@ -113,8 +113,8 @@ export function ProductImageGenerator({ onImageGenerated }: ProductImageGenerato
             <div className="flex flex-col items-center justify-center w-full h-64 bg-gray-50 rounded-lg">
               <p className="text-sm text-gray-500">
                 {isLoading
-                  ? "Generating professional image..."
-                  : "Enter a description and click 'Generate Professional Image'"}
+                  ? "Generating image with Gemini..."
+                  : "Enter a product description to generate an image"}
               </p>
             </div>
           )}
@@ -127,7 +127,7 @@ export function ProductImageGenerator({ onImageGenerated }: ProductImageGenerato
               onClick={() => {
                 const link = document.createElement('a');
                 link.href = generatedImage;
-                link.download = 'professional-product-image.jpg';
+                link.download = 'gemini-product-image.jpg';
                 link.click();
               }}
             >

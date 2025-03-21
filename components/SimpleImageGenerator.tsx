@@ -52,7 +52,7 @@ export default function SimpleImageGenerator() {
           placeholder="Enter a description..."
           className="flex-1"
         />
-        <Button 
+        <Button
           onClick={generateImage}
           disabled={isLoading || !prompt.trim()}
         >
@@ -66,24 +66,24 @@ export default function SimpleImageGenerator() {
           )}
         </Button>
       </div>
-      
+
       {error && (
         <div className="text-red-500">
           {error}
         </div>
       )}
-      
+
       {isLoading && !generatedImage && (
         <div className="flex justify-center items-center h-64">
           <Loader2 className="h-8 w-8 animate-spin" />
         </div>
       )}
-      
+
       {generatedImage && (
         <div className="w-full flex justify-center">
-          <img 
-            src={generatedImage} 
-            alt="Generated image" 
+          <img
+            src={generatedImage}
+            alt="Generated image"
             className="max-w-full max-h-[70vh] object-contain"
           />
         </div>
