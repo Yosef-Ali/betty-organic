@@ -98,7 +98,7 @@ export default function SimpleImageGenerator() {
       updateProgress('complete', 'Enhancement complete!');
       setGeneratedImage(data.imageUrl);
       setOriginalImageUrl(data.originalImageUrl || null);
-      
+
       // Check if fallback was used
       setUsedFallback(data.metadata?.fallback === true);
     } catch (err: any) {
