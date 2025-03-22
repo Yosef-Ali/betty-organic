@@ -58,6 +58,82 @@ function createOptimizedPrompt(userPrompt: string, imageName: string): string {
   `.trim();
 }
 
+// Helper function to make multiple generation attempts with different parameters
+// Each attempt uses slightly different approach for maximum chance of success
+async function makeGenerationAttempt(
+  model: any,
+  file: any,
+  enhancedPrompt: string,
+  generationConfig: any,
+  attemptNum = 1
+) {
+  try {
+    console.log(`Generation attempt ${attemptNum}...`);
+
+    // Adjust parameters based on attempt number
+    const attemptConfig = {
+      ...generationConfig,
+      temperature: attemptNum === 1 ? 0.7 : attemptNum === 2 ? 0.85 : 0.6,
+    };
+
+    // Slight variations in prompt based on attempt
+    let attemptPrompt = enhancedPrompt;
+    if (attemptNum === 2) {
+      attemptPrompt += "\n\nPlease ensure the image is exactly 500x500 pixels. Focus on clarity and professional presentation.";
+    } else if (attemptNum === 3) {
+      attemptPrompt += "\n\nGenerate a simple, clean product image with neutral background at 500x500 pixels.";
+    }
+
+    // Start chat session with history
+    const chatSession = await model.startChat({
+      generationConfig: attemptConfig,
+      history: [
+        {
+          role: "user",
+          parts: [
+            {
+              fileData: {
+                mimeType: file.mimeType,
+                fileUri: file.uri,
+              },
+            },
+            {
+              text: attemptPrompt
+            },
+          ],
+        },
+      ],
+    });
+
+    // Send message to generate image
+    const result = await chatSession.sendMessage(
+      "Please generate the enhanced product image based on my instructions. The output should be exactly 500x500 pixels."
+    );
+
+    const response = result.response;
+    const parts = response.candidates?.[0]?.content?.parts || [];
+
+    // Find all image parts in response
+    const imageParts = parts.filter(
+      (part: any): part is { fileData: { mimeType: string; fileUri: string } } =>
+        !!part.fileData?.mimeType?.startsWith("image/") && !!part.fileData.fileUri
+    );
+
+    if (imageParts.length > 0) {
+      return imageParts[0];
+    } else {
+      throw new Error("No image generated");
+    }
+  } catch (error) {
+    console.warn(`Attempt ${attemptNum} failed:`, error);
+    if (attemptNum < 3) {
+      console.log(`Trying alternative approach (attempt ${attemptNum + 1})...`);
+      return await makeGenerationAttempt(model, file, enhancedPrompt, generationConfig, attemptNum + 1);
+    }
+    throw error;
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
@@ -169,79 +245,9 @@ export async function POST(req: NextRequest) {
 
     console.log("Starting image generation with optimized prompt...");
 
-    // Make three generation attempts with different parameters
-    // Each attempt uses slightly different approach for maximum chance of success
-    async function attemptGeneration(attempt = 1): Promise<any> {
-      try {
-        console.log(`Generation attempt ${attempt}...`);
-
-        // Adjust parameters based on attempt number
-        const attemptConfig = {
-          ...generationConfig,
-          temperature: attempt === 1 ? 0.7 : attempt === 2 ? 0.85 : 0.6,
-        };
-
-        // Slight variations in prompt based on attempt
-        let attemptPrompt = enhancedPrompt;
-        if (attempt === 2) {
-          attemptPrompt += "\n\nPlease ensure the image is exactly 500x500 pixels. Focus on clarity and professional presentation.";
-        } else if (attempt === 3) {
-          attemptPrompt += "\n\nGenerate a simple, clean product image with neutral background at 500x500 pixels.";
-        }
-
-        // Start chat session with history
-        const chatSession = await model.startChat({
-          generationConfig: attemptConfig,
-          history: [
-            {
-              role: "user",
-              parts: [
-                {
-                  fileData: {
-                    mimeType: file.mimeType,
-                    fileUri: file.uri,
-                  },
-                },
-                {
-                  text: attemptPrompt
-                },
-              ],
-            },
-          ],
-        });
-
-        // Send message to generate image
-        const result = await chatSession.sendMessage(
-          "Please generate the enhanced product image based on my instructions. The output should be exactly 500x500 pixels."
-        );
-
-        const response = result.response;
-        const parts = response.candidates?.[0]?.content?.parts || [];
-
-        // Find all image parts in response
-        const imageParts = parts.filter(
-          (part): part is { fileData: { mimeType: string; fileUri: string } } =>
-            !!part.fileData?.mimeType?.startsWith("image/") && !!part.fileData.fileUri
-        );
-
-        if (imageParts.length > 0) {
-          return imageParts[0];
-        } else {
-          throw new Error("No image generated");
-        }
-      } catch (error) {
-        console.warn(`Attempt ${attempt} failed:`, error);
-        if (attempt < 3) {
-          console.log(`Trying alternative approach (attempt ${attempt + 1})...`);
-          return await attemptGeneration(attempt + 1);
-        }
-        throw error;
-      }
-    }
-
     // Try multiple generation attempts
     try {
-      const generatedImage = await attemptGeneration();
+      const generatedImage = await makeGenerationAttempt(model, file, enhancedPrompt, generationConfig, 1);
       const { mimeType, fileUri } = generatedImage.fileData;
 
       // Return both the original and generated image URLs for side-by-side display
@@ -324,3 +330,4 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
