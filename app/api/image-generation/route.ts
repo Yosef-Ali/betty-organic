@@ -167,19 +167,16 @@ export async function POST(req: NextRequest): Promise<NextResponse<SuccessRespon
       }, { status: 400 });
     }
 
-    // Convert File to Buffer for upload
+    // Convert File to ArrayBuffer for upload
     const buffer = await imageFile.arrayBuffer();
-    const imageBuffer = Buffer.from(buffer);
-
-    // If you need a stream
-    const stream = Readable.from(imageBuffer);
 
     // Save to temp file to process with Gemini
     const tempDir = await ensureTempDir();
     const tempFileName = `${uuidv4()}-${path.basename(imageFile.name)}`;
     const tempFilePath = join(tempDir, tempFileName);
 
-    await writeFile(tempFilePath, new Uint8Array(imageBuffer));
+    // Use Uint8Array instead of Buffer for file writing
+    await writeFile(tempFilePath, new Uint8Array(buffer));
     console.log(`Saved image to temp file: ${tempFilePath}`);
 
     // Create an enhanced prompt for better results
@@ -189,8 +186,8 @@ export async function POST(req: NextRequest): Promise<NextResponse<SuccessRespon
       // Upload the image to Gemini
       console.log("Uploading image to Gemini...");
 
-      // The imageBuffer is already a Buffer, so we can use it directly with uploadFile
-      // No need to convert to Uint8Array as fileManager.uploadFile expects string or Buffer
+      // Upload the image to Gemini using Buffer for proper type compatibility
+      const imageBuffer = Buffer.from(buffer);
       const uploadResult = await fileManager.uploadFile(imageBuffer, {
         mimeType: imageFile.type,
         displayName: imageFile.name

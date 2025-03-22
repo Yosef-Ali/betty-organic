@@ -279,13 +279,13 @@ const GeminiImageGen: React.FC<GeminiImageGenProps> = ({ apiKey }) => {
         <ol className="list-decimal pl-5">
           <li className="mb-1">Upload a reference image</li>
           <li className="mb-1">Enter a prompt describing the desired modification</li>
-          <li className="mb-1">Click "Generate Image" to create a modified version</li>
+          <li className="mb-1">Click &quot;Generate Image&quot; to create a modified version</li>
         </ol>
         <p className="mt-2 text-sm text-gray-600">
           Example prompts:
-          <br />- "Add some chocolate drizzle to the croissants"
-          <br />- "Convert this to a professional product image with clean background"
-          <br />- "Make this strawberry image look like bananas"
+          <br />- &quot;Add some chocolate drizzle to the croissants&quot;
+          <br />- &quot;Convert this to a professional product image with clean background&quot;
+          <br />- &quot;Make this strawberry image look like bananas&quot;
         </p>
       </div>
     </div>
