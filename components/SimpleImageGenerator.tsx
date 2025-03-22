@@ -3,6 +3,7 @@ import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Loader2, Upload, ZoomIn, RotateCcw, Lightbulb } from 'lucide-react';
+import Image from 'next/image';
 
 type FileWithPreview = {
   file: File;
@@ -110,7 +111,7 @@ export default function SimpleImageGenerator() {
             Powered by Gemini 2.0 Flash Image Generation
           </h3>
           <p className="text-sm text-blue-700">
-            Upload any product photo and enhance it with professional quality using Google's newest AI image generation model.
+            Upload any product photo and enhance it with professional quality using Google&apos;s newest AI image generation model.
           </p>
         </div>
 
@@ -136,10 +137,12 @@ export default function SimpleImageGenerator() {
         {sourceImage && (
           <div className="flex flex-col gap-4">
             <div className="relative aspect-square w-full overflow-hidden rounded-lg border bg-muted">
-              <img
+              <Image
                 src={sourceImage.preview}
                 alt="Source"
                 className="object-cover"
+                fill
+                sizes="(max-width: 768px) 100vw, 50vw"
               />
             </div>
 
@@ -190,7 +193,7 @@ export default function SimpleImageGenerator() {
           </div>
           {error.includes('Alternative services') && (
             <p className="mt-4 text-sm text-red-600">
-              Note: We're working on integrating a dedicated image generation service. Thank you for your patience.
+              Note: We&apos;re working on integrating a dedicated image generation service. Thank you for your patience.
             </p>
           )}
         </div>
@@ -222,10 +225,12 @@ export default function SimpleImageGenerator() {
                   <div className="space-y-2">
                     <h3 className="text-sm font-medium text-muted-foreground">Original Image</h3>
                     <div className="relative aspect-square w-full overflow-hidden rounded-md bg-muted">
-                      <img
-                        src={sourceImage?.preview}
+                      <Image
+                        src={sourceImage?.preview || ''}
                         alt="Original product"
                         className="object-contain"
+                        fill
+                        sizes="(max-width: 768px) 100vw, 50vw"
                       />
                     </div>
                   </div>
@@ -245,11 +250,13 @@ export default function SimpleImageGenerator() {
                         }
                       }}
                     >
-                      <img
+                      <Image
                         src={generatedImage}
                         alt="Enhanced product image - Click or press Enter to view full size"
                         className="object-contain hover:scale-105 transition-transform duration-200"
                         loading="lazy"
+                        fill
+                        sizes="(max-width: 768px) 100vw, 50vw"
                       />
                       <div className="absolute bottom-2 right-2 bg-black/50 text-white px-2 py-1 rounded-md text-xs">
                         Click to view full size
