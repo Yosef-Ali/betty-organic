@@ -2,7 +2,7 @@
 import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader2, Upload, ZoomIn, RotateCcw, Lightbulb, ArrowLeftRight, AlertCircle } from 'lucide-react';
+import { Loader2, Upload, ZoomIn, RotateCcw, Lightbulb, ArrowLeftRight, AlertCircle, Info } from 'lucide-react';
 import Image from 'next/image';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
@@ -30,6 +30,7 @@ export default function SimpleImageGenerator() {
   const [error, setError] = useState<ErrorWithTips | null>(null);
   const [progress, setProgress] = useState<ProgressStatus | null>(null);
   const [sideBySideView, setSideBySideView] = useState(true);
+  const [usedFallback, setUsedFallback] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const updateProgress = (stage: ProgressStatus['stage'], message: string) => {
@@ -59,6 +60,7 @@ export default function SimpleImageGenerator() {
     setProgress(null);
     setGeneratedImage(null);
     setOriginalImageUrl(null);
+    setUsedFallback(false);
 
     try {
       updateProgress('uploading', 'Preparing your image...');
@@ -96,6 +98,9 @@ export default function SimpleImageGenerator() {
       updateProgress('complete', 'Enhancement complete!');
       setGeneratedImage(data.imageUrl);
       setOriginalImageUrl(data.originalImageUrl || null);
+      
+      // Check if fallback was used
+      setUsedFallback(data.metadata?.fallback === true);
     } catch (err: any) {
       console.error('Image generation error:', err);
 
@@ -147,7 +152,8 @@ export default function SimpleImageGenerator() {
     "Add soft shadows beneath the product",
     "Enhance colors and make it look premium",
     "Add a subtle gradient background",
-    "Make it look like a professional catalog photo"
+    "Make it look like a professional catalog photo",
+    "Simple clean enhancement with good lighting"
   ];
 
   const applyPromptSuggestion = (suggestion: string) => {
@@ -257,6 +263,16 @@ export default function SimpleImageGenerator() {
                 </ul>
               </div>
             )}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {usedFallback && generatedImage && (
+        <Alert>
+          <Info className="h-4 w-4" />
+          <AlertTitle>Alternative AI service used</AlertTitle>
+          <AlertDescription>
+            Our primary AI service couldn't generate this image, but our backup service was able to create it successfully.
           </AlertDescription>
         </Alert>
       )}

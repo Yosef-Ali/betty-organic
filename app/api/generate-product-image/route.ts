@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { GoogleAIFileManager } from "@google/generative-ai/server";
 
 interface RetryOptions {
@@ -134,8 +134,114 @@ async function makeGenerationAttempt(
   }
 }
 
+// Fallback function to generate image using OpenRouter API
+async function fallbackImageGeneration(
+  imageBase64: string,
+  prompt: string
+): Promise<{ success: boolean; imageUrl?: string; error?: string }> {
+  try {
+    const openRouterKey = process.env.OPENROUTER_API_KEY || process.env.NEXT_PUBLIC_OPENROUTER_API_KEY;
+
+    if (!openRouterKey) {
+      throw new Error("OpenRouter API key not found");
+    }
+
+    console.log("Using OpenRouter fallback image generation...");
+
+    // OpenRouter compatible model that supports image generation
+    const model = "anthropic/claude-3-opus";
+
+    // Simplified prompt for better results
+    const openRouterPrompt = `
+    You are a professional product photographer. Please enhance this product image with the following:
+
+    ${prompt.trim()}
+
+    Create a professional, high-quality product photograph at exactly 500x500 pixels.
+    Make sure it's well-lit, has good contrast, and looks clean and professional.
+    The final image must be exactly 500x500 pixels.
+    `;
+
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${openRouterKey}`,
+        "HTTP-Referer": "https://betty-organic-app.example.com",
+        "X-Title": "Betty Organic App"
+      },
+      body: JSON.stringify({
+        model: model,
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: openRouterPrompt
+              },
+              {
+                type: "image_url",
+                image_url: {
+                  url: `data:image/jpeg;base64,${imageBase64}`
+                }
+              }
+            ]
+          }
+        ],
+        max_tokens: 1024,
+        temperature: 0.7,
+        response_format: { type: "json_object" }
+      })
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`OpenRouter API error: ${error}`);
+    }
+
+    const result = await response.json();
+
+    // Extract image URL from response (format depends on the model)
+    const content = result.choices[0]?.message?.content;
+    let imageUrl;
+
+    try {
+      // Try to parse JSON if the content is a JSON string
+      const parsedContent = typeof content === 'string' ? JSON.parse(content) : content;
+      imageUrl = parsedContent.image_url || parsedContent.imageUrl || parsedContent.url;
+    } catch (e) {
+      // If not JSON, try to extract URL using regex
+      const urlMatch = /https?:\/\/[^\s"]+\.(jpg|jpeg|png|webp)/i.exec(content);
+      imageUrl = urlMatch ? urlMatch[0] : null;
+    }
+
+    if (!imageUrl) {
+      throw new Error("No image URL found in the response");
+    }
+
+    return {
+      success: true,
+      imageUrl
+    };
+  } catch (error) {
+    console.error("OpenRouter fallback image generation failed:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+// Convert a File to base64 string for API calls
+async function fileToBase64(imageFile: File): Promise<string> {
+  const buffer = await imageFile.arrayBuffer();
+  return Buffer.from(buffer).toString('base64');
+}
+
 export async function POST(req: NextRequest) {
   try {
+    // Get the Gemini API key
     const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
     if (!apiKey) {
       return NextResponse.json(
@@ -245,7 +351,7 @@ export async function POST(req: NextRequest) {
 
     console.log("Starting image generation with optimized prompt...");
 
-    // Try multiple generation attempts
+    // Try multiple generation attempts with Gemini first
     try {
       const generatedImage = await makeGenerationAttempt(model, file, enhancedPrompt, generationConfig, 1);
       const { mimeType, fileUri } = generatedImage.fileData;
@@ -267,25 +373,67 @@ export async function POST(req: NextRequest) {
           }
         }
       });
-    } catch (error) {
-      // No attempts succeeded, provide guidance based on likely issues
-      console.error("All generation attempts failed:", error);
+    } catch (geminiError) {
+      // Log the Gemini error
+      console.error("Gemini image generation failed:", geminiError);
 
-      return NextResponse.json({
-        success: false,
-        error: "The model couldn't generate an image with your current inputs",
-        troubleshooting: [
-          "Use an image with clearer lighting and less complexity",
-          "Try a simpler enhancement request (e.g., 'Make this product look professional')",
-          "Ensure the product is clearly visible in the image",
-          "Use a higher quality source image if possible",
-          "Try a different image format (JPG works best)"
-        ],
-        technicalDetails: error instanceof Error ? error.message : String(error)
-      }, { status: 422 });
+      // If Gemini fails, try the OpenRouter fallback
+      console.log("Attempting fallback image generation with OpenRouter...");
+
+      try {
+        // Convert image to base64 for fallback service
+        const imageBase64 = await fileToBase64(imageFile);
+
+        // Try fallback generation with OpenRouter
+        const fallbackResult = await fallbackImageGeneration(imageBase64, prompt);
+
+        if (fallbackResult.success && fallbackResult.imageUrl) {
+          // Return successful fallback result
+          return NextResponse.json({
+            success: true,
+            imageUrl: fallbackResult.imageUrl,
+            originalImageUrl: file.uri, // Still use the Gemini-uploaded original for comparison
+            metadata: {
+              mimeType: imageFile.type,
+              model: "openrouter-fallback",
+              dimensions: "500x500",
+              processedAt: new Date().toISOString(),
+              original: {
+                name: imageFile.name,
+                size: imageFile.size,
+                type: imageFile.type
+              },
+              fallback: true
+            }
+          });
+        } else {
+          // Fallback also failed
+          throw new Error(fallbackResult.error || "Fallback generation also failed");
+        }
+      } catch (fallbackError) {
+        // Both Gemini and fallback failed
+        console.error("Fallback image generation failed:", fallbackError);
+
+        // No attempts succeeded, provide guidance based on likely issues
+        return NextResponse.json({
+          success: false,
+          error: "Could not generate an image with current inputs (both primary and fallback services failed)",
+          troubleshooting: [
+            "Use an image with clearer lighting and less complexity",
+            "Try a simpler enhancement request (e.g., 'Make this product look professional')",
+            "Ensure the product is clearly visible in the image",
+            "Use a higher quality source image if possible",
+            "Try a different image format (JPG works best)"
+          ],
+          technicalDetails: {
+            primary: geminiError instanceof Error ? geminiError.message : String(geminiError),
+            fallback: fallbackError instanceof Error ? fallbackError.message : String(fallbackError)
+          }
+        }, { status: 422 });
+      }
     }
   } catch (error: any) {
-    console.error("Gemini API error:", {
+    console.error("API error:", {
       message: error.message,
       cause: error.cause,
       stack: error.stack,
@@ -302,7 +450,7 @@ export async function POST(req: NextRequest) {
     ];
 
     if (error.message.includes("No response")) {
-      errorMessage = "Gemini API timed out. Please try again.";
+      errorMessage = "API timed out. Please try again.";
       statusCode = 503;
       troubleshootingTips = ["Try again in a few moments", "Use a smaller image file"];
     } else if (error.message.includes("File upload failed")) {
