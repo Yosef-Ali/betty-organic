@@ -68,11 +68,22 @@ export default function SimpleImageGenerator() {
         throw new Error(data.error || 'Failed to generate image');
       }
 
+      if (!data.imageUrl) {
+        throw new Error('No valid image was generated. Please try a different prompt or image.');
+      }
+
       updateProgress('complete', 'Enhancement complete!');
       setGeneratedImage(data.imageUrl);
     } catch (err: any) {
       console.error('Image generation error:', err);
-      setError(err.message || 'Failed to enhance image. Please try again.');
+
+      // Handle specific error cases
+      if (err.message.includes('No valid image')) {
+        setError('Image Generation Error\nNo valid image was generated. Please try a different prompt or source image.');
+      } else {
+        setError(err.message || 'Failed to enhance image. Please try again.');
+      }
+
       setProgress(null);
     } finally {
       setIsLoading(false);
