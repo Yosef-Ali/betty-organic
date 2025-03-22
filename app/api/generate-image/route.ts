@@ -3,6 +3,13 @@ import { GeminiService } from '../../services/geminiService';
 
 export async function POST(request: Request) {
   try {
+    if (!process.env.GEMINI_API_KEY) {
+      return NextResponse.json(
+        { error: 'Gemini API key is not configured' },
+        { status: 500 }
+      );
+    }
+
     const body = await request.json();
     const { prompt, referenceImages, config } = body;
 
@@ -10,13 +17,6 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: 'Prompt is required' },
         { status: 400 }
-      );
-    }
-
-    if (!process.env.NEXT_PUBLIC_GEMINI_API_KEY) {
-      return NextResponse.json(
-        { error: 'Gemini API key is not configured' },
-        { status: 500 }
       );
     }
 

@@ -27,9 +27,10 @@ export class GeminiService {
   };
 
   constructor(config?: GeminiServiceConfig) {
-    const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+    // Use server-side environment variable
+    const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      throw new Error('NEXT_PUBLIC_GEMINI_API_KEY environment variable is not set');
+      throw new Error('GEMINI_API_KEY environment variable is not set');
     }
 
     this.apiKey = apiKey;

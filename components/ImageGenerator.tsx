@@ -41,22 +41,23 @@ export default function ImageGenerator({ onImageGenerated }: ImageGeneratorProps
         }),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to generate image');
+        throw new Error(data.error || 'Failed to generate image');
       }
 
-      const data = await response.json();
       onImageGenerated?.(data.result);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      console.error('Error generating image:', err);
+      setError(err instanceof Error ? err.message : 'An error occurred while generating the image');
     } finally {
       setIsLoading(false);
     }
   };
 
   if (!isClient) {
-    return <div>Loading...</div>;
+    return <div className="flex justify-center items-center min-h-[200px]">Loading...</div>;
   }
 
   return (
@@ -73,12 +74,13 @@ export default function ImageGenerator({ onImageGenerated }: ImageGeneratorProps
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
             rows={4}
             required
+            placeholder="Describe the image you want to generate..."
           />
         </div>
 
         {error && (
-          <div className="text-red-600 text-sm">
-            {error}
+          <div className="p-4 bg-red-50 border border-red-200 rounded-md">
+            <p className="text-red-600 text-sm">{error}</p>
           </div>
         )}
 
