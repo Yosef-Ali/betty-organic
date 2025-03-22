@@ -1,7 +1,7 @@
 
 import { DashboardShell } from "@/components/DashboardShell";
 import { DashboardHeader } from "@/components/Header";
-import SimpleImageGenerator from "@/components/Image-gegeraer";
+import SimpleImageGenerator from "@/components/SimpleImageGenerator";
 
 export const metadata = {
   title: "Product Image Generator",
@@ -13,7 +13,7 @@ export default function ProductImageGeneratorPage() {
     <DashboardShell>
       <DashboardHeader
         heading="Product Image Generator"
-        text="Create professional product images using Gemini AI"
+        text="Create professional product images using AI (Coming Soon)"
       />
       <div className="grid gap-8">
         <SimpleImageGenerator />

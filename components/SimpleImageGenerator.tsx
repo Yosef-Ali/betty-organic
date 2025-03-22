@@ -1,18 +1,35 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Upload } from 'lucide-react';
+
+type FileWithPreview = {
+  file: File;
+  preview: string;
+};
 
 export default function SimpleImageGenerator() {
-  const [prompt, setPrompt] = useState<string>("A scenic landscape");
+  const [prompt, setPrompt] = useState<string>("Add professional product lighting");
+  const [sourceImage, setSourceImage] = useState<FileWithPreview | null>(null);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Create preview URL
+    const preview = URL.createObjectURL(file);
+    setSourceImage({ file, preview });
+    setError(null);
+  };
 
   const generateImage = async () => {
-    if (!prompt.trim()) {
-      setError("Please enter a description");
+    if (!sourceImage?.file || !prompt.trim()) {
+      setError("Please select an image and enter a description");
       return;
     }
 
@@ -20,12 +37,14 @@ export default function SimpleImageGenerator() {
     setError(null);
 
     try {
+      // Create form data to send the file
+      const formData = new FormData();
+      formData.append('image', sourceImage.file);
+      formData.append('prompt', prompt);
+
       const response = await fetch('/api/generate-product-image', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ prompt }),
+        body: formData,
       });
 
       const data = await response.json();
@@ -37,39 +56,89 @@ export default function SimpleImageGenerator() {
       setGeneratedImage(data.imageUrl);
     } catch (err: any) {
       console.error('Error generating image:', err);
-      setError(err.message || 'An error occurred');
+      setError(err.message || 'Image generation failed. Please try again later.');
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Cleanup preview URL on unmount or when source image changes
+  React.useEffect(() => {
+    return () => {
+      if (sourceImage?.preview) {
+        URL.revokeObjectURL(sourceImage.preview);
+      }
+    };
+  }, [sourceImage]);
+
   return (
-    <div className="flex flex-col space-y-4">
-      <div className="flex gap-2">
-        <Input
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          placeholder="Enter a description..."
-          className="flex-1"
+    <div className="flex flex-col space-y-6">
+      <div className="grid gap-4">
+        <input
+          type="file"
+          ref={fileInputRef}
+          className="hidden"
+          accept="image/*"
+          onChange={handleFileSelect}
         />
-        <Button
-          onClick={generateImage}
-          disabled={isLoading || !prompt.trim()}
-        >
-          {isLoading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Generating...
-            </>
-          ) : (
-            "Generate"
-          )}
-        </Button>
+
+        <div className="flex gap-2">
+          <Button
+            onClick={() => fileInputRef.current?.click()}
+            variant="outline"
+            className="w-full"
+          >
+            <Upload className="mr-2 h-4 w-4" />
+            {sourceImage ? 'Change Image' : 'Select Image'}
+          </Button>
+        </div>
+
+        {sourceImage && (
+          <div className="flex flex-col gap-4">
+            <div className="relative aspect-square w-full overflow-hidden rounded-lg border bg-muted">
+              <img
+                src={sourceImage.preview}
+                alt="Source"
+                className="object-cover"
+              />
+            </div>
+
+            <div className="flex gap-2">
+              <Input
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                placeholder="Enter enhancement instructions..."
+                className="flex-1"
+              />
+              <Button
+                onClick={generateImage}
+                disabled={isLoading || !prompt.trim()}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Enhancing...
+                  </>
+                ) : (
+                  "Enhance"
+                )}
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {error && (
-        <div className="text-red-500">
-          {error}
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+          <h3 className="font-medium text-red-800 mb-2">Image Generation Error</h3>
+          <div className="text-red-700 whitespace-pre-line">
+            {error}
+          </div>
+          {error.includes('Alternative services') && (
+            <p className="mt-4 text-sm text-red-600">
+              Note: We&apos;re working on integrating a dedicated image generation service. Thank you for your patience.
+            </p>
+          )}
         </div>
       )}
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
+import { GoogleAIFileManager } from "@google/generative-ai/server";
 
 export async function POST(req: NextRequest) {
   try {
@@ -12,44 +13,92 @@ export async function POST(req: NextRequest) {
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
+    const fileManager = new GoogleAIFileManager(apiKey);
     const model = genAI.getGenerativeModel({
-      model: "gemini-pro-vision",
+      model: "gemini-2.0-flash-exp-image-generation",
     });
 
-    const data = await req.json();
-    const prompt = data.prompt || "";
+    const formData = await req.formData();
+    const prompt = formData.get('prompt') as string;
+    const imageFile = formData.get('image') as File;
 
-    if (!prompt) {
+    if (!prompt || !imageFile) {
       return NextResponse.json(
-        { error: "No text prompt provided" },
+        { error: "Both prompt and image are required" },
         { status: 400 }
       );
     }
 
-    const result = await model.generateContent(prompt);
-    const response = result.response;
+    // Convert File to Buffer for upload
+    const buffer = await imageFile.arrayBuffer();
+    const imageBuffer = Buffer.from(buffer);
 
-    // Validate and extract image data from response
-    if (!response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data) {
-      return NextResponse.json(
-        { error: "No image data in Gemini response" },
-        { status: 500 }
-      );
+    // Upload the image buffer to Gemini
+    const uploadResult = await fileManager.uploadFile(imageBuffer, {
+      mimeType: imageFile.type,
+      displayName: imageFile.name
+    });
+
+    const file = uploadResult.file;
+    console.log(`Uploaded file ${file.displayName} as: ${file.name}`);
+
+    // Configure the generation parameters for optimal image quality
+    const generationConfig = {
+      temperature: 0.8,  // More controlled output
+      topP: 0.8,        // Focus on higher probability tokens
+      topK: 32,         // Limit token selection for consistency
+      maxOutputTokens: 4096,
+      responseMimeType: "image/jpeg",
+    };
+
+    // Start chat session with optimized settings
+    const chatSession = model.startChat({ generationConfig });
+
+    // Send the enhancement request
+    const result = await chatSession.sendMessage([
+      {
+        text: `Enhance this product image with these specifications:
+
+Input: Original product photo
+Requested Changes: ${prompt}
+
+Required Standards:
+• Professional studio-quality lighting
+• Clean, contextually appropriate background
+• Sharp focus on product details
+• Commercial-grade color accuracy
+• Maintain brand identity elements
+• Optimize for e-commerce display
+
+Output Requirements:
+• High resolution (minimum 1024x1024)
+• Professional product photography style
+• Preserve original product authenticity
+• Ensure consistent lighting and shadows`
+      },
+      {
+        fileData: {
+          mimeType: file.mimeType,
+          fileUri: file.uri,
+        }
+      }
+    ]);
+    const response = await result.response;
+
+    if (!response.candidates?.[0]?.content?.parts?.[0]?.fileData) {
+      throw new Error("No image generated");
     }
 
-    const imageData = response.candidates[0].content.parts[0].inlineData.data;
-    const mimeType = response.candidates[0].content.parts[0].inlineData.mimeType || "image/png";
-    const imageUrl = `data:${mimeType};base64,${imageData}`;
-
+    const imageData = response.candidates[0].content.parts[0].fileData;
     return NextResponse.json({
       success: true,
-      imageUrl: imageUrl
+      imageUrl: imageData.fileUri,
     });
 
   } catch (error: any) {
     console.error("Gemini image generation error:", error);
     return NextResponse.json(
-      { error: error.message || "Internal server error" },
+      { error: error.message || "Image generation failed" },
       { status: 500 }
     );
   }
