@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { GeminiConfig } from '../app/types/gemini';
+import { generateImage } from '../app/actions/gemini';
 
 interface ImageGeneratorProps {
   onImageGenerated?: (result: any) => void;
@@ -50,7 +51,6 @@ export default function ImageGenerator({ onImageGenerated }: ImageGeneratorProps
       reader.readAsDataURL(file);
       reader.onload = () => {
         const base64String = reader.result as string;
-        // Remove the data URL prefix (e.g., "data:image/jpeg;base64,")
         const base64 = base64String.split(',')[1];
         resolve(base64);
       };
@@ -64,30 +64,22 @@ export default function ImageGenerator({ onImageGenerated }: ImageGeneratorProps
     setError(null);
 
     try {
-      const response = await fetch('/api/generate-image', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          prompt,
-          referenceImages,
-          config: {
-            temperature: 0.7,
-            topP: 0.95,
-            topK: 40,
-            maxOutputTokens: 8192,
-          } as GeminiConfig,
-        }),
-      });
+      const result = await generateImage(
+        prompt,
+        referenceImages,
+        {
+          temperature: 0.7,
+          topP: 0.95,
+          topK: 40,
+          maxOutputTokens: 8192,
+        } as GeminiConfig
+      );
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to generate image');
+      if (!result.success) {
+        throw new Error(result.error);
       }
 
-      onImageGenerated?.(data.result);
+      onImageGenerated?.(result.data);
     } catch (err) {
       console.error('Error generating image:', err);
       setError(err instanceof Error ? err.message : 'An error occurred while generating the image');
