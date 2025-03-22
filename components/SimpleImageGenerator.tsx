@@ -1,4 +1,5 @@
 "use client";
+
 import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,10 +7,11 @@ import { Loader2, Upload, ZoomIn, RotateCcw, Lightbulb, ArrowLeftRight, AlertCir
 import Image from 'next/image';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
-type FileWithPreview = {
+// Define TypeScript interfaces for better type safety
+interface FileWithPreview {
   file: File;
   preview: string;
-};
+}
 
 interface ProgressStatus {
   stage: 'uploading' | 'processing' | 'generating' | 'complete';
@@ -21,7 +23,28 @@ interface ErrorWithTips {
   troubleshooting?: string[];
 }
 
+interface ImageGenerationResponse {
+  success: boolean;
+  imageUrl?: string;
+  originalImageUrl?: string;
+  error?: string;
+  troubleshooting?: string[];
+  metadata?: {
+    mimeType: string;
+    model: string;
+    dimensions: string;
+    processedAt: string;
+    original: {
+      name: string;
+      size: number;
+      type: string;
+    };
+    fallback?: boolean;
+  };
+}
+
 export default function SimpleImageGenerator() {
+  // State using TypeScript types
   const [prompt, setPrompt] = useState<string>("Add professional product lighting");
   const [sourceImage, setSourceImage] = useState<FileWithPreview | null>(null);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
@@ -33,10 +56,12 @@ export default function SimpleImageGenerator() {
   const [usedFallback, setUsedFallback] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Function to update progress state
   const updateProgress = (stage: ProgressStatus['stage'], message: string) => {
     setProgress({ stage, message });
   };
 
+  // Handle file selection with proper type safety
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -47,6 +72,7 @@ export default function SimpleImageGenerator() {
     setError(null);
   };
 
+  // Generate image with proper async/await pattern
   const generateImage = async () => {
     if (!sourceImage?.file || !prompt.trim()) {
       setError({
@@ -69,13 +95,28 @@ export default function SimpleImageGenerator() {
       formData.append('prompt', prompt);
 
       updateProgress('processing', 'Uploading image to Gemini 2.0...');
-      const response = await fetch('/api/generate-product-image', {
+
+      // Log details for debugging
+      console.log('Sending request to API with form data',
+        { promptValue: prompt, imageFileName: sourceImage.file.name, imageSize: sourceImage.file.size });
+
+      // Use Next.js 15 fetch with proper error handling
+      const response = await fetch('/api/image-generation', {
         method: 'POST',
         body: formData,
       });
 
       updateProgress('generating', 'Generating enhanced product image with Gemini 2.0 Flash...');
-      const data = await response.json();
+
+      if (!response.ok) {
+        const errorData = await response.json() as ImageGenerationResponse;
+        throw new Error(JSON.stringify({
+          message: errorData.error || `Server error: ${response.status}`,
+          troubleshooting: errorData.troubleshooting || []
+        }));
+      }
+
+      const data = await response.json() as ImageGenerationResponse;
 
       if (!data.success) {
         throw new Error(JSON.stringify({
@@ -96,6 +137,7 @@ export default function SimpleImageGenerator() {
       }
 
       updateProgress('complete', 'Enhancement complete!');
+      console.log('Image generation success:', data);
       setGeneratedImage(data.imageUrl);
       setOriginalImageUrl(data.originalImageUrl || null);
 
@@ -136,7 +178,7 @@ export default function SimpleImageGenerator() {
     }
   };
 
-  // Cleanup preview URL on unmount or when source image changes
+  // Cleanup preview URL on unmount or when source image changes - React 18 pattern
   React.useEffect(() => {
     return () => {
       if (sourceImage?.preview) {
@@ -313,7 +355,7 @@ export default function SimpleImageGenerator() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Original Image */}
-                {(sideBySideView || !sideBySideView && !originalImageUrl) && (
+                {(sideBySideView || (!sideBySideView && !originalImageUrl)) && (
                   <div className="space-y-2">
                     <h3 className="text-sm font-medium text-muted-foreground">Original Image</h3>
                     <div className="relative aspect-square w-full overflow-hidden rounded-md bg-muted">
@@ -332,7 +374,7 @@ export default function SimpleImageGenerator() {
                 )}
 
                 {/* Generated Image */}
-                {(sideBySideView || !sideBySideView && originalImageUrl) && (
+                {(sideBySideView || (!sideBySideView && originalImageUrl)) && (
                   <div className="space-y-2">
                     <h3 className="text-sm font-medium text-muted-foreground">Enhanced Image</h3>
                     <div
