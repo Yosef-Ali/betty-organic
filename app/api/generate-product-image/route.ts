@@ -237,7 +237,7 @@ export async function POST(req: NextRequest) {
     // Provide more specific error messages based on the error
     let errorMessage = "Image generation failed";
     let statusCode = 500;
-    let troubleshootingTips = [];
+    let troubleshootingTips: string[] = [];
 
     if (error.message.includes("No response")) {
       errorMessage = "Gemini API timed out. Please try again.";
