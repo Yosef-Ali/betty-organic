@@ -186,11 +186,11 @@ export async function POST(req: NextRequest): Promise<NextResponse<SuccessRespon
       // Upload the image to Gemini
       console.log("Uploading image to Gemini...");
 
-      // Upload the image to Gemini using Buffer for proper type compatibility
+      // Upload the image to Gemini using correct parameter structure
       const imageBuffer = Buffer.from(buffer);
       const uploadResult = await fileManager.uploadFile(imageBuffer, {
         mimeType: imageFile.type,
-        displayName: imageFile.name
+        name: imageFile.name
       });
 
       if (!uploadResult?.file) {
