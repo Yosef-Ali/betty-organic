@@ -77,7 +77,7 @@ function createEnhancedPrompt(userPrompt: string, imageName: string): string {
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse<SuccessResponse | ErrorResponse>> {
-  console.log("Received image generation request:", req.body);
+  console.log("Received image generation request");
   try {
     // Get the API key from environment variables
     const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
