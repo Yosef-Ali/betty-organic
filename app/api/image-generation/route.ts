@@ -77,6 +77,7 @@ function createEnhancedPrompt(userPrompt: string, imageName: string): string {
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse<SuccessResponse | ErrorResponse>> {
+  console.log("Received image generation request:", req.body);
   try {
     // Get the API key from environment variables
     const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
@@ -317,13 +318,18 @@ export async function POST(req: NextRequest): Promise<NextResponse<SuccessRespon
     }
   } catch (error: any) {
     console.error("Unexpected error:", error);
+    let errorMessage = "An unexpected error occurred. Please try again.";
+    if (error instanceof Error) {
+      errorMessage = error.message;
+    }
     return NextResponse.json(
       {
         success: false,
-        error: "An unexpected error occurred. Please try again.",
+        error: errorMessage,
         timestamp: new Date().toISOString()
       },
       { status: 500 }
     );
   }
+}
 }
