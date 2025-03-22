@@ -4,8 +4,6 @@ import {
   HarmBlockThreshold,
 } from "@google/generative-ai";
 import { GoogleAIFileManager } from "@google/generative-ai/server";
-import { promises as fs } from 'fs';
-import path from 'path';
 import {
   GeminiConfig,
   GeminiFile,
@@ -18,7 +16,7 @@ export class GeminiService {
   private readonly apiKey: string;
   private readonly genAI: GoogleGenerativeAI;
   private readonly fileManager: GoogleAIFileManager;
-  private readonly model: any; // Replace 'any' with proper type when available
+  private readonly model: any;
   private readonly defaultConfig: GeminiConfig = {
     temperature: 0.7,
     topP: 0.95,
@@ -27,7 +25,6 @@ export class GeminiService {
   };
 
   constructor(config?: GeminiServiceConfig) {
-    // Use server-side environment variable
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       throw new Error('GEMINI_API_KEY environment variable is not set');
@@ -43,43 +40,15 @@ export class GeminiService {
   }
 
   /**
-   * Uploads a file to Gemini with proper error handling
-   * @param filePath - Path to the file
-   * @param mimeType - MIME type of the file
-   * @returns Promise<GeminiFile> - Uploaded file object
-   */
-  async uploadToGemini(filePath: string, mimeType: string): Promise<GeminiFile> {
-    try {
-      // Check if file exists
-      await fs.access(filePath);
-
-      const uploadResult = await this.fileManager.uploadFile(filePath, {
-        mimeType,
-        displayName: path.basename(filePath),
-      });
-
-      console.log(`Successfully uploaded: ${uploadResult.file.displayName}`);
-      return {
-        ...uploadResult.file,
-        fileUri: uploadResult.file.name,
-        displayName: uploadResult.file.displayName || path.basename(filePath),
-      };
-    } catch (error) {
-      console.error(`Error uploading file ${filePath}:`, error);
-      throw new Error(`Failed to upload file: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
-
-  /**
    * Generates an image based on the input prompt and reference images
    * @param prompt - The text prompt for image generation
-   * @param referenceImages - Array of paths to reference images
+   * @param referenceImages - Array of base64 encoded images
    * @param config - Optional generation configuration
    * @returns Promise<GeminiResponse> - Generated image result
    */
   async generateImage(
     prompt: string,
-    referenceImages: string[] = [],
+    referenceImages: { data: string; mimeType: string }[] = [],
     config?: Partial<GeminiConfig>
   ): Promise<GeminiResponse> {
     try {
@@ -88,24 +57,16 @@ export class GeminiService {
         ...config,
       };
 
-      // Upload reference images if provided
-      const uploadedFiles = await Promise.all(
-        referenceImages.map(async (imagePath) => {
-          const mimeType = this.getMimeType(imagePath);
-          return this.uploadToGemini(imagePath, mimeType);
-        })
-      );
-
       // Create chat session with reference images
       const chatSession = this.model.startChat({
         generationConfig,
-        history: uploadedFiles.map(file => ({
+        history: referenceImages.map(image => ({
           role: "user",
           parts: [
             {
-              fileData: {
-                mimeType: file.mimeType,
-                fileUri: file.fileUri,
+              inlineData: {
+                mimeType: image.mimeType,
+                data: image.data,
               },
             },
           ],
@@ -119,22 +80,5 @@ export class GeminiService {
       console.error('Error generating image:', error);
       throw new Error(`Failed to generate image: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-  }
-
-  /**
-   * Determines the MIME type based on file extension
-   * @param filePath - Path to the file
-   * @returns string - MIME type
-   */
-  private getMimeType(filePath: string): string {
-    const ext = path.extname(filePath).toLowerCase();
-    const mimeTypes: Record<string, string> = {
-      '.jpg': 'image/jpeg',
-      '.jpeg': 'image/jpeg',
-      '.png': 'image/png',
-      '.gif': 'image/gif',
-      '.webp': 'image/webp',
-    };
-    return mimeTypes[ext] || 'image/jpeg';
   }
 }

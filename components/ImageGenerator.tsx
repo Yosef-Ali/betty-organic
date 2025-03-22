@@ -7,9 +7,14 @@ interface ImageGeneratorProps {
   onImageGenerated?: (result: any) => void;
 }
 
+interface ReferenceImage {
+  data: string;
+  mimeType: string;
+}
+
 export default function ImageGenerator({ onImageGenerated }: ImageGeneratorProps) {
   const [prompt, setPrompt] = useState('');
-  const [referenceImages, setReferenceImages] = useState<string[]>([]);
+  const [referenceImages, setReferenceImages] = useState<ReferenceImage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isClient, setIsClient] = useState(false);
@@ -17,6 +22,41 @@ export default function ImageGenerator({ onImageGenerated }: ImageGeneratorProps
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    const newImages: ReferenceImage[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      try {
+        const base64 = await convertToBase64(file);
+        newImages.push({
+          data: base64,
+          mimeType: file.type,
+        });
+      } catch (err) {
+        console.error('Error converting file to base64:', err);
+        setError('Failed to process one or more images');
+      }
+    }
+    setReferenceImages(prev => [...prev, ...newImages]);
+  };
+
+  const convertToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        const base64String = reader.result as string;
+        // Remove the data URL prefix (e.g., "data:image/jpeg;base64,")
+        const base64 = base64String.split(',')[1];
+        resolve(base64);
+      };
+      reader.onerror = error => reject(error);
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,6 +115,24 @@ export default function ImageGenerator({ onImageGenerated }: ImageGeneratorProps
             rows={4}
             required
             placeholder="Describe the image you want to generate..."
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            Reference Images (Optional)
+          </label>
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={handleFileUpload}
+            className="mt-1 block w-full text-sm text-gray-500
+              file:mr-4 file:py-2 file:px-4
+              file:rounded-md file:border-0
+              file:text-sm file:font-semibold
+              file:bg-indigo-50 file:text-indigo-700
+              hover:file:bg-indigo-100"
           />
         </div>
 
