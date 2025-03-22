@@ -153,7 +153,7 @@ export const OrderSummary: FC<OrderSummaryProps> = ({
         setSelectedCustomer(matchingCustomer);
       }
     }
-  }, [customerInfo?.id, customerList]);
+  }, [customerInfo?.id, customerList, selectedCustomer]);
 
   // Effect for setting customer details when selectedCustomer changes
   useEffect(() => {
@@ -254,18 +254,6 @@ ${storeInfo}`;
       console.error('Error sharing:', error);
     }
   };
-
-  useEffect(() => {
-    if (selectedCustomer) {
-      setCustomerDetails(prev => ({
-        ...prev,
-        name: selectedCustomer.name || prev.name,
-        email: selectedCustomer.email || prev.email,
-        phone: selectedCustomer.phone || prev.phone,
-        address: selectedCustomer.address || prev.address
-      }));
-    }
-  }, [selectedCustomer, setCustomerDetails]);
 
   return (
     <motion.div

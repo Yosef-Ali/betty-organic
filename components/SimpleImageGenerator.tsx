@@ -314,7 +314,7 @@ export default function SimpleImageGenerator() {
           <Info className="h-4 w-4" />
           <AlertTitle>Alternative AI service used</AlertTitle>
           <AlertDescription>
-            Our primary AI service couldn't generate this image, but our backup service was able to create it successfully.
+            Our primary AI service couldn&apos;t generate this image, but our backup service was able to create it successfully.
           </AlertDescription>
         </Alert>
       )}

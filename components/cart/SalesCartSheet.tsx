@@ -106,7 +106,7 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
       console.error('Error updating customer:', error);
       toast.error('Failed to update customer information');
     }
-  }, [customer, setCustomer, toast]);
+  }, [customer, setCustomer]);
 
   const handleToggleLockStatus = useCallback(() => {
     if (profile?.role === 'admin' && !isPending) {
