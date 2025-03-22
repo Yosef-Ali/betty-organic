@@ -224,8 +224,8 @@ export async function POST(req: NextRequest): Promise<NextResponse<SuccessRespon
             parts: [
               {
                 fileData: {
-                  mimeType: file.mimeType,
-                  fileUri: file.uri,
+                  mimeType: imageFile.type,
+                  fileUri: `file://${tempFilePath}`,
                 },
               },
               {
@@ -237,7 +237,6 @@ export async function POST(req: NextRequest): Promise<NextResponse<SuccessRespon
       });
 
       // Send message to generate image
-      console.log("Sending request to generate image...");
       const result = await chatSession.sendMessage(
         "Please generate the enhanced product image based on my instructions. The output should be exactly 500x500 pixels."
       );
