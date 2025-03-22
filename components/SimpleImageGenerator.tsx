@@ -2,8 +2,9 @@
 import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader2, Upload, ZoomIn, RotateCcw, Lightbulb } from 'lucide-react';
+import { Loader2, Upload, ZoomIn, RotateCcw, Lightbulb, ArrowLeftRight, AlertCircle } from 'lucide-react';
 import Image from 'next/image';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 type FileWithPreview = {
   file: File;
@@ -15,13 +16,20 @@ interface ProgressStatus {
   message: string;
 }
 
+interface ErrorWithTips {
+  message: string;
+  troubleshooting?: string[];
+}
+
 export default function SimpleImageGenerator() {
   const [prompt, setPrompt] = useState<string>("Add professional product lighting");
   const [sourceImage, setSourceImage] = useState<FileWithPreview | null>(null);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [originalImageUrl, setOriginalImageUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ErrorWithTips | null>(null);
   const [progress, setProgress] = useState<ProgressStatus | null>(null);
+  const [sideBySideView, setSideBySideView] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const updateProgress = (stage: ProgressStatus['stage'], message: string) => {
@@ -40,7 +48,9 @@ export default function SimpleImageGenerator() {
 
   const generateImage = async () => {
     if (!sourceImage?.file || !prompt.trim()) {
-      setError("Please select an image and enter a description");
+      setError({
+        message: "Please select an image and enter a description"
+      });
       return;
     }
 
@@ -48,6 +58,7 @@ export default function SimpleImageGenerator() {
     setError(null);
     setProgress(null);
     setGeneratedImage(null);
+    setOriginalImageUrl(null);
 
     try {
       updateProgress('uploading', 'Preparing your image...');
@@ -65,23 +76,53 @@ export default function SimpleImageGenerator() {
       const data = await response.json();
 
       if (!data.success) {
-        throw new Error(data.error || 'Failed to generate image');
+        throw new Error(JSON.stringify({
+          message: data.error || 'Failed to generate image',
+          troubleshooting: data.troubleshooting || []
+        }));
       }
 
       if (!data.imageUrl) {
-        throw new Error('No valid image was generated. Please try a different prompt or image.');
+        throw new Error(JSON.stringify({
+          message: 'No valid image was generated. Please try a different prompt or image.',
+          troubleshooting: [
+            "Use a clearer image with better lighting",
+            "Try a simpler enhancement prompt",
+            "Ensure your image has a clear subject"
+          ]
+        }));
       }
 
       updateProgress('complete', 'Enhancement complete!');
       setGeneratedImage(data.imageUrl);
+      setOriginalImageUrl(data.originalImageUrl || null);
     } catch (err: any) {
       console.error('Image generation error:', err);
 
-      // Handle specific error cases
-      if (err.message.includes('No valid image')) {
-        setError('Image Generation Error\nNo valid image was generated. Please try a different prompt or source image.');
-      } else {
-        setError(err.message || 'Failed to enhance image. Please try again.');
+      // Try to parse the error to get troubleshooting tips
+      try {
+        const parsedError = JSON.parse(err.message);
+        setError({
+          message: parsedError.message || 'Failed to enhance image. Please try again.',
+          troubleshooting: parsedError.troubleshooting
+        });
+      } catch (parseErr) {
+        // Handle specific error cases if parsing fails
+        if (err.message.includes('No valid image')) {
+          setError({
+            message: 'Image Generation Error: No valid image was generated.',
+            troubleshooting: [
+              "Use a clearer image with better lighting",
+              "Try a simpler enhancement prompt",
+              "Ensure your image has a clear subject",
+              "Try a different image format (JPG or PNG)"
+            ]
+          });
+        } else {
+          setError({
+            message: err.message || 'Failed to enhance image. Please try again.'
+          });
+        }
       }
 
       setProgress(null);
@@ -113,6 +154,10 @@ export default function SimpleImageGenerator() {
     setPrompt(suggestion);
   };
 
+  const toggleView = () => {
+    setSideBySideView(!sideBySideView);
+  };
+
   return (
     <div className="flex flex-col space-y-6">
       <div className="grid gap-4">
@@ -122,7 +167,7 @@ export default function SimpleImageGenerator() {
             Powered by Gemini 2.0 Flash Image Generation
           </h3>
           <p className="text-sm text-blue-700">
-            Upload any product photo and enhance it with professional quality using Google&apos;s newest AI image generation model.
+            Upload any product photo and enhance it with professional quality using Google&apos;s newest AI image generation model. All images are generated at exactly 500x500 pixels.
           </p>
         </div>
 
@@ -197,17 +242,23 @@ export default function SimpleImageGenerator() {
       </div>
 
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-          <h3 className="font-medium text-red-800 mb-2">Image Generation Error</h3>
-          <div className="text-red-700 whitespace-pre-line">
-            {error}
-          </div>
-          {error.includes('Alternative services') && (
-            <p className="mt-4 text-sm text-red-600">
-              Note: We&apos;re working on integrating a dedicated image generation service. Thank you for your patience.
-            </p>
-          )}
-        </div>
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Image Generation Error</AlertTitle>
+          <AlertDescription className="space-y-2">
+            <p>{error.message}</p>
+            {error.troubleshooting && error.troubleshooting.length > 0 && (
+              <div className="mt-2">
+                <p className="font-semibold">Troubleshooting tips:</p>
+                <ul className="list-disc pl-5 text-sm space-y-1">
+                  {error.troubleshooting.map((tip, index) => (
+                    <li key={index}>{tip}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </AlertDescription>
+        </Alert>
       )}
 
       {(isLoading || generatedImage) && (
@@ -230,23 +281,42 @@ export default function SimpleImageGenerator() {
 
           {generatedImage && (
             <div className="w-full rounded-lg border bg-card p-6 shadow-sm">
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Source Image */}
+              {originalImageUrl && generatedImage && (
+                <div className="mb-4 flex justify-end">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={toggleView}
+                    className="flex items-center gap-2"
+                  >
+                    <ArrowLeftRight className="h-4 w-4" />
+                    {sideBySideView ? "Switch to Single View" : "Switch to Side-by-Side"}
+                  </Button>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Original Image */}
+                {(sideBySideView || !sideBySideView && !originalImageUrl) && (
                   <div className="space-y-2">
                     <h3 className="text-sm font-medium text-muted-foreground">Original Image</h3>
                     <div className="relative aspect-square w-full overflow-hidden rounded-md bg-muted">
                       <Image
-                        src={sourceImage?.preview || ''}
+                        src={originalImageUrl || sourceImage?.preview || ''}
                         alt="Original product"
                         className="object-contain"
                         fill
                         sizes="(max-width: 768px) 100vw, 50vw"
                       />
+                      <div className="absolute bottom-2 right-2 bg-black/50 text-white px-2 py-1 rounded-md text-xs">
+                        500 x 500
+                      </div>
                     </div>
                   </div>
+                )}
 
-                  {/* Generated Image */}
+                {/* Generated Image */}
+                {(sideBySideView || !sideBySideView && originalImageUrl) && (
                   <div className="space-y-2">
                     <h3 className="text-sm font-medium text-muted-foreground">Enhanced Image</h3>
                     <div
@@ -270,7 +340,7 @@ export default function SimpleImageGenerator() {
                         sizes="(max-width: 768px) 100vw, 50vw"
                       />
                       <div className="absolute bottom-2 right-2 bg-black/50 text-white px-2 py-1 rounded-md text-xs">
-                        Click to view full size
+                        500 x 500
                       </div>
                     </div>
 
@@ -302,14 +372,14 @@ export default function SimpleImageGenerator() {
                           </div>
                           <div className="text-center">
                             <p className="text-sm text-muted-foreground">
-                              Image enhancement completed successfully with Gemini 2.0 Flash. You can view the full size or try another enhancement.
+                              Image enhancement completed successfully with Gemini 2.0 Flash. Images are generated at 500x500 pixels for optimal display.
                             </p>
                           </div>
                         </div>
                       </>
                     )}
                   </div>
-                </div>
+                )}
               </div>
             </div>
           )}
