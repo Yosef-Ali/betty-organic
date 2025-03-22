@@ -13,6 +13,13 @@ export async function POST(request: Request) {
       );
     }
 
+    if (!process.env.NEXT_PUBLIC_GEMINI_API_KEY) {
+      return NextResponse.json(
+        { error: 'Gemini API key is not configured' },
+        { status: 500 }
+      );
+    }
+
     const geminiService = new GeminiService();
     const result = await geminiService.generateImage(
       prompt,
@@ -24,7 +31,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('Error in generate-image route:', error);
     return NextResponse.json(
-      { error: 'Failed to generate image' },
+      { error: error instanceof Error ? error.message : 'Failed to generate image' },
       { status: 500 }
     );
   }

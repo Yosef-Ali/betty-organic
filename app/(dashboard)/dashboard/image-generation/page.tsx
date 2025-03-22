@@ -1,4 +1,9 @@
-import ImageGenerator from '@/components/ImageGenerator';
+import dynamic from 'next/dynamic';
+
+const ImageGenerator = dynamic(() => import('@/components/ImageGenerator'), {
+  ssr: false,
+  loading: () => <div>Loading...</div>
+});
 
 export default function ImageGenerationPage() {
   return (

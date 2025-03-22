@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { GeminiConfig } from '../app/types/gemini';
 
 interface ImageGeneratorProps {
@@ -12,6 +12,11 @@ export default function ImageGenerator({ onImageGenerated }: ImageGeneratorProps
   const [referenceImages, setReferenceImages] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,7 +42,8 @@ export default function ImageGenerator({ onImageGenerated }: ImageGeneratorProps
       });
 
       if (!response.ok) {
-        throw new Error('Failed to generate image');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate image');
       }
 
       const data = await response.json();
@@ -48,6 +54,10 @@ export default function ImageGenerator({ onImageGenerated }: ImageGeneratorProps
       setIsLoading(false);
     }
   };
+
+  if (!isClient) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <div className="max-w-2xl mx-auto p-4">
