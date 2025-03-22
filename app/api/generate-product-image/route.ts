@@ -27,6 +27,37 @@ async function retryOperation<T>(
   throw lastError!;
 }
 
+// Format the image prompt to maximize chances of success
+function createOptimizedPrompt(userPrompt: string, imageName: string): string {
+  // Extract any useful information from the filename
+  const fileInfo = imageName.toLowerCase();
+  const isProduct = fileInfo.includes('product') ||
+    fileInfo.includes('item') ||
+    fileInfo.includes('goods');
+
+  const productHints = isProduct ?
+    "This is a product image that needs enhancement for e-commerce use." :
+    "Enhance this image with professional quality.";
+
+  // Create a structured prompt that works well with Gemini
+  return `
+    I need a professional enhanced version of this product image with these specific changes:
+    ${userPrompt.trim()}
+
+    ${productHints}
+
+    TECHNICAL REQUIREMENTS (these are mandatory):
+    • Generate at EXACTLY 500x500 pixels with square aspect ratio
+    • Maintain the primary subject centered in the frame
+    • Apply professional product photography standards with clean lighting
+    • Ensure high clarity and commercial-grade presentation
+    • Preserve the original object but enhance its appearance
+    • The subject should remain recognizable but improved
+    • Optimize for e-commerce display
+    • Make sure the entire item is visible and properly lit
+  `.trim();
+}
+
 export async function POST(req: NextRequest) {
   try {
     const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
@@ -82,6 +113,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Check for very dark or very small images
+    // We can't directly analyze the image here, but we can check file size as a rough proxy
+    const minSize = 10 * 1024; // 10KB in bytes
+    if (imageFile.size < minSize) {
+      return NextResponse.json({
+        success: false,
+        error: "The image appears to be too small or low quality for enhancement",
+        troubleshooting: [
+          "Use a larger, higher-resolution image",
+          "Ensure the image has adequate lighting",
+          "Image should be at least 300x300 pixels"
+        ]
+      }, { status: 400 });
+    }
+
     // Convert File to Buffer for upload
     const buffer = await imageFile.arrayBuffer();
     const imageBuffer = Buffer.from(buffer);
@@ -108,125 +154,130 @@ export async function POST(req: NextRequest) {
     const file = uploadResult.file;
     console.log(`Uploaded file ${file.displayName} as: ${file.name}`);
 
-    // Improved prompt formatting to enhance generation success
-    const enhancedPrompt = `
-      Generate a professional product photo based on this image with the following enhancements:
-      ${prompt.trim()}
+    // Create optimized prompt for better results
+    const enhancedPrompt = createOptimizedPrompt(prompt, imageFile.name);
 
-      Technical requirements:
-      • Output must be exactly 500x500 pixels with 1:1 square aspect ratio
-      • High resolution and clear details
-      • Professional product photography lighting and shadows
-      • Commercial product presentation quality
-      • Keep the product as the main subject
-      • The product should be clearly visible and enhanced
-    `.trim();
-
-    // Configure generation parameters based on the new Gemini 2.0 requirements
+    // Configure generation parameters for better success rate
+    // Lower temperature for more deterministic results
     const generationConfig = {
-      temperature: 0.9, // Slightly reduce temperature for more predictable results
-      topP: 0.95,
-      topK: 40,
+      temperature: 0.7,
+      topP: 0.9,
+      topK: 32,
       maxOutputTokens: 8192,
       responseMimeType: "text/plain",
     };
 
-    // Start chat session with history and retry logic for image generation
-    console.log("Starting image generation chat session...");
-    const chatSession = await retryOperation(
-      async () => model.startChat({
-        generationConfig,
-        history: [
-          {
-            role: "user",
-            parts: [
-              {
-                fileData: {
-                  mimeType: file.mimeType,
-                  fileUri: file.uri,
+    console.log("Starting image generation with optimized prompt...");
+
+    // Make three generation attempts with different parameters
+    // Each attempt uses slightly different approach for maximum chance of success
+    async function attemptGeneration(attempt = 1): Promise<any> {
+      try {
+        console.log(`Generation attempt ${attempt}...`);
+
+        // Adjust parameters based on attempt number
+        const attemptConfig = {
+          ...generationConfig,
+          temperature: attempt === 1 ? 0.7 : attempt === 2 ? 0.85 : 0.6,
+        };
+
+        // Slight variations in prompt based on attempt
+        let attemptPrompt = enhancedPrompt;
+        if (attempt === 2) {
+          attemptPrompt += "\n\nPlease ensure the image is exactly 500x500 pixels. Focus on clarity and professional presentation.";
+        } else if (attempt === 3) {
+          attemptPrompt += "\n\nGenerate a simple, clean product image with neutral background at 500x500 pixels.";
+        }
+
+        // Start chat session with history
+        const chatSession = await model.startChat({
+          generationConfig: attemptConfig,
+          history: [
+            {
+              role: "user",
+              parts: [
+                {
+                  fileData: {
+                    mimeType: file.mimeType,
+                    fileUri: file.uri,
+                  },
                 },
-              },
-              {
-                text: enhancedPrompt
-              },
-            ],
-          },
-        ],
-      }),
-      {
-        retries: 2,
-        onRetry: (error: Error) => {
-          console.warn('Retrying chat session creation:', error.message);
+                {
+                  text: attemptPrompt
+                },
+              ],
+            },
+          ],
+        });
+
+        // Send message to generate image
+        const result = await chatSession.sendMessage(
+          "Please generate the enhanced product image based on my instructions. The output should be exactly 500x500 pixels."
+        );
+
+        const response = result.response;
+        const parts = response.candidates?.[0]?.content?.parts || [];
+
+        // Find all image parts in response
+        const imageParts = parts.filter(
+          (part): part is { fileData: { mimeType: string; fileUri: string } } =>
+            !!part.fileData?.mimeType?.startsWith("image/") && !!part.fileData.fileUri
+        );
+
+        if (imageParts.length > 0) {
+          return imageParts[0];
+        } else {
+          throw new Error("No image generated");
         }
-      }
-    );
-
-    // Send a simple message to continue the chat and generate the image with retry logic
-    console.log("Sending generation request to Gemini...");
-    const result = await retryOperation(
-      async () => chatSession.sendMessage("Please generate the enhanced product image at exactly 500x500 pixels following the instructions I provided."),
-      {
-        retries: 2,
-        onRetry: (error: Error) => {
-          console.warn('Retrying image generation:', error.message);
+      } catch (error) {
+        console.warn(`Attempt ${attempt} failed:`, error);
+        if (attempt < 3) {
+          console.log(`Trying alternative approach (attempt ${attempt + 1})...`);
+          return await attemptGeneration(attempt + 1);
         }
+        throw error;
       }
-    );
+    }
 
-    console.log("Gemini response received");
+    // Try multiple generation attempts
+    try {
+      const generatedImage = await attemptGeneration();
+      const { mimeType, fileUri } = generatedImage.fileData;
 
-    // Extract the image from the response
-    const response = result.response;
-    const parts = response.candidates?.[0]?.content?.parts || [];
-
-    // Find all image parts in the response
-    const imageParts = parts.filter(
-      (part): part is { fileData: { mimeType: string; fileUri: string } } =>
-        !!part.fileData?.mimeType?.startsWith("image/") && !!part.fileData.fileUri
-    );
-
-    if (!imageParts.length) {
-      console.error("No image parts found in Gemini response");
-
-      // Try to get the text response for better error reporting
-      const textParts = parts.filter(part => typeof part.text === 'string');
-      const errorMessage = textParts.length > 0
-        ? `Model couldn't generate an image: ${textParts[0].text?.substring(0, 100)}`
-        : "The model couldn't generate a valid image. Try a different image or a simpler prompt.";
+      // Return both the original and generated image URLs for side-by-side display
+      return NextResponse.json({
+        success: true,
+        imageUrl: fileUri,
+        originalImageUrl: file.uri,
+        metadata: {
+          mimeType,
+          model: "gemini-2.0-flash-exp-image-generation",
+          dimensions: "500x500",
+          processedAt: new Date().toISOString(),
+          original: {
+            name: imageFile.name,
+            size: imageFile.size,
+            type: imageFile.type
+          }
+        }
+      });
+    } catch (error) {
+      // No attempts succeeded, provide guidance based on likely issues
+      console.error("All generation attempts failed:", error);
 
       return NextResponse.json({
         success: false,
-        error: errorMessage,
+        error: "The model couldn't generate an image with your current inputs",
         troubleshooting: [
-          "Use a clearer image with better lighting",
-          "Try a simpler enhancement prompt",
-          "Ensure the image has a clear subject",
-          "Avoid dark or blurry images",
-          "Try a different image format (JPG or PNG)"
-        ]
+          "Use an image with clearer lighting and less complexity",
+          "Try a simpler enhancement request (e.g., 'Make this product look professional')",
+          "Ensure the product is clearly visible in the image",
+          "Use a higher quality source image if possible",
+          "Try a different image format (JPG works best)"
+        ],
+        technicalDetails: error instanceof Error ? error.message : String(error)
       }, { status: 422 });
     }
-
-    const [generatedImage] = imageParts;
-    const { mimeType, fileUri } = generatedImage.fileData;
-
-    // Return both the original and generated image URLs for side-by-side display
-    return NextResponse.json({
-      success: true,
-      imageUrl: fileUri,
-      originalImageUrl: file.uri,
-      metadata: {
-        mimeType,
-        model: "gemini-2.0-flash-exp-image-generation",
-        dimensions: "500x500",
-        processedAt: new Date().toISOString(),
-        original: {
-          name: imageFile.name,
-          size: imageFile.size,
-          type: imageFile.type
-        }
-      }
-    });
   } catch (error: any) {
     console.error("Gemini API error:", {
       message: error.message,
@@ -237,7 +288,12 @@ export async function POST(req: NextRequest) {
     // Provide more specific error messages based on the error
     let errorMessage = "Image generation failed";
     let statusCode = 500;
-    let troubleshootingTips: string[] = [];
+    let troubleshootingTips = [
+      "Use a clearer image with better lighting",
+      "Try a simpler enhancement prompt",
+      "Ensure the image has a clear subject",
+      "Try using a JPG format image"
+    ];
 
     if (error.message.includes("No response")) {
       errorMessage = "Gemini API timed out. Please try again.";
