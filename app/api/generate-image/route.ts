@@ -22,16 +22,26 @@ const genAI = new GoogleGenerativeAI(apiKey);
 const fileManager = new GoogleAIFileManager(apiKey);
 
 // Model specific configuration
-const model = genAI.getGenerativeModel({
-  // IMPORTANT: Verify this model name.
-  model: "gemini-2.0-flash-exp-image-generation", //seems experimental or potentially incorrect.
-  // Common vision model is "gemini-pro-vision" (text out) or "gemini-1.5-flash" / "gemini-1.5-pro" (multimodal)
-  // For pure Image Generation, Google often uses "Imagen" models via Vertex AI or other specific APIs.
-  // Let's proceed assuming this model *does* accept image+text and outputs image, as implied by original script.
-  // If it fails, you might need "gemini-1.5-flash" or check Google's documentation for the correct image generation/editing model available via the Gemini SDK.
-  //model: 'gemini-1.5-flash-latest', // Using a known multimodal model as a placeholder
-  // model: "gemini-2.0-flash-exp-image-generation", // Original model - use if confirmed
-});
+async function getModelWithFallback() {
+  const modelsToTry = [
+    "gemini-2.0-flash-exp-image-generation",
+    "gemini-1.5-flash-latest",
+    "gemini-pro-vision"
+  ];
+
+  for (const modelName of modelsToTry) {
+    try {
+      const testModel = genAI.getGenerativeModel({ model: modelName });
+      // Verify model availability with a simple prompt
+      await testModel.generateContent("Test response");
+      console.log(`Using model: ${modelName}`);
+      return testModel;
+    } catch (error: unknown) {
+      console.warn(`Model ${modelName} unavailable: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  throw new Error("No working image generation models available");
+}
 
 const generationConfig = {
   temperature: 1,
@@ -149,7 +159,8 @@ export async function POST(req: NextRequest) {
     console.log("Sending request to Gemini model with parts:", JSON.stringify(parts, null, 2));
 
     // --- Call Gemini API ---
-    const result = await model.generateContent({
+    const finalModel = await getModelWithFallback();
+    const result = await finalModel.generateContent({
       contents: [{ role: 'user', parts }],
       generationConfig,
       safetySettings,
@@ -177,21 +188,31 @@ export async function POST(req: NextRequest) {
 
     if (imagePart && imagePart.fileData) {
       console.log("Found fileData in response:", imagePart.fileData);
-      // Assuming fileData contains mimeType and fileUri
-      // We CANNOT directly use the fileUri. We need to get the *content*.
-      // The Node SDK currently lacks a direct `getFileContent(uri)` method.
-      // Workaround: Use the REST API or check if the model can return base64 directly.
-      // For now, we'll return the URI and mimeType, but the frontend won't be able to display it directly.
-      // TODO: Implement fetching content from fileUri if necessary or adjust model/response handling.
-      // A common pattern with other Google APIs (like Imagen) is getting a signed URL or direct bytes. Check Gemini docs.
-
-      // *** Placeholder: Returning URI - Requires Frontend Adjustment or Backend Fetch ***
-      return NextResponse.json({
-        imageUrl: null, // Indicate direct URL not available
-        fileUri: imagePart.fileData.fileUri, // Pass URI for potential later use/debugging
-        mimeType: imagePart.fileData.mimeType,
-        message: textPart?.text ?? "Generated image data received (URI). Cannot display directly.",
-      });
+      try {
+        // Get actual image content from file URI
+        // Get file content and convert to base64
+        const fileResponse = await fileManager.getFile(imagePart.fileData.fileUri);
+        // Convert the file data to base64 - implementation depends on actual response type
+        let base64Data: string;
+        if ('data' in fileResponse && fileResponse.data instanceof Uint8Array) {
+          base64Data = Buffer.from(fileResponse.data).toString('base64');
+        } else {
+          // Fallback if response format is different
+          const response = await fetch(fileResponse.uri || imagePart.fileData.fileUri);
+          base64Data = Buffer.from(await response.arrayBuffer()).toString('base64');
+        }
+        return NextResponse.json({
+          success: true,
+          imageUrl: `data:${imagePart.fileData.mimeType};base64,${base64Data}`,
+          message: textPart?.text ?? "Image generated successfully"
+        });
+      } catch (fetchError: unknown) {
+        console.error("Failed to fetch image content:", fetchError);
+        return NextResponse.json({
+          error: "Failed to retrieve generated image",
+          details: fetchError instanceof Error ? fetchError.message : String(fetchError)
+        }, { status: 500 });
+      }
 
       // *** Ideal (if model could return base64 or we could fetch): ***
       // const imageData = await fetchImageDataFromUri(imagePart.fileData.fileUri); // Hypothetical function
@@ -228,7 +249,15 @@ export async function POST(req: NextRequest) {
     //    }
     // }
 
-    return NextResponse.json({ error: `Internal Server Error: ${error.message}` }, { status: 500 });
+    let modelUsed = 'unknown';
+    try {
+      // Move finalModel declaration outside try block
+      modelUsed = (await getModelWithFallback()).model || 'unknown';
+    } catch { }
+    return NextResponse.json({
+      error: `Internal Server Error: ${error.message}`,
+      modelUsed
+    }, { status: 500 });
   } finally {
     // Ensure temp file is cleaned up even if Gemini upload succeeded but something else failed later
     if (tempFilePath && fs.existsSync(tempFilePath)) {
