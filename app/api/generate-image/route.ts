@@ -98,12 +98,9 @@ async function parseFormData(req: NextRequest): Promise<{ fields: formidable.Fie
 
 // --- API Route Handler ---
 
-// Disable Next.js body parsing; formidable will handle it
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
+// Next.js App Router configuration - FIXED: using the correct export configuration
+export const dynamic = 'force-dynamic'; // Ensure route is not statically optimized
+export const runtime = 'nodejs'; // Required for file operations (formidable)
 
 export async function POST(req: NextRequest) {
   console.log('Received POST request to /api/generate-image');
