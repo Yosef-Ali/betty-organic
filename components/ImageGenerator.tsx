@@ -65,15 +65,28 @@ export default function ImageGenerator() {
       const response = await fetch('/api/generate-image', {
         method: 'POST',
         body: formData,
-        // No 'Content-Type' header; browser sets it correctly for FormData
       });
 
-      const result = (await response.json()) as ApiResponse;
-
       if (!response.ok) {
-        throw new Error(result.error || `Request failed with status ${response.status}`);
+        // Try to get error details from the response body as text
+        let errorDetails = `Request failed with status ${response.status}`;
+        try {
+          const errorText = await response.text();
+          // Attempt to parse as JSON *only if* it looks like JSON
+          if (errorText.startsWith('{')) {
+            const errorJson = JSON.parse(errorText);
+            errorDetails = errorJson.error || errorJson.message || errorText;
+          } else {
+            errorDetails = errorText || errorDetails;
+          }
+        } catch (parseError) {
+          console.error("Could not parse error response body:", parseError);
+        }
+        throw new Error(errorDetails);
       }
 
+      // Only parse JSON if the response is OK
+      const result = (await response.json()) as ApiResponse;
       console.log("API Response:", result);
 
       if (result.imageUrl) {
