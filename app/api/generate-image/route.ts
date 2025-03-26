@@ -13,7 +13,7 @@ import path from 'path';
 import os from 'os';
 
 // --- Configuration ---
-const apiKey = process.env.GEMINI_API_KEY;
+const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 if (!apiKey) {
   throw new Error('GEMINI_API_KEY is not defined in environment variables');
 }
@@ -24,12 +24,12 @@ const fileManager = new GoogleAIFileManager(apiKey);
 // Model specific configuration
 const model = genAI.getGenerativeModel({
   // IMPORTANT: Verify this model name.
-  // "gemini-2.0-flash-exp-image-generation" seems experimental or potentially incorrect.
+  model: "gemini-2.0-flash-exp-image-generation", //seems experimental or potentially incorrect.
   // Common vision model is "gemini-pro-vision" (text out) or "gemini-1.5-flash" / "gemini-1.5-pro" (multimodal)
   // For pure Image Generation, Google often uses "Imagen" models via Vertex AI or other specific APIs.
   // Let's proceed assuming this model *does* accept image+text and outputs image, as implied by original script.
   // If it fails, you might need "gemini-1.5-flash" or check Google's documentation for the correct image generation/editing model available via the Gemini SDK.
-  model: 'gemini-1.5-flash-latest', // Using a known multimodal model as a placeholder
+  //model: 'gemini-1.5-flash-latest', // Using a known multimodal model as a placeholder
   // model: "gemini-2.0-flash-exp-image-generation", // Original model - use if confirmed
 });
 
@@ -230,6 +230,7 @@ export async function POST(req: NextRequest) {
     //        console.error(`Failed to delete Gemini file ${geminiFileName}:`, deleteError);
     //    }
     // }
+
     return NextResponse.json({ error: `Internal Server Error: ${error.message}` }, { status: 500 });
   } finally {
     // Ensure temp file is cleaned up even if Gemini upload succeeded but something else failed later

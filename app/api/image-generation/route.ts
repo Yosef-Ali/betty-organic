@@ -254,8 +254,14 @@ export async function POST(req: NextRequest): Promise<NextResponse<SuccessRespon
       if (imageParts.length > 0) {
         const { mimeType, fileUri } = imageParts[0].fileData;
 
-        // Return both the original and generated image URLs with typed response
-        return NextResponse.json({
+        // Find text parts if any
+        const textParts = parts.filter(
+          (part: any): part is { text: string } => !!part.text
+        );
+        const textPart = textParts.length > 0 ? textParts[0] : null;
+
+        // Create response payload
+        const responsePayload: SuccessResponse = {
           success: true,
           imageUrl: fileUri,
           originalImageUrl: file.uri,
@@ -270,7 +276,12 @@ export async function POST(req: NextRequest): Promise<NextResponse<SuccessRespon
               type: imageFile.type
             }
           }
-        });
+        };
+
+        console.log("Attempting to return successful JSON:", JSON.stringify(responsePayload)); // Add this debug log
+
+        // Return both the original and generated image URLs with typed response
+        return NextResponse.json(responsePayload);
       } else {
         throw new Error("No image was generated in the response");
       }
@@ -281,7 +292,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<SuccessRespon
         stack: error.stack,
       });
 
-      // Provide more specific error messages based on the error
+      // Provide specific error messages based on the error
       let errorMessage = "Image generation failed";
       let statusCode = 500;
       let troubleshootingTips = [
@@ -306,13 +317,17 @@ export async function POST(req: NextRequest): Promise<NextResponse<SuccessRespon
         statusCode = 429;
       }
 
+      const errorResponse: ErrorResponse = {
+        success: false,
+        error: errorMessage,
+        timestamp: new Date().toISOString(),
+        troubleshooting: troubleshootingTips
+      };
+
+      console.log("Attempting to return error JSON:", JSON.stringify(errorResponse)); // Add this debug log
+
       return NextResponse.json(
-        {
-          success: false,
-          error: errorMessage,
-          timestamp: new Date().toISOString(),
-          troubleshooting: troubleshootingTips
-        },
+        errorResponse,
         { status: statusCode }
       );
     }
