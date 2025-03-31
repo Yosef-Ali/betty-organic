@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { CartItemType } from "@/types/cart";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMarketingCartStore } from "@/store/cartStore";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { handlePurchaseOrder } from "@/app/actions/purchaseActions";
@@ -55,6 +55,14 @@ export const ConfirmPurchaseDialog = ({
   const clearCart = useMarketingCartStore((state) => state.clearCart);
   const router = useRouter();
   const { user, profile, isLoading } = useAuth();
+
+  // Debug logging for the total amount
+  useEffect(() => {
+    console.log("Current total in ConfirmPurchaseDialog:", total);
+    if (orderDetails) {
+      console.log("Order details total:", orderDetails.total);
+    }
+  }, [total, orderDetails]);
 
   const handleInfoChange = (field: keyof CustomerInfo) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -431,6 +439,7 @@ export const ConfirmPurchaseDialog = ({
 
           <div className="my-4 p-4 border rounded-md bg-gray-50">
             <h3 className="font-medium text-lg mb-2">Order Summary</h3>
+
             <ScrollArea className="max-h-[150px] mb-4">
               <div className="space-y-2">
                 {orderDetails?.items.map((item: any, index: number) => (
@@ -449,7 +458,7 @@ export const ConfirmPurchaseDialog = ({
 
             <div className="text-sm font-medium flex justify-between border-t pt-2">
               <span>Total Amount:</span>
-              <span>ETB {total.toFixed(2)}</span>
+              <span>ETB {orderDetails?.total.toFixed(2)}</span>
             </div>
           </div>
 
@@ -518,7 +527,7 @@ export const ConfirmPurchaseDialog = ({
 
             <div className="text-sm font-medium flex justify-between border-t pt-2">
               <span>Total Amount:</span>
-              <span>ETB {total.toFixed(2)}</span>
+              <span>ETB {orderDetails?.total.toFixed(2)}</span>
             </div>
           </div>
 
