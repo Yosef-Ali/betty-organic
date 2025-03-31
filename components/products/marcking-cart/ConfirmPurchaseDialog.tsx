@@ -129,63 +129,90 @@ export const ConfirmPurchaseDialog = ({
         localStorage.setItem('lastOrderCustomerInfo', JSON.stringify(customerData));
       }
 
-      // Call handlePurchaseOrder with just the parameters it expects
-      const result = await handlePurchaseOrder(items, total);
-
-      if (!result.data) {
-        throw new Error(result.error || "Failed to create order");
-      }
-
-      const orderId = result.data.id;
-      // Use the system-generated display_id with type assertion since TypeScript doesn't recognize it
-      const displayId = (result.data as any).display_id || `BO${String(orderId).padStart(6, '0')}`;
-      const formattedPhone = formatPhoneNumber(customerInfo.phone);
-      const customerName = user ? (profile?.name || user.email?.split('@')[0] || 'Customer') : (customerInfo.name || 'Guest');
-
-      const orderDetailsObj = {
-        id: orderId,
-        display_id: displayId,
-        items: items.map(item => ({
-          name: item.name,
-          grams: item.grams,
-          price: ((item.pricePerKg * item.grams) / 1000),
-          unit_price: item.pricePerKg
-        })),
-        total: total,
-        customer_name: customerName,
-        customer_phone: formattedPhone,
-        delivery_address: customerInfo.address,
-        customer_email: user?.email || undefined,
-        user_id: user?.id || undefined,
-        created_at: new Date().toISOString()
-      };
-
-      setOrderDetails(orderDetailsObj);
-      setOrderPlaced(true);
-
-      // For authenticated users, send WhatsApp notification automatically
+      // For signed-in users, proceed with order placement
+      // For non-signed-in users, just prepare order details for WhatsApp sharing
       if (user) {
+        // Call handlePurchaseOrder only for signed-in users
+        const result = await handlePurchaseOrder(items, total);
+
+        if (!result.data) {
+          throw new Error(result.error || "Failed to create order");
+        }
+
+        const orderId = result.data.id;
+        // Use the system-generated display_id with type assertion since TypeScript doesn't recognize it
+        const displayId = (result.data as any).display_id || `BO${String(orderId).padStart(6, '0')}`;
+        const formattedPhone = formatPhoneNumber(customerInfo.phone);
+        const customerName = profile?.name || user.email?.split('@')[0] || 'Customer';
+
+        const orderDetailsObj = {
+          id: orderId,
+          display_id: displayId,
+          items: items.map(item => ({
+            name: item.name,
+            grams: item.grams,
+            price: ((item.pricePerKg * item.grams) / 1000),
+            unit_price: item.pricePerKg
+          })),
+          total: total,
+          customer_name: customerName,
+          customer_phone: formattedPhone,
+          delivery_address: customerInfo.address,
+          customer_email: user?.email,
+          user_id: user?.id,
+          created_at: new Date().toISOString()
+        };
+
+        setOrderDetails(orderDetailsObj);
+
+        // For authenticated users, send WhatsApp notification automatically
         try {
           await sendWhatsAppOrderNotification(orderDetailsObj);
         } catch (err) {
           console.error("Failed to send WhatsApp notification:", err);
           // Don't throw error here, just log it since the order was already created
         }
+
+        // Show success message for authenticated users
+        toast.success(`Order ${displayId} created successfully!`, {
+          description: "Admin has been notified of your order."
+        });
+      }
+      else {
+        // For non-signed in users, just prepare the order details for WhatsApp
+        const tempOrderId = `TEMP-${Date.now()}`;
+        const displayId = `BO-GUEST-${Date.now().toString().slice(-6)}`;
+        const formattedPhone = formatPhoneNumber(customerInfo.phone);
+
+        const orderDetailsObj = {
+          id: tempOrderId,
+          display_id: displayId,
+          items: items.map(item => ({
+            name: item.name,
+            grams: item.grams,
+            price: ((item.pricePerKg * item.grams) / 1000),
+            unit_price: item.pricePerKg
+          })),
+          total: total,
+          customer_name: customerInfo.name || 'Guest',
+          customer_phone: formattedPhone,
+          delivery_address: customerInfo.address,
+          created_at: new Date().toISOString()
+        };
+
+        setOrderDetails(orderDetailsObj);
+        toast.success("Order details prepared!", {
+          description: "Please share via WhatsApp to complete your order"
+        });
       }
 
-      // Show success message
-      toast.success(`Order ${displayId} created successfully!`, {
-        description: user
-          ? "Admin has been notified of your order."
-          : "Click 'Share via WhatsApp' to notify admin.",
-      });
-
+      setOrderPlaced(true);
       // Clear cart
       clearCart();
 
     } catch (error) {
-      console.error("Error placing order:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to place order");
+      console.error("Error processing order:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to process order");
       setOrderPlaced(false);
     } finally {
       setIsSubmitting(false);
@@ -243,7 +270,7 @@ export const ConfirmPurchaseDialog = ({
         <DialogTitle>Delivery Details</DialogTitle>
         <DialogDescription className="text-wrap">
           {!user ?
-            "Please provide your contact information for delivery." :
+            "Provide your contact details to continue with WhatsApp order" :
             "Please provide delivery address details."
           }
         </DialogDescription>
@@ -301,10 +328,13 @@ export const ConfirmPurchaseDialog = ({
       </div>
 
       {!user && (
-        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-md">
-          <p className="text-sm text-amber-700 flex items-center gap-2 flex-wrap">
-            <LogIn className="w-4 h-4 flex-shrink-0" />
-            <span className="break-words">Sign in to track your orders and for faster checkout next time</span>
+        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
+          <p className="text-sm text-green-700 flex items-center gap-2 flex-wrap">
+            <Share2 className="w-4 h-4 flex-shrink-0" />
+            <span className="break-words font-medium">Your order will be completed via WhatsApp</span>
+          </p>
+          <p className="text-xs text-green-600 mt-1 pl-6">
+            After entering your details, you'll share your order with our admin via WhatsApp
           </p>
         </div>
       )}
@@ -329,16 +359,17 @@ export const ConfirmPurchaseDialog = ({
               size="sm"
             >
               <LogIn className="w-4 h-4" />
-              Sign in
+              Sign in instead
             </Button>
             <Button
               onClick={handleConfirm}
               disabled={isSubmitting || !isCustomerInfoValid()}
               className="gap-2"
               size="sm"
+              title="Proceed to WhatsApp sharing"
             >
-              <MessageCircle className="w-4 h-4" />
-              {isSubmitting ? "Processing..." : "Place Order"}
+              <Share2 className="w-4 h-4" />
+              {isSubmitting ? "Processing..." : "Continue to WhatsApp"}
             </Button>
           </div>
         ) : (
@@ -358,78 +389,116 @@ export const ConfirmPurchaseDialog = ({
 
   const renderOrderPlaced = () => (
     <>
-      <DialogHeader>
-        <DialogTitle className="text-green-600 flex items-center gap-2">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-            <polyline points="22 4 12 14.01 9 11.01"></polyline>
-          </svg>
-          Order Placed Successfully!
-        </DialogTitle>
-        <DialogDescription>
-          {user
-            ? "Your order has been confirmed and will be prepared for delivery."
-            : "Your order has been created. Share it via WhatsApp to notify the admin."
-          }
-        </DialogDescription>
-      </DialogHeader>
+      {!user ? (
+        <>
+          <DialogHeader>
+            <DialogTitle className="text-green-600 flex items-center gap-2">
+              <Share2 className="w-5 h-5" />
+              Share Your Order via WhatsApp
+            </DialogTitle>
+            <DialogDescription>
+              Your order has been prepared. Please share it via WhatsApp to complete your order.
+            </DialogDescription>
+          </DialogHeader>
 
-      <div className="my-4 p-4 border rounded-md bg-gray-50">
-        <h3 className="font-medium text-lg mb-2">Order #{orderDetails?.display_id}</h3>
-        <p className="text-sm text-gray-600 mb-4">
-          {new Date(orderDetails?.created_at).toLocaleString()}
-        </p>
+          <div className="my-4 p-4 border rounded-md bg-gray-50">
+            <h3 className="font-medium text-lg mb-2">Order Summary</h3>
+            <ScrollArea className="max-h-[150px] mb-4">
+              <div className="space-y-2">
+                {orderDetails?.items.map((item: any, index: number) => (
+                  <div key={index} className="flex justify-between text-sm">
+                    <span>{item.name} ({item.grams}g)</span>
+                    <span>ETB {item.price.toFixed(2)}</span>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
 
-        <div className="space-y-2 mb-4">
-          <p className="text-sm"><span className="font-medium">Delivery Address:</span> {customerInfo.address}</p>
-          <p className="text-sm"><span className="font-medium">Contact:</span> {customerInfo.phone}</p>
-        </div>
+            <div className="space-y-2 mb-4">
+              <p className="text-sm"><span className="font-medium">Delivery to:</span> {customerInfo.address}</p>
+              <p className="text-sm"><span className="font-medium">Contact:</span> {customerInfo.phone}</p>
+            </div>
 
-        <div className="text-sm font-medium flex justify-between border-t pt-2">
-          <span>Total Amount:</span>
-          <span>ETB {total.toFixed(2)}</span>
-        </div>
-      </div>
-
-      {!user && (
-        <div className="mb-4">
-          <div className="p-3 bg-green-50 border border-green-200 rounded-md mb-3">
-            <p className="text-sm text-green-700 mb-2">
-              <strong>Important:</strong> Your order needs to be sent to the admin to complete the process.
-            </p>
-            <p className="text-xs text-green-600">
-              Click the button below to share your order details via WhatsApp and get delivery confirmation.
-            </p>
+            <div className="text-sm font-medium flex justify-between border-t pt-2">
+              <span>Total Amount:</span>
+              <span>ETB {total.toFixed(2)}</span>
+            </div>
           </div>
 
-          <Button
-            variant="default"
-            className="w-full gap-2 bg-green-600 hover:bg-green-700"
-            onClick={handleShareWhatsApp}
-          >
-            <Share2 className="w-5 h-5" />
-            Share Order via WhatsApp
-          </Button>
-
-          <div className="text-center mt-2 text-xs text-muted-foreground">
-            Your order will be processed after sharing
+          <div className="flex flex-col gap-3">
+            <Button
+              variant="default"
+              className="w-full gap-2 bg-green-600 hover:bg-green-700 py-6"
+              onClick={handleShareWhatsApp}
+              size="lg"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                <path d="M6 12v3a3 3 0 0 0 3 3h9a3 3 0 0 0 3-3v-6a3 3 0 0 0-3-3h-9a3 3 0 0 0-3 3v3Z" />
+                <path d="m6 12-3 3V9l3 3Z" />
+                <line x1="13" y1="12" x2="16" y2="12" />
+                <line x1="13" y1="15" x2="16" y2="15" />
+              </svg>
+              Share Order via WhatsApp
+            </Button>
           </div>
-        </div>
+
+          <div className="text-center mt-4 flex flex-col gap-2">
+            <div className="text-xs text-muted-foreground">
+              Your order will only be processed after sharing via WhatsApp
+            </div>
+            <div className="flex justify-center gap-2">
+              <Button variant="ghost" size="sm" onClick={onClose} className="text-red-500 hover:text-red-700">
+                Cancel Order
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSignIn}
+                className="gap-1"
+              >
+                <LogIn className="w-4 h-4" />
+                Sign in to track
+              </Button>
+            </div>
+          </div>
+        </>
+      ) : (
+        <>
+          <DialogHeader>
+            <DialogTitle className="text-green-600 flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+              </svg>
+              Order Placed Successfully!
+            </DialogTitle>
+            <DialogDescription>
+              Your order has been confirmed and will be prepared for delivery.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="my-4 p-4 border rounded-md bg-gray-50">
+            <h3 className="font-medium text-lg mb-2">Order #{orderDetails?.display_id}</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              {new Date(orderDetails?.created_at).toLocaleString()}
+            </p>
+
+            <div className="space-y-2 mb-4">
+              <p className="text-sm"><span className="font-medium">Delivery Address:</span> {customerInfo.address}</p>
+              <p className="text-sm"><span className="font-medium">Contact:</span> {customerInfo.phone}</p>
+            </div>
+
+            <div className="text-sm font-medium flex justify-between border-t pt-2">
+              <span>Total Amount:</span>
+              <span>ETB {total.toFixed(2)}</span>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button onClick={onClose}>Close</Button>
+          </DialogFooter>
+        </>
       )}
-
-      <DialogFooter>
-        <Button onClick={onClose}>{user ? "Close" : "Close without sharing"}</Button>
-        {!user && (
-          <Button
-            variant="outline"
-            onClick={handleSignIn}
-            className="gap-1"
-          >
-            <LogIn className="w-4 h-4" />
-            Sign in to track orders
-          </Button>
-        )}
-      </DialogFooter>
     </>
   );
 
