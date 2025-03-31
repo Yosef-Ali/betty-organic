@@ -20,7 +20,8 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { sendWhatsAppOrderNotification } from "@/app/(marketing)/actions/notificationActions";
-import { MapPin, Phone, User, MessageCircle } from 'lucide-react';
+import { MapPin, Phone, User, MessageCircle, LogIn, Share2 } from 'lucide-react';
+import { useAuth } from "@/components/providers/AuthProvider";
 
 interface CustomerInfo {
   name: string;
@@ -48,8 +49,11 @@ export const ConfirmPurchaseDialog = ({
     phone: '',
     address: '',
   });
+  const [orderPlaced, setOrderPlaced] = useState(false);
+  const [orderDetails, setOrderDetails] = useState<any>(null);
   const clearCart = useMarketingCartStore((state) => state.clearCart);
   const router = useRouter();
+  const { user, profile, isLoading } = useAuth();
 
   const handleInfoChange = (field: keyof CustomerInfo) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -75,6 +79,31 @@ export const ConfirmPurchaseDialog = ({
     return `+251${cleaned}`;
   };
 
+  const handleSignIn = () => {
+    // Store cart items in localStorage before redirecting
+    localStorage.setItem('pendingCart', JSON.stringify({
+      items,
+      customerInfo,
+      timestamp: Date.now()
+    }));
+    router.push('/auth/login?returnTo=/');
+  };
+
+  const handleShareWhatsApp = () => {
+    if (!orderDetails) return;
+
+    // The notification code is already implemented in sendWhatsAppOrderNotification
+    sendWhatsAppOrderNotification(orderDetails)
+      .then(() => {
+        // WhatsApp URL is handled by the server action, no need for additional code here
+        toast.success("WhatsApp notification ready!");
+      })
+      .catch((err: Error) => {
+        console.error("Failed to prepare WhatsApp notification:", err.message);
+        toast.error("Failed to prepare WhatsApp message.");
+      });
+  };
+
   const handleConfirm = async () => {
     try {
       setIsSubmitting(true);
@@ -87,6 +116,20 @@ export const ConfirmPurchaseDialog = ({
         throw new Error("Please provide valid contact information");
       }
 
+      // Store customer data in localStorage for potential later use
+      const customerData = {
+        name: user ? (profile?.name || user.email?.split('@')[0] || 'Customer') : (customerInfo.name || 'Guest'),
+        email: user?.email || undefined,
+        phone: formatPhoneNumber(customerInfo.phone),
+        address: customerInfo.address,
+        userId: user?.id
+      };
+
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('lastOrderCustomerInfo', JSON.stringify(customerData));
+      }
+
+      // Call handlePurchaseOrder with just the parameters it expects
       const result = await handlePurchaseOrder(items, total);
 
       if (!result.data) {
@@ -94,11 +137,14 @@ export const ConfirmPurchaseDialog = ({
       }
 
       const orderId = result.data.id;
+      // Use the system-generated display_id with type assertion since TypeScript doesn't recognize it
+      const displayId = (result.data as any).display_id || `BO${String(orderId).padStart(6, '0')}`;
       const formattedPhone = formatPhoneNumber(customerInfo.phone);
+      const customerName = user ? (profile?.name || user.email?.split('@')[0] || 'Customer') : (customerInfo.name || 'Guest');
 
-      const orderDetails = {
+      const orderDetailsObj = {
         id: orderId,
-        display_id: `ORD${String(orderId).padStart(6, '0')}`,
+        display_id: displayId,
         items: items.map(item => ({
           name: item.name,
           grams: item.grams,
@@ -106,36 +152,41 @@ export const ConfirmPurchaseDialog = ({
           unit_price: item.pricePerKg
         })),
         total: total,
-        customer_name: customerInfo.name || 'Guest',
+        customer_name: customerName,
         customer_phone: formattedPhone,
         delivery_address: customerInfo.address,
+        customer_email: user?.email || undefined,
+        user_id: user?.id || undefined,
         created_at: new Date().toISOString()
       };
 
-      // Show success message
-      toast.success(`Order ${orderDetails.display_id} created successfully!`, {
-        description: "Click 'Open in WhatsApp' to notify admin.",
-        action: {
-          label: "Open in WhatsApp",
-          onClick: () => {
-            // Send WhatsApp notification and open in new tab
-            sendWhatsAppOrderNotification(orderDetails).catch((err: Error) => {
-              console.error("Failed to prepare WhatsApp notification:", err.message);
-              toast.error("Failed to prepare WhatsApp message.");
-            });
-          }
+      setOrderDetails(orderDetailsObj);
+      setOrderPlaced(true);
+
+      // For authenticated users, send WhatsApp notification automatically
+      if (user) {
+        try {
+          await sendWhatsAppOrderNotification(orderDetailsObj);
+        } catch (err) {
+          console.error("Failed to send WhatsApp notification:", err);
+          // Don't throw error here, just log it since the order was already created
         }
+      }
+
+      // Show success message
+      toast.success(`Order ${displayId} created successfully!`, {
+        description: user
+          ? "Admin has been notified of your order."
+          : "Click 'Share via WhatsApp' to notify admin.",
       });
 
-      // Clear cart and close dialog
+      // Clear cart
       clearCart();
-      onClose();
 
-      // Refresh the page to reflect changes
-      router.refresh();
     } catch (error) {
       console.error("Error placing order:", error);
       toast.error(error instanceof Error ? error.message : "Failed to place order");
+      setOrderPlaced(false);
     } finally {
       setIsSubmitting(false);
     }
@@ -191,23 +242,28 @@ export const ConfirmPurchaseDialog = ({
       <DialogHeader>
         <DialogTitle>Delivery Details</DialogTitle>
         <DialogDescription>
-          Please provide your contact information for delivery.
+          {!user ?
+            "Please provide your contact information for delivery." :
+            "Please provide delivery address details."
+          }
         </DialogDescription>
       </DialogHeader>
 
       <div className="space-y-4 py-4">
-        <div className="space-y-2">
-          <Label htmlFor="name" className="flex items-center gap-2">
-            <User className="w-4 h-4" />
-            Your Name (optional)
-          </Label>
-          <Input
-            id="name"
-            placeholder="Enter your name"
-            value={customerInfo.name}
-            onChange={handleInfoChange('name')}
-          />
-        </div>
+        {!user && (
+          <div className="space-y-2">
+            <Label htmlFor="name" className="flex items-center gap-2">
+              <User className="w-4 h-4" />
+              Your Name (optional)
+            </Label>
+            <Input
+              id="name"
+              placeholder="Enter your name"
+              value={customerInfo.name}
+              onChange={handleInfoChange('name')}
+            />
+          </div>
+        )}
 
         <div className="space-y-2">
           <Label htmlFor="phone" className="flex items-center gap-2">
@@ -242,18 +298,98 @@ export const ConfirmPurchaseDialog = ({
         </div>
       </div>
 
+      {!user && (
+        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-md">
+          <p className="text-sm text-amber-700 flex items-center gap-2">
+            <LogIn className="w-4 h-4" />
+            Sign in to track your orders and for faster checkout next time
+          </p>
+        </div>
+      )}
+
       <DialogFooter className="flex sm:justify-between gap-4 sm:gap-0">
         <Button variant="outline" onClick={() => setCurrentStep('review')}>
           Back to Review
         </Button>
+
+        {!user ? (
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={handleSignIn}
+              className="gap-2"
+            >
+              <LogIn className="w-4 h-4" />
+              Sign in first
+            </Button>
+            <Button
+              onClick={handleConfirm}
+              disabled={isSubmitting || !isCustomerInfoValid()}
+              className="gap-2"
+            >
+              <MessageCircle className="w-4 h-4" />
+              {isSubmitting ? "Processing..." : "Place Order as Guest"}
+            </Button>
+          </div>
+        ) : (
+          <Button
+            onClick={handleConfirm}
+            disabled={isSubmitting || !isCustomerInfoValid()}
+            className="gap-2"
+          >
+            <MessageCircle className="w-4 h-4" />
+            {isSubmitting ? "Processing..." : "Confirm Order"}
+          </Button>
+        )}
+      </DialogFooter>
+    </>
+  );
+
+  const renderOrderPlaced = () => (
+    <>
+      <DialogHeader>
+        <DialogTitle className="text-green-600 flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+          </svg>
+          Order Placed Successfully!
+        </DialogTitle>
+        <DialogDescription>
+          Your order has been confirmed and will be prepared for delivery.
+        </DialogDescription>
+      </DialogHeader>
+
+      <div className="my-4 p-4 border rounded-md bg-gray-50">
+        <h3 className="font-medium text-lg mb-2">Order #{orderDetails?.display_id}</h3>
+        <p className="text-sm text-gray-600 mb-4">
+          {new Date(orderDetails?.created_at).toLocaleString()}
+        </p>
+
+        <div className="space-y-2 mb-4">
+          <p className="text-sm"><span className="font-medium">Delivery Address:</span> {customerInfo.address}</p>
+          <p className="text-sm"><span className="font-medium">Contact:</span> {customerInfo.phone}</p>
+        </div>
+
+        <div className="text-sm font-medium flex justify-between border-t pt-2">
+          <span>Total Amount:</span>
+          <span>ETB {total.toFixed(2)}</span>
+        </div>
+      </div>
+
+      {!user && (
         <Button
-          onClick={handleConfirm}
-          disabled={isSubmitting || !isCustomerInfoValid()}
-          className="gap-2"
+          variant="outline"
+          className="w-full mb-4 gap-2"
+          onClick={handleShareWhatsApp}
         >
-          <MessageCircle className="w-4 h-4" />
-          {isSubmitting ? "Processing..." : "Place Order"}
+          <Share2 className="w-4 h-4" />
+          Share via WhatsApp
         </Button>
+      )}
+
+      <DialogFooter>
+        <Button onClick={onClose}>Close</Button>
       </DialogFooter>
     </>
   );
@@ -261,7 +397,12 @@ export const ConfirmPurchaseDialog = ({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
-        {currentStep === 'review' ? renderReviewStep() : renderDetailsStep()}
+        {orderPlaced
+          ? renderOrderPlaced()
+          : currentStep === 'review'
+            ? renderReviewStep()
+            : renderDetailsStep()
+        }
       </DialogContent>
     </Dialog>
   );

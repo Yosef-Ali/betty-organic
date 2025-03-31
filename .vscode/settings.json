@@ -52,5 +52,6 @@
   "editor.accessibilityPageSize": 16,
   "terminal.integrated.commandsToSkipShell": [
     ""
-  ]
+  ],
+  "chat.mcp.discovery.enabled": true
 }
