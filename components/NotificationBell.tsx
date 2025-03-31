@@ -79,13 +79,18 @@ export function NotificationBell() {
   };
 
   useEffect(() => {
+    console.log('NotificationBell: useEffect starting...');
+
     // Initialize audio element
     audioRef.current = new Audio('/notification.mp3');
+    console.log('NotificationBell: Audio element initialized');
 
     const fetchNotifications = async () => {
+      console.log('NotificationBell: fetchNotifications called');
       try {
-        console.log('Fetching notifications...');
+        console.log('NotificationBell: Creating Supabase client...');
         const supabase = createClient();
+        console.log('NotificationBell: Supabase client created successfully');
 
         // Fetch pending orders - only request columns we know exist
         const { data: ordersData, error: ordersError } = await supabase
@@ -167,7 +172,9 @@ export function NotificationBell() {
     const pollingInterval = setInterval(fetchNotifications, 30000);
 
     // Set up Supabase real-time subscription
+    console.log('NotificationBell: Setting up realtime subscription...');
     const supabase = createClient();
+    console.log('NotificationBell: Created Supabase client for realtime');
     const channel = supabase
       .channel('orders-notifications')
       .on('postgres_changes',
@@ -195,14 +202,21 @@ export function NotificationBell() {
         }
       )
       .subscribe((status) => {
-        console.log('Supabase subscription status:', status);
+        console.log('NotificationBell: Supabase subscription status:', status);
+        if (status === 'SUBSCRIBED') {
+          console.log('NotificationBell: Successfully subscribed to realtime updates');
+        }
       });
 
     return () => {
+      console.log('NotificationBell: Cleaning up subscriptions...');
       clearInterval(pollingInterval);
       supabase.removeChannel(channel);
     };
   }, [unreadCount]);
+
+  // Debug log when component renders
+  console.log('NotificationBell: Component rendering, unreadCount:', unreadCount);
 
   const handleOrderClick = (orderId: string) => {
     router.push(`/dashboard/orders/${orderId}`);

@@ -155,6 +155,11 @@ export default function Header({ onMobileMenuToggle, profile }: HeaderProps) {
 
   const isAdminOrSales = profile?.role === 'admin' || profile?.role === 'sales';
 
+  // Debug logging
+  useEffect(() => {
+    console.log(`Header: isAdminOrSales=${isAdminOrSales}, profile?.role=${profile?.role}`);
+  }, [isAdminOrSales, profile?.role]);
+
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background/80 px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:p-6">
       <Button
@@ -176,11 +181,18 @@ export default function Header({ onMobileMenuToggle, profile }: HeaderProps) {
         />
       </div>
 
-      {isAdminOrSales && (
-        <div className="flex items-center gap-2">
-          <NotificationBell />
-        </div>
-      )}
+      {/* NotificationBell for admin and sales users */}
+      {(() => {
+        if (isAdminOrSales) {
+          console.log('Header: Rendering NotificationBell...');
+          return (
+            <div className="flex items-center gap-2">
+              <NotificationBell />
+            </div>
+          );
+        }
+        return null;
+      })()}
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -238,3 +250,4 @@ export function DashboardHeader({
     </div>
   );
 }
+
