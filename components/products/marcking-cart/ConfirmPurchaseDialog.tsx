@@ -356,7 +356,10 @@ export const ConfirmPurchaseDialog = ({
           Order Placed Successfully!
         </DialogTitle>
         <DialogDescription>
-          Your order has been confirmed and will be prepared for delivery.
+          {user
+            ? "Your order has been confirmed and will be prepared for delivery."
+            : "Your order has been created. Share it via WhatsApp to notify the admin."
+          }
         </DialogDescription>
       </DialogHeader>
 
@@ -378,18 +381,43 @@ export const ConfirmPurchaseDialog = ({
       </div>
 
       {!user && (
-        <Button
-          variant="outline"
-          className="w-full mb-4 gap-2"
-          onClick={handleShareWhatsApp}
-        >
-          <Share2 className="w-4 h-4" />
-          Share via WhatsApp
-        </Button>
+        <div className="mb-4">
+          <div className="p-3 bg-green-50 border border-green-200 rounded-md mb-3">
+            <p className="text-sm text-green-700 mb-2">
+              <strong>Important:</strong> Your order needs to be sent to the admin to complete the process.
+            </p>
+            <p className="text-xs text-green-600">
+              Click the button below to share your order details via WhatsApp and get delivery confirmation.
+            </p>
+          </div>
+
+          <Button
+            variant="default"
+            className="w-full gap-2 bg-green-600 hover:bg-green-700"
+            onClick={handleShareWhatsApp}
+          >
+            <Share2 className="w-5 h-5" />
+            Share Order via WhatsApp
+          </Button>
+
+          <div className="text-center mt-2 text-xs text-muted-foreground">
+            Your order will be processed after sharing
+          </div>
+        </div>
       )}
 
       <DialogFooter>
-        <Button onClick={onClose}>Close</Button>
+        <Button onClick={onClose}>{user ? "Close" : "Close without sharing"}</Button>
+        {!user && (
+          <Button
+            variant="outline"
+            onClick={handleSignIn}
+            className="gap-1"
+          >
+            <LogIn className="w-4 h-4" />
+            Sign in to track orders
+          </Button>
+        )}
       </DialogFooter>
     </>
   );
