@@ -13,6 +13,16 @@ import { createClient } from '@/lib/supabase/client';
 import { formatDate } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 
+// Define explicit types to match database structure
+interface ProfileData {
+  id: string;
+  name: string | null;
+  email: string;
+  role: string;
+  phone?: string | null;
+  avatar_url?: string | null;
+}
+
 interface OrderNotification {
   id: string;
   created_at: string | null;
@@ -21,13 +31,7 @@ interface OrderNotification {
   total_amount: number;
   type: string;
   updated_at: string | null;
-  profiles?: {
-    id: string;
-    name: string | null;
-    email: string;
-    role: string;
-    phone?: string | null;
-  };
+  profiles?: ProfileData;
 }
 
 export function NotificationBell() {
@@ -44,31 +48,64 @@ export function NotificationBell() {
     const fetchNotifications = async () => {
       try {
         const supabase = createClient();
-        const { data, error } = await supabase
+
+        // Use a different approach - first fetch orders, then the corresponding profiles
+        const { data: ordersData, error: ordersError } = await supabase
           .from('orders')
-          .select('*, profiles:customer_profile_id(*)')
+          .select('*')
           .eq('status', 'pending')
           .order('created_at', { ascending: false })
           .limit(7);
 
-        if (error) {
-          console.error('Error fetching notifications:', error);
+        if (ordersError) {
+          console.error('Error fetching notifications:', ordersError);
           return;
         }
 
-        const newNotificationCount = data?.length || 0;
+        // If we have orders, get the corresponding profiles
+        if (ordersData && ordersData.length > 0) {
+          // Extract unique profile IDs
+          const profileIds = ordersData
+            .map(order => order.profile_id)
+            .filter(Boolean);
 
-        // Only play sound if:
-        // 1. It's not the initial load
-        // 2. The notification count has increased
-        if (!isInitialLoadRef.current && newNotificationCount > unreadCount) {
-          console.log('New notification received, playing sound');
-          playNotificationSound();
+          // Fetch profiles for these IDs if any exist
+          if (profileIds.length > 0) {
+            const { data: profilesData } = await supabase
+              .from('profiles')
+              .select('*')
+              .in('id', profileIds);
+
+            // Combine data
+            const ordersWithProfiles = ordersData.map(order => {
+              const profile = profilesData?.find(p => p.id === order.profile_id);
+              return {
+                ...order,
+                profiles: profile
+              };
+            });
+
+            const newNotificationCount = ordersWithProfiles.length;
+
+            // Only play sound if:
+            // 1. It's not the initial load
+            // 2. The notification count has increased
+            if (!isInitialLoadRef.current && newNotificationCount > unreadCount) {
+              console.log('New notification received, playing sound');
+              playNotificationSound();
+            }
+
+            isInitialLoadRef.current = false;
+            setNotifications(ordersWithProfiles);
+            setUnreadCount(newNotificationCount);
+            return;
+          }
         }
 
+        // Default case - no orders or profiles
         isInitialLoadRef.current = false;
-        setNotifications(data || []);
-        setUnreadCount(newNotificationCount);
+        setNotifications([]);
+        setUnreadCount(0);
       } catch (error) {
         console.error('Failed to fetch notifications:', error);
       }
