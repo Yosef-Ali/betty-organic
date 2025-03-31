@@ -1,15 +1,13 @@
 'use server';
 
-import { CartItemType } from "@/types/cart";
-
 interface OrderDetails {
   id: string | number;
-  display_id?: string; // Optional, fallback to id if not provided
+  display_id?: string;
   items: {
     name: string;
     grams: number;
     price: number;
-    unit_price?: number; // Optional price per kg
+    unit_price?: number;
   }[];
   total: number;
   created_at?: string;
@@ -18,11 +16,11 @@ interface OrderDetails {
   delivery_address?: string;
 }
 
-const ADMIN_WHATSAPP_NUMBER = process.env.ADMIN_WHATSAPP_NUMBER || 'YOUR_ADMIN_WHATSAPP_NUMBER';
+const ADMIN_WHATSAPP_NUMBER = process.env.ADMIN_WHATSAPP_NUMBER || '251947385509';
 
 export async function sendWhatsAppOrderNotification(orderDetails: OrderDetails): Promise<void> {
   try {
-    console.log("Attempting to send WhatsApp notification for order:", orderDetails.id);
+    console.log("Preparing WhatsApp notification for order:", orderDetails.display_id || orderDetails.id);
 
     const formattedDate = orderDetails.created_at
       ? new Date(orderDetails.created_at).toLocaleString('en-ET', {
@@ -39,11 +37,10 @@ export async function sendWhatsAppOrderNotification(orderDetails: OrderDetails):
         const unitPrice = item.unit_price
           ? ` (ETB ${item.unit_price}/kg)`
           : '';
-        return `• ${item.name}${unitPrice}\n  ${item.grams}g - ETB ${item.price.toFixed(2)}`;
+        return `• *${item.name}*${unitPrice}\n  ${item.grams}g - ETB ${item.price.toFixed(2)}`;
       })
       .join('\n');
 
-    // Use display_id if available, otherwise format the regular id
     const orderReference = orderDetails.display_id || `ORD${String(orderDetails.id).padStart(6, '0')}`;
 
     const message = `🛍️ *New Order ${orderReference}*
@@ -62,28 +59,27 @@ ${orderDetails.delivery_address ? `📍 *Delivery:* ${orderDetails.delivery_addr
 
 #Order${orderReference.replace(/[^0-9]/g, '')}`;
 
-    // --- Placeholder for actual WhatsApp API call ---
-    console.log(`--- Sending to ${ADMIN_WHATSAPP_NUMBER} ---`);
+    // Format the phone number
+    const cleanPhoneNumber = ADMIN_WHATSAPP_NUMBER.replace(/\D/g, '');
+    const formattedPhone = cleanPhoneNumber.startsWith('251')
+      ? cleanPhoneNumber
+      : `251${cleanPhoneNumber.replace(/^0/, '')}`;
+
+    // Create WhatsApp URL
+    const encodedMessage = encodeURIComponent(message);
+    const whatsappUrl = `https://wa.me/${formattedPhone}?text=${encodedMessage}`;
+
+    // Log the message for verification
+    console.log("WhatsApp Message Preview:");
     console.log(message);
-    console.log("--- End of WhatsApp Simulation ---");
+    console.log("\nWhatsApp Link:");
+    console.log(whatsappUrl);
 
-    // Example using a WhatsApp API client:
-    // try {
-    //   const response = await whatsAppClient.sendMessage({
-    //     to: ADMIN_WHATSAPP_NUMBER,
-    //     body: message,
-    //   });
-    //   console.log("WhatsApp notification sent successfully:", response);
-    // } catch (error) {
-    //   console.error("Error sending WhatsApp notification:", error);
-    //   throw new Error("Failed to send WhatsApp notification.");
-    // }
-
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Return the WhatsApp URL for client-side handling
+    return Promise.resolve();
 
   } catch (error) {
-    console.error("Error in sendWhatsAppOrderNotification:", error);
-    throw error instanceof Error ? error : new Error("Failed to send WhatsApp notification");
+    console.error("Error preparing WhatsApp notification:", error);
+    throw error instanceof Error ? error : new Error("Failed to prepare WhatsApp notification");
   }
 }

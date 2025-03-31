@@ -20,7 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { sendWhatsAppOrderNotification } from "@/app/(marketing)/actions/notificationActions";
-import { MapPin, Phone, User } from 'lucide-react';
+import { MapPin, Phone, User, MessageCircle } from 'lucide-react';
 
 interface CustomerInfo {
   name: string;
@@ -112,15 +112,19 @@ export const ConfirmPurchaseDialog = ({
         created_at: new Date().toISOString()
       };
 
-      // Show success message with order ID
+      // Show success message
       toast.success(`Order ${orderDetails.display_id} created successfully!`, {
-        description: "You will receive a confirmation message shortly.",
-      });
-
-      // Send WhatsApp notification
-      sendWhatsAppOrderNotification(orderDetails).catch((err: Error) => {
-        console.error("Failed to send WhatsApp notification:", err.message);
-        toast.error("Order placed successfully, but failed to send notification to admin.");
+        description: "Click 'Open in WhatsApp' to notify admin.",
+        action: {
+          label: "Open in WhatsApp",
+          onClick: () => {
+            // Send WhatsApp notification and open in new tab
+            sendWhatsAppOrderNotification(orderDetails).catch((err: Error) => {
+              console.error("Failed to prepare WhatsApp notification:", err.message);
+              toast.error("Failed to prepare WhatsApp message.");
+            });
+          }
+        }
       });
 
       // Clear cart and close dialog
@@ -245,8 +249,10 @@ export const ConfirmPurchaseDialog = ({
         <Button
           onClick={handleConfirm}
           disabled={isSubmitting || !isCustomerInfoValid()}
+          className="gap-2"
         >
-          {isSubmitting ? "Processing..." : "Confirm Order"}
+          <MessageCircle className="w-4 h-4" />
+          {isSubmitting ? "Processing..." : "Place Order"}
         </Button>
       </DialogFooter>
     </>
