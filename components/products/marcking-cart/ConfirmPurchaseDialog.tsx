@@ -22,6 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { sendWhatsAppOrderNotification } from "@/app/(marketing)/actions/notificationActions";
 import { MapPin, Phone, User, MessageCircle, LogIn, Share2 } from 'lucide-react';
 import { useAuth } from "@/components/providers/AuthProvider";
+import { Profile } from "@/lib/types/auth"; // Import the Profile type with phone property
 
 interface CustomerInfo {
   name: string;
@@ -112,15 +113,25 @@ export const ConfirmPurchaseDialog = ({
         throw new Error("No items in cart");
       }
 
-      if (!isCustomerInfoValid()) {
+      // For signed-in users, only address is required
+      if (user && !customerInfo.address.trim()) {
+        throw new Error("Please provide a delivery address");
+      }
+
+      // For non-signed-in users, phone and address are required
+      if (!user && !isCustomerInfoValid()) {
         throw new Error("Please provide valid contact information");
       }
 
+      // Use profile data for signed-in users
+      const customerName = user ? (profile?.name || user.email?.split('@')[0] || 'Customer') : (customerInfo.name || 'Guest');
+      const customerPhone = user && profile?.phone ? profile.phone : formatPhoneNumber(customerInfo.phone);
+
       // Store customer data in localStorage for potential later use
       const customerData = {
-        name: user ? (profile?.name || user.email?.split('@')[0] || 'Customer') : (customerInfo.name || 'Guest'),
+        name: customerName,
         email: user?.email || undefined,
-        phone: formatPhoneNumber(customerInfo.phone),
+        phone: customerPhone,
         address: customerInfo.address,
         userId: user?.id
       };
@@ -140,10 +151,7 @@ export const ConfirmPurchaseDialog = ({
         }
 
         const orderId = result.data.id;
-        // Use the system-generated display_id with type assertion since TypeScript doesn't recognize it
         const displayId = (result.data as any).display_id || `BO${String(orderId).padStart(6, '0')}`;
-        const formattedPhone = formatPhoneNumber(customerInfo.phone);
-        const customerName = profile?.name || user.email?.split('@')[0] || 'Customer';
 
         const orderDetailsObj = {
           id: orderId,
@@ -156,7 +164,7 @@ export const ConfirmPurchaseDialog = ({
           })),
           total: total,
           customer_name: customerName,
-          customer_phone: formattedPhone,
+          customer_phone: customerPhone,
           delivery_address: customerInfo.address,
           customer_email: user?.email,
           user_id: user?.id,
@@ -271,46 +279,66 @@ export const ConfirmPurchaseDialog = ({
         <DialogDescription className="text-wrap">
           {!user ?
             "Provide your contact details to continue with WhatsApp order" :
-            "Please provide delivery address details."
+            "Please confirm your delivery address."
           }
         </DialogDescription>
       </DialogHeader>
 
       <div className="space-y-4 py-4 overflow-hidden">
+        {/* For non-signed-in users, show complete form */}
         {!user && (
-          <div className="space-y-2">
-            <Label htmlFor="name" className="flex items-center gap-2">
-              <User className="w-4 h-4 flex-shrink-0" />
-              <span className="text-sm">Your Name (optional)</span>
-            </Label>
-            <Input
-              id="name"
-              placeholder="Enter your name"
-              value={customerInfo.name}
-              onChange={handleInfoChange('name')}
-              className="w-full"
-            />
+          <>
+            <div className="space-y-2">
+              <Label htmlFor="name" className="flex items-center gap-2">
+                <User className="w-4 h-4 flex-shrink-0" />
+                <span className="text-sm">Your Name (optional)</span>
+              </Label>
+              <Input
+                id="name"
+                placeholder="Enter your name"
+                value={customerInfo.name}
+                onChange={handleInfoChange('name')}
+                className="w-full"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="phone" className="flex items-center gap-2">
+                <Phone className="w-4 h-4 flex-shrink-0" />
+                <span className="text-sm">Phone Number*</span>
+              </Label>
+              <Input
+                id="phone"
+                placeholder="e.g., 0911234567"
+                value={customerInfo.phone}
+                onChange={handleInfoChange('phone')}
+                required
+                className="w-full"
+              />
+              <p className="text-xs text-gray-500 break-words">
+                Ethiopian format: 09XXXXXXXX or +251XXXXXXXXX
+              </p>
+            </div>
+          </>
+        )}
+
+        {/* For signed-in users, show profile info summary */}
+        {user && (
+          <div className="bg-gray-50 p-3 rounded-md mb-4">
+            <div className="flex items-center gap-2 mb-2">
+              <User className="w-4 h-4 text-gray-500" />
+              <span className="text-sm font-medium">{profile?.name || user.email?.split('@')[0]}</span>
+            </div>
+            {profile?.phone && (
+              <div className="flex items-center gap-2 mb-2">
+                <Phone className="w-4 h-4 text-gray-500" />
+                <span className="text-sm">{profile.phone}</span>
+              </div>
+            )}
           </div>
         )}
 
-        <div className="space-y-2">
-          <Label htmlFor="phone" className="flex items-center gap-2">
-            <Phone className="w-4 h-4 flex-shrink-0" />
-            <span className="text-sm">Phone Number*</span>
-          </Label>
-          <Input
-            id="phone"
-            placeholder="e.g., 0911234567"
-            value={customerInfo.phone}
-            onChange={handleInfoChange('phone')}
-            required
-            className="w-full"
-          />
-          <p className="text-xs text-gray-500 break-words">
-            Ethiopian format: 09XXXXXXXX or +251XXXXXXXXX
-          </p>
-        </div>
-
+        {/* Address field for all users */}
         <div className="space-y-2">
           <Label htmlFor="address" className="flex items-center gap-2">
             <MapPin className="w-4 h-4 flex-shrink-0" />
@@ -375,7 +403,7 @@ export const ConfirmPurchaseDialog = ({
         ) : (
           <Button
             onClick={handleConfirm}
-            disabled={isSubmitting || !isCustomerInfoValid()}
+            disabled={isSubmitting || !customerInfo.address.trim()}
             className="gap-2"
             size="sm"
           >
