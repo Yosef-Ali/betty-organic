@@ -34,7 +34,7 @@ interface OrderSummaryProps {
   setCustomerId: (id: string) => void;
   orderStatus: string;
   setOrderStatus: (status: string) => void;
-  isStatusVerified: boolean;
+  // isStatusVerified: boolean; // Removed
   handleToggleLock: () => void;
   handleConfirmDialog: (
     action: 'save' | 'cancel',
@@ -54,12 +54,12 @@ interface OrderSummaryProps {
     name?: string;
     email?: string;
   }) => void;
-  isAdmin: boolean;
+  isAdmin: boolean; // Keep isAdmin
   disabled?: boolean;
-  profile?: {
+  profile?: { // Keep profile if needed internally or for display
     id: string;
     role: string;
-    name: string;
+    name: string | null; // Fix: Allow name to be string or null
     email?: string;
   };
 }
@@ -86,17 +86,17 @@ export const OrderSummary: FC<OrderSummaryProps> = ({
   setCustomerId,
   orderStatus,
   setOrderStatus,
-  isStatusVerified,
+  // isStatusVerified, // Removed from destructuring
   handleToggleLock,
   handleConfirmDialog,
   isSaving,
   onPrintPreview,
   isOrderSaved,
   orderNumber,
-  isAdmin,
+  isAdmin, // Keep isAdmin
   customerInfo,
   setCustomerInfo,
-  profile
+  profile // Keep profile
 }) => {
   const [customerDetails, setCustomerDetails] = useState<CustomerDetails>({
     name: '',
@@ -351,7 +351,7 @@ ${storeInfo}`;
           </div>
         </div>
 
-        {isAdmin && (
+        {isAdmin && ( // Keep isAdmin check
           <div className="flex items-center space-x-2">
             <div className="flex-grow">
               <Label htmlFor="order-status" className="text-sm font-medium">
@@ -415,7 +415,7 @@ ${storeInfo}`;
             handleConfirmDialog('save', {
               id: selectedCustomer.id,
               name: selectedCustomer.name,
-              role: 'customer',
+              role: 'customer', // Assuming role is customer here, adjust if needed
             });
           }}
           disabled={isSaving || !selectedCustomer || isOrderSaved}

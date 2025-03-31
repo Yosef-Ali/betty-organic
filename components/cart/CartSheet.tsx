@@ -20,12 +20,14 @@ import { CartItems } from './CartItems';
 import { OrderSummary } from './OrderSummary';
 import { useCartSheet } from './useCartSheet';
 import { Customer } from '@/types/customer';
+import { useAuth } from '@/components/providers/AuthProvider'; // Import useAuth here as well
 
 export interface CartSheetProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
+// Note: CartSheetHeader component seems unused in this file, keeping for context if needed elsewhere.
 const CartSheetHeader: FC<{ onClose: () => void }> = ({ onClose }) => (
   <SheetHeader className="space-y-0 pb-4">
     <div className="flex items-center justify-between">
@@ -44,10 +46,14 @@ const CartSheetHeader: FC<{ onClose: () => void }> = ({ onClose }) => (
 );
 
 export const CartSheet: FC<CartSheetProps> = ({ isOpen, onOpenChange }) => {
+  // Get auth context here to determine isAdmin and pass profile
+  const { profile } = useAuth();
+  const isAdmin = profile?.role === 'admin';
+
   const {
     items,
     customer,
-    setCustomer,
+    setCustomer, // Keep the original setter from the hook
     orderStatus,
     setOrderStatus,
     isThermalPrintPreviewOpen,
@@ -55,7 +61,7 @@ export const CartSheet: FC<CartSheetProps> = ({ isOpen, onOpenChange }) => {
     isSaving,
     isConfirmDialogOpen,
     confirmAction,
-    isStatusVerified = false,
+    // isStatusVerified removed from destructuring
     isOtpDialogOpen,
     otp,
     hasToggledLock,
@@ -78,22 +84,31 @@ export const CartSheet: FC<CartSheetProps> = ({ isOpen, onOpenChange }) => {
     setIsOtpDialogOpen,
   } = useCartSheet(onOpenChange);
 
+  // Wrapper function for setCustomerInfo prop, matching OrderSummary's expectation
+  const handleSetCustomerInfo = (info: { id?: string; name?: string; email?: string }) => {
+    setCustomer(prevCustomer => ({
+      ...prevCustomer, // Keep existing partial customer data
+      ...info,       // Update with new info (id, name, email)
+    }));
+  };
+
   return (
     <>
       <Sheet open={isOpen} onOpenChange={onOpenChange}>
         <SheetContent className="w-full sm:max-w-lg flex flex-col h-full">
+          {/* Using handleCloseCart for the back button */}
           <SheetHeader className="space-y-0 pb-4">
             <div className="flex items-center justify-between">
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={handleCloseCart}
+                onClick={handleCloseCart} // Use handleCloseCart for consistent behavior
                 className="h-8 w-8 p-0"
               >
                 <ChevronLeftIcon className="h-4 w-4" />
               </Button>
               <SheetTitle>Shopping Cart</SheetTitle>
-              <div className="w-8" />
+              <div className="w-8" /> {/* Spacer */}
             </div>
           </SheetHeader>
 
@@ -108,10 +123,11 @@ export const CartSheet: FC<CartSheetProps> = ({ isOpen, onOpenChange }) => {
                   items={items}
                   totalAmount={getTotalAmount()}
                   customerId={customer?.id || ''}
-                  setCustomerId={id => setCustomer({ ...customer, id })}
+                  // Pass function to set only the ID part of the customer state
+                  setCustomerId={id => setCustomer(prev => ({ ...prev, id }))}
                   orderStatus={orderStatus}
                   setOrderStatus={setOrderStatus}
-                  isStatusVerified={true}
+                  // isStatusVerified prop removed
                   handleToggleLock={() =>
                     setOrderStatus(
                       orderStatus === 'processing' ? 'pending' : 'processing',
@@ -122,8 +138,11 @@ export const CartSheet: FC<CartSheetProps> = ({ isOpen, onOpenChange }) => {
                   onPrintPreview={handleThermalPrintPreview}
                   isOrderSaved={isOrderSaved}
                   orderNumber={orderNumber}
-                  customerInfo={customer}
-                  setCustomerInfo={setCustomer}
+                  customerInfo={customer} // Pass the customer state object
+                  setCustomerInfo={handleSetCustomerInfo} // Pass the wrapper function
+                  isAdmin={isAdmin} // Pass isAdmin derived from auth context
+                  // Fix: Pass profile as undefined if it's null to match expected type
+                  profile={profile || undefined}
                 />
               )}
             </ScrollArea>
@@ -137,7 +156,7 @@ export const CartSheet: FC<CartSheetProps> = ({ isOpen, onOpenChange }) => {
             onShare={handleShare}
             onConfirmOrder={handleConfirmOrder}
             isOrderConfirmed={isOrderConfirmed}
-            onCancel={handleBackToCart}
+            onCancel={handleBackToCart} // Use handleBackToCart when order is confirmed
           />
         </SheetContent>
       </Sheet>
@@ -149,7 +168,7 @@ export const CartSheet: FC<CartSheetProps> = ({ isOpen, onOpenChange }) => {
             onClose={() => setIsThermalPrintPreviewOpen(false)}
             items={items.map(item => ({
               name: item.name,
-              quantity: item.grams / 1000,
+              quantity: item.grams / 1000, // Assuming quantity is in kg for preview
               price: (item.pricePerKg * item.grams) / 1000,
             }))}
             total={getTotalAmount()}
