@@ -1,16 +1,21 @@
 import { useState, useEffect } from 'react';
 import { useMarketingCartStore } from '@/store/cartStore';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation'; // Import useRouter
 import { createOrder } from '@/app/actions/orderActions';
 import { Order } from '@/types/order';
 import { Customer } from '@/types/customer';
+import { useAuth } from '@/components/providers/AuthProvider'; // Import useAuth
+import { toast } from '@/components/ui/use-toast'; // Import toast
 
 export const useCartSheet = (onOpenChange: (open: boolean) => void) => {
   const { items, clearCart, getTotalAmount } = useMarketingCartStore();
+  const { user, isLoading: isAuthLoading } = useAuth(); // Call useAuth hook
+  const router = useRouter(); // Call useRouter hook
+
   const [customer, setCustomer] = useState<Partial<Customer>>({
     id: '',
     email: '',
-    full_name: '',
+    name: '', // Fix: Use 'name' instead of 'full_name'
     status: '',
     role: 'customer',
     created_at: null,
@@ -89,6 +94,19 @@ export const useCartSheet = (onOpenChange: (open: boolean) => void) => {
   };
 
   const handleConfirmOrder = async () => {
+    // Check auth state before confirming
+    if (isAuthLoading) {
+      toast({ title: 'Checking authentication...', variant: 'default' });
+      return;
+    }
+
+    if (!user) {
+      toast({ title: 'Please log in', description: 'You need to be logged in to confirm an order.', variant: 'destructive' });
+      router.push('/auth/login?redirect=/'); // Redirect to login
+      return;
+    }
+
+    // If authenticated, proceed
     setIsOrderConfirmed(true);
   };
 
@@ -98,44 +116,73 @@ export const useCartSheet = (onOpenChange: (open: boolean) => void) => {
   };
 
   const handleSaveOrder = async () => {
+    // Ensure user is available (re-check, though handleConfirmOrder should prevent this state)
+    if (!user?.id) {
+      toast({ title: 'Authentication Error', description: 'User session lost. Please log in again.', variant: 'destructive' });
+      router.push('/auth/login');
+      return;
+    }
+
     setIsSaving(true);
     try {
       const totalAmount = getTotalAmount();
+      // Map to OrderItem type with 'product_name'
       const orderItems = items.map(item => ({
         product_id: item.id,
         quantity: item.grams,
         price: (item.pricePerKg * item.grams) / 1000,
-        name: item.name,
+        product_name: item.name, // Correctly map to product_name
       }));
 
-      const orderData: Order = {
-        customer_id: 'guest', // This should be replaced with actual customer_id when available
-        status: orderStatus,
-        total_amount: totalAmount,
-        type: pathname.includes('/dashboard/sales') ? 'pos' : 'online',
-        order_items: orderItems,
-      };
+      // Call createOrder with correct arguments
+      const createdOrderResponse = await createOrder(
+        orderItems,
+        user.id, // Use authenticated user's ID
+        totalAmount,
+        orderStatus
+      );
 
-      const createdOrder = await createOrder(orderData);
-      setOrderNumber(createdOrder?.id?.toString() || '');
-      setIsOrderSaved(true);
-      clearCart();
+      if (createdOrderResponse.success && createdOrderResponse.order) {
+        const displayId = createdOrderResponse.order.display_id || createdOrderResponse.order.id.toString();
+        setOrderNumber(displayId);
+        setIsOrderSaved(true);
+        clearCart();
+        onOpenChange(false); // Close the sheet
+        // Stay on marketing page and show success toast
+        toast({
+          title: 'Order Placed Successfully!',
+          description: `Your order #${displayId} has been confirmed.`,
+          variant: 'default',
+        });
+      } else {
+        // Handle order creation failure
+        console.error('Order creation failed:', createdOrderResponse.error);
+        toast({
+          title: 'Order Failed',
+          description: createdOrderResponse.error?.message || 'Could not place the order. Please try again.',
+          variant: 'destructive',
+        });
+      }
     } catch (error) {
       console.error('Failed to save order:', error);
-      alert('Failed to save order. Please try again.');
+      // Use toast for error feedback instead of alert
+      toast({
+        title: 'Error Saving Order',
+        description: error instanceof Error ? error.message : 'An unknown error occurred. Please try again.',
+        variant: 'destructive',
+      });
     } finally {
       setIsSaving(false);
     }
   };
 
+
   const handleCloseCart = () => {
-    if (items.length > 0) {
+    if (items.length > 0 && !isOrderSaved) { // Only ask to cancel if items exist and order isn't saved
       setConfirmAction('cancel');
-      if (confirmAction) {
-        setIsConfirmDialogOpen(true);
-      }
+      setIsConfirmDialogOpen(true);
     } else {
-      onOpenChange(false);
+      onOpenChange(false); // Close directly if cart is empty or order saved
     }
   };
 
@@ -149,10 +196,11 @@ export const useCartSheet = (onOpenChange: (open: boolean) => void) => {
     customerData?: { name: string; email: string },
   ) => {
     if (action === 'save' && customerData) {
-      setCustomer(customerData);
-      handleSaveOrder();
+      setCustomer(prev => ({ ...prev, ...customerData })); // Update customer state correctly
+      handleSaveOrder(); // Call save order after setting customer
     } else if (action === 'cancel') {
       clearCart();
+      setIsOrderConfirmed(false); // Reset confirmation state
       onOpenChange(false);
     }
     setIsConfirmDialogOpen(false);
