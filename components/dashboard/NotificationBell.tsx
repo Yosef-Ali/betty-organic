@@ -40,7 +40,7 @@ export function NotificationBell() {
   useEffect(() => {
     // Initialize audio element
     audioRef.current = new Audio('/notification.mp3');
-    
+
     const fetchNotifications = async () => {
       try {
         const supabase = createClient();
@@ -57,7 +57,7 @@ export function NotificationBell() {
         }
 
         const newNotificationCount = data?.length || 0;
-        
+
         // Only play sound if:
         // 1. It's not the initial load
         // 2. The notification count has increased
@@ -65,7 +65,7 @@ export function NotificationBell() {
           console.log('New notification received, playing sound');
           playNotificationSound();
         }
-        
+
         isInitialLoadRef.current = false;
         setNotifications(data || []);
         setUnreadCount(newNotificationCount);
@@ -120,18 +120,18 @@ export function NotificationBell() {
   const playNotificationSound = () => {
     try {
       console.log('Attempting to play notification sound');
-      
+
       if (audioRef.current) {
         // Reset the audio to the beginning in case it was already playing
         audioRef.current.currentTime = 0;
-        
+
         // Play the notification sound with volume turned up
         audioRef.current.volume = 1.0;
         audioRef.current.play().then(() => {
           console.log('Notification sound played successfully');
         }).catch(error => {
           console.error('Error playing notification sound (autoplay policy):', error);
-          
+
           // Try playing on next user interaction
           const handleUserInteraction = () => {
             audioRef.current?.play().catch(e => console.error('Still cannot play audio:', e));
