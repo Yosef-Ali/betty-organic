@@ -16,7 +16,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { handlePurchaseOrder } from "@/app/actions/purchaseActions";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/components/providers/AuthProvider";
+// import { useAuth } from "@/components/providers/AuthProvider"; // No longer strictly needed for confirmation logic
+import { sendWhatsAppOrderNotification } from "@/app/(marketing)/actions/notificationActions";
 
 interface ConfirmPurchaseDialogProps {
   isOpen: boolean;
@@ -34,19 +35,11 @@ export const ConfirmPurchaseDialog = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const clearCart = useMarketingCartStore((state) => state.clearCart);
   const router = useRouter();
-  const { user } = useAuth();
+  // const { user } = useAuth(); // We'll handle guest orders now
 
   const handleConfirm = async () => {
     try {
-      // Check if user is signed in
-      if (!user) {
-        // Store cart items in session storage before redirecting
-        sessionStorage.setItem('pendingOrder', JSON.stringify({ items, total }));
-        // Redirect to sign in page with return URL
-        router.push(`/auth/login?returnTo=${encodeURIComponent('/marketing')}`);
-        onClose();
-        return;
-      }
+      // Guest checkout is now allowed, remove the sign-in check
 
       setIsSubmitting(true);
 
@@ -60,14 +53,32 @@ export const ConfirmPurchaseDialog = ({
         throw new Error(result.error || "Failed to create order");
       }
 
-      // Show success message with order ID
-      toast.success(`Order #${result.data.id} created successfully! Thank you for your purchase!`);
+      const orderId = result.data.id;
+      const orderDetails = {
+        id: orderId,
+        items: items.map(item => ({ name: item.name, grams: item.grams, price: ((item.pricePerKg * item.grams) / 1000) })),
+        total: total,
+        // Add customer info if available (e.g., from user object or guest input)
+        // customerName: user?.user_metadata?.full_name || 'Guest',
+        // customerPhone: user?.phone || 'N/A',
+      };
+
+      // Show success message
+      toast.success(`Order #${orderId} created successfully! Thank you for your purchase!`);
+
+      // Send WhatsApp notification (fire and forget)
+      sendWhatsAppOrderNotification(orderDetails).catch((err: Error) => {
+        console.error("Failed to send WhatsApp notification:", err.message);
+        toast.error("Order placed successfully, but failed to send notification to admin.");
+        // toast.error("Failed to send order notification.");
+      });
+
 
       // Clear the cart and close the dialog
       clearCart();
       onClose();
 
-      // Stay on the marketing page
+      // Refresh the page to reflect changes (optional)
       router.refresh();
     } catch (error) {
       console.error("Error placing order:", error);
@@ -82,21 +93,22 @@ export const ConfirmPurchaseDialog = ({
       <DialogContent className="sm:max-w-md z-[100]">
         <DialogHeader>
           <DialogTitle>
-            {user ? "Confirm Your Order" : "Sign In Required"}
+            Confirm Your Order
           </DialogTitle>
           <DialogDescription>
-            {user
-              ? "Please review your order details before confirming."
-              : "You need to sign in to complete your order. Click confirm to proceed to sign in."}
+            Please review your order details before confirming. The order will be sent to our admin via WhatsApp.
           </DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="max-h-[300px] mt-4">
           <div className="space-y-4">
             {items.map((item) => (
-              <div key={item.id} className="flex justify-between">
-                <span>{item.name} ({item.grams}g)</span>
-                <span>ETB {((item.pricePerKg * item.grams) / 1000).toFixed(2)}</span>
+              <div key={item.id} className="flex justify-between items-center py-2 border-b">
+                <div className="flex flex-col">
+                  <span className="font-medium">{item.name}</span>
+                  <span className="text-sm text-gray-500">{item.grams}g</span>
+                </div>
+                <span className="font-medium">ETB {((item.pricePerKg * item.grams) / 1000).toFixed(2)}</span>
               </div>
             ))}
             <div className="pt-4 border-t flex justify-between font-bold">
@@ -111,7 +123,7 @@ export const ConfirmPurchaseDialog = ({
             Cancel
           </Button>
           <Button onClick={handleConfirm} disabled={isSubmitting}>
-            {isSubmitting ? "Processing..." : user ? "Confirm Order" : "Sign In to Continue"}
+            {isSubmitting ? "Processing..." : "Confirm Order"}
           </Button>
         </DialogFooter>
       </DialogContent>

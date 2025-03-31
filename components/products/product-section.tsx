@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { useMarketingCartStore } from '@/store/cartStore';
 import { useUIStore } from '@/store/uiStore';
 import { getProducts } from '@/app/(marketing)/actions';
+import { optimizeProductImage } from '@/utils/product-utils';
 
 const PRODUCT_CATEGORIES = [
   "All",
