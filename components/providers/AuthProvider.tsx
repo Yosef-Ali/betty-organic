@@ -2,21 +2,9 @@
 
 import { createContext, useContext, useEffect, useState } from 'react';
 import { User } from '@supabase/supabase-js';
-import { createClient } from '@/lib/supabase/client';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
-
-type Profile = {
-  id: string;
-  role: 'admin' | 'sales' | 'customer';
-  name: string | null;
-  email: string;
-  status: string | null;
-  auth_provider: string | null;
-  created_at: string | null;
-  updated_at: string;
-  avatar_url?: string | null;
-  address?: string | null;
-};
+import { Profile } from '@/lib/types/auth'; // Import the correct Profile type definition
 
 type AuthContextType = {
   user: User | null;
@@ -46,71 +34,73 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const router = useRouter();
+  const supabase = createClientComponentClient();
 
   useEffect(() => {
-    const supabase = createClient();
-
-    // Set up auth state listener
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      setIsLoading(true);
+    // Initialize auth state
+    const initAuth = async () => {
       try {
-        if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
-          if (session?.user) {
-            setUser(session.user);
-            // Fetch user profile
-            const { data: profileData, error: profileError } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', session.user.id)
-              .single();
+        // Get current session
+        const { data: { session } } = await supabase.auth.getSession();
 
-            if (profileError) throw profileError;
-            setProfile(profileData);
+        if (session?.user) {
+          setUser(session.user);
+
+          // Fetch user profile
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+
+          if (profileError) {
+            throw profileError;
           }
-        } else if (event === 'SIGNED_OUT') {
-          setUser(null);
-          setProfile(null);
-          router.push('/auth/login');
+
+          setProfile(profileData);
         }
       } catch (err) {
-        console.error('Auth state change error:', err);
+        console.error('Error initializing auth:', err);
         setError(err instanceof Error ? err : new Error('Authentication error'));
       } finally {
         setIsLoading(false);
       }
-    });
+    };
 
-    // Check for initial session
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      if (error) {
-        console.error('Get session error:', error);
-        setError(error);
-      } else if (session?.user) {
-        setUser(session.user);
-        // Fetch user profile
-        supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single()
-          .then(({ data: profileData, error: profileError }) => {
-            if (profileError) {
-              console.error('Profile fetch error:', profileError);
-              setError(profileError);
-            } else {
-              setProfile(profileData);
-            }
-          });
+    initAuth();
+
+    // Set up auth state change listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      try {
+        if (event === 'SIGNED_IN' && session?.user) {
+          setUser(session.user);
+
+          // Fetch user profile
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+
+          if (profileError) {
+            throw profileError;
+          }
+
+          setProfile(profileData);
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setProfile(null);
+        }
+      } catch (err) {
+        console.error('Auth state change error:', err);
+        setError(err instanceof Error ? err : new Error('Authentication error'));
       }
-      setIsLoading(false);
     });
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [router]);
+  }, [supabase, router]);
 
   return (
     <AuthContext.Provider
