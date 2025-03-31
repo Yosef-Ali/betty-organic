@@ -178,6 +178,7 @@ export default function Header({ onMobileMenuToggle, profile }: HeaderProps) {
 
       {isAdminOrSales && (
         <div className="flex items-center gap-2">
+          <audio id="notificationSound" src="/notification.mp3" preload="auto" />
           <NotificationBell />
         </div>
       )}
