@@ -1,13 +1,12 @@
 'use client';
 
 import { Bell } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useSound } from 'use-sound';
 
 export function NotificationBell() {
   const [hasNewOrder, setHasNewOrder] = useState(false);
-  const [play] = useSound('/sounds/notification.mp3'); // You'll need to add this sound file
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Animation for the bell
   const bellAnimation = {
@@ -25,12 +24,30 @@ export function NotificationBell() {
     exit: { scale: 0 }
   };
 
+  // Function to play notification sound
+  const playNotificationSound = () => {
+    try {
+      if (audioRef.current) {
+        audioRef.current.currentTime = 0;
+        audioRef.current.volume = 1.0;
+        audioRef.current.play().catch(error => {
+          console.error('Error playing notification sound:', error);
+        });
+      }
+    } catch (error) {
+      console.error('Failed to play notification sound:', error);
+    }
+  };
+
   useEffect(() => {
+    // Initialize audio element
+    audioRef.current = new Audio('/notification.mp3');
+
     // Listen for new online orders
     const handleNewOrder = (order: any) => {
       if (order.type === 'online') {
         setHasNewOrder(true);
-        play(); // Play notification sound
+        playNotificationSound();
       }
     };
 
@@ -39,7 +56,7 @@ export function NotificationBell() {
     const cleanup = subscribeToOrders(handleNewOrder);
 
     return () => cleanup();
-  }, [play]);
+  }, []);
 
   return (
     <div className="relative">
@@ -62,6 +79,9 @@ export function NotificationBell() {
           />
         )}
       </AnimatePresence>
+
+      {/* Hidden audio element as fallback */}
+      <audio id="notificationSound" src="/notification.mp3" preload="auto" style={{ display: 'none' }} />
     </div>
   );
 }

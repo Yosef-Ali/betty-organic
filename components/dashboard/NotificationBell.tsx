@@ -25,6 +25,7 @@ interface ProfileData {
 
 interface OrderNotification {
   id: string;
+  display_id?: string;
   created_at: string | null;
   profile_id: string;
   status: string;
@@ -40,6 +41,7 @@ export function NotificationBell() {
   const router = useRouter();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const isInitialLoadRef = useRef(true);
+  const previousCountRef = useRef(0);
 
   useEffect(() => {
     // Initialize audio element
@@ -47,6 +49,7 @@ export function NotificationBell() {
 
     const fetchNotifications = async () => {
       try {
+        console.log('Fetching notifications...');
         const supabase = createClient();
 
         // Use a different approach - first fetch orders, then the corresponding profiles
@@ -62,6 +65,8 @@ export function NotificationBell() {
           return;
         }
 
+        console.log(`Found ${ordersData?.length || 0} pending orders`);
+
         // If we have orders, get the corresponding profiles
         if (ordersData && ordersData.length > 0) {
           // Extract unique profile IDs
@@ -75,6 +80,8 @@ export function NotificationBell() {
               .from('profiles')
               .select('*')
               .in('id', profileIds);
+
+            console.log(`Found ${profilesData?.length || 0} profiles for orders`);
 
             // Combine data
             const ordersWithProfiles = ordersData.map(order => {
@@ -90,11 +97,12 @@ export function NotificationBell() {
             // Only play sound if:
             // 1. It's not the initial load
             // 2. The notification count has increased
-            if (!isInitialLoadRef.current && newNotificationCount > unreadCount) {
+            if (!isInitialLoadRef.current && newNotificationCount > previousCountRef.current) {
               console.log('New notification received, playing sound');
               playNotificationSound();
             }
 
+            previousCountRef.current = newNotificationCount;
             isInitialLoadRef.current = false;
             setNotifications(ordersWithProfiles);
             setUnreadCount(newNotificationCount);
@@ -104,6 +112,7 @@ export function NotificationBell() {
 
         // Default case - no orders or profiles
         isInitialLoadRef.current = false;
+        previousCountRef.current = 0;
         setNotifications([]);
         setUnreadCount(0);
       } catch (error) {
@@ -152,7 +161,7 @@ export function NotificationBell() {
       clearInterval(pollingInterval);
       supabase.removeChannel(channel);
     };
-  }, [unreadCount]);
+  }, []);
 
   const playNotificationSound = () => {
     try {
@@ -207,13 +216,15 @@ export function NotificationBell() {
 
   return (
     <>
+      {/* Adding this audio element ensures that the sound can be played */}
       <audio id="notificationSound" src="/notification.mp3" preload="auto" />
+
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" className="relative">
             <Bell className="h-5 w-5" />
             {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-xs text-white flex items-center justify-center">
+              <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-red-500 text-xs text-white flex items-center justify-center">
                 {unreadCount}
               </span>
             )}
@@ -234,7 +245,7 @@ export function NotificationBell() {
                   >
                     <div className="flex justify-between w-full">
                       <span className="font-medium">
-                        {order.id.slice(0, 8)}
+                        {order.display_id || order.id.slice(0, 8)}
                       </span>
                       <span className="text-sm text-muted-foreground">
                         {order.created_at ? formatDate(order.created_at) : 'N/A'}
