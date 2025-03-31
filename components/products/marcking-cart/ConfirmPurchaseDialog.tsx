@@ -334,7 +334,7 @@ export const ConfirmPurchaseDialog = ({
             <span className="break-words font-medium">Your order will be completed via WhatsApp</span>
           </p>
           <p className="text-xs text-green-600 mt-1 pl-6">
-            After entering your details, you'll share your order with our admin via WhatsApp
+            After entering your details, you&apos;ll share your order with our admin via WhatsApp
           </p>
         </div>
       )}
