@@ -7,9 +7,28 @@ import { Customer } from '@/types/customer';
 import { useAuth } from '@/components/providers/AuthProvider'; // Import useAuth
 import { toast } from '@/components/ui/use-toast'; // Import toast
 
+// Helper function to format order details for WhatsApp
+const formatOrderDetailsForWhatsApp = (items: any[], totalAmount: number): string => {
+  const orderDetails = items
+    .map(
+      item =>
+        `🛍️ *${item.name}*\n` +
+        `   • Quantity: ${(item.grams / 1000).toFixed(3)} kg\n` +
+        `   • Price: Br ${((item.pricePerKg * item.grams) / 1000).toFixed(2)}`
+    )
+    .join('\n\n');
+  return `📝 *Order Details:*\n${orderDetails}\n\n💰 *Total Amount:* Br ${totalAmount.toFixed(2)}`;
+};
+
+// Helper function to send WhatsApp message
+const sendWhatsAppMessage = (phoneNumber: string, message: string) => {
+  const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
+  window.open(whatsappUrl, '_blank');
+};
+
 export const useCartSheet = (onOpenChange: (open: boolean) => void) => {
   const { items, clearCart, getTotalAmount } = useMarketingCartStore();
-  const { user, isLoading: isAuthLoading } = useAuth(); // Call useAuth hook
+  const { user, profile, isLoading: isAuthLoading } = useAuth(); // Call useAuth hook
   const router = useRouter(); // Call useRouter hook
 
   const [customer, setCustomer] = useState<Partial<Customer>>({
@@ -94,19 +113,8 @@ export const useCartSheet = (onOpenChange: (open: boolean) => void) => {
   };
 
   const handleConfirmOrder = async () => {
-    // Check auth state before confirming
-    if (isAuthLoading) {
-      toast({ title: 'Checking authentication...', variant: 'default' });
-      return;
-    }
-
-    if (!user) {
-      toast({ title: 'Please log in', description: 'You need to be logged in to confirm an order.', variant: 'destructive' });
-      router.push('/auth/login?redirect=/'); // Redirect to login
-      return;
-    }
-
-    // If authenticated, proceed
+    // No auth check here anymore. Just proceed to confirmation view.
+    // The decision guest vs logged-in happens in OrderSummary based on props passed from CartSheet
     setIsOrderConfirmed(true);
   };
 
@@ -146,9 +154,15 @@ export const useCartSheet = (onOpenChange: (open: boolean) => void) => {
         const displayId = createdOrderResponse.order.display_id || createdOrderResponse.order.id.toString();
         setOrderNumber(displayId);
         setIsOrderSaved(true);
+
+        // Send WhatsApp notification to admin about the logged-in order
+        const orderDetailsText = formatOrderDetailsForWhatsApp(items, totalAmount);
+        const userInfoText = `👤 *User:* ${profile?.name || 'N/A'}\n📝 *Order ID:* ${displayId}`;
+        const adminMessage = `🔔 *New LOGGED-IN Order (Online)* 🔔\n\n${userInfoText}\n\n${orderDetailsText}`;
+        sendWhatsAppMessage('251947385509', adminMessage);
+
         clearCart();
         onOpenChange(false); // Close the sheet
-        // Stay on marketing page and show success toast
         toast({
           title: 'Order Placed Successfully!',
           description: `Your order #${displayId} has been confirmed.`,
@@ -189,6 +203,62 @@ export const useCartSheet = (onOpenChange: (open: boolean) => void) => {
   const handleConfirmDialog = (action: 'save' | 'cancel') => {
     setConfirmAction(action);
     setIsConfirmDialogOpen(true);
+  };
+
+  // Guest information type
+  interface GuestInfo {
+    name: string;
+    location: string;
+    phone: string;
+  }
+
+  // Guest Order Confirmation via WhatsApp
+  const handleGuestOrderConfirmation = async (guestInfo: GuestInfo) => {
+    const { name, location, phone } = guestInfo;
+
+    if (!name || !location || !phone) {
+      toast({
+        title: "Missing Information",
+        description: "Please provide your name, location, and phone number.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const totalAmount = getTotalAmount();
+      const orderDetailsText = formatOrderDetailsForWhatsApp(items, totalAmount);
+      const guestInfoText = `👤 *Guest Information:*
+• Name: ${name}
+• Phone: ${phone}
+• Location: ${location}`;
+      const adminMessage = `🔔 *New GUEST Order (Online)* 🔔\n\n${guestInfoText}\n\n${orderDetailsText}`;
+
+      // Send confirmation/notification to admin
+      sendWhatsAppMessage('251947385509', adminMessage);
+
+      setOrderNumber(`GUEST-${Date.now().toString().slice(-6)}`);
+      setIsOrderSaved(true);
+      clearCart();
+      onOpenChange(false);
+
+      toast({
+        title: 'Order Sent via WhatsApp!',
+        description: 'Your order has been sent to the admin for confirmation.',
+        variant: 'default',
+      });
+
+    } catch (error) {
+      console.error('Failed to send guest order via WhatsApp:', error);
+      toast({
+        title: 'Error Sending Order',
+        description: 'Could not send order via WhatsApp. Please try again.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleConfirmAction = (
@@ -241,6 +311,7 @@ export const useCartSheet = (onOpenChange: (open: boolean) => void) => {
     handleConfirmOrder,
     handleBackToCart,
     handleSaveOrder,
+    handleGuestOrderConfirmation, // Add the new guest order handler
     handleCloseCart,
     handleConfirmDialog,
     handleConfirmAction,
