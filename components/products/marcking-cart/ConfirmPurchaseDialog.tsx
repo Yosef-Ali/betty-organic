@@ -241,7 +241,7 @@ export const ConfirmPurchaseDialog = ({
     <>
       <DialogHeader>
         <DialogTitle>Delivery Details</DialogTitle>
-        <DialogDescription>
+        <DialogDescription className="text-wrap">
           {!user ?
             "Please provide your contact information for delivery." :
             "Please provide delivery address details."
@@ -249,26 +249,27 @@ export const ConfirmPurchaseDialog = ({
         </DialogDescription>
       </DialogHeader>
 
-      <div className="space-y-4 py-4">
+      <div className="space-y-4 py-4 overflow-hidden">
         {!user && (
           <div className="space-y-2">
             <Label htmlFor="name" className="flex items-center gap-2">
-              <User className="w-4 h-4" />
-              Your Name (optional)
+              <User className="w-4 h-4 flex-shrink-0" />
+              <span className="text-sm">Your Name (optional)</span>
             </Label>
             <Input
               id="name"
               placeholder="Enter your name"
               value={customerInfo.name}
               onChange={handleInfoChange('name')}
+              className="w-full"
             />
           </div>
         )}
 
         <div className="space-y-2">
           <Label htmlFor="phone" className="flex items-center gap-2">
-            <Phone className="w-4 h-4" />
-            Phone Number*
+            <Phone className="w-4 h-4 flex-shrink-0" />
+            <span className="text-sm">Phone Number*</span>
           </Label>
           <Input
             id="phone"
@@ -276,16 +277,17 @@ export const ConfirmPurchaseDialog = ({
             value={customerInfo.phone}
             onChange={handleInfoChange('phone')}
             required
+            className="w-full"
           />
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-gray-500 break-words">
             Ethiopian format: 09XXXXXXXX or +251XXXXXXXXX
           </p>
         </div>
 
         <div className="space-y-2">
           <Label htmlFor="address" className="flex items-center gap-2">
-            <MapPin className="w-4 h-4" />
-            Delivery Address*
+            <MapPin className="w-4 h-4 flex-shrink-0" />
+            <span className="text-sm">Delivery Address*</span>
           </Label>
           <Textarea
             id="address"
@@ -293,42 +295,50 @@ export const ConfirmPurchaseDialog = ({
             value={customerInfo.address}
             onChange={handleInfoChange('address')}
             required
-            className="min-h-[100px]"
+            className="min-h-[100px] w-full resize-none"
           />
         </div>
       </div>
 
       {!user && (
         <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-md">
-          <p className="text-sm text-amber-700 flex items-center gap-2">
-            <LogIn className="w-4 h-4" />
-            Sign in to track your orders and for faster checkout next time
+          <p className="text-sm text-amber-700 flex items-center gap-2 flex-wrap">
+            <LogIn className="w-4 h-4 flex-shrink-0" />
+            <span className="break-words">Sign in to track your orders and for faster checkout next time</span>
           </p>
         </div>
       )}
 
-      <DialogFooter className="flex sm:justify-between gap-4 sm:gap-0">
-        <Button variant="outline" onClick={() => setCurrentStep('review')}>
-          Back to Review
+      <DialogFooter className="flex flex-row justify-between items-center gap-2 mt-2">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setCurrentStep('review')}
+          title="Back to Review"
+          className="h-8 w-8 rounded-full"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
         </Button>
 
         {!user ? (
-          <div className="flex flex-col sm:flex-row gap-2">
+          <div className="flex flex-row gap-2 flex-1 justify-end">
             <Button
               variant="outline"
               onClick={handleSignIn}
               className="gap-2"
+              size="sm"
             >
               <LogIn className="w-4 h-4" />
-              Sign in first
+              Sign in
             </Button>
             <Button
               onClick={handleConfirm}
               disabled={isSubmitting || !isCustomerInfoValid()}
               className="gap-2"
+              size="sm"
             >
               <MessageCircle className="w-4 h-4" />
-              {isSubmitting ? "Processing..." : "Place Order as Guest"}
+              {isSubmitting ? "Processing..." : "Place Order"}
             </Button>
           </div>
         ) : (
@@ -336,6 +346,7 @@ export const ConfirmPurchaseDialog = ({
             onClick={handleConfirm}
             disabled={isSubmitting || !isCustomerInfoValid()}
             className="gap-2"
+            size="sm"
           >
             <MessageCircle className="w-4 h-4" />
             {isSubmitting ? "Processing..." : "Confirm Order"}
