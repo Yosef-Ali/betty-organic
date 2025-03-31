@@ -26,6 +26,7 @@ export type Order = {
     id: string;
     name: string | null;
     email: string;
+    phone?: string | null;
     role: string;
   };
 };
@@ -37,6 +38,7 @@ export type ExtendedOrder = Order & {
     name: string | null;
     email: string;
     role: string;
+    phone?: string | null;
     avatar_url?: string | null;
   };
 };

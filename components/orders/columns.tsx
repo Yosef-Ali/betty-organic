@@ -29,8 +29,21 @@ export const columns: ColumnDef<ExtendedOrder>[] = [
   {
     id: 'profile_name',
     header: 'Profile',
-    accessorFn: row => row.profiles?.name || 'Unknown Customer',
-    cell: ({ row }) => row.original.profiles?.name || 'Unknown Customer',
+    accessorFn: row => {
+      // Check for available customer identification in order of preference
+      if (row.profiles?.name) return row.profiles.name;
+      if (row.profiles?.email) return row.profiles.email;
+      if (row.profiles?.phone) return row.profiles.phone;
+      return 'Unknown Customer';
+    },
+    cell: ({ row }) => {
+      // Check for available customer identification in order of preference
+      const profile = row.original.profiles;
+      if (profile?.name) return profile.name;
+      if (profile?.email) return profile.email;
+      if (profile?.phone) return profile.phone;
+      return 'Unknown Customer';
+    },
     enableGlobalFilter: true,
   },
   {

@@ -58,11 +58,13 @@ const OrderDashboard: React.FC = () => {
           id: customerFromProps.id,
           name: customerFromProps.fullName || null,
           email: customerFromProps.email,
+          phone: customerFromProps.phone || null,
           role: 'customer'
         } : {
           id: 'unknown',
           name: 'Unknown Customer',
           email: 'N/A',
+          phone: null,
           role: 'customer'
         },
         items: (orderAny.order_items || []).map((item: any) => ({

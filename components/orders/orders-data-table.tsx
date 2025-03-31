@@ -310,6 +310,8 @@ export function OrdersDataTable({
                           <div className="space-y-2">
                             <p className="text-sm font-medium">
                               {row.original.profiles?.name ||
+                                row.original.profiles?.email ||
+                                row.original.profiles?.phone ||
                                 'Unknown Customer'}
                             </p>
                             <p className="text-xs text-muted-foreground">
