@@ -43,7 +43,7 @@ export const createClient = () => {
                     for (const cookie of cookies) {
                       const [cookieName, cookieValue] = cookie.split('=');
                       if (cookieName === key || cookieName === `${key}`) {
-                        // Don't try to parse base64 cookies as JSON - just return them directly
+                        // Handle base64-encoded JWT tokens - don't try to parse them as JSON
                         if (cookieValue && (cookieValue.startsWith('base64-') || cookieValue.includes('eyJ'))) {
                           return decodeURIComponent(cookieValue);
                         }

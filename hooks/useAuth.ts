@@ -1,18 +1,41 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import type { User } from '@supabase/auth-helpers-nextjs';
+import { Profile } from '@/lib/types/auth';
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<any | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [authInitialized, setAuthInitialized] = useState(false);
   const supabase = createClientComponentClient();
 
+  const fetchProfile = useCallback(async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        console.warn('Profile fetch error:', error);
+        return null;
+      }
+
+      return data;
+    } catch (err) {
+      console.error('Error fetching profile:', err);
+      return null;
+    }
+  }, [supabase]);
+
   // Initialize auth on first load
   useEffect(() => {
+    let mounted = true;
+
     const getUser = async () => {
       try {
         console.log('Initializing auth state');
@@ -22,26 +45,22 @@ export function useAuth() {
 
         if (sessionError) {
           console.error('Session error:', sessionError);
-          setLoading(false);
+          if (mounted) {
+            setLoading(false);
+            setAuthInitialized(true);
+          }
           return;
         }
 
         if (session?.user) {
           console.log('Found authenticated session');
-          setUser(session.user);
+          if (mounted) setUser(session.user);
 
           // Fetch user profile
-          const { data, error: profileError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-
-          if (profileError) {
-            console.warn('Profile fetch error:', profileError);
-          } else if (data) {
+          const profileData = await fetchProfile(session.user.id);
+          if (profileData && mounted) {
             console.log('Profile loaded successfully');
-            setProfile(data);
+            setProfile(profileData as Profile);
           }
         } else {
           console.log('No authenticated session found');
@@ -49,8 +68,10 @@ export function useAuth() {
       } catch (error) {
         console.error('Error getting user:', error);
       } finally {
-        setLoading(false);
-        setAuthInitialized(true); // Mark auth as initialized regardless of outcome
+        if (mounted) {
+          setLoading(false);
+          setAuthInitialized(true);
+        }
       }
     };
 
@@ -61,36 +82,30 @@ export function useAuth() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth state change event:', event);
 
-      // Update user state
-      setUser(session?.user ?? null);
+      if (mounted) {
+        // Update user state
+        setUser(session?.user ?? null);
 
-      if (session?.user) {
-        try {
+        if (session?.user) {
           // Fetch updated profile data
-          const { data, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-
-          if (error) {
-            console.warn('Profile fetch error on auth change:', error);
-          } else {
-            setProfile(data);
+          const profileData = await fetchProfile(session.user.id);
+          if (mounted && profileData) {
+            setProfile(profileData as Profile);
+          } else if (mounted) {
+            setProfile(null);
           }
-        } catch (err) {
-          console.error('Error fetching profile on auth change:', err);
+        } else if (mounted) {
+          setProfile(null);
         }
-      } else {
-        setProfile(null);
       }
     });
 
     // Clean up subscription
     return () => {
+      mounted = false;
       subscription.unsubscribe();
     };
-  }, [supabase]);
+  }, [supabase, fetchProfile]);
 
   return { user, profile, loading, authInitialized };
 }
