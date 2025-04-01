@@ -11,7 +11,14 @@ import { Tables } from '@/types/supabase'; // Import the database types
 
 // Use the actual DB type
 type OrderItem = Tables<'order_items'>;
-type Order = Tables<'orders'> & { items?: OrderItem[] };
+type DatabaseOrder = Tables<'orders'> & { items?: OrderItem[] };
+
+// Extended type with backward compatibility
+type Order = DatabaseOrder & {
+  customer_profile_id?: string;
+  customer_id?: string;
+};
+
 // Use profiles as customers
 type Profile = Tables<'profiles'>;
 

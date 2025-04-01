@@ -2,8 +2,6 @@ import { createBrowserClient } from '@supabase/ssr';
 import type { Database } from '@/types/supabase';
 
 let supabaseClient: ReturnType<typeof createBrowserClient<Database>> | null = null;
-let retryCount = 0;
-const MAX_RETRIES = 3;
 
 export const createClient = () => {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
@@ -33,31 +31,54 @@ export const createClient = () => {
             headers: {
               'Cache-Control': 'no-store, max-age=0',
             },
-            fetch: (url, options) => {
-              return fetch(url, {
-                ...options,
-                cache: 'no-store',
-                signal: AbortSignal.timeout(10000) // 10-second timeout
-              }).catch(err => {
-                console.warn(`Supabase fetch error for ${url}:`, err);
-                if (retryCount < MAX_RETRIES) {
-                  retryCount++;
-                  console.log(`Retrying (${retryCount}/${MAX_RETRIES})...`);
-                  return fetch(url, {
+            // Custom fetch implementation with retries
+            fetch: async (url, options = {}) => {
+              const MAX_RETRIES = 3;
+              let lastError: Error | null = null;
+
+              // Create a proper timeout controller for better browser support
+              const createTimeoutController = (timeoutMs: number) => {
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), timeoutMs);
+                return {
+                  controller,
+                  clear: () => clearTimeout(timeout)
+                };
+              };
+
+              // Try the request up to MAX_RETRIES times
+              for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+                try {
+                  const { controller, clear } = createTimeoutController(10000); // 10s timeout
+
+                  const response = await fetch(url, {
                     ...options,
                     cache: 'no-store',
-                    signal: AbortSignal.timeout(10000) // 10-second timeout
+                    signal: controller.signal,
                   });
+
+                  clear(); // Clear the timeout
+                  return response;
+                } catch (err) {
+                  lastError = err as Error;
+                  console.warn(`Supabase fetch error for ${url} (attempt ${attempt + 1}/${MAX_RETRIES}):`, err);
+
+                  // Don't wait on the last attempt
+                  if (attempt < MAX_RETRIES - 1) {
+                    // Exponential backoff with jitter
+                    const backoffMs = Math.min(1000 * Math.pow(2, attempt), 5000) + Math.random() * 1000;
+                    console.log(`Retrying in ${Math.round(backoffMs)}ms...`);
+                    await new Promise(resolve => setTimeout(resolve, backoffMs));
+                  }
                 }
-                throw err;
-              });
+              }
+
+              // If we get here, all retry attempts failed
+              throw lastError || new Error('Request failed after multiple attempts');
             }
           }
         }
       );
-
-      // Reset retry counter after successful initialization
-      retryCount = 0;
     } catch (error) {
       console.error('Failed to initialize Supabase client:', error);
       throw new Error('Failed to initialize Supabase client');

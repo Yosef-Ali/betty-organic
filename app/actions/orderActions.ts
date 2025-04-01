@@ -84,7 +84,7 @@ export async function getOrderDetails(orderId: string) {
     }
 
     // Add backward compatibility mapping for customer_id
-    if (order && order.customer_profile_id) {
+    if (order && 'customer_profile_id' in order) {
       (order as any).customer_id = order.customer_profile_id;
     }
 
@@ -244,7 +244,7 @@ export async function createOrder(
     return {
       success: true,
       order: {
-        ...order,
+        ...(order as any), // Type assertion to avoid TypeScript errors
         customer_profile_id,
         order_items: orderItems
       }
@@ -355,7 +355,7 @@ export async function getOrders(customerId?: string) {
     // Add backward compatibility mapping for customer_id
     const orders = ordersError.data || [];
     return orders.map(order => {
-      if (order.customer_profile_id) {
+      if (order && typeof order === 'object' && 'customer_profile_id' in order) {
         return {
           ...order,
           customer_id: order.customer_profile_id
@@ -455,7 +455,7 @@ export async function updateOrder(orderId: string, formData: FormData) {
     return {
       success: true,
       order: {
-        ...orderData,
+        ...(orderData as any),
         order_items: orderItems
       }
     };

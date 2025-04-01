@@ -184,45 +184,96 @@ export function NotificationBell() {
 
   // Initial fetch
   useEffect(() => {
+    // Initialize audio element
+    audioRef.current = new Audio('/notification.mp3');
+
+    const supabase = createClient();
+
+    // Initial fetch on component mount
     fetchNotifications();
 
     // Set up polling for notifications (in case real-time fails)
     const pollingInterval = setInterval(fetchNotifications, 30000); // every 30 seconds
 
-    // Set up real-time subscription
-    const channel = supabase
-      .channel('orders-notifications')
-      .on('postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'orders'
-        },
-        (payload) => {
-          console.log('New order received in real-time:', payload);
-          setAnimateBell(true); // Trigger animation on new order
-          fetchNotifications();
-          playNotificationSound();
+    // Set up real-time subscription with reconnection logic
+    let channel: ReturnType<typeof supabase.channel>;
+
+    const setupRealtimeSubscription = () => {
+      try {
+        console.log('Setting up Supabase real-time subscription...');
+
+        // Clean up any existing channel before creating a new one
+        if (channel) {
+          supabase.removeChannel(channel);
         }
-      )
-      .on('postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'orders',
-          filter: 'status=eq.pending'
-        },
-        () => {
-          fetchNotifications();
-        }
-      )
-      .subscribe((status) => {
-        console.log('Supabase notification subscription status:', status);
-      });
+
+        channel = supabase.channel('orders-notifications', {
+          config: {
+            broadcast: { self: true },
+            presence: { key: '' }
+            // Removed unsupported timeout property
+          }
+        });
+
+        channel
+          .on('postgres_changes', {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'orders'
+          },
+            (payload) => {
+              console.log('New order received in real-time:', payload);
+              setAnimateBell(true); // Trigger animation on new order
+              fetchNotifications();
+              playNotificationSound();
+            }
+          )
+          .on('postgres_changes', {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'orders',
+            filter: 'status=eq.pending'
+          },
+            () => {
+              fetchNotifications();
+            }
+          )
+          .on('system', { event: 'disconnect' }, () => {
+            console.log('Disconnected from Supabase real-time. Will try to reconnect...');
+            // Will attempt to reconnect automatically due to retryAfterTimeout: true
+          })
+          .subscribe((status) => {
+            console.log('Supabase notification subscription status:', status);
+
+            // If subscription fails, try again after a delay
+            if (status !== 'SUBSCRIBED') {
+              console.warn('Failed to establish Supabase real-time connection. Will retry in 5s...');
+              setTimeout(() => {
+                setupRealtimeSubscription();
+              }, 5000);
+            }
+          });
+      } catch (error) {
+        console.error('Error setting up Supabase real-time:', error);
+        // Try again after a delay
+        setTimeout(() => {
+          setupRealtimeSubscription();
+        }, 5000);
+      }
+    };
+
+    // Initial setup
+    setupRealtimeSubscription();
 
     return () => {
+      // Clean up
       clearInterval(pollingInterval);
-      supabase.removeChannel(channel);
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+      }
     };
   }, []);
 
