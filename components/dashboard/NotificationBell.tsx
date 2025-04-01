@@ -226,7 +226,7 @@ export function NotificationBell() {
 
       console.log(`Fetched ${pendingOrders.length} pending orders`);
 
-      const newCount = actualCount || pendingOrders.length;
+      const newCount = (actualCount !== null && actualCount !== undefined) ? actualCount : pendingOrders.length;
 
       if (!isInitialLoadRef.current && newCount > previousCountRef.current) {
         setAnimateBell(true);
