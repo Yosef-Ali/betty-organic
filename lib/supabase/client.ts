@@ -44,16 +44,27 @@ export const createClient = () => {
                       const [cookieName, cookieValue] = cookie.split('=');
                       if (cookieName === key || cookieName === `${key}`) {
                         // Don't try to parse base64 cookies as JSON - just return them directly
-                        if (cookieValue?.startsWith('base64-')) {
-                          return cookieValue;
+                        if (cookieValue && (cookieValue.startsWith('base64-') || cookieValue.includes('eyJ'))) {
+                          return decodeURIComponent(cookieValue);
                         }
-                        item = cookieValue;
+                        item = decodeURIComponent(cookieValue);
                         break;
                       }
                     }
                   }
 
-                  return item;
+                  // Return the item directly if it's a base64 string
+                  if (item && (item.startsWith('base64-') || item.includes('eyJ'))) {
+                    return item;
+                  }
+
+                  // Otherwise try to parse as JSON, but handle failures gracefully
+                  try {
+                    return item ? JSON.parse(item) : null;
+                  } catch (e) {
+                    // If JSON parsing fails, return the raw string
+                    return item;
+                  }
                 } catch (error) {
                   console.warn('Error reading auth data:', error);
                   return null;
@@ -143,27 +154,20 @@ export const createClient = () => {
                 } catch (err) {
                   lastError = err as Error;
                   console.warn(`Supabase fetch error for ${url} (attempt ${attempt + 1}/${MAX_RETRIES}):`, err);
-
-                  // Don't wait on the last attempt
-                  if (attempt < MAX_RETRIES - 1) {
-                    // Exponential backoff with jitter
-                    const backoffMs = Math.min(1000 * Math.pow(2, attempt), 5000) + Math.random() * 1000;
-                    console.log(`Retrying in ${Math.round(backoffMs)}ms...`);
-                    await new Promise(resolve => setTimeout(resolve, backoffMs));
-                  }
                 }
               }
 
-              // If we get here, all retry attempts failed
-              throw lastError || new Error('Request failed after multiple attempts');
+              throw lastError;
             }
           }
         }
       );
     } catch (error) {
-      console.error('Failed to initialize Supabase client:', error);
-      throw new Error('Failed to initialize Supabase client');
+      console.error('Error creating Supabase client:', error);
+      throw error;
     }
   }
+
   return supabaseClient;
 };
+
