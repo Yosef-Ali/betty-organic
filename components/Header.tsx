@@ -153,17 +153,6 @@ export default function Header({ onMobileMenuToggle, profile }: HeaderProps) {
     }));
   };
 
-  // Check if user is admin or sales based on profile role with more stable handling
-  const isAdminOrSales = Boolean(profile?.role === 'admin' || profile?.role === 'sales');
-  const [bellVisible, setBellVisible] = useState(false);
-
-  // Use effect to prevent the notification bell from flickering
-  useEffect(() => {
-    if (isAdminOrSales && profile) {
-      setBellVisible(true);
-    }
-  }, [isAdminOrSales, profile]);
-
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background/80 px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:p-6">
       <Button
@@ -186,12 +175,9 @@ export default function Header({ onMobileMenuToggle, profile }: HeaderProps) {
         />
       </div>
 
-      {/* NotificationBell for admin and sales users with stable visibility */}
-      {bellVisible && (
-        <div className="flex items-center gap-2">
-          <NotificationBell />
-        </div>
-      )}
+      <div className="flex items-center gap-2">
+        <NotificationBell />
+      </div>
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -249,4 +235,3 @@ export function DashboardHeader({
     </div>
   );
 }
-
