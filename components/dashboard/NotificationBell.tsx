@@ -308,7 +308,7 @@ export function NotificationBell() {
 
   // Add cached profile state to prevent disappearing
   const [cachedIsAdmin, setCachedIsAdmin] = useState(false);
-  
+
   // Only update admin status when we have a definitive answer to prevent flickering
   useEffect(() => {
     if (profile?.role === 'admin' || profile?.role === 'sales') {
@@ -342,7 +342,7 @@ export function NotificationBell() {
 
   // Always show the bell for cached admins, otherwise check profile
   const isAdminOrSales = cachedIsAdmin || profile?.role === 'admin' || profile?.role === 'sales';
-  
+
   // Don't render if not admin or sales
   if (!isAdminOrSales) {
     return null;
