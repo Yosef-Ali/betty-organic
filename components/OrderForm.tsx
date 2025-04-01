@@ -18,31 +18,44 @@ export function OrderForm({ customers, products, initialData }: OrderFormProps) 
   const [orderItems, setOrderItems] = useState<Omit<OrderItem, 'id' | 'orderId' | 'product'>[]>(
     initialData?.items?.map(item => ({
       productId: item.productId,
+      product_name: item.product_name || products.find(p => p.id === item.productId)?.name || 'Unknown Product',
       quantity: item.quantity,
       price: item.price
-    })) || [{ productId: '', quantity: 1, price: 0 }] // Provide default order item if items are undefined
+    })) || [{ productId: '', product_name: '', quantity: 1, price: 0 }]
   );
   const router = useRouter();
 
   useEffect(() => {
     // Update prices when product selection changes
     setOrderItems(prevItems =>
-      prevItems.map(item => ({
-        ...item,
-        price: products.find(p => p.id === item.productId)?.price || 0
-      }))
+      prevItems.map(item => {
+        const selectedProduct = products.find(p => p.id === item.productId);
+        return {
+          ...item,
+          price: selectedProduct?.price || 0,
+          product_name: selectedProduct?.name || item.product_name || ''
+        };
+      })
     );
   }, [products]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    formData.append('items', JSON.stringify(orderItems));
 
     if (initialData) {
       await updateOrder(initialData.id, formData);
     } else {
-      await createOrder(formData);
+      const customerId = formData.get('customerId') as string;
+      const status = formData.get('status') as string || 'pending';
+      const totalAmount = calculateTotalAmount();
+
+      await createOrder(
+        orderItems,
+        customerId,
+        totalAmount,
+        status
+      );
     }
 
     router.refresh();
@@ -52,14 +65,16 @@ export function OrderForm({ customers, products, initialData }: OrderFormProps) 
   };
 
   const addOrderItem = () => {
-    setOrderItems([...orderItems, { productId: '', quantity: 1, price: 0 }]);
+    setOrderItems([...orderItems, { productId: '', product_name: '', quantity: 1, price: 0 }]);
   };
 
   const updateOrderItem = (index: number, field: keyof Omit<OrderItem, 'id' | 'orderId' | 'product'>, value: string | number) => {
     const updatedItems = [...orderItems];
     updatedItems[index] = { ...updatedItems[index], [field]: value };
     if (field === 'productId') {
-      updatedItems[index].price = products.find(p => p.id === value)?.price || 0;
+      const selectedProduct = products.find(p => p.id === value);
+      updatedItems[index].price = selectedProduct?.price || 0;
+      updatedItems[index].product_name = selectedProduct?.name || '';
     }
     setOrderItems(updatedItems);
   };
@@ -73,7 +88,7 @@ export function OrderForm({ customers, products, initialData }: OrderFormProps) 
         <label htmlFor="customerId" className="block text-sm font-medium text-gray-700">Customer</label>
         <Select name="customerId" defaultValue={initialData?.customerId || ''}>
           {customers.map((customer) => (
-            <option key={customer.id} value={customer.id}>{customer.full_name}</option>
+            <option key={customer.id} value={customer.id}>{customer.full_name || customer.email}</option>
           ))}
         </Select>
       </div>
