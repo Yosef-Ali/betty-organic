@@ -203,7 +203,7 @@ export function NotificationBell() {
         .select('id, status, created_at, profiles!orders_profile_id_fkey(*)', {
           count: 'exact',
         })
-        .or('status.eq.pending,status.is.null')
+        .eq('status', 'pending')
         .order('created_at', { ascending: false })
         .limit(10);
 
@@ -216,7 +216,7 @@ export function NotificationBell() {
 
       // Filter out null created_at and map to NotificationOrder type
       const pendingOrders = (data || [])
-        .filter(order => order.created_at !== null)
+        .filter(order => order.created_at !== null && order.status === 'pending')
         .map(order => ({
           id: order.id,
           status: order.status,
@@ -226,7 +226,7 @@ export function NotificationBell() {
 
       console.log(`Fetched ${pendingOrders.length} pending orders`);
 
-      const newCount = (actualCount !== null && actualCount !== undefined) ? actualCount : pendingOrders.length;
+      const newCount = Math.max(actualCount, pendingOrders.length);
 
       if (!isInitialLoadRef.current && newCount > previousCountRef.current) {
         setAnimateBell(true);
