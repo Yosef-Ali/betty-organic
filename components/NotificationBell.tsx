@@ -129,21 +129,33 @@ export function NotificationBell() {
 
         // Broaden query: Remove status filter for debugging
         setDebugState('Fetching *all* recent orders (debug)...');
-        const { data: ordersData, error: ordersError } = await supabase
+        const query = supabase
           .from('orders')
           .select('id, created_at, status, total_amount, profile_id')
           // .ilike('status', 'pending') // Temporarily removed for debugging
           .order('created_at', { ascending: false })
           .limit(10); // Fetch a few more just in case
 
+        // Log the query itself (this might not show the exact SQL but helps)
+        console.log('NotificationBell: Executing query:', query);
+
+        const { data: ordersData, error: ordersError } = await query;
+
+        // Log raw response
+        console.log('NotificationBell: Raw fetch response:', { ordersData, ordersError });
+
+
         if (!mounted) return;
 
         if (ordersError) {
           setDebugState(`Error fetching orders: ${ordersError.message}`);
+          console.error('Error fetching orders:', ordersError); // Log error object
           return;
         }
 
-        setDebugState(`Found ${ordersData?.length || 0} pending orders`);
+        // Log the count based on raw data
+        console.log(`NotificationBell: Raw data count: ${ordersData?.length ?? 'undefined'}`);
+        setDebugState(`Found ${ordersData?.length || 0} orders (any status)`);
 
         if (ordersData && ordersData.length > 0) {
           const profileIds = ordersData.map(order => order.profile_id).filter(Boolean);
