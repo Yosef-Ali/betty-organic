@@ -306,8 +306,25 @@ export function NotificationBell() {
     setUnreadCount(prev => Math.max(0, prev - 1));
   };
 
-  // If auth is loading, show a simplified version
+  // Add cached profile state to prevent disappearing
+  const [cachedIsAdmin, setCachedIsAdmin] = useState(false);
+  
+  // Only update admin status when we have a definitive answer to prevent flickering
+  useEffect(() => {
+    if (profile?.role === 'admin' || profile?.role === 'sales') {
+      setCachedIsAdmin(true);
+    }
+  }, [profile]);
+
+  // If auth is loading, use cached state if available
   if (authLoading) {
+    if (cachedIsAdmin) {
+      return (
+        <Button variant="ghost" size="icon" className="relative">
+          <Bell className="h-5 w-5" />
+        </Button>
+      );
+    }
     return (
       <Button variant="ghost" size="icon" className="relative" disabled>
         <Bell className="h-5 w-5 text-muted-foreground" />
@@ -315,16 +332,21 @@ export function NotificationBell() {
     );
   }
 
-  // If no authenticated user, don't show the notification bell
-  if (!user) {
+  // If no authenticated user but we had cached admin state, still show the bell
+  if (!user && !cachedIsAdmin) {
     console.log('NotificationBell: No user - hiding component');
     return null;
   }
 
-  console.log('NotificationBell: Rendering for user', user.email);
+  console.log('NotificationBell: Rendering for user', user?.email || 'cached admin');
 
-  // Determine if user has admin or sales role
-  const isAdminOrSales = profile?.role === 'admin' || profile?.role === 'sales';
+  // Always show the bell for cached admins, otherwise check profile
+  const isAdminOrSales = cachedIsAdmin || profile?.role === 'admin' || profile?.role === 'sales';
+  
+  // Don't render if not admin or sales
+  if (!isAdminOrSales) {
+    return null;
+  }
 
   return (
     <DropdownMenu>
