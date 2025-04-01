@@ -4,6 +4,8 @@ import { Bell } from 'lucide-react';
 import { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createClient } from '@/lib/supabase/client';
+import { RealtimePostgresChangesPayload, SupabaseClient, RealtimeChannel } from '@supabase/supabase-js';
+import type { Database } from '@/types/supabase';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,10 +33,14 @@ interface OrderNotification {
 }
 
 export function NotificationBell() {
+  // Debug display element
+  const [debugState, setDebugState] = useState<string>('Initializing...');
   const [notifications, setNotifications] = useState<OrderNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const isInitialLoadRef = useRef(true);
+  const supabaseRef = useRef<SupabaseClient<Database> | null>(null);
+  const channelRef = useRef<ReturnType<SupabaseClient<Database>['channel']> | null>(null);
   const router = useRouter();
 
   // Animation for the bell
@@ -78,142 +84,198 @@ export function NotificationBell() {
     }
   };
 
-  useEffect(() => {
-    console.log('NotificationBell: useEffect starting...');
+  // Debug function to check Supabase configuration
+  const checkSupabaseConfig = async () => {
+    try {
+      setDebugState('Checking Supabase configuration...');
 
-    // Initialize audio element
-    audioRef.current = new Audio('/notification.mp3');
-    console.log('NotificationBell: Audio element initialized');
+      // Check environment variables
+      const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+      if (!url || !key) {
+        setDebugState('Missing Supabase configuration!');
+        return false;
+      }
+
+      // Test database connection
+      const supabase = createClient();
+      const { error } = await supabase.from('orders').select('count', { count: 'exact', head: true });
+
+      if (error) {
+        setDebugState(`Database connection error: ${error.message}`);
+        return false;
+      }
+
+      setDebugState('Supabase configuration verified');
+      return true;
+    } catch (error) {
+      setDebugState(`Config check error: ${error instanceof Error ? error.message : String(error)}`);
+      return false;
+    }
+  };
+
+  useEffect(() => {
+    let mounted = true;
+    let pollingInterval: NodeJS.Timeout;
 
     const fetchNotifications = async () => {
-      console.log('NotificationBell: fetchNotifications called');
-      try {
-        console.log('NotificationBell: Creating Supabase client...');
-        const supabase = createClient();
-        console.log('NotificationBell: Supabase client created successfully');
+      if (!mounted) return;
 
-        // Fetch pending orders - only request columns we know exist
+      try {
+        const supabase = createClient();
+        // Log the URL being used by the client
+        console.log('NotificationBell: Using Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
+
+        // Broaden query: Remove status filter for debugging
+        setDebugState('Fetching *all* recent orders (debug)...');
         const { data: ordersData, error: ordersError } = await supabase
           .from('orders')
           .select('id, created_at, status, total_amount, profile_id')
-          .eq('status', 'pending')
+          // .ilike('status', 'pending') // Temporarily removed for debugging
           .order('created_at', { ascending: false })
-          .limit(7);
+          .limit(10); // Fetch a few more just in case
+
+        if (!mounted) return;
 
         if (ordersError) {
-          console.error('Error fetching notifications:', ordersError);
+          setDebugState(`Error fetching orders: ${ordersError.message}`);
           return;
         }
 
-        console.log(`Found ${ordersData?.length || 0} pending orders`);
+        setDebugState(`Found ${ordersData?.length || 0} pending orders`);
 
-        // If we have orders, get the corresponding profiles
         if (ordersData && ordersData.length > 0) {
-          // Extract unique profile IDs
-          const profileIds = ordersData
-            .map(order => order.profile_id)
-            .filter(Boolean);
-
-          // Fetch profiles for these IDs
+          const profileIds = ordersData.map(order => order.profile_id).filter(Boolean);
           const { data: profilesData } = await supabase
             .from('profiles')
             .select('id, name, email')
             .in('id', profileIds);
 
-          console.log(`Found ${profilesData?.length || 0} profiles for orders`);
+          if (!mounted) return;
 
-          // Combine data - explicitly create objects with known properties
-          const ordersWithProfiles = ordersData.map(order => {
-            const profile = profilesData?.find(p => p.id === order.profile_id);
-            // Create a new object with only the properties we need
-            return {
-              id: order.id,
-              created_at: order.created_at,
-              status: order.status,
-              total_amount: order.total_amount,
-              profile_id: order.profile_id,
-              profile: profile ? {
-                id: profile.id,
-                name: profile.name,
-                email: profile.email
-              } : undefined
-            } as OrderNotification;
-          });
+          const ordersWithProfiles = ordersData.map(order => ({
+            id: order.id,
+            created_at: order.created_at,
+            status: order.status,
+            total_amount: order.total_amount,
+            profile_id: order.profile_id,
+            profile: profilesData?.find(p => p.id === order.profile_id)
+          }));
 
           const newCount = ordersWithProfiles.length;
 
-          // Only play sound if:
-          // 1. It's not the initial load
-          // 2. The notification count has increased
+          // Update debug state *before* playing sound/setting state
+          setDebugState(`Fetch complete. Found ${newCount} pending. Previous count: ${unreadCount}`);
+
           if (!isInitialLoadRef.current && newCount > unreadCount) {
-            console.log('New order received, playing sound');
+            setDebugState(`New order detected! Playing sound. Count: ${newCount}`);
             playNotificationSound();
+          } else if (isInitialLoadRef.current) {
+            setDebugState(`Initial load complete. Count: ${newCount}`);
+          } else {
+            setDebugState(`Fetch complete, no new orders. Count: ${newCount}`);
           }
 
-          isInitialLoadRef.current = false;
           setNotifications(ordersWithProfiles);
           setUnreadCount(newCount);
-          return;
+        } else {
+          setDebugState(`Fetch complete. Found 0 pending orders.`);
+          setNotifications([]);
+          setUnreadCount(0);
         }
 
-        // Default case - no orders
         isInitialLoadRef.current = false;
-        setNotifications([]);
-        setUnreadCount(0);
       } catch (error) {
-        console.error('Failed to fetch notifications:', error);
+        if (mounted) {
+          setDebugState(`Error: ${error instanceof Error ? error.message : String(error)}`);
+        }
       }
     };
 
-    // Initial fetch
-    fetchNotifications();
+    const initialize = async () => {
+      try {
+        setDebugState('Initializing...');
+        const isConfigValid = await checkSupabaseConfig();
+        if (!isConfigValid || !mounted) return;
 
-    // Set up polling (backup for real-time)
-    const pollingInterval = setInterval(fetchNotifications, 30000);
+        audioRef.current = new Audio('/notification.mp3');
+        await fetchNotifications();
 
-    // Set up Supabase real-time subscription
-    console.log('NotificationBell: Setting up realtime subscription...');
-    const supabase = createClient();
-    console.log('NotificationBell: Created Supabase client for realtime');
-    const channel = supabase
-      .channel('orders-notifications')
-      .on('postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'orders'
-        },
-        (payload) => {
-          console.log('New order inserted:', payload);
-          fetchNotifications();
-          playNotificationSound();
+        if (!mounted) return;
+
+        // Set up polling
+        pollingInterval = setInterval(fetchNotifications, 30000);
+
+        // Set up realtime subscription
+        supabaseRef.current = createClient();
+        if (!supabaseRef.current) {
+          setDebugState('Failed to create Supabase client');
+          return;
         }
-      )
-      .on('postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'orders',
-          filter: 'status=eq.pending'
-        },
-        (payload) => {
-          console.log('Order status updated to pending:', payload);
-          fetchNotifications();
+
+        setDebugState('Setting up realtime subscription...');
+
+        const channel = supabaseRef.current
+          .channel('orders-notifications');
+
+        channelRef.current = channel;
+
+        channel
+          .on('postgres_changes',
+            { event: 'INSERT', schema: 'public', table: 'orders' },
+            (payload: RealtimePostgresChangesPayload<{ [key: string]: any }>) => {
+              console.log('Realtime INSERT Payload:', payload); // Log the payload
+              if (mounted) {
+                // Safely access payload.new.id
+                const newOrderId = (payload.new as { id?: string })?.id ?? 'unknown';
+                setDebugState(`Realtime INSERT received: ${newOrderId}`);
+                fetchNotifications(); // Fetch will handle sound/count update
+              }
+            }
+          )
+          .on('postgres_changes',
+            { event: 'UPDATE', schema: 'public', table: 'orders', filter: 'status=eq.pending' },
+            (payload: RealtimePostgresChangesPayload<{ [key: string]: any }>) => {
+              console.log('Realtime UPDATE Payload:', payload); // Log the payload
+              if (mounted) {
+                // Safely access payload.new.id
+                const updatedOrderId = (payload.new as { id?: string })?.id ?? 'unknown';
+                setDebugState(`Realtime UPDATE received: ${updatedOrderId}`);
+                fetchNotifications();
+              }
+            }
+          );
+
+        // Subscribe to the channel
+        channel
+          .subscribe(async (status) => {
+            if (!mounted) return;
+
+            setDebugState(`Realtime status: ${status}`);
+
+            if (status === 'SUBSCRIBED') {
+              setDebugState('Connected to realtime updates');
+              await fetchNotifications();
+            } else if (status === 'CHANNEL_ERROR') {
+              setDebugState('Failed to connect to realtime updates');
+            }
+          });
+      } catch (error) {
+        if (mounted) {
+          setDebugState(`Init error: ${error instanceof Error ? error.message : String(error)}`);
         }
-      )
-      .subscribe((status) => {
-        console.log('NotificationBell: Supabase subscription status:', status);
-        if (status === 'SUBSCRIBED') {
-          console.log('NotificationBell: Successfully subscribed to realtime updates');
-        }
-      });
+      }
+    };
+
+    initialize();
 
     return () => {
-      console.log('NotificationBell: Cleaning up subscriptions...');
-      clearInterval(pollingInterval);
-      supabase.removeChannel(channel);
+      mounted = false;
+      if (pollingInterval) clearInterval(pollingInterval);
+      if (channelRef.current) channelRef.current.unsubscribe();
     };
-  }, [unreadCount]);
+  }, []);
 
   // Debug log when component renders
   console.log('NotificationBell: Component rendering, unreadCount:', unreadCount);
@@ -241,6 +303,11 @@ export function NotificationBell() {
     <>
       {/* Hidden audio element as fallback */}
       <audio id="notificationSound" src="/notification.mp3" preload="auto" style={{ display: 'none' }} />
+
+      {/* Debug state display */}
+      <div className="absolute -top-8 left-0 text-xs text-muted-foreground whitespace-nowrap">
+        {debugState}
+      </div>
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>

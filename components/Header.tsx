@@ -153,7 +153,10 @@ export default function Header({ onMobileMenuToggle, profile }: HeaderProps) {
     }));
   };
 
-  const isAdminOrSales = profile?.role === 'admin' || profile?.role === 'sales';
+  // Force render notification bell for debugging
+  const isAdminOrSales = true; // DEBUG: Temporarily force to true
+  // Add visible role debugging
+  const roleDebug = `Role: ${profile?.role}, isAdmin/Sales: ${profile?.role === 'admin' || profile?.role === 'sales'}`;
 
   // Debug logging
   useEffect(() => {
@@ -172,6 +175,10 @@ export default function Header({ onMobileMenuToggle, profile }: HeaderProps) {
         <span className="sr-only">Toggle Menu</span>
       </Button>
       <Breadcrumb pathSegments={generateBreadcrumbs()} />
+
+      {/* Debug display */}
+      <div className="text-xs text-muted-foreground ml-4">{roleDebug}</div>
+
       <div className="relative ml-auto flex-1 md:grow-0">
         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
         <Input
