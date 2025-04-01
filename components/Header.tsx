@@ -29,7 +29,7 @@ import Breadcrumb from './Breadcrumb';
 import { signOut } from '@/app/actions/auth';
 import { Profile } from '@/lib/types/auth';
 import { toast } from 'sonner';
-import { NotificationBell } from './NotificationBell';
+import { NotificationBell } from './dashboard/NotificationBell';
 
 interface HeaderProps {
   onMobileMenuToggle: () => void;
