@@ -288,6 +288,18 @@ export function NotificationBell() {
 
   console.log('NotificationBell: Rendering for user', user.email);
 
+  // Show role info for admin/sales users instead of bell
+  if (profile?.isAdmin || profile?.isSales) {
+    return (
+      <div className="flex items-center gap-2 px-3 py-1 text-sm font-medium rounded-md bg-muted">
+        <span>Role: {profile?.role}</span>
+        <span className="text-muted-foreground">
+          {profile?.isAdmin ? 'Admin' : 'Sales'}
+        </span>
+      </div>
+    );
+  }
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
