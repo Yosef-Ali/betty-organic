@@ -85,7 +85,7 @@ export const createClient = () => {
                     ...options,
                     cache: 'no-store',
                     signal: controller.signal,
-                    credentials: 'include', // Add credentials: include to ensure cookies are sent
+                    credentials: 'same-origin', // Only send credentials for same-origin requests
                   });
 
                   clear(); // Clear the timeout

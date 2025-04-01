@@ -134,9 +134,11 @@ export function NotificationBell() {
       setError(null);
 
       const supabase = createClient();
-      const { data, error } = await supabase
+      const { data, error, count } = await supabase
         .from('orders')
-        .select('id, status, created_at, profiles!orders_profile_id_fkey(*)')
+        .select('id, status, created_at, profiles!orders_profile_id_fkey(*)', {
+          count: 'exact'
+        })
         .or('status.eq.pending,status.is.null')
         .order('created_at', { ascending: false })
         .limit(10);
@@ -153,7 +155,7 @@ export function NotificationBell() {
           profiles: order.profiles
         }));
 
-      const newCount = pendingOrders.length;
+      const newCount = count || pendingOrders.length;
 
       if (!isInitialLoadRef.current && newCount > previousCountRef.current) {
         setAnimateBell(true);
@@ -166,7 +168,9 @@ export function NotificationBell() {
       setUnreadCount(newCount);
       retryCountRef.current = 0;
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Failed to fetch notifications');
+      setError(error instanceof Error ?
+        `Failed to fetch notifications: ${error.message}` :
+        'Failed to fetch notifications. Please check CORS settings.');
       console.error('Notification fetch error:', error);
 
       retryCountRef.current += 1;
