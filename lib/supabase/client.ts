@@ -15,17 +15,47 @@ export const createClient = () => {
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
         {
           cookieOptions: {
-            name: 'sb-auth-token',
+            name: 'sb-session',  // Changed from 'sb-auth-token' to match Supabase default
             path: '/',
             sameSite: 'lax',
             secure: process.env.NODE_ENV === 'production',
-            maxAge: 60 * 60 * 24 * 7 // 7 days
+            maxAge: 60 * 60 * 24 * 7, // 7 days
+            partitioned: false  // Add this to fix potential partitioning issues
           },
           auth: {
             flowType: 'pkce',
             detectSessionInUrl: true,
             autoRefreshToken: true,
-            persistSession: true
+            persistSession: true,
+            storageKey: 'sb-session',  // Make sure this matches the cookie name
+            storage: {  // Override the storage implementation to handle base64 cookies properly
+              getItem: (key) => {
+                try {
+                  if (typeof window === 'undefined') return null;
+                  const item = window.localStorage.getItem(key);
+                  return item;
+                } catch (error) {
+                  console.warn('Error reading from localStorage:', error);
+                  return null;
+                }
+              },
+              setItem: (key, value) => {
+                try {
+                  if (typeof window === 'undefined') return;
+                  window.localStorage.setItem(key, value);
+                } catch (error) {
+                  console.warn('Error writing to localStorage:', error);
+                }
+              },
+              removeItem: (key) => {
+                try {
+                  if (typeof window === 'undefined') return;
+                  window.localStorage.removeItem(key);
+                } catch (error) {
+                  console.warn('Error removing from localStorage:', error);
+                }
+              }
+            }
           },
           global: {
             headers: {
@@ -55,6 +85,7 @@ export const createClient = () => {
                     ...options,
                     cache: 'no-store',
                     signal: controller.signal,
+                    credentials: 'include', // Add credentials: include to ensure cookies are sent
                   });
 
                   clear(); // Clear the timeout

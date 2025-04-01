@@ -1,6 +1,12 @@
 'use client';
 
-import { Bell } from 'lucide-react';
+import React, { useEffect, useState, useRef } from 'react';
+import { Bell, BellRing } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
+import type { RealtimeChannel } from '@supabase/supabase-js';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -8,75 +14,118 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useEffect, useState, useRef } from 'react';
-import { createClient } from '@/lib/supabase/client';
-import { formatDate } from '@/lib/utils';
-import { useRouter } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Badge } from '@/components/ui/badge';
+import { ExtendedOrder } from '@/types/order';
 
-// Define explicit types to match database structure
-interface ProfileData {
-  id: string;
-  name: string | null;
-  email: string;
-  role: string;
-  phone?: string | null;
-  avatar_url?: string | null;
-}
+const MAX_RETRIES = 3;
+const POLLING_INTERVAL = 30000; // 30 seconds
 
-interface OrderNotification {
-  id: string;
-  display_id?: string;
-  created_at: string | null;
-  profile_id: string;
-  status: string;
-  total_amount: number;
-  type: string;
-  updated_at: string | null;
-  profiles?: ProfileData;
-}
+type NotificationOrder = Pick<ExtendedOrder, 'id' | 'status' | 'created_at' | 'profiles'> & {
+  created_at: string; // Ensure created_at is not null
+};
 
 export function NotificationBell() {
-  const [notifications, setNotifications] = useState<OrderNotification[]>([]);
+  const [notifications, setNotifications] = useState<NotificationOrder[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [animateBell, setAnimateBell] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const retryCountRef = useRef(0);
-  const MAX_RETRIES = 3;
+  const [animateBell, setAnimateBell] = useState(false);
   const router = useRouter();
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const isInitialLoadRef = useRef(true);
-  const previousCountRef = useRef(0);
 
-  // Animation for the bell
-  const bellAnimation = {
-    initial: { rotate: 0 },
-    animate: {
-      rotate: [0, 15, -15, 10, -5, 0],
-      transition: { duration: 0.7 }
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const retryCountRef = useRef(0);
+  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const previousCountRef = useRef(0);
+  const isInitialLoadRef = useRef(true);
+  const channelRef = useRef<RealtimeChannel | null>(null);
+
+  const playNotificationSound = () => {
+    try {
+      if (!audioRef.current) {
+        audioRef.current = new Audio('/notification.mp3');
+      }
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch(e => console.warn('Audio play failed:', e));
+    } catch (err) {
+      console.warn('Notification sound error:', err);
     }
   };
 
-  // Badge animation
-  const badgeAnimation = {
-    initial: { scale: 0 },
-    animate: {
-      scale: 1,
-      transition: {
-        type: "spring",
-        stiffness: 500,
-        damping: 15
+  useEffect(() => {
+    if (!animateBell) return;
+    const timer = setTimeout(() => setAnimateBell(false), 1000);
+    return () => clearTimeout(timer);
+  }, [animateBell]);
+
+  useEffect(() => {
+    const supabase = createClient();
+
+    if (typeof localStorage !== 'undefined') {
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('supabase.realtime')) {
+          localStorage.removeItem(key);
+        }
+      });
+    }
+
+    fetchNotifications();
+    const pollingInterval = setInterval(fetchNotifications, POLLING_INTERVAL);
+
+    const setupRealtimeSubscription = () => {
+      try {
+        if (channelRef.current) {
+          try {
+            supabase.removeChannel(channelRef.current);
+          } catch (err) {
+            console.warn('Error removing channel:', err);
+          }
+        }
+
+        const channel = supabase.channel(`orders-notifications-${Date.now()}`)
+          .on('postgres_changes', {
+            event: '*',
+            schema: 'public',
+            table: 'orders',
+            filter: 'status=eq.pending'
+          }, () => {
+            fetchNotifications();
+            setAnimateBell(true);
+            playNotificationSound();
+          })
+          .on('system', { event: 'disconnect' }, () => {
+            console.log('Disconnected - attempting reconnect');
+            setTimeout(setupRealtimeSubscription, 5000);
+          })
+          .subscribe(status => {
+            if (status === 'SUBSCRIBED') {
+              console.log('Realtime connected');
+            }
+          });
+
+        channelRef.current = channel;
+      } catch (error) {
+        console.error('Realtime setup error:', error);
+        setTimeout(setupRealtimeSubscription, 5000);
       }
-    },
-    exit: { scale: 0 }
-  };
+    };
+
+    const connectionTimeout = setTimeout(setupRealtimeSubscription, 1000);
+
+    return () => {
+      clearInterval(pollingInterval);
+      clearTimeout(connectionTimeout);
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+      }
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const fetchNotifications = async () => {
     if (retryCountRef.current >= MAX_RETRIES) {
-      console.log('Max retry attempts reached, waiting for next scheduled poll');
-      retryCountRef.current = 0; // Reset for next scheduled attempt
+      retryCountRef.current = 0;
       return;
     }
 
@@ -85,329 +134,106 @@ export function NotificationBell() {
       setError(null);
 
       const supabase = createClient();
-
-      // UPDATED: Using an "or" condition to match both empty and "pending" statuses
-      const { data: ordersData, error: ordersError } = await supabase
+      const { data, error } = await supabase
         .from('orders')
-        .select('*')
-        .or('status.eq.pending,status.eq.')  // Match both "pending" and empty status
+        .select('id, status, created_at, profiles!orders_profile_id_fkey(*)')
+        .or('status.eq.pending,status.is.null')
         .order('created_at', { ascending: false })
-        .limit(7);
+        .limit(10);
 
-      if (ordersError) {
-        console.error('Error fetching notifications:', ordersError);
-        throw ordersError;
+      if (error) throw error;
+
+      // Filter out null created_at and map to NotificationOrder type
+      const pendingOrders = (data || [])
+        .filter(order => order.created_at !== null)
+        .map(order => ({
+          id: order.id,
+          status: order.status,
+          created_at: order.created_at as string,
+          profiles: order.profiles
+        }));
+
+      const newCount = pendingOrders.length;
+
+      if (!isInitialLoadRef.current && newCount > previousCountRef.current) {
+        setAnimateBell(true);
+        playNotificationSound();
       }
 
-      // Debug all order statuses to help diagnose the issue
-      console.log('DEBUG - All fetched order statuses:', ordersData?.map(order => order.status));
-      console.log(`Found ${ordersData?.length || 0} orders with pending or blank status`);
-
-      // If we have orders, get the corresponding profiles
-      if (ordersData && ordersData.length > 0) {
-        // Extract unique profile IDs
-        const profileIds = ordersData
-          .map(order => order.profile_id)
-          .filter(Boolean);
-
-        // Fetch profiles for these IDs if any exist
-        if (profileIds.length > 0) {
-          const { data: profilesData, error: profileError } = await supabase
-            .from('profiles')
-            .select('*')
-            .in('id', profileIds);
-
-          if (profileError) {
-            console.error('Error fetching profiles:', profileError);
-            throw profileError;
-          }
-
-          // Combine data
-          const ordersWithProfiles = ordersData.map(order => {
-            const profile = profilesData?.find(p => p.id === order.profile_id);
-            return {
-              ...order,
-              profiles: profile
-            };
-          });
-
-          const newNotificationCount = ordersWithProfiles.length;
-
-          // Only play sound if:
-          // 1. It's not the initial load
-          // 2. The notification count has increased
-          if (!isInitialLoadRef.current && newNotificationCount > previousCountRef.current) {
-            setAnimateBell(true); // Trigger animation
-            playNotificationSound();
-          }
-
-          previousCountRef.current = newNotificationCount;
-          isInitialLoadRef.current = false;
-          setNotifications(ordersWithProfiles);
-          setUnreadCount(newNotificationCount);
-          // Reset retry count on success
-          retryCountRef.current = 0;
-          return;
-        }
-      }
-
-      // Default case - no orders or profiles
+      previousCountRef.current = newCount;
       isInitialLoadRef.current = false;
-      previousCountRef.current = 0;
-      setNotifications([]);
-      setUnreadCount(0);
-      // Reset retry count on success
+      setNotifications(pendingOrders);
+      setUnreadCount(newCount);
       retryCountRef.current = 0;
     } catch (error) {
-      setError(typeof error === 'object' && error !== null && 'message' in error
-        ? String(error.message)
-        : 'Failed to fetch notifications');
-      console.error('Failed to fetch notifications:', error);
+      setError(error instanceof Error ? error.message : 'Failed to fetch notifications');
+      console.error('Notification fetch error:', error);
 
-      // Implement retry with exponential backoff
       retryCountRef.current += 1;
       const backoffTime = Math.min(1000 * Math.pow(2, retryCountRef.current), 10000);
 
-      console.log(`Retry attempt ${retryCountRef.current}/${MAX_RETRIES} in ${backoffTime}ms`);
-
-      if (retryTimeoutRef.current) {
-        clearTimeout(retryTimeoutRef.current);
-      }
-
-      retryTimeoutRef.current = setTimeout(() => {
-        fetchNotifications();
-      }, backoffTime);
+      if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
+      retryTimeoutRef.current = setTimeout(fetchNotifications, backoffTime);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Initial fetch
-  useEffect(() => {
-    // Initialize audio element
-    audioRef.current = new Audio('/notification.mp3');
-
-    const supabase = createClient();
-
-    // Initial fetch on component mount
-    fetchNotifications();
-
-    // Set up polling for notifications (in case real-time fails)
-    const pollingInterval = setInterval(fetchNotifications, 30000); // every 30 seconds
-
-    // Set up real-time subscription with reconnection logic
-    let channel: ReturnType<typeof supabase.channel>;
-
-    const setupRealtimeSubscription = () => {
-      try {
-        console.log('Setting up Supabase real-time subscription...');
-
-        // Clean up any existing channel before creating a new one
-        if (channel) {
-          supabase.removeChannel(channel);
-        }
-
-        channel = supabase.channel('orders-notifications', {
-          config: {
-            broadcast: { self: true },
-            presence: { key: '' }
-            // Removed unsupported timeout property
-          }
-        });
-
-        channel
-          .on('postgres_changes', {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'orders'
-          },
-            (payload) => {
-              console.log('New order received in real-time:', payload);
-              setAnimateBell(true); // Trigger animation on new order
-              fetchNotifications();
-              playNotificationSound();
-            }
-          )
-          .on('postgres_changes', {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'orders',
-            filter: 'status=eq.pending'
-          },
-            () => {
-              fetchNotifications();
-            }
-          )
-          .on('system', { event: 'disconnect' }, () => {
-            console.log('Disconnected from Supabase real-time. Will try to reconnect...');
-            // Will attempt to reconnect automatically due to retryAfterTimeout: true
-          })
-          .subscribe((status) => {
-            console.log('Supabase notification subscription status:', status);
-
-            // If subscription fails, try again after a delay
-            if (status !== 'SUBSCRIBED') {
-              console.warn('Failed to establish Supabase real-time connection. Will retry in 5s...');
-              setTimeout(() => {
-                setupRealtimeSubscription();
-              }, 5000);
-            }
-          });
-      } catch (error) {
-        console.error('Error setting up Supabase real-time:', error);
-        // Try again after a delay
-        setTimeout(() => {
-          setupRealtimeSubscription();
-        }, 5000);
-      }
-    };
-
-    // Initial setup
-    setupRealtimeSubscription();
-
-    return () => {
-      // Clean up
-      clearInterval(pollingInterval);
-      if (channel) {
-        supabase.removeChannel(channel);
-      }
-      if (retryTimeoutRef.current) {
-        clearTimeout(retryTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  // Reset animation after it completes
-  useEffect(() => {
-    if (animateBell) {
-      const timer = setTimeout(() => {
-        setAnimateBell(false);
-      }, 800);
-      return () => clearTimeout(timer);
-    }
-  }, [animateBell]);
-
-  const playNotificationSound = () => {
-    try {
-      if (audioRef.current) {
-        // Reset the audio to the beginning in case it was already playing
-        audioRef.current.currentTime = 0;
-
-        // Play the notification sound with volume turned up
-        audioRef.current.volume = 1.0;
-        audioRef.current.play().then(() => {
-          console.log('Notification sound played successfully');
-        }).catch(error => {
-          console.error('Error playing notification sound (autoplay policy):', error);
-
-          // Try playing on next user interaction
-          const handleUserInteraction = () => {
-            audioRef.current?.play().catch(e => console.error('Still cannot play audio:', e));
-            document.removeEventListener('click', handleUserInteraction);
-          };
-          document.addEventListener('click', handleUserInteraction, { once: true });
-        });
-      } else {
-        // Fallback: try to play using the DOM element if available
-        const audioElement = document.getElementById('notificationSound') as HTMLAudioElement;
-        if (audioElement) {
-          audioElement.currentTime = 0;
-          audioElement.volume = 1.0;
-          audioElement.play().catch(error => {
-            console.error('Error playing notification sound from DOM:', error);
-          });
-        } else {
-          console.error('No audio element available for notification sound');
-        }
-      }
-    } catch (error) {
-      console.error('Failed to play notification sound:', error);
-    }
-  };
-
   const handleNotificationClick = (orderId: string) => {
     router.push(`/dashboard/orders/${orderId}`);
+    setUnreadCount(prev => Math.max(0, prev - 1));
   };
-
-  const getCustomerDisplay = (notification: OrderNotification) => {
-    if (notification.profiles?.name) return notification.profiles.name;
-    if (notification.profiles?.email) return notification.profiles.email;
-    if (notification.profiles?.phone) return notification.profiles.phone;
-    return 'Unknown Customer';
-  };
-
-  // Trigger useEffect logging
-  useEffect(() => {
-    console.log('NotificationBell: Current unreadCount:', unreadCount);
-  }, [unreadCount]);
 
   return (
-    <>
-      {/* Adding this audio element ensures that the sound can be played */}
-      <audio id="notificationSound" src="/notification.mp3" preload="auto" />
-
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="relative">
-            <motion.div
-              initial="initial"
-              animate={animateBell ? "animate" : "initial"}
-              variants={bellAnimation}
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="relative"
+          disabled={isLoading}
+        >
+          {animateBell ? (
+            <BellRing className={cn(
+              'h-5 w-5',
+              animateBell && 'animate-pulse text-yellow-500'
+            )} />
+          ) : (
+            <Bell className="h-5 w-5" />
+          )}
+          {unreadCount > 0 && (
+            <Badge className="absolute -right-1 -top-1 h-5 w-5 rounded-full p-0">
+              {unreadCount}
+            </Badge>
+          )}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-64">
+        {error ? (
+          <DropdownMenuItem className="text-red-500">
+            Failed to load notifications
+          </DropdownMenuItem>
+        ) : notifications.length === 0 ? (
+          <DropdownMenuItem>No new notifications</DropdownMenuItem>
+        ) : (
+          notifications.map(notification => (
+            <DropdownMenuItem
+              key={notification.id}
+              onClick={() => handleNotificationClick(notification.id)}
+              className="cursor-pointer"
             >
-              <Bell className="h-5 w-5" />
-            </motion.div>
-
-            <AnimatePresence>
-              {unreadCount > 0 && (
-                <motion.span
-                  key="notification-badge"
-                  initial="initial"
-                  animate="animate"
-                  exit="exit"
-                  variants={badgeAnimation}
-                  className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white"
-                >
-                  {unreadCount}
-                </motion.span>
-              )}
-            </AnimatePresence>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-80">
-          <div className="p-2">
-            <h4 className="font-semibold mb-2">Recent Orders</h4>
-            {notifications.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No pending orders</p>
-            ) : (
-              <div className="space-y-2">
-                {notifications.map((order) => (
-                  <DropdownMenuItem
-                    key={order.id}
-                    className="flex flex-col items-start p-2 cursor-pointer"
-                    onClick={() => handleNotificationClick(order.id)}
-                  >
-                    <div className="flex justify-between w-full">
-                      <span className="font-medium">
-                        {order.display_id || order.id.slice(0, 8)}
-                      </span>
-                      <span className="text-sm text-muted-foreground">
-                        {order.created_at ? formatDate(order.created_at) : 'N/A'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between w-full text-sm">
-                      <span>{getCustomerDisplay(order)}</span>
-                      <span>ETB {order.total_amount.toFixed(2)}</span>
-                    </div>
-                    <div className="w-full text-right">
-                      <span className="text-xs text-yellow-600">Pending</span>
-                    </div>
-                  </DropdownMenuItem>
-                ))}
+              <div className="flex flex-col">
+                <span className="font-medium">
+                  New {notification.status} order
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {new Date(notification.created_at).toLocaleString()}
+                </span>
               </div>
-            )}
-          </div>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </>
+            </DropdownMenuItem>
+          ))
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
