@@ -80,7 +80,7 @@ export function OrderForm({ customers, products, initialData }: OrderFormProps) 
 
       <div>
         <label htmlFor="status" className="block text-sm font-medium text-gray-700">Status</label>
-        <Input name="status" defaultValue={initialData?.status || ''} />
+        <Input name="status" defaultValue={initialData?.status || 'pending'} />
       </div>
 
       <div>

@@ -76,11 +76,11 @@ export function NotificationBell() {
 
     const fetchNotifications = async () => {
       try {
-        // First fetch orders with pending status - FIXED: Using eq instead of ilike for exact match
+        // UPDATED: Using an "or" condition to match both empty and "pending" statuses
         const { data: ordersData, error: ordersError } = await supabase
           .from('orders')
           .select('*')
-          .eq('status', 'pending') // Exact match for "pending" status
+          .or('status.eq.pending,status.eq.')  // Match both "pending" and empty status
           .order('created_at', { ascending: false })
           .limit(7);
 
@@ -91,7 +91,7 @@ export function NotificationBell() {
 
         // Debug all order statuses to help diagnose the issue
         console.log('DEBUG - All fetched order statuses:', ordersData?.map(order => order.status));
-        console.log(`Found ${ordersData?.length || 0} pending orders`);
+        console.log(`Found ${ordersData?.length || 0} orders with pending or blank status`);
 
         // If we have orders, get the corresponding profiles
         if (ordersData && ordersData.length > 0) {
