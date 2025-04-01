@@ -124,17 +124,56 @@ export function NotificationBell() {
 
       try {
         const supabase = createClient();
+
+        // --- Enhanced RLS Debugging ---
+        try {
+          const { data: user, error: userError } = await supabase.auth.getUser();
+          console.log('NotificationBell: Auth Context:', {
+            userId: user?.user?.id,
+            userError: userError?.message
+          });
+
+          if (user?.user?.id) {
+            // Direct profile query as fallback
+            const { data: profile, error: profileError } = await supabase
+              .from('profiles')
+              .select('role')
+              .eq('id', user.user.id)
+              .single();
+
+            console.log('NotificationBell: Profile Check:', {
+              profileRole: profile?.role,
+              profileError: profileError?.message
+            });
+
+            // Test RLS by querying a single order
+            const { data: testOrder, error: testError } = await supabase
+              .from('orders')
+              .select('id')
+              .limit(1)
+              .maybeSingle();
+
+            console.log('NotificationBell: RLS Test Query:', {
+              testOrderId: testOrder?.id,
+              testError: testError?.message
+            });
+          }
+        } catch (debugError) {
+          console.error('NotificationBell: Debug error:', debugError);
+        }
+        // --- End Enhanced Debugging ---
+
         // Log the URL being used by the client
         console.log('NotificationBell: Using Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
 
-        // Broaden query: Remove status filter for debugging
-        setDebugState('Fetching *all* recent orders (debug)...');
+        // Restore status filter
+        setDebugState('Fetching pending orders...');
         const query = supabase
           .from('orders')
           .select('id, created_at, status, total_amount, profile_id')
-          // .ilike('status', 'pending') // Temporarily removed for debugging
+          .ilike('status', 'pending') // Restore filter
           .order('created_at', { ascending: false })
-          .limit(10); // Fetch a few more just in case
+          .limit(7); // Restore original limit
 
         // Log the query itself (this might not show the exact SQL but helps)
         console.log('NotificationBell: Executing query:', query);
