@@ -1,5 +1,3 @@
-'use client';
-
 import React, { useEffect, useState, useRef } from 'react';
 import { Bell, BellRing } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
@@ -19,6 +17,7 @@ import { ExtendedOrder } from '@/types/order';
 
 const MAX_RETRIES = 3;
 const POLLING_INTERVAL = 30000; // 30 seconds
+const RECONNECT_INTERVAL = 5000; // 5 seconds for connection retries
 
 type NotificationOrder = Pick<ExtendedOrder, 'id' | 'status' | 'created_at' | 'profiles'> & {
   created_at: string; // Ensure created_at is not null
@@ -38,6 +37,7 @@ export function NotificationBell() {
   const previousCountRef = useRef(0);
   const isInitialLoadRef = useRef(true);
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const supabaseRef = useRef(createClient());
 
   const playNotificationSound = () => {
     try {
@@ -57,71 +57,135 @@ export function NotificationBell() {
     return () => clearTimeout(timer);
   }, [animateBell]);
 
+  // Ensure authentication is valid before setting up subscriptions
   useEffect(() => {
-    const supabase = createClient();
-
-    if (typeof localStorage !== 'undefined') {
-      Object.keys(localStorage).forEach(key => {
-        if (key.startsWith('supabase.realtime')) {
-          localStorage.removeItem(key);
-        }
-      });
-    }
-
-    fetchNotifications();
-    const pollingInterval = setInterval(fetchNotifications, POLLING_INTERVAL);
-
-    const setupRealtimeSubscription = () => {
+    const checkAuthAndSetup = async () => {
       try {
-        if (channelRef.current) {
-          try {
-            supabase.removeChannel(channelRef.current);
-          } catch (err) {
-            console.warn('Error removing channel:', err);
+        const supabase = supabaseRef.current;
+        const { data, error } = await supabase.auth.getSession();
+
+        if (error || !data.session) {
+          console.log('No valid auth session, checking for refresh token');
+          // Try to refresh token if available
+          const { data: refreshData } = await supabase.auth.refreshSession();
+          if (!refreshData.session) {
+            console.warn('No valid session available');
+            setError('Authentication required');
+            return;
           }
         }
 
-        const channel = supabase.channel(`orders-notifications-${Date.now()}`)
-          .on('postgres_changes', {
-            event: '*',
-            schema: 'public',
-            table: 'orders',
-            filter: 'status=eq.pending'
-          }, () => {
-            fetchNotifications();
-            setAnimateBell(true);
-            playNotificationSound();
-          })
-          .on('system', { event: 'disconnect' }, () => {
-            console.log('Disconnected - attempting reconnect');
-            setTimeout(setupRealtimeSubscription, 5000);
-          })
-          .subscribe(status => {
-            if (status === 'SUBSCRIBED') {
-              console.log('Realtime connected');
+        // Clear existing localStorage keys for realtime to prevent stale connections
+        if (typeof localStorage !== 'undefined') {
+          Object.keys(localStorage).forEach(key => {
+            if (key.startsWith('supabase.realtime')) {
+              localStorage.removeItem(key);
             }
           });
+        }
 
-        channelRef.current = channel;
-      } catch (error) {
-        console.error('Realtime setup error:', error);
-        setTimeout(setupRealtimeSubscription, 5000);
+        // Fetch notifications immediately and then set up polling
+        await fetchNotifications();
+        const pollingInterval = setInterval(fetchNotifications, POLLING_INTERVAL);
+
+        // Set up realtime subscription with proper error handling
+        setupRealtimeSubscription();
+
+        return () => {
+          clearInterval(pollingInterval);
+          if (channelRef.current) {
+            try {
+              supabase.removeChannel(channelRef.current);
+            } catch (err) {
+              console.warn('Error removing channel:', err);
+            }
+          }
+          if (retryTimeoutRef.current) {
+            clearTimeout(retryTimeoutRef.current);
+          }
+        };
+      } catch (err) {
+        console.error('Auth setup error:', err);
+        setError('Failed to initialize notification system');
       }
     };
 
-    const connectionTimeout = setTimeout(setupRealtimeSubscription, 1000);
+    checkAuthAndSetup();
+  }, []);
 
-    return () => {
-      clearInterval(pollingInterval);
-      clearTimeout(connectionTimeout);
+  const setupRealtimeSubscription = () => {
+    try {
+      const supabase = supabaseRef.current;
+
+      // Remove existing channel if it exists
       if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
+        try {
+          supabase.removeChannel(channelRef.current);
+        } catch (err) {
+          console.warn('Error removing existing channel:', err);
+        }
       }
+
+      // Create a unique channel name with timestamp to avoid conflicts
+      const channelName = `orders-notifications-${Date.now()}`;
+
+      const channel = supabase.channel(channelName)
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'orders',
+          filter: 'status=eq.pending'
+        }, () => {
+          fetchNotifications();
+          setAnimateBell(true);
+          playNotificationSound();
+        })
+        .on('system', { event: 'disconnect' }, () => {
+          console.log('Disconnected - attempting reconnect');
+
+          // Clear any existing reconnect attempts
+          if (retryTimeoutRef.current) {
+            clearTimeout(retryTimeoutRef.current);
+          }
+
+          // Schedule reconnection attempt
+          retryTimeoutRef.current = setTimeout(() => {
+            setupRealtimeSubscription();
+          }, RECONNECT_INTERVAL);
+        })
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            console.log('Realtime connected');
+          } else if (status === 'CHANNEL_ERROR') {
+            console.error('Realtime channel error, will retry');
+
+            // Clear any existing reconnect attempts
+            if (retryTimeoutRef.current) {
+              clearTimeout(retryTimeoutRef.current);
+            }
+
+            // Schedule reconnection attempt with backoff
+            retryTimeoutRef.current = setTimeout(() => {
+              setupRealtimeSubscription();
+            }, RECONNECT_INTERVAL);
+          }
+        });
+
+      channelRef.current = channel;
+    } catch (error) {
+      console.error('Realtime setup error:', error);
+
+      // Clear any existing reconnect attempts
       if (retryTimeoutRef.current) {
         clearTimeout(retryTimeoutRef.current);
       }
-    };
-  }, []);
+
+      // Schedule reconnection attempt with backoff
+      retryTimeoutRef.current = setTimeout(() => {
+        setupRealtimeSubscription();
+      }, RECONNECT_INTERVAL);
+    }
+  };
 
   const fetchNotifications = async () => {
     if (retryCountRef.current >= MAX_RETRIES) {
@@ -133,12 +197,22 @@ export function NotificationBell() {
       setIsLoading(true);
       setError(null);
 
-      const supabase = createClient();
+      const supabase = supabaseRef.current;
+
+      // Check session validity before making the request
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        // Try to refresh token
+        const { data: refreshData } = await supabase.auth.refreshSession();
+        if (!refreshData.session) {
+          throw new Error('No valid authentication session');
+        }
+      }
+
       const { data, error, count } = await supabase
         .from('orders')
         .select('id, status, created_at, profiles!orders_profile_id_fkey(*)', {
           count: 'exact',
-          head: true
         })
         .or('status.eq.pending,status.is.null')
         .order('created_at', { ascending: false })
@@ -160,7 +234,7 @@ export function NotificationBell() {
         throw new Error(
           error.message?.includes('CORS')
             ? 'Failed to fetch orders. Please check CORS settings.'
-            : 'Failed to fetch orders'
+            : error.message || 'Failed to fetch orders'
         );
       }
 
