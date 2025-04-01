@@ -55,7 +55,7 @@ export const createClient = () => {
           }
         }
       );
-      
+
       // Reset retry counter after successful initialization
       retryCount = 0;
     } catch (error) {

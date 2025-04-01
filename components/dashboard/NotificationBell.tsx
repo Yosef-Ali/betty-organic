@@ -83,9 +83,9 @@ export function NotificationBell() {
     try {
       setIsLoading(true);
       setError(null);
-      
+
       const supabase = createClient();
-      
+
       // UPDATED: Using an "or" condition to match both empty and "pending" statuses
       const { data: ordersData, error: ordersError } = await supabase
         .from('orders')
@@ -116,7 +116,7 @@ export function NotificationBell() {
             .from('profiles')
             .select('*')
             .in('id', profileIds);
-            
+
           if (profileError) {
             console.error('Error fetching profiles:', profileError);
             throw profileError;
@@ -159,21 +159,21 @@ export function NotificationBell() {
       // Reset retry count on success
       retryCountRef.current = 0;
     } catch (error) {
-      setError(typeof error === 'object' && error !== null && 'message' in error 
+      setError(typeof error === 'object' && error !== null && 'message' in error
         ? String(error.message)
         : 'Failed to fetch notifications');
       console.error('Failed to fetch notifications:', error);
-      
+
       // Implement retry with exponential backoff
       retryCountRef.current += 1;
       const backoffTime = Math.min(1000 * Math.pow(2, retryCountRef.current), 10000);
-      
+
       console.log(`Retry attempt ${retryCountRef.current}/${MAX_RETRIES} in ${backoffTime}ms`);
-      
+
       if (retryTimeoutRef.current) {
         clearTimeout(retryTimeoutRef.current);
       }
-      
+
       retryTimeoutRef.current = setTimeout(() => {
         fetchNotifications();
       }, backoffTime);
