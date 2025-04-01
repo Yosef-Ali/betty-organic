@@ -93,7 +93,7 @@ export function OrderForm({ customers, products, initialData }: OrderFormProps) 
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
         <label htmlFor="customerId" className="block text-sm font-medium text-gray-700">Customer</label>
-        <Select name="customerId" defaultValue={initialData?.customer_profile_id || ''}>
+        <Select name="customerId" defaultValue={initialData?.customer_profile_id || initialData?.customer_id || ''}>
           {customers.map((customer) => (
             <option key={customer.id} value={customer.id}>{customer.name || customer.email}</option>
           ))}

@@ -83,6 +83,11 @@ export async function getOrderDetails(orderId: string) {
       (order as any).profile = order.customer;
     }
 
+    // Add backward compatibility mapping for customer_id
+    if (order && order.customer_profile_id) {
+      (order as any).customer_id = order.customer_profile_id;
+    }
+
     return { data: order, error: null };
   } catch (error) {
     console.error('[DASHBOARD DEBUG] Error in getOrderDetails:', error);
@@ -347,7 +352,17 @@ export async function getOrders(customerId?: string) {
       throw ordersError.error;
     }
 
-    return ordersError.data || [];
+    // Add backward compatibility mapping for customer_id
+    const orders = ordersError.data || [];
+    return orders.map(order => {
+      if (order.customer_profile_id) {
+        return {
+          ...order,
+          customer_id: order.customer_profile_id
+        };
+      }
+      return order;
+    });
   } catch (error) {
     console.error('[DASHBOARD DEBUG] Error fetching orders:', error);
     return [];

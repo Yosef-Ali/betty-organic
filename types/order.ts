@@ -29,6 +29,9 @@ export type Order = {
     phone?: string | null;
     role: string;
   };
+
+  // For backward compatibility with old code that uses customer_id
+  customer_id?: string;
 };
 
 // Extended Order type that includes profile data for the orders data table
