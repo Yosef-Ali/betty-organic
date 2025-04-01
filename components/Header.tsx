@@ -175,9 +175,11 @@ export default function Header({ onMobileMenuToggle, profile }: HeaderProps) {
         />
       </div>
 
-      <div className="flex items-center gap-2">
-        <NotificationBell />
-      </div>
+      {profile?.role === 'admin' || profile?.role === 'sales' ? (
+        <div className="flex items-center gap-2">
+          <NotificationBell />
+        </div>
+      ) : null}
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
