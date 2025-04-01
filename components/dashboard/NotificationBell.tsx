@@ -12,6 +12,7 @@ import { useEffect, useState, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { formatDate } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // Define explicit types to match database structure
 interface ProfileData {
@@ -38,21 +39,44 @@ interface OrderNotification {
 export function NotificationBell() {
   const [notifications, setNotifications] = useState<OrderNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [animateBell, setAnimateBell] = useState(false);
   const router = useRouter();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const isInitialLoadRef = useRef(true);
   const previousCountRef = useRef(0);
 
+  // Animation for the bell
+  const bellAnimation = {
+    initial: { rotate: 0 },
+    animate: {
+      rotate: [0, 15, -15, 10, -5, 0],
+      transition: { duration: 0.7 }
+    }
+  };
+
+  // Badge animation
+  const badgeAnimation = {
+    initial: { scale: 0 },
+    animate: {
+      scale: 1,
+      transition: {
+        type: "spring",
+        stiffness: 500,
+        damping: 15
+      }
+    },
+    exit: { scale: 0 }
+  };
+
   useEffect(() => {
     // Initialize audio element
     audioRef.current = new Audio('/notification.mp3');
 
+    const supabase = createClient();
+
     const fetchNotifications = async () => {
       try {
-        console.log('Fetching notifications...');
-        const supabase = createClient();
-
-        // Use a different approach - first fetch orders, then the corresponding profiles
+        // First fetch orders with pending status
         const { data: ordersData, error: ordersError } = await supabase
           .from('orders')
           .select('*')
@@ -81,8 +105,6 @@ export function NotificationBell() {
               .select('*')
               .in('id', profileIds);
 
-            console.log(`Found ${profilesData?.length || 0} profiles for orders`);
-
             // Combine data
             const ordersWithProfiles = ordersData.map(order => {
               const profile = profilesData?.find(p => p.id === order.profile_id);
@@ -98,7 +120,7 @@ export function NotificationBell() {
             // 1. It's not the initial load
             // 2. The notification count has increased
             if (!isInitialLoadRef.current && newNotificationCount > previousCountRef.current) {
-              console.log('New notification received, playing sound');
+              setAnimateBell(true); // Trigger animation
               playNotificationSound();
             }
 
@@ -127,7 +149,6 @@ export function NotificationBell() {
     const pollingInterval = setInterval(fetchNotifications, 30000); // every 30 seconds
 
     // Set up real-time subscription
-    const supabase = createClient();
     const channel = supabase
       .channel('orders-notifications')
       .on('postgres_changes',
@@ -138,6 +159,7 @@ export function NotificationBell() {
         },
         (payload) => {
           console.log('New order received in real-time:', payload);
+          setAnimateBell(true); // Trigger animation on new order
           fetchNotifications();
           playNotificationSound();
         }
@@ -163,10 +185,18 @@ export function NotificationBell() {
     };
   }, []);
 
+  // Reset animation after it completes
+  useEffect(() => {
+    if (animateBell) {
+      const timer = setTimeout(() => {
+        setAnimateBell(false);
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [animateBell]);
+
   const playNotificationSound = () => {
     try {
-      console.log('Attempting to play notification sound');
-
       if (audioRef.current) {
         // Reset the audio to the beginning in case it was already playing
         audioRef.current.currentTime = 0;
@@ -214,6 +244,11 @@ export function NotificationBell() {
     return 'Unknown Customer';
   };
 
+  // Trigger useEffect logging
+  useEffect(() => {
+    console.log('NotificationBell: Current unreadCount:', unreadCount);
+  }, [unreadCount]);
+
   return (
     <>
       {/* Adding this audio element ensures that the sound can be played */}
@@ -222,12 +257,28 @@ export function NotificationBell() {
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" className="relative">
-            <Bell className="h-5 w-5" />
-            {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-red-500 text-xs text-white flex items-center justify-center">
-                {unreadCount}
-              </span>
-            )}
+            <motion.div
+              initial="initial"
+              animate={animateBell ? "animate" : "initial"}
+              variants={bellAnimation}
+            >
+              <Bell className="h-5 w-5" />
+            </motion.div>
+
+            <AnimatePresence>
+              {unreadCount > 0 && (
+                <motion.span
+                  key="notification-badge"
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  variants={badgeAnimation}
+                  className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white"
+                >
+                  {unreadCount}
+                </motion.span>
+              )}
+            </AnimatePresence>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-80">
