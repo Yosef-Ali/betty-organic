@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { ExtendedOrder } from '@/types/order';
+import { useAuth } from '@/hooks/useAuth';
 
 const MAX_RETRIES = 3;
 const POLLING_INTERVAL = 30000; // 30 seconds
@@ -30,6 +31,7 @@ export function NotificationBell() {
   const [error, setError] = useState<string | null>(null);
   const [animateBell, setAnimateBell] = useState(false);
   const router = useRouter();
+  const { user, profile, loading: authLoading } = useAuth();
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const retryCountRef = useRef(0);
@@ -57,61 +59,52 @@ export function NotificationBell() {
     return () => clearTimeout(timer);
   }, [animateBell]);
 
-  // Ensure authentication is valid before setting up subscriptions
+  // Wait for auth to be ready before setting up subscriptions
   useEffect(() => {
-    const checkAuthAndSetup = async () => {
-      try {
-        const supabase = supabaseRef.current;
-        const { data, error } = await supabase.auth.getSession();
+    // Exit early if auth is still loading or user isn't authenticated
+    if (authLoading) {
+      console.log('Auth is still loading');
+      return;
+    }
 
-        if (error || !data.session) {
-          console.log('No valid auth session, checking for refresh token');
-          // Try to refresh token if available
-          const { data: refreshData } = await supabase.auth.refreshSession();
-          if (!refreshData.session) {
-            console.warn('No valid session available');
-            setError('Authentication required');
-            return;
-          }
+    if (!user) {
+      console.log('No authenticated user found');
+      setError('Authentication required');
+      return;
+    }
+
+    console.log('Auth loaded, user authenticated:', user.email);
+
+    // Clear existing localStorage keys for realtime to prevent stale connections
+    if (typeof localStorage !== 'undefined') {
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('supabase.realtime')) {
+          localStorage.removeItem(key);
         }
+      });
+    }
 
-        // Clear existing localStorage keys for realtime to prevent stale connections
-        if (typeof localStorage !== 'undefined') {
-          Object.keys(localStorage).forEach(key => {
-            if (key.startsWith('supabase.realtime')) {
-              localStorage.removeItem(key);
-            }
-          });
+    // Fetch notifications immediately and then set up polling
+    fetchNotifications();
+    const pollingInterval = setInterval(fetchNotifications, POLLING_INTERVAL);
+
+    // Set up realtime subscription with proper error handling
+    setupRealtimeSubscription();
+
+    return () => {
+      clearInterval(pollingInterval);
+      if (channelRef.current) {
+        try {
+          supabaseRef.current.removeChannel(channelRef.current);
+        } catch (err) {
+          console.warn('Error removing channel:', err);
         }
-
-        // Fetch notifications immediately and then set up polling
-        await fetchNotifications();
-        const pollingInterval = setInterval(fetchNotifications, POLLING_INTERVAL);
-
-        // Set up realtime subscription with proper error handling
-        setupRealtimeSubscription();
-
-        return () => {
-          clearInterval(pollingInterval);
-          if (channelRef.current) {
-            try {
-              supabase.removeChannel(channelRef.current);
-            } catch (err) {
-              console.warn('Error removing channel:', err);
-            }
-          }
-          if (retryTimeoutRef.current) {
-            clearTimeout(retryTimeoutRef.current);
-          }
-        };
-      } catch (err) {
-        console.error('Auth setup error:', err);
-        setError('Failed to initialize notification system');
+      }
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
       }
     };
-
-    checkAuthAndSetup();
-  }, []);
+  }, [authLoading, user]);
 
   const setupRealtimeSubscription = () => {
     try {
@@ -193,21 +186,17 @@ export function NotificationBell() {
       return;
     }
 
+    // Skip if no user is authenticated
+    if (!user) {
+      console.log('Skipping notification fetch - no authenticated user');
+      return;
+    }
+
     try {
       setIsLoading(true);
       setError(null);
 
       const supabase = supabaseRef.current;
-
-      // Check session validity before making the request
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session) {
-        // Try to refresh token
-        const { data: refreshData } = await supabase.auth.refreshSession();
-        if (!refreshData.session) {
-          throw new Error('No valid authentication session');
-        }
-      }
 
       const { data, error, count } = await supabase
         .from('orders')
@@ -220,22 +209,7 @@ export function NotificationBell() {
 
       if (error) {
         console.error('Supabase fetch error:', error);
-
-        // Try to extract count from Content-Range if available
-        let extractedCount = 0;
-        if (error && typeof error === 'object') {
-          const supabaseError = error as { message?: string };
-          const contentRangeMatch = supabaseError.message?.match(/Content-Range: \d+-\d+\/(\d+)/);
-          if (contentRangeMatch) {
-            extractedCount = parseInt(contentRangeMatch[1], 10);
-          }
-        }
-
-        throw new Error(
-          error.message?.includes('CORS')
-            ? 'Failed to fetch orders. Please check CORS settings.'
-            : error.message || 'Failed to fetch orders'
-        );
+        throw new Error(error.message || 'Failed to fetch orders');
       }
 
       const actualCount = typeof count === 'number' ? count : 0;
@@ -250,6 +224,8 @@ export function NotificationBell() {
           profiles: order.profiles
         }));
 
+      console.log(`Fetched ${pendingOrders.length} pending orders`);
+
       const newCount = actualCount || pendingOrders.length;
 
       if (!isInitialLoadRef.current && newCount > previousCountRef.current) {
@@ -263,10 +239,7 @@ export function NotificationBell() {
       setUnreadCount(newCount);
       retryCountRef.current = 0;
     } catch (error) {
-      setError(error instanceof Error ?
-        `Failed to fetch notifications: ${error.message.includes('CORS') ?
-          'CORS error - check server settings' : error.message}` :
-        'Failed to fetch notifications');
+      setError(error instanceof Error ? error.message : 'Failed to fetch notifications');
       console.error('Notification fetch error:', error);
 
       retryCountRef.current += 1;
@@ -283,6 +256,20 @@ export function NotificationBell() {
     router.push(`/dashboard/orders/${orderId}`);
     setUnreadCount(prev => Math.max(0, prev - 1));
   };
+
+  // If auth is loading or user isn't authenticated, show a simplified version
+  if (authLoading) {
+    return (
+      <Button variant="ghost" size="icon" className="relative" disabled>
+        <Bell className="h-5 w-5 text-muted-foreground" />
+      </Button>
+    );
+  }
+
+  // If no authenticated user, don't show the notification bell
+  if (!user) {
+    return null;
+  }
 
   return (
     <DropdownMenu>

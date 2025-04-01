@@ -28,14 +28,34 @@ export const createClient = () => {
             autoRefreshToken: true,
             persistSession: true,
             storageKey: 'sb-session',  // Make sure this matches the cookie name
-            storage: {  // Override the storage implementation to handle base64 cookies properly
+            // New custom storage implementation that safely handles base64 cookies
+            storage: {
               getItem: (key) => {
                 try {
                   if (typeof window === 'undefined') return null;
-                  const item = window.localStorage.getItem(key);
+
+                  // First try to get from localStorage
+                  let item = window.localStorage.getItem(key);
+
+                  // If not in localStorage, try to parse from cookies
+                  if (!item) {
+                    const cookies = document.cookie.split('; ');
+                    for (const cookie of cookies) {
+                      const [cookieName, cookieValue] = cookie.split('=');
+                      if (cookieName === key || cookieName === `${key}`) {
+                        // Don't try to parse base64 cookies as JSON - just return them directly
+                        if (cookieValue?.startsWith('base64-')) {
+                          return cookieValue;
+                        }
+                        item = cookieValue;
+                        break;
+                      }
+                    }
+                  }
+
                   return item;
                 } catch (error) {
-                  console.warn('Error reading from localStorage:', error);
+                  console.warn('Error reading auth data:', error);
                   return null;
                 }
               },
@@ -51,8 +71,16 @@ export const createClient = () => {
                 try {
                   if (typeof window === 'undefined') return;
                   window.localStorage.removeItem(key);
+
+                  // Also clear from cookies if present
+                  if (typeof document !== 'undefined') {
+                    document.cookie = `${key}=; Max-Age=-1; path=/; SameSite=Lax; ${window.location.protocol === 'https:' ? 'Secure;' : ''
+                      }`;
+                    document.cookie = `${key}.refresh_token=; Max-Age=-1; path=/; SameSite=Lax; ${window.location.protocol === 'https:' ? 'Secure;' : ''
+                      }`;
+                  }
                 } catch (error) {
-                  console.warn('Error removing from localStorage:', error);
+                  console.warn('Error removing auth data:', error);
                 }
               }
             }
@@ -97,7 +125,7 @@ export const createClient = () => {
                     ...options,
                     cache: 'no-store',
                     signal: controller.signal,
-                    credentials: isAuthRequest ? 'include' : 'omit', // Only include credentials for auth requests
+                    credentials: isAuthRequest ? 'include' : 'same-origin', // Changed to same-origin for better cookie handling
                     headers: {
                       ...options.headers,
                       'Content-Type': 'application/json',
