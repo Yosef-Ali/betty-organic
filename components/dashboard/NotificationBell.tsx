@@ -75,6 +75,19 @@ export function NotificationBell() {
 
     console.log('Auth loaded, user authenticated:', user.email);
 
+    try {
+      // Clear existing localStorage keys for realtime to prevent stale connections
+      if (typeof localStorage !== 'undefined') {
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('supabase.realtime')) {
+            localStorage.removeItem(key);
+          }
+        });
+      }
+    } catch (err) {
+      console.warn('Error clearing localStorage:', err);
+    }
+
     // Clear existing localStorage keys for realtime to prevent stale connections
     if (typeof localStorage !== 'undefined') {
       Object.keys(localStorage).forEach(key => {
@@ -124,11 +137,12 @@ export function NotificationBell() {
 
       const channel = supabase.channel(channelName)
         .on('postgres_changes', {
-          event: '*',
+          event: 'INSERT',
           schema: 'public',
           table: 'orders',
           filter: 'status=eq.pending'
-        }, () => {
+        }, (payload) => {
+          console.log('Realtime order insert:', payload.new);
           fetchNotifications();
           setAnimateBell(true);
           playNotificationSound();
@@ -257,7 +271,7 @@ export function NotificationBell() {
     setUnreadCount(prev => Math.max(0, prev - 1));
   };
 
-  // If auth is loading or user isn't authenticated, show a simplified version
+  // If auth is loading, show a simplified version
   if (authLoading) {
     return (
       <Button variant="ghost" size="icon" className="relative" disabled>
@@ -268,8 +282,11 @@ export function NotificationBell() {
 
   // If no authenticated user, don't show the notification bell
   if (!user) {
+    console.log('NotificationBell: No user - hiding component');
     return null;
   }
+
+  console.log('NotificationBell: Rendering for user', user.email);
 
   return (
     <DropdownMenu>
