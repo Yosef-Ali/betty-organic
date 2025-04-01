@@ -291,11 +291,16 @@ export function NotificationBell() {
   // Show role info for admin/sales users instead of bell
   if (profile?.isAdmin || profile?.isSales) {
     return (
-      <div className="flex items-center gap-2 px-3 py-1 text-sm font-medium rounded-md bg-muted">
+      <div className="flex items-center gap-2 px-3 py-1 text-sm font-medium rounded-md bg-muted relative">
         <span>Role: {profile?.role}</span>
         <span className="text-muted-foreground">
           {profile?.isAdmin ? 'Admin' : 'Sales'}
         </span>
+        {unreadCount > 0 && (
+          <Badge className="absolute -right-2 -top-2 h-5 w-5 rounded-full p-0">
+            {unreadCount}
+          </Badge>
+        )}
       </div>
     );
   }
