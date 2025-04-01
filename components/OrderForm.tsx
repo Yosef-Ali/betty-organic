@@ -6,15 +6,17 @@ import { Select } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { createOrder, updateOrder } from '@/app/actions/orderActions';
-import { Customer, Product } from '@/types'; // Import types from types folder
+import { Product } from '@/types'; // Import types from types folder
 import { Tables } from '@/types/supabase'; // Import the database types
 
 // Use the actual DB type
 type OrderItem = Tables<'order_items'>;
 type Order = Tables<'orders'> & { items?: OrderItem[] };
+// Use profiles as customers
+type Profile = Tables<'profiles'>;
 
 interface OrderFormProps {
-  customers: Customer[];
+  customers: Profile[]; // Changed from Customer[] to Profile[]
   products: Product[];
   initialData?: Order;
 }
@@ -64,6 +66,8 @@ export function OrderForm({ customers, products, initialData }: OrderFormProps) 
     router.refresh();
     if (initialData) {
       router.push('/orders');
+    } else {
+      router.push('/dashboard/orders');
     }
   };
 
@@ -89,9 +93,9 @@ export function OrderForm({ customers, products, initialData }: OrderFormProps) 
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
         <label htmlFor="customerId" className="block text-sm font-medium text-gray-700">Customer</label>
-        <Select name="customerId" defaultValue={initialData?.profile_id || ''}>
+        <Select name="customerId" defaultValue={initialData?.customer_profile_id || ''}>
           {customers.map((customer) => (
-            <option key={customer.id} value={customer.id}>{customer.full_name || customer.email}</option>
+            <option key={customer.id} value={customer.id}>{customer.name || customer.email}</option>
           ))}
         </Select>
       </div>
