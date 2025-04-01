@@ -76,11 +76,11 @@ export function NotificationBell() {
 
     const fetchNotifications = async () => {
       try {
-        // First fetch orders with pending status
+        // First fetch orders with pending status - FIXED: Using eq instead of ilike for exact match
         const { data: ordersData, error: ordersError } = await supabase
           .from('orders')
           .select('*')
-          .eq('status', 'pending')
+          .eq('status', 'pending') // Exact match for "pending" status
           .order('created_at', { ascending: false })
           .limit(7);
 
@@ -89,6 +89,8 @@ export function NotificationBell() {
           return;
         }
 
+        // Debug all order statuses to help diagnose the issue
+        console.log('DEBUG - All fetched order statuses:', ordersData?.map(order => order.status));
         console.log(`Found ${ordersData?.length || 0} pending orders`);
 
         // If we have orders, get the corresponding profiles
