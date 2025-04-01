@@ -376,3 +376,79 @@ export async function updateOrderStatus(orderId: string, status: string) {
     return { success: false, error };
   }
 }
+
+export async function updateOrder(orderId: string, formData: FormData) {
+  const supabase = await createClient();
+  try {
+    // Extract order data from form
+    const status = formData.get('status') as string;
+    const itemsJson = formData.get('items') as string;
+    const items: OrderItem[] = JSON.parse(itemsJson);
+
+    // Calculate total amount
+    const totalAmount = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+    // Update order
+    const { data: orderData, error: orderError } = await supabase
+      .from('orders')
+      .update({
+        status,
+        total_amount: totalAmount,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', orderId)
+      .select()
+      .single();
+
+    if (orderError) {
+      console.error('[DASHBOARD DEBUG] Error updating order:', orderError);
+      return { success: false, error: orderError };
+    }
+
+    // First, delete existing order items
+    const { error: deleteError } = await supabase
+      .from('order_items')
+      .delete()
+      .eq('order_id', orderId);
+
+    if (deleteError) {
+      console.error('[DASHBOARD DEBUG] Error deleting existing order items:', deleteError);
+      return { success: false, error: deleteError };
+    }
+
+    // Then insert updated order items
+    const orderItems = items.map(item => ({
+      order_id: orderId,
+      product_id: item.product_id,
+      quantity: item.quantity,
+      price: item.price,
+      product_name: item.product_name
+    }));
+
+    const { error: itemsError } = await supabase
+      .from('order_items')
+      .insert(orderItems);
+
+    if (itemsError) {
+      console.error('[DASHBOARD DEBUG] Error updating order items:', itemsError);
+      return { success: false, error: itemsError };
+    }
+
+    // Revalidate path to show updated data
+    revalidatePath('/dashboard/orders');
+
+    return {
+      success: true,
+      order: {
+        ...orderData,
+        order_items: orderItems
+      }
+    };
+  } catch (error) {
+    console.error('[DASHBOARD DEBUG] Error in updateOrder:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error : new Error('Unknown error updating order')
+    };
+  }
+}
