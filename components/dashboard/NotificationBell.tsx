@@ -40,6 +40,11 @@ export function NotificationBell() {
   const [notifications, setNotifications] = useState<OrderNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [animateBell, setAnimateBell] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const retryCountRef = useRef(0);
+  const MAX_RETRIES = 3;
   const router = useRouter();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const isInitialLoadRef = useRef(true);
@@ -68,83 +73,117 @@ export function NotificationBell() {
     exit: { scale: 0 }
   };
 
-  useEffect(() => {
-    // Initialize audio element
-    audioRef.current = new Audio('/notification.mp3');
+  const fetchNotifications = async () => {
+    if (retryCountRef.current >= MAX_RETRIES) {
+      console.log('Max retry attempts reached, waiting for next scheduled poll');
+      retryCountRef.current = 0; // Reset for next scheduled attempt
+      return;
+    }
 
-    const supabase = createClient();
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const supabase = createClient();
+      
+      // UPDATED: Using an "or" condition to match both empty and "pending" statuses
+      const { data: ordersData, error: ordersError } = await supabase
+        .from('orders')
+        .select('*')
+        .or('status.eq.pending,status.eq.')  // Match both "pending" and empty status
+        .order('created_at', { ascending: false })
+        .limit(7);
 
-    const fetchNotifications = async () => {
-      try {
-        // UPDATED: Using an "or" condition to match both empty and "pending" statuses
-        const { data: ordersData, error: ordersError } = await supabase
-          .from('orders')
-          .select('*')
-          .or('status.eq.pending,status.eq.')  // Match both "pending" and empty status
-          .order('created_at', { ascending: false })
-          .limit(7);
+      if (ordersError) {
+        console.error('Error fetching notifications:', ordersError);
+        throw ordersError;
+      }
 
-        if (ordersError) {
-          console.error('Error fetching notifications:', ordersError);
+      // Debug all order statuses to help diagnose the issue
+      console.log('DEBUG - All fetched order statuses:', ordersData?.map(order => order.status));
+      console.log(`Found ${ordersData?.length || 0} orders with pending or blank status`);
+
+      // If we have orders, get the corresponding profiles
+      if (ordersData && ordersData.length > 0) {
+        // Extract unique profile IDs
+        const profileIds = ordersData
+          .map(order => order.profile_id)
+          .filter(Boolean);
+
+        // Fetch profiles for these IDs if any exist
+        if (profileIds.length > 0) {
+          const { data: profilesData, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .in('id', profileIds);
+            
+          if (profileError) {
+            console.error('Error fetching profiles:', profileError);
+            throw profileError;
+          }
+
+          // Combine data
+          const ordersWithProfiles = ordersData.map(order => {
+            const profile = profilesData?.find(p => p.id === order.profile_id);
+            return {
+              ...order,
+              profiles: profile
+            };
+          });
+
+          const newNotificationCount = ordersWithProfiles.length;
+
+          // Only play sound if:
+          // 1. It's not the initial load
+          // 2. The notification count has increased
+          if (!isInitialLoadRef.current && newNotificationCount > previousCountRef.current) {
+            setAnimateBell(true); // Trigger animation
+            playNotificationSound();
+          }
+
+          previousCountRef.current = newNotificationCount;
+          isInitialLoadRef.current = false;
+          setNotifications(ordersWithProfiles);
+          setUnreadCount(newNotificationCount);
+          // Reset retry count on success
+          retryCountRef.current = 0;
           return;
         }
-
-        // Debug all order statuses to help diagnose the issue
-        console.log('DEBUG - All fetched order statuses:', ordersData?.map(order => order.status));
-        console.log(`Found ${ordersData?.length || 0} orders with pending or blank status`);
-
-        // If we have orders, get the corresponding profiles
-        if (ordersData && ordersData.length > 0) {
-          // Extract unique profile IDs
-          const profileIds = ordersData
-            .map(order => order.profile_id)
-            .filter(Boolean);
-
-          // Fetch profiles for these IDs if any exist
-          if (profileIds.length > 0) {
-            const { data: profilesData } = await supabase
-              .from('profiles')
-              .select('*')
-              .in('id', profileIds);
-
-            // Combine data
-            const ordersWithProfiles = ordersData.map(order => {
-              const profile = profilesData?.find(p => p.id === order.profile_id);
-              return {
-                ...order,
-                profiles: profile
-              };
-            });
-
-            const newNotificationCount = ordersWithProfiles.length;
-
-            // Only play sound if:
-            // 1. It's not the initial load
-            // 2. The notification count has increased
-            if (!isInitialLoadRef.current && newNotificationCount > previousCountRef.current) {
-              setAnimateBell(true); // Trigger animation
-              playNotificationSound();
-            }
-
-            previousCountRef.current = newNotificationCount;
-            isInitialLoadRef.current = false;
-            setNotifications(ordersWithProfiles);
-            setUnreadCount(newNotificationCount);
-            return;
-          }
-        }
-
-        // Default case - no orders or profiles
-        isInitialLoadRef.current = false;
-        previousCountRef.current = 0;
-        setNotifications([]);
-        setUnreadCount(0);
-      } catch (error) {
-        console.error('Failed to fetch notifications:', error);
       }
-    };
 
-    // Initial fetch
+      // Default case - no orders or profiles
+      isInitialLoadRef.current = false;
+      previousCountRef.current = 0;
+      setNotifications([]);
+      setUnreadCount(0);
+      // Reset retry count on success
+      retryCountRef.current = 0;
+    } catch (error) {
+      setError(typeof error === 'object' && error !== null && 'message' in error 
+        ? String(error.message)
+        : 'Failed to fetch notifications');
+      console.error('Failed to fetch notifications:', error);
+      
+      // Implement retry with exponential backoff
+      retryCountRef.current += 1;
+      const backoffTime = Math.min(1000 * Math.pow(2, retryCountRef.current), 10000);
+      
+      console.log(`Retry attempt ${retryCountRef.current}/${MAX_RETRIES} in ${backoffTime}ms`);
+      
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+      }
+      
+      retryTimeoutRef.current = setTimeout(() => {
+        fetchNotifications();
+      }, backoffTime);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Initial fetch
+  useEffect(() => {
     fetchNotifications();
 
     // Set up polling for notifications (in case real-time fails)
