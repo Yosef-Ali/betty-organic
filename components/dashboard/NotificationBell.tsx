@@ -137,13 +137,34 @@ export function NotificationBell() {
       const { data, error, count } = await supabase
         .from('orders')
         .select('id, status, created_at, profiles!orders_profile_id_fkey(*)', {
-          count: 'exact'
+          count: 'exact',
+          head: true
         })
         .or('status.eq.pending,status.is.null')
         .order('created_at', { ascending: false })
         .limit(10);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase fetch error:', error);
+
+        // Try to extract count from Content-Range if available
+        let extractedCount = 0;
+        if (error && typeof error === 'object') {
+          const supabaseError = error as { message?: string };
+          const contentRangeMatch = supabaseError.message?.match(/Content-Range: \d+-\d+\/(\d+)/);
+          if (contentRangeMatch) {
+            extractedCount = parseInt(contentRangeMatch[1], 10);
+          }
+        }
+
+        throw new Error(
+          error.message?.includes('CORS')
+            ? 'Failed to fetch orders. Please check CORS settings.'
+            : 'Failed to fetch orders'
+        );
+      }
+
+      const actualCount = typeof count === 'number' ? count : 0;
 
       // Filter out null created_at and map to NotificationOrder type
       const pendingOrders = (data || [])
@@ -155,7 +176,7 @@ export function NotificationBell() {
           profiles: order.profiles
         }));
 
-      const newCount = count || pendingOrders.length;
+      const newCount = actualCount || pendingOrders.length;
 
       if (!isInitialLoadRef.current && newCount > previousCountRef.current) {
         setAnimateBell(true);
@@ -169,8 +190,9 @@ export function NotificationBell() {
       retryCountRef.current = 0;
     } catch (error) {
       setError(error instanceof Error ?
-        `Failed to fetch notifications: ${error.message}` :
-        'Failed to fetch notifications. Please check CORS settings.');
+        `Failed to fetch notifications: ${error.message.includes('CORS') ?
+          'CORS error - check server settings' : error.message}` :
+        'Failed to fetch notifications');
       console.error('Notification fetch error:', error);
 
       retryCountRef.current += 1;

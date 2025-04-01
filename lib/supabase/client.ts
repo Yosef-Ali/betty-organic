@@ -91,6 +91,7 @@ export const createClient = () => {
                     urlStr = url.url;
                   }
                   const isAuthRequest = urlStr.includes('/auth/');
+                  const isRestRequest = urlStr.includes('/rest/v1/');
 
                   const response = await fetch(url, {
                     ...options,
@@ -99,8 +100,13 @@ export const createClient = () => {
                     credentials: isAuthRequest ? 'include' : 'omit', // Only include credentials for auth requests
                     headers: {
                       ...options.headers,
-                      'Access-Control-Request-Method': 'GET, POST, PUT, DELETE, OPTIONS',
-                      'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-client-info, apikey',
+                      'Content-Type': 'application/json',
+                      'Accept': 'application/json',
+                      ...(isRestRequest ? {
+                        'Access-Control-Request-Method': 'GET, POST, PUT, DELETE, OPTIONS',
+                        'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-client-info, apikey',
+                        'Access-Control-Expose-Headers': 'Content-Range'
+                      } : {})
                     }
                   });
 
