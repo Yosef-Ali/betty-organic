@@ -288,19 +288,36 @@ export function NotificationBell() {
 
   console.log('NotificationBell: Rendering for user', user.email);
 
-  // Show role info for admin/sales users instead of bell
+  // Show role info + bell for admin/sales users
   if (profile?.isAdmin || profile?.isSales) {
     return (
-      <div className="flex items-center gap-2 px-3 py-1 text-sm font-medium rounded-md bg-muted relative">
-        <span>Role: {profile?.role}</span>
-        <span className="text-muted-foreground">
-          {profile?.isAdmin ? 'Admin' : 'Sales'}
-        </span>
-        {unreadCount > 0 && (
-          <Badge className="absolute -right-2 -top-2 h-5 w-5 rounded-full p-0">
-            {unreadCount}
-          </Badge>
-        )}
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 px-3 py-1 text-sm font-medium rounded-md bg-muted">
+          <span>Role: {profile?.role}</span>
+          <span className="text-muted-foreground">
+            {profile?.isAdmin ? 'Admin' : 'Sales'}
+          </span>
+        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="relative"
+          disabled={isLoading}
+        >
+          {animateBell ? (
+            <BellRing className={cn(
+              'h-5 w-5',
+              animateBell && 'animate-pulse text-yellow-500'
+            )} />
+          ) : (
+            <Bell className="h-5 w-5" />
+          )}
+          {unreadCount > 0 && (
+            <Badge className="absolute -right-1 -top-1 h-5 w-5 rounded-full p-0">
+              {unreadCount}
+            </Badge>
+          )}
+        </Button>
       </div>
     );
   }
