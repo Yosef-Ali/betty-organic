@@ -81,11 +81,27 @@ export const createClient = () => {
                 try {
                   const { controller, clear } = createTimeoutController(10000); // 10s timeout
 
+                  // Determine if this is an auth request by converting URL to string first
+                  let urlStr: string;
+                  if (typeof url === 'string') {
+                    urlStr = url;
+                  } else if (url instanceof URL) {
+                    urlStr = url.toString();
+                  } else {
+                    urlStr = url.url;
+                  }
+                  const isAuthRequest = urlStr.includes('/auth/');
+
                   const response = await fetch(url, {
                     ...options,
                     cache: 'no-store',
                     signal: controller.signal,
-                    credentials: 'same-origin', // Only send credentials for same-origin requests
+                    credentials: isAuthRequest ? 'include' : 'omit', // Only include credentials for auth requests
+                    headers: {
+                      ...options.headers,
+                      'Access-Control-Request-Method': 'GET, POST, PUT, DELETE, OPTIONS',
+                      'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-client-info, apikey',
+                    }
                   });
 
                   clear(); // Clear the timeout
