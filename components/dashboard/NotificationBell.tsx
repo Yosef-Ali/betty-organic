@@ -40,6 +40,7 @@ export function NotificationBell() {
   const isInitialLoadRef = useRef(true);
   const channelRef = useRef<RealtimeChannel | null>(null);
   const supabaseRef = useRef(createClient());
+  const mountedRef = useRef(true); // Track component mount state
 
   const playNotificationSound = () => {
     try {
@@ -61,7 +62,10 @@ export function NotificationBell() {
 
   // Wait for auth to be ready before setting up subscriptions
   useEffect(() => {
-    // Exit early if auth is still loading or user isn't authenticated
+    // Set mounted ref
+    mountedRef.current = true;
+
+    // Exit early if auth is still loading
     if (authLoading) {
       console.log('Auth is still loading');
       return;
@@ -88,15 +92,6 @@ export function NotificationBell() {
       console.warn('Error clearing localStorage:', err);
     }
 
-    // Clear existing localStorage keys for realtime to prevent stale connections
-    if (typeof localStorage !== 'undefined') {
-      Object.keys(localStorage).forEach(key => {
-        if (key.startsWith('supabase.realtime')) {
-          localStorage.removeItem(key);
-        }
-      });
-    }
-
     // Fetch notifications immediately and then set up polling
     fetchNotifications();
     const pollingInterval = setInterval(fetchNotifications, POLLING_INTERVAL);
@@ -105,6 +100,9 @@ export function NotificationBell() {
     setupRealtimeSubscription();
 
     return () => {
+      // Set mounted ref to false to avoid state updates after unmount
+      mountedRef.current = false;
+
       clearInterval(pollingInterval);
       if (channelRef.current) {
         try {
@@ -120,6 +118,9 @@ export function NotificationBell() {
   }, [authLoading, user]);
 
   const setupRealtimeSubscription = () => {
+    // Exit if component unmounted
+    if (!mountedRef.current) return;
+
     try {
       const supabase = supabaseRef.current;
 
@@ -142,6 +143,9 @@ export function NotificationBell() {
           table: 'orders',
           filter: 'status=eq.pending'
         }, (payload) => {
+          // Skip if component unmounted
+          if (!mountedRef.current) return;
+
           console.log('Realtime order insert:', payload.new);
           fetchNotifications();
           setAnimateBell(true);
@@ -150,6 +154,9 @@ export function NotificationBell() {
         .on('system', { event: 'disconnect' }, () => {
           console.log('Disconnected - attempting reconnect');
 
+          // Skip if component unmounted
+          if (!mountedRef.current) return;
+
           // Clear any existing reconnect attempts
           if (retryTimeoutRef.current) {
             clearTimeout(retryTimeoutRef.current);
@@ -157,10 +164,15 @@ export function NotificationBell() {
 
           // Schedule reconnection attempt
           retryTimeoutRef.current = setTimeout(() => {
-            setupRealtimeSubscription();
+            if (mountedRef.current) {
+              setupRealtimeSubscription();
+            }
           }, RECONNECT_INTERVAL);
         })
         .subscribe((status) => {
+          // Skip if component unmounted
+          if (!mountedRef.current) return;
+
           if (status === 'SUBSCRIBED') {
             console.log('Realtime connected');
           } else if (status === 'CHANNEL_ERROR') {
@@ -173,7 +185,9 @@ export function NotificationBell() {
 
             // Schedule reconnection attempt with backoff
             retryTimeoutRef.current = setTimeout(() => {
-              setupRealtimeSubscription();
+              if (mountedRef.current) {
+                setupRealtimeSubscription();
+              }
             }, RECONNECT_INTERVAL);
           }
         });
@@ -182,6 +196,9 @@ export function NotificationBell() {
     } catch (error) {
       console.error('Realtime setup error:', error);
 
+      // Skip if component unmounted
+      if (!mountedRef.current) return;
+
       // Clear any existing reconnect attempts
       if (retryTimeoutRef.current) {
         clearTimeout(retryTimeoutRef.current);
@@ -189,12 +206,17 @@ export function NotificationBell() {
 
       // Schedule reconnection attempt with backoff
       retryTimeoutRef.current = setTimeout(() => {
-        setupRealtimeSubscription();
+        if (mountedRef.current) {
+          setupRealtimeSubscription();
+        }
       }, RECONNECT_INTERVAL);
     }
   };
 
   const fetchNotifications = async () => {
+    // Skip if component is unmounted
+    if (!mountedRef.current) return;
+
     if (retryCountRef.current >= MAX_RETRIES) {
       retryCountRef.current = 0;
       return;
@@ -226,6 +248,9 @@ export function NotificationBell() {
         throw new Error(error.message || 'Failed to fetch orders');
       }
 
+      // Skip state update if component is unmounted
+      if (!mountedRef.current) return;
+
       const actualCount = typeof count === 'number' ? count : 0;
 
       // Filter out null created_at and map to NotificationOrder type
@@ -253,6 +278,9 @@ export function NotificationBell() {
       setUnreadCount(newCount);
       retryCountRef.current = 0;
     } catch (error) {
+      // Skip state updates if component unmounted
+      if (!mountedRef.current) return;
+
       setError(error instanceof Error ? error.message : 'Failed to fetch notifications');
       console.error('Notification fetch error:', error);
 
@@ -260,9 +288,16 @@ export function NotificationBell() {
       const backoffTime = Math.min(1000 * Math.pow(2, retryCountRef.current), 10000);
 
       if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
-      retryTimeoutRef.current = setTimeout(fetchNotifications, backoffTime);
+      retryTimeoutRef.current = setTimeout(() => {
+        if (mountedRef.current) {
+          fetchNotifications();
+        }
+      }, backoffTime);
     } finally {
-      setIsLoading(false);
+      // Skip state updates if component unmounted
+      if (mountedRef.current) {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -288,39 +323,8 @@ export function NotificationBell() {
 
   console.log('NotificationBell: Rendering for user', user.email);
 
-  // Show role info + bell for admin/sales users
-  if (profile?.isAdmin || profile?.isSales) {
-    return (
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2 px-3 py-1 text-sm font-medium rounded-md bg-muted">
-          <span>Role: {profile?.role}</span>
-          <span className="text-muted-foreground">
-            {profile?.isAdmin ? 'Admin' : 'Sales'}
-          </span>
-        </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="relative"
-          disabled={isLoading}
-        >
-          {animateBell ? (
-            <BellRing className={cn(
-              'h-5 w-5',
-              animateBell && 'animate-pulse text-yellow-500'
-            )} />
-          ) : (
-            <Bell className="h-5 w-5" />
-          )}
-          {unreadCount > 0 && (
-            <Badge className="absolute -right-1 -top-1 h-5 w-5 rounded-full p-0">
-              {unreadCount}
-            </Badge>
-          )}
-        </Button>
-      </div>
-    );
-  }
+  // Determine if user has admin or sales role
+  const isAdminOrSales = profile?.role === 'admin' || profile?.role === 'sales';
 
   return (
     <DropdownMenu>

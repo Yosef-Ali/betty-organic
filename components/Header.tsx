@@ -153,15 +153,8 @@ export default function Header({ onMobileMenuToggle, profile }: HeaderProps) {
     }));
   };
 
-  // Force render notification bell for debugging
-  const isAdminOrSales = true; // DEBUG: Temporarily force to true
-  // Add visible role debugging
-  const roleDebug = `Role: ${profile?.role}, isAdmin/Sales: ${profile?.role === 'admin' || profile?.role === 'sales'}`;
-
-  // Debug logging
-  useEffect(() => {
-    console.log(`Header: isAdminOrSales=${isAdminOrSales}, profile?.role=${profile?.role}`);
-  }, [isAdminOrSales, profile?.role]);
+  // Check if user is admin or sales based on profile role
+  const isAdminOrSales = profile?.role === 'admin' || profile?.role === 'sales';
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background/80 px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:p-6">
@@ -176,9 +169,6 @@ export default function Header({ onMobileMenuToggle, profile }: HeaderProps) {
       </Button>
       <Breadcrumb pathSegments={generateBreadcrumbs()} />
 
-      {/* Debug display */}
-      <div className="text-xs text-muted-foreground ml-4">{roleDebug}</div>
-
       <div className="relative ml-auto flex-1 md:grow-0">
         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
         <Input
@@ -189,17 +179,11 @@ export default function Header({ onMobileMenuToggle, profile }: HeaderProps) {
       </div>
 
       {/* NotificationBell for admin and sales users */}
-      {(() => {
-        if (isAdminOrSales) {
-          console.log('Header: Rendering NotificationBell...');
-          return (
-            <div className="flex items-center gap-2">
-              <NotificationBell />
-            </div>
-          );
-        }
-        return null;
-      })()}
+      {isAdminOrSales && profile && (
+        <div className="flex items-center gap-2">
+          <NotificationBell />
+        </div>
+      )}
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
