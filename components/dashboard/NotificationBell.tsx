@@ -140,44 +140,49 @@ export function NotificationBell() {
         }
       }
 
-      // Channel name for broadcast messages from the API route
-      const channelName = 'pending-order-notifications';
+      // Channel name for postgres_changes
+      const channelName = 'order-status'; // Changed from broadcast channel name
 
-      // Handler for broadcast messages
-      const handleBroadcast = (payload: any) => {
-        // Skip if component unmounted
-        if (!mountedRef.current) return;
-
-        console.log('Received broadcast message:', payload);
-
-        // Check if it's our custom event
-        if (payload.event === 'new_pending_order') {
-          console.log('New pending order notification received via broadcast:', payload.data);
-          setAnimateBell(true);
-          playNotificationSound();
-          // Fetch updated notifications to refresh the count and list accurately
-          fetchNotifications();
-        } else {
-          console.log('Received other broadcast message type:', payload.event);
-        }
-      };
-
-      // Subscribe to the broadcast channel
+      // Subscribe to postgres_changes on the 'orders' table for 'pending' status
       const channel = supabase.channel(channelName)
-        .on('broadcast', { event: 'message' }, (message) => {
-          // The actual payload is nested inside message.payload
-          handleBroadcast(message.payload);
+        .on('postgres_changes', {
+          event: '*', // Listen for INSERT, UPDATE, DELETE
+          schema: 'public',
+          table: 'orders',
+          filter: 'status=eq.pending' // Only notify for pending orders
+        }, (payload) => {
+          // Skip if component unmounted
+          if (!mountedRef.current) return;
+
+          console.log('Order status change received via postgres_changes:', payload);
+
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            // New or updated pending order
+            console.log('New/Updated pending order:', payload.new);
+            setAnimateBell(true);
+            playNotificationSound();
+            // Fetch notifications to get the latest count and details
+            fetchNotifications();
+          } else if (payload.eventType === 'DELETE') {
+            // Pending order deleted or status changed from pending
+            console.log('Pending order removed/status changed:', payload.old);
+            // We might not need to do anything here if fetchNotifications handles the count correctly
+            // Optionally, remove from local state if needed for immediate UI update:
+            // setNotifications(prev => prev.filter(n => n.id !== payload.old.id));
+            // setUnreadCount(prev => Math.max(0, prev - 1));
+            // Relying on fetchNotifications triggered by polling or subscription status change for now
+            fetchNotifications(); // Fetch to update count after delete/status change
+          }
         })
         .subscribe((status) => {
           if (!mountedRef.current) return;
 
           if (status === 'SUBSCRIBED') {
-            console.log(`Realtime connected to broadcast channel: ${channelName}`);
+            console.log(`Realtime connected to postgres_changes channel: ${channelName}`);
             // Fetch initial notifications upon successful subscription
-            // Polling will handle subsequent updates if broadcast fails
             fetchNotifications();
-          } else if (status === 'CHANNEL_ERROR') {
-            console.error('Realtime channel error, will retry');
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            console.error(`Realtime channel error or timed out (${status}), will retry`);
             if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
             retryTimeoutRef.current = setTimeout(() => {
               if (mountedRef.current) setupRealtimeSubscription();

@@ -103,6 +103,16 @@ export const createClient = (): SupabaseClient<Database, 'public'> => { // Add r
             params: {
               eventsPerSecond: 10, // Keep params
               heartbeatIntervalMs: 10000, // Keep params
+              // Add postgres_changes configuration
+              postgres_changes: [
+                {
+                  event: '*', // Listen for all changes (INSERT, UPDATE, DELETE)
+                  schema: 'public',
+                  table: 'orders' // Specify the table to listen to
+                  // Optionally add filters here if needed globally,
+                  // but filtering in the component subscription is usually more flexible.
+                }
+              ]
             }
           },
           global: {
