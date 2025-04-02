@@ -176,11 +176,11 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
         />
       </div>
 
-      {!loading && authInitialized && (profile?.role === 'admin' || profile?.role === 'sales') ? (
+      {!loading && authInitialized && (profile?.role === 'admin' || profile?.role === 'sales') && (
         <div className="flex items-center gap-2">
           <NotificationBell />
         </div>
-      ) : null}
+      )}
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>

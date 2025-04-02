@@ -188,7 +188,8 @@ export function NotificationBell() {
               if (mountedRef.current) setupRealtimeSubscription();
             }, RECONNECT_INTERVAL);
           } else {
-            console.log(`Realtime status: ${status}`);
+            // Log other statuses like 'CLOSED', 'JOINING' etc.
+            console.log(`Realtime ${channelName} status:`, status, `State: ${channel?.state}`, new Date().toISOString());
           }
         });
 
@@ -380,6 +381,7 @@ export function NotificationBell() {
               {unreadCount}
             </Badge>
           )}
+          <span className="absolute -bottom-1 -right-1 h-2 w-2 rounded-full bg-green-500 animate-pulse" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
