@@ -138,7 +138,7 @@ export function NotificationBell() {
 
       const channel = supabase.channel(channelName)
         .on('postgres_changes', {
-          event: 'INSERT',
+          event: '*', // Listen to all events
           schema: 'public',
           table: 'orders',
           filter: 'status=eq.pending'
@@ -146,10 +146,30 @@ export function NotificationBell() {
           // Skip if component unmounted
           if (!mountedRef.current) return;
 
-          console.log('Realtime order insert:', payload.new);
+          console.log('Realtime order change:', payload);
+
+          // Handle different types of changes
+          switch (payload.eventType) {
+            case 'INSERT':
+              console.log('New pending order:', payload.new);
+              setAnimateBell(true);
+              playNotificationSound();
+              break;
+            case 'UPDATE':
+              console.log('Order status updated:', payload.new);
+              // Only animate if status changed to pending
+              if (payload.new.status === 'pending') {
+                setAnimateBell(true);
+                playNotificationSound();
+              }
+              break;
+            case 'DELETE':
+              console.log('Order deleted:', payload.old);
+              break;
+          }
+
+          // Fetch updated notifications
           fetchNotifications();
-          setAnimateBell(true);
-          playNotificationSound();
         })
         .on('system', { event: 'disconnect' }, () => {
           console.log('Disconnected - attempting reconnect');
