@@ -1,6 +1,6 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
+import { createClient as createClientServer } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { cache } from 'react';
 import { AuthError, Profile, AuthResponse } from '@/lib/types/auth';
@@ -22,7 +22,7 @@ export type AuthData = {
 // Cache user data to avoid repeated database queries
 // Using a shorter cache time to prevent stale data issues
 export const getCurrentUser = cache(async (): Promise<AuthData> => {
-  const supabase = await createClient();
+  const supabase = await createClientServer();
 
   try {
     const {
@@ -79,7 +79,7 @@ export async function signIn(formData: FormData) {
   const email = formData.get('email') as string;
   const password = formData.get('password') as string;
 
-  const supabase = await createClient();
+  const supabase = await createClientServer();
 
   try {
     // Sign in with email and password
@@ -128,7 +128,7 @@ export async function signUp(formData: FormData) {
   const password = formData.get('password') as string;
   const full_name = formData.get('full_name') as string;
 
-  const supabase = await createClient();
+  const supabase = await createClientServer();
 
   // Create user with standard auth API
   const { data, error } = await supabase.auth.signUp({
@@ -198,7 +198,7 @@ export async function signUp(formData: FormData) {
 
 // Sign in with Google OAuth
 export async function signInWithGoogle(returnTo?: string) {
-  const supabase = await createClient();
+  const supabase = await createClientServer();
 
   try {
     // Initiate Google sign in
@@ -231,7 +231,7 @@ export async function signInWithGoogle(returnTo?: string) {
 // Sign out the current user
 export async function signOut(): Promise<AuthResponse<null>> {
   try {
-    const supabase = await createClient();
+    const supabase = await createClientServer();
 
     // Sign out from Supabase
     const { error } = await supabase.auth.signOut();
@@ -260,7 +260,7 @@ export async function signOut(): Promise<AuthResponse<null>> {
 export async function resetPassword(formData: FormData) {
   const email = formData.get('email') as string;
 
-  const supabase = await createClient();
+  const supabase = await createClientServer();
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/update-password`,
   });
@@ -280,7 +280,7 @@ export async function resetPassword(formData: FormData) {
 
 // Update password after reset
 export async function updatePassword(password: string) {
-  const supabase = await createClient();
+  const supabase = await createClientServer();
 
   const { error } = await supabase.auth.updateUser({
     password,
@@ -301,7 +301,7 @@ export async function updatePassword(password: string) {
 
 // Create or update profile for Google authenticated users
 export async function createGoogleUserProfile(user: { id: string; email: string; user_metadata?: Record<string, any> }) {
-  const supabase = await createClient();
+  const supabase = await createClientServer();
 
   try {
     // Check for existing profile first
@@ -358,7 +358,7 @@ export async function createGoogleUserProfile(user: { id: string; email: string;
 
 // Email verification
 export async function verifyEmail(email: string, code: string) {
-  const supabase = await createClient();
+  const supabase = await createClientServer();
 
   try {
     // Instead of querying verification_codes table directly,
