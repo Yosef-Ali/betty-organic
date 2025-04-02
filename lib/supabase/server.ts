@@ -25,13 +25,17 @@ export async function createClient() {
         },
         set(name: string, value: string, options: any) {
           try {
+            // Only set cookies in server context
             cookieStore.set(name, value, {
               ...options,
               sameSite: 'lax',
               secure: process.env.NODE_ENV === 'production',
-              maxAge: 60 * 60 * 24 * 7 // 7 days
+              maxAge: 60 * 60 * 24 * 7, // 7 days
+              httpOnly: true, // Make all auth cookies httpOnly for security
+              path: '/' // Ensure consistent path
             });
           } catch (error) {
+            // Log but don't throw - allow graceful degradation
             console.error('Error setting cookie:', error);
           }
         },

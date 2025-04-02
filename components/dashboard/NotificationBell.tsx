@@ -290,6 +290,62 @@ export function NotificationBell() {
     }
   };
 
+  // Keep track of refresh attempts to avoid infinite loops
+  const refreshAttemptRef = useRef(0);
+
+  // Function to handle auth refresh
+  const refreshAuth = async () => {
+    try {
+      // Only try refreshing 3 times max
+      if (refreshAttemptRef.current >= 3) return;
+
+      refreshAttemptRef.current += 1;
+
+      if (DEBUG_REALTIME) console.log('Attempting auth refresh', refreshAttemptRef.current);
+
+      // Create a new Supabase client after refresh
+      supabaseRef.current = createClient();
+
+      // Set up realtime subscription after refresh
+      setupRealtimeSubscription();
+
+      // Fetch notifications
+      fetchNotifications();
+    } catch (err) {
+      console.error('Auth refresh error:', err);
+      setError('Authentication error. Please reload the page.');
+    }
+  };
+
+  // Listen for auth state changes
+  useEffect(() => {
+    // Skip if not mounted or no user
+    if (!mountedRef.current || !user) return;
+
+    const {
+      data: { subscription }
+    } = supabaseRef.current.auth.onAuthStateChange((event, session) => {
+      if (DEBUG_REALTIME) console.log('Auth event:', event);
+
+      if (event === 'TOKEN_REFRESHED') {
+        if (DEBUG_REALTIME) console.log('Token refreshed successfully');
+        // Refresh data without full re-instantiation
+        fetchNotifications();
+      } else if (event === 'SIGNED_OUT') {
+        // Clean up and hide component
+        setNotifications([]);
+        setUnreadCount(0);
+      } else if (event === 'USER_UPDATED') {
+        // Fetch fresh data
+        fetchNotifications();
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [user]);
+
   // Wait for auth to be ready before setting up subscriptions
   useEffect(() => {
     try {

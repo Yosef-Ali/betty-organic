@@ -45,22 +45,19 @@ export const createClient = (): SupabaseClient<Database, 'public'> => { // Add r
                     for (const cookie of cookies) {
                       const [cookieName, cookieValue] = cookie.split('=');
                       if (cookieName === key || cookieName === `${key}`) {
-                        // Handle base64-encoded JWT tokens - don't try to parse them as JSON
-                        if (cookieValue && (cookieValue.startsWith('base64-') || cookieValue.includes('eyJ'))) {
-                          return decodeURIComponent(cookieValue);
-                        }
                         item = decodeURIComponent(cookieValue);
                         break;
                       }
                     }
                   }
 
-                  // Return the item directly if it's a base64 string
-                  if (item && (item.startsWith('base64-') || item.includes('eyJ'))) {
-                    return item;
+                  // Special handling for auth tokens - never try to parse these as JSON
+                  if (item && (key.includes('access_token') || key.includes('refresh_token') ||
+                    key.includes('sb-') || (item.includes('eyJ')))) {
+                    return item; // Return raw token without parsing
                   }
 
-                  // Otherwise try to parse as JSON, but handle failures gracefully
+                  // For non-token data, try JSON parse
                   try {
                     return item ? JSON.parse(item) : null;
                   } catch (e) {
@@ -75,7 +72,12 @@ export const createClient = (): SupabaseClient<Database, 'public'> => { // Add r
               setItem: (key, value) => {
                 try {
                   if (typeof window === 'undefined') return;
+
+                  // Always store in localStorage
                   window.localStorage.setItem(key, value);
+
+                  // Don't attempt to set cookies client-side for auth tokens
+                  // This prevents the "Cookies can only be modified in a Server Action" error
                 } catch (error) {
                   console.warn('Error writing to localStorage:', error);
                 }

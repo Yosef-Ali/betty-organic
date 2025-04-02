@@ -31,6 +31,7 @@ import { Profile } from '@/lib/types/auth';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { NotificationBell } from './dashboard/NotificationBell';
+import { AuthErrorBoundary } from './AuthErrorBoundary';
 
 interface HeaderProps {
   onMobileMenuToggle: () => void;
@@ -178,7 +179,9 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
 
       {!loading && authInitialized && (profile?.role === 'admin' || profile?.role === 'sales') && (
         <div className="flex items-center gap-2">
-          <NotificationBell />
+          <AuthErrorBoundary>
+            <NotificationBell />
+          </AuthErrorBoundary>
         </div>
       )}
 
