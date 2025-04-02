@@ -29,11 +29,11 @@ import Breadcrumb from './Breadcrumb';
 import { signOut } from '@/app/actions/auth';
 import { Profile } from '@/lib/types/auth';
 import { toast } from 'sonner';
+import { useAuth } from '@/hooks/useAuth';
 import { NotificationBell } from './dashboard/NotificationBell';
 
 interface HeaderProps {
   onMobileMenuToggle: () => void;
-  profile?: Profile | null;
 }
 
 const allNavItems = [
@@ -75,7 +75,8 @@ const allNavItems = [
   },
 ];
 
-export default function Header({ onMobileMenuToggle, profile }: HeaderProps) {
+export default function Header({ onMobileMenuToggle }: HeaderProps) {
+  const { profile, loading, authInitialized } = useAuth();
   const filteredNavItems = allNavItems.filter(item =>
     item.roles.some(role => role === (profile?.role || 'customer')),
   );
@@ -175,7 +176,7 @@ export default function Header({ onMobileMenuToggle, profile }: HeaderProps) {
         />
       </div>
 
-      {profile?.role === 'admin' || profile?.role === 'sales' ? (
+      {!loading && authInitialized && (profile?.role === 'admin' || profile?.role === 'sales') ? (
         <div className="flex items-center gap-2">
           <NotificationBell />
         </div>

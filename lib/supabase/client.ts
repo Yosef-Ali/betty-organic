@@ -1,9 +1,11 @@
 import { createBrowserClient } from '@supabase/ssr';
 import type { Database } from '@/types/supabase';
 
-let supabaseClient: ReturnType<typeof createBrowserClient<Database>> | null = null;
+import { SupabaseClient } from '@supabase/supabase-js'; // Import SupabaseClient type
 
-export const createClient = () => {
+let supabaseClient: SupabaseClient<Database, 'public'> | null = null; // Explicitly type with 'public' schema
+
+export const createClient = (): SupabaseClient<Database, 'public'> => { // Add return type annotation
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
     throw new Error('Missing Supabase environment variables');
   }
@@ -96,6 +98,13 @@ export const createClient = () => {
               }
             }
           },
+          realtime: {
+            // websocketImpl removed as it caused errors
+            params: {
+              eventsPerSecond: 10, // Keep params
+              heartbeatIntervalMs: 10000, // Keep params
+            }
+          },
           global: {
             headers: {
               'Cache-Control': 'no-store, max-age=0',
@@ -170,4 +179,3 @@ export const createClient = () => {
 
   return supabaseClient;
 };
-

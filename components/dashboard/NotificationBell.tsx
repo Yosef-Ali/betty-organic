@@ -104,7 +104,8 @@ export function NotificationBell() {
       mountedRef.current = false;
 
       clearInterval(pollingInterval);
-      if (channelRef.current) {
+      // Add null check for supabaseRef.current
+      if (supabaseRef.current && channelRef.current) {
         try {
           supabaseRef.current.removeChannel(channelRef.current);
         } catch (err) {
@@ -123,6 +124,12 @@ export function NotificationBell() {
 
     try {
       const supabase = supabaseRef.current;
+      // Add null check for supabase
+      if (!supabase) {
+        console.error("Supabase client not initialized in setupRealtimeSubscription");
+        setError("Supabase client not available"); // Set error state
+        return;
+      }
 
       // Remove existing channel if it exists
       if (channelRef.current) {
@@ -133,82 +140,50 @@ export function NotificationBell() {
         }
       }
 
-      // Create a unique channel name with timestamp to avoid conflicts
-      const channelName = `orders-notifications-${Date.now()}`;
+      // Channel name for broadcast messages from the API route
+      const channelName = 'pending-order-notifications';
 
-      const channel = supabase.channel(channelName)
-        .on('postgres_changes', {
-          event: '*', // Listen to all events
-          schema: 'public',
-          table: 'orders',
-          filter: 'status=eq.pending'
-        }, (payload) => {
-          // Skip if component unmounted
-          if (!mountedRef.current) return;
+      // Handler for broadcast messages
+      const handleBroadcast = (payload: any) => {
+        // Skip if component unmounted
+        if (!mountedRef.current) return;
 
-          console.log('Realtime order change:', payload);
+        console.log('Received broadcast message:', payload);
 
-          // Handle different types of changes
-          switch (payload.eventType) {
-            case 'INSERT':
-              console.log('New pending order:', payload.new);
-              setAnimateBell(true);
-              playNotificationSound();
-              break;
-            case 'UPDATE':
-              console.log('Order status updated:', payload.new);
-              // Only animate if status changed to pending
-              if (payload.new.status === 'pending') {
-                setAnimateBell(true);
-                playNotificationSound();
-              }
-              break;
-            case 'DELETE':
-              console.log('Order deleted:', payload.old);
-              break;
-          }
-
-          // Fetch updated notifications
+        // Check if it's our custom event
+        if (payload.event === 'new_pending_order') {
+          console.log('New pending order notification received via broadcast:', payload.data);
+          setAnimateBell(true);
+          playNotificationSound();
+          // Fetch updated notifications to refresh the count and list accurately
           fetchNotifications();
-        })
-        .on('system', { event: 'disconnect' }, () => {
-          console.log('Disconnected - attempting reconnect');
+        } else {
+          console.log('Received other broadcast message type:', payload.event);
+        }
+      };
 
-          // Skip if component unmounted
-          if (!mountedRef.current) return;
-
-          // Clear any existing reconnect attempts
-          if (retryTimeoutRef.current) {
-            clearTimeout(retryTimeoutRef.current);
-          }
-
-          // Schedule reconnection attempt
-          retryTimeoutRef.current = setTimeout(() => {
-            if (mountedRef.current) {
-              setupRealtimeSubscription();
-            }
-          }, RECONNECT_INTERVAL);
+      // Subscribe to the broadcast channel
+      const channel = supabase.channel(channelName)
+        .on('broadcast', { event: 'message' }, (message) => {
+          // The actual payload is nested inside message.payload
+          handleBroadcast(message.payload);
         })
         .subscribe((status) => {
-          // Skip if component unmounted
           if (!mountedRef.current) return;
 
           if (status === 'SUBSCRIBED') {
-            console.log('Realtime connected');
+            console.log(`Realtime connected to broadcast channel: ${channelName}`);
+            // Fetch initial notifications upon successful subscription
+            // Polling will handle subsequent updates if broadcast fails
+            fetchNotifications();
           } else if (status === 'CHANNEL_ERROR') {
             console.error('Realtime channel error, will retry');
-
-            // Clear any existing reconnect attempts
-            if (retryTimeoutRef.current) {
-              clearTimeout(retryTimeoutRef.current);
-            }
-
-            // Schedule reconnection attempt with backoff
+            if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
             retryTimeoutRef.current = setTimeout(() => {
-              if (mountedRef.current) {
-                setupRealtimeSubscription();
-              }
+              if (mountedRef.current) setupRealtimeSubscription();
             }, RECONNECT_INTERVAL);
+          } else {
+            console.log(`Realtime status: ${status}`);
           }
         });
 
@@ -253,6 +228,13 @@ export function NotificationBell() {
       setError(null);
 
       const supabase = supabaseRef.current;
+      // Add null check for supabase
+      if (!supabase) {
+        console.error("Supabase client not initialized in fetchNotifications");
+        setError("Supabase client not available"); // Set error state
+        setIsLoading(false); // Ensure loading state is reset
+        return;
+      }
 
       const { data, error, count } = await supabase
         .from('orders')
@@ -272,6 +254,7 @@ export function NotificationBell() {
       if (!mountedRef.current) return;
 
       const actualCount = typeof count === 'number' ? count : 0;
+      console.log(`fetchNotifications: Received count = ${actualCount}, data length = ${data?.length ?? 0}`); // Log count and data length
 
       // Filter out null created_at and map to NotificationOrder type
       const pendingOrders = (data || [])
@@ -283,19 +266,21 @@ export function NotificationBell() {
           profiles: order.profiles
         }));
 
-      console.log(`Fetched ${pendingOrders.length} pending orders`);
+      console.log(`fetchNotifications: Filtered pending orders = ${pendingOrders.length}`);
 
-      const newCount = Math.max(actualCount, pendingOrders.length);
-
-      if (!isInitialLoadRef.current && newCount > previousCountRef.current) {
+      // Use the exact count from Supabase
+      if (!isInitialLoadRef.current && actualCount > previousCountRef.current) {
+        console.log(`fetchNotifications: Count increased from ${previousCountRef.current} to ${actualCount}. Animating bell.`);
         setAnimateBell(true);
         playNotificationSound();
+      } else {
+        console.log(`fetchNotifications: Count changed from ${previousCountRef.current} to ${actualCount}. No animation needed.`);
       }
 
-      previousCountRef.current = newCount;
+      previousCountRef.current = actualCount;
       isInitialLoadRef.current = false;
       setNotifications(pendingOrders);
-      setUnreadCount(newCount);
+      setUnreadCount(actualCount); // Use actualCount directly
       retryCountRef.current = 0;
     } catch (error) {
       // Skip state updates if component unmounted
