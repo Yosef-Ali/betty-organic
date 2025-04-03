@@ -1,6 +1,7 @@
 'use server';
 
-import { CartItemType } from "@/types/cart"; // Assuming CartItemType is defined here
+import { CartItemType } from "@/types/cart";
+import { createClient } from '@/lib/supabase/server';
 
 // Define a type for the order details expected by the notification function
 interface OrderDetails {
@@ -60,4 +61,81 @@ Please prepare the order for delivery.`;
 
   // For now, we just resolve successfully after logging
   return Promise.resolve();
+}
+
+/**
+ * Fetches pending orders for notifications
+ * @returns Array of pending orders
+ */
+export async function getPendingOrders() {
+  try {
+    const supabase = await createClient();
+
+    // Fetch pending orders
+    const { data, error, count } = await supabase
+      .from('orders')
+      .select('id, status, created_at, total_amount, profiles!orders_profile_id_fkey(*)', {
+        count: 'exact',
+      })
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    if (error) {
+      console.error('Error fetching pending orders:', error);
+      throw error;
+    }
+
+    return {
+      orders: data || [],
+      count: count || 0
+    };
+  } catch (error) {
+    console.error('Failed to fetch pending orders:', error);
+    return {
+      orders: [],
+      count: 0
+    };
+  }
+}
+
+/**
+ * Creates a test pending order
+ * @param userId The user ID to associate with the order
+ * @returns The created order
+ */
+export async function createTestPendingOrder(userId: string) {
+  try {
+    const supabase = await createClient();
+
+    // Create a test order
+    const { data, error } = await supabase
+      .from('orders')
+      .insert({
+        profile_id: userId,
+        customer_profile_id: userId,
+        total_amount: 99.99,
+        status: 'pending',
+        type: 'test',
+        display_id: `TEST-${Date.now().toString().slice(-6)}`,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating test order:', error);
+      throw error;
+    }
+
+    return {
+      success: true,
+      order: data
+    };
+  } catch (error) {
+    console.error('Failed to create test order:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
 }

@@ -95,11 +95,22 @@ export function NotificationBell() {
 
       if (DEBUG_REALTIME) console.log('Fetching notification data...');
 
+      // Force a fresh fetch by adding a timestamp parameter to avoid caching
+      const timestamp = new Date().getTime();
+
+      // Log the query we're about to make
+      console.log(
+        `[NOTIFICATION DEBUG] Fetching pending orders at ${new Date().toISOString()}`,
+      );
+
       const { data, error, count } = await supabase
         .from('orders')
-        .select('id, status, created_at, profiles!orders_profile_id_fkey(*)', {
-          count: 'exact',
-        })
+        .select(
+          'id, status, created_at, total_amount, profiles!orders_profile_id_fkey(*)',
+          {
+            count: 'exact',
+          },
+        )
         .eq('status', 'pending')
         .order('created_at', { ascending: false })
         .limit(10);
@@ -216,7 +227,8 @@ export function NotificationBell() {
       }
 
       // Channel name for postgres_changes and order_status_channel
-      const channelName = 'order-status';
+      // Use a unique channel name with timestamp to avoid conflicts
+      const channelName = `order-status-${Date.now()}`;
 
       if (DEBUG_REALTIME) {
         console.log('Setting up realtime subscription:', {
@@ -226,8 +238,13 @@ export function NotificationBell() {
         });
       }
 
-      // Create channel
-      const channel = supabase.channel(channelName);
+      // Create channel with realtime config
+      const channel = supabase.channel(channelName, {
+        config: {
+          broadcast: { self: true },
+          presence: { key: user?.id || 'anonymous' },
+        },
+      });
 
       // Listen for both postgres_changes and order_status_channel
 
@@ -280,8 +297,8 @@ export function NotificationBell() {
           },
         )
 
-        // 2. Listen for broadcast messages from order_status_channel
-        .on('broadcast', { event: 'order_status_channel' }, (payload: any) => {
+        // 2. Listen for database changes via pg_notify on order_status_channel
+        .on('postgres_changes', { event: 'all' }, (payload: any) => {
           // Skip if component unmounted
           if (!mountedRef.current) return;
 

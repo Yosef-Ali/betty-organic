@@ -42,16 +42,26 @@ If notifications are not working:
 
 3. Verify the frontend subscription is working by checking the browser console for realtime connection logs.
 
-## Applying Migrations
+## Fixing Issues
 
-To apply the notification system migrations:
+If you encounter issues with the notification system:
 
-1. Run the migration script:
+1. Run the fix script:
    ```bash
-   ./scripts/apply-notification-migrations.sh
+   ./scripts/fix-notification-system.sh
    ```
 
-2. Restart your application to ensure changes take effect.
+2. This script will:
+   - Apply the database migration to fix the triggers
+   - Create a test pending order
+   - Verify that the triggers are properly set up
+
+3. Restart your application to ensure changes take effect.
+
+4. Visit the debug page to test the notification system:
+   ```
+   /debug/notifications
+   ```
 
 ## Testing
 
