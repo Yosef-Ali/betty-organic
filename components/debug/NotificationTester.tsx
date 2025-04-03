@@ -28,20 +28,31 @@ export function NotificationTester() {
   const { user } = useAuth();
 
   const createTestOrder = async () => {
-    if (!user) {
-      setResult({
-        success: false,
-        message: 'You must be logged in to create a test order',
-      });
-      return;
-    }
-
     setIsLoading(true);
     setResult(null);
 
     try {
-      // Use the server action to create a test order
-      const result = await createTestPendingOrder(user.id);
+      // Get the authenticated user securely
+      const supabase = createClient();
+      const {
+        data: { user: authUser },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError) {
+        throw new Error(`Authentication error: ${authError.message}`);
+      }
+
+      if (!authUser) {
+        setResult({
+          success: false,
+          message: 'You must be logged in to create a test order',
+        });
+        return;
+      }
+
+      // Use the server action to create a test order with the authenticated user ID
+      const result = await createTestPendingOrder(authUser.id);
 
       if (!result.success) {
         throw new Error(result.error as string);

@@ -459,53 +459,92 @@ export function NotificationBell() {
         return;
       }
 
-      if (!user) {
-        if (DEBUG_REALTIME) console.log('No authenticated user found');
-        setError('Authentication required');
-        return;
-      }
-
-      if (DEBUG_REALTIME) {
-        console.log('Auth state:', {
-          user: user.id,
-          email: user.email,
-          role: profile?.role,
-          isLoading: authLoading,
-        });
-      }
-
-      // Clear existing localStorage keys for realtime to prevent stale connections
-      if (typeof localStorage !== 'undefined') {
-        Object.keys(localStorage).forEach(key => {
-          if (key.startsWith('supabase.realtime')) {
-            localStorage.removeItem(key);
+      // Securely get the authenticated user
+      const getAuthenticatedUser = async () => {
+        try {
+          const supabase = supabaseRef.current;
+          if (!supabase) {
+            console.error('Supabase client not initialized');
+            setError('Supabase client not available');
+            return;
           }
-        });
-      }
 
-      // Fetch notifications immediately and then set up polling
-      fetchNotifications();
-      const pollingInterval = setInterval(fetchNotifications, POLLING_INTERVAL);
+          // Use getUser() which authenticates with the Supabase Auth server
+          const {
+            data: { user: authUser },
+            error,
+          } = await supabase.auth.getUser();
 
-      // Set up realtime subscription with proper error handling
-      setupRealtimeSubscription();
+          if (error) {
+            console.error('Error getting authenticated user:', error);
+            setError('Authentication error');
+            return;
+          }
 
+          if (!authUser) {
+            if (DEBUG_REALTIME) console.log('No authenticated user found');
+            setError('Authentication required');
+            return;
+          }
+
+          // Continue with the authenticated user
+          if (DEBUG_REALTIME) {
+            console.log('Authenticated user:', {
+              id: authUser.id,
+              email: authUser.email,
+            });
+          }
+
+          // Continue with setup using the authenticated user
+          // Clear existing localStorage keys for realtime to prevent stale connections
+          if (typeof localStorage !== 'undefined') {
+            Object.keys(localStorage).forEach(key => {
+              if (key.startsWith('supabase.realtime')) {
+                localStorage.removeItem(key);
+              }
+            });
+          }
+
+          // Fetch notifications immediately and then set up polling
+          fetchNotifications();
+          const pollingInterval = setInterval(
+            fetchNotifications,
+            POLLING_INTERVAL,
+          );
+
+          // Set up realtime subscription with proper error handling
+          setupRealtimeSubscription();
+
+          return () => {
+            // Set mounted ref to false to avoid state updates after unmount
+            mountedRef.current = false;
+
+            clearInterval(pollingInterval);
+            // Add null check for supabaseRef.current
+            if (supabaseRef.current && channelRef.current) {
+              try {
+                supabaseRef.current.removeChannel(channelRef.current);
+              } catch (err) {
+                console.warn('Error removing channel:', err);
+              }
+            }
+            if (retryTimeoutRef.current) {
+              clearTimeout(retryTimeoutRef.current);
+            }
+          };
+        } catch (err) {
+          console.error('Error in authenticated user setup:', err);
+          setError('Authentication error');
+        }
+      };
+
+      // Execute the async function
+      getAuthenticatedUser();
+
+      // Return a cleanup function for the main useEffect
       return () => {
-        // Set mounted ref to false to avoid state updates after unmount
+        // This will be called when the component unmounts
         mountedRef.current = false;
-
-        clearInterval(pollingInterval);
-        // Add null check for supabaseRef.current
-        if (supabaseRef.current && channelRef.current) {
-          try {
-            supabaseRef.current.removeChannel(channelRef.current);
-          } catch (err) {
-            console.warn('Error removing channel:', err);
-          }
-        }
-        if (retryTimeoutRef.current) {
-          clearTimeout(retryTimeoutRef.current);
-        }
       };
     } catch (err) {
       console.error('Error in notification bell setup:', err);
