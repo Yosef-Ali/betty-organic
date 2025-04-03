@@ -8,12 +8,15 @@ import { File } from 'lucide-react';
 import { OrdersOverviewCard } from './OrdersOverviewCard';
 import { StatCard } from './StatCard';
 import OrderDetails from './OrderDetailsCard';
-import { getOrders, deleteOrder } from '../app/actions/orderActions';
+// Assume getOrderById exists, will be created later
+import { getOrders, deleteOrder, getOrderById } from '../app/actions/orderActions';
 import { getCustomers } from '../app/actions/profile';
 import { useToast } from '../hooks/use-toast';
 import OrderTable from './OrdersTable';
-import type { Order, OrderItem } from '@/types/order';
+import type { Order, OrderItem } from '@/types/order'; // Removed CustomerProfile import
 import { createClient } from '@/lib/supabase/client';
+import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
+
 
 export const OrderType = {
   SALE: 'sale',
@@ -25,79 +28,101 @@ export type OrderType = (typeof OrderType)[keyof typeof OrderType];
 
 const OrderDashboard: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
+  const [customers, setCustomers] = useState<any[]>([]); // Add state for customers
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
   const supabase = createClient();
 
-  // Function to convert database orders to ExtendedOrder format
-  const processOrders = useCallback((ordersData: any[], customersData: any[]) => {
-    return ordersData.map(order => {
-      // Use type assertion to avoid TypeScript errors for properties that may not be recognized
-      const orderAny = order as any;
+  // Function to convert a single raw order from DB/payload to the Order type used in UI
+  const processSingleOrder = useCallback((orderData: any, customerList: any[]): Order => {
+    const orderAny = orderData as any;
+    const customerFromList = orderAny.customer_profile_id
+      ? customerList.find(c => c.id === orderAny.customer_profile_id)
+      : null;
 
-      // Get customer info either from the customer property or from customersData
-      const customerFromProps = orderAny.customer_profile_id
-        ? customersData.find(c => c.id === orderAny.customer_profile_id)
-        : null;
+    // Fallback customer structure
+    const fallbackCustomer = {
+      id: 'unknown',
+      name: 'Unknown Customer',
+      email: 'N/A',
+      phone: null,
+      role: 'customer'
+    };
 
-      return {
-        id: order.id,
-        display_id: orderAny.display_id || undefined,
-        status: order.status,
-        type: order.type as OrderType,
-        total_amount: order.total_amount || 0,
-        created_at: order.created_at,
-        updated_at: order.updated_at || undefined,
-        // Add missing required properties from Order type
-        profile_id: orderAny.profile_id || null,
-        customer_profile_id: orderAny.customer_profile_id || null,
-        order_items: orderAny.order_items || [],
-        // Keep these for existing code compatibility
-        customer: customerFromProps ? {
-          id: customerFromProps.id,
-          name: customerFromProps.fullName || null,
-          email: customerFromProps.email,
-          phone: customerFromProps.phone || null,
-          role: 'customer'
-        } : {
-          id: 'unknown',
-          name: 'Unknown Customer',
-          email: 'N/A',
-          phone: null,
-          role: 'customer'
-        },
-        items: (orderAny.order_items || []).map((item: any) => ({
-          id: item.id,
-          product_id: item.product_id,
-          product_name: item.product_name,
-          quantity: item.quantity,
-          price: item.price,
-          product: item.product ? { name: item.product.name } : undefined
-        }))
+    // Determine customer details
+    let customerDetails = fallbackCustomer;
+    if (customerFromList) {
+      customerDetails = {
+        id: customerFromList.id,
+        name: customerFromList.fullName || customerFromList.name || null, // Check multiple possible name fields
+        email: customerFromList.email,
+        phone: customerFromList.phone || null,
+        role: 'customer' // Assuming role is always customer here
       };
-    });
+    } else if (orderAny.customer) { // If customer data is directly embedded (e.g., from getOrderById)
+      customerDetails = {
+        id: orderAny.customer.id || 'unknown',
+        name: orderAny.customer.fullName || orderAny.customer.name || null,
+        email: orderAny.customer.email || 'N/A',
+        phone: orderAny.customer.phone || null,
+        role: 'customer'
+      };
+    }
+
+
+    return {
+      id: orderAny.id,
+      display_id: orderAny.display_id || undefined,
+      status: orderAny.status,
+      type: orderAny.type as OrderType,
+      total_amount: orderAny.total_amount || 0,
+      created_at: orderAny.created_at,
+      updated_at: orderAny.updated_at || undefined,
+      profile_id: orderAny.profile_id || null,
+      customer_profile_id: orderAny.customer_profile_id || null,
+      order_items: orderAny.order_items || [], // Ensure order_items are included if available
+      customer: customerDetails,
+      // Map items if available, ensure structure matches OrderItem
+      items: (orderAny.order_items || []).map((item: any): OrderItem => ({
+        id: item.id,
+        product_id: item.product_id,
+        product_name: item.product_name || item.product?.name || 'Unknown Product', // Get name from item or nested product
+        quantity: item.quantity,
+        price: item.price,
+        // Corrected: Only include properties expected by the type (assuming just 'name')
+        product: item.product ? { name: item.product.name } : undefined
+      }))
+    };
   }, []);
+
+
+  // Function to convert multiple database orders
+  const processMultipleOrders = useCallback((ordersData: any[], customerList: any[]): Order[] => {
+    return ordersData.map(order => processSingleOrder(order, customerList));
+  }, [processSingleOrder]);
+
 
   // Function to load initial data
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [ordersResponse, customersResponse] =
-        await Promise.all([getOrders(), getCustomers()]);
+      // Fetch customers first or in parallel
+      const customersResponse = await getCustomers();
+      const customersData = Array.isArray(customersResponse) ? customersResponse : [];
+      setCustomers(customersData); // Store customers in state
 
-      if (!ordersResponse || !customersResponse) {
-        throw new Error('Failed to fetch required data');
+      // Fetch orders
+      const ordersResponse = await getOrders();
+      if (!ordersResponse) {
+        throw new Error('Failed to fetch orders');
       }
-
       const ordersData = Array.isArray(ordersResponse) ? ordersResponse : [];
-      const customersData = Array.isArray(customersResponse)
-        ? customersResponse
-        : [];
 
-      const extendedOrders = processOrders(ordersData, customersData);
+      // Process orders using the stored customer list
+      const processedOrders = processMultipleOrders(ordersData, customersData);
 
-      const sortedOrders = extendedOrders.sort(
+      const sortedOrders = processedOrders.sort(
         (a, b) =>
           new Date(b.created_at ?? 0).getTime() -
           new Date(a.created_at ?? 0).getTime(),
@@ -105,9 +130,13 @@ const OrderDashboard: React.FC = () => {
 
       setOrders(sortedOrders);
 
+      // Set initial selection only if no order is currently selected
       if (sortedOrders.length > 0 && !selectedOrderId) {
         setSelectedOrderId(sortedOrders[0].id);
+      } else if (sortedOrders.length === 0) {
+        setSelectedOrderId(null); // Clear selection if no orders
       }
+
     } catch (error) {
       console.error('Error fetching data:', error);
       const errorMessage =
@@ -118,95 +147,166 @@ const OrderDashboard: React.FC = () => {
         variant: 'destructive',
       });
       setOrders([]);
-      if (selectedOrderId) {
-        setSelectedOrderId(null);
-      }
+      setCustomers([]); // Clear customers on error too
+      setSelectedOrderId(null); // Clear selection on error
     } finally {
       setIsLoading(false);
     }
-  }, [processOrders, toast, selectedOrderId]);
+  }, [processMultipleOrders, toast, selectedOrderId]); // Add processMultipleOrders dependency
+
 
   // Setup Supabase real-time subscriptions
   useEffect(() => {
+    // Load initial data
     loadData();
 
+    // Define handler for orders table changes
+    const handleOrderChange = (payload: RealtimePostgresChangesPayload<any>) => {
+      console.log('Orders change received:', payload);
+
+      try {
+        if (payload.eventType === 'INSERT') {
+          const newOrder = processSingleOrder(payload.new, customers);
+          setOrders(prevOrders => [newOrder, ...prevOrders].sort(
+            (a, b) => new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime()
+          ));
+          toast({ title: 'New Order Created', description: `Order ${newOrder.display_id || newOrder.id} added.` });
+        } else if (payload.eventType === 'UPDATE') {
+          const updatedOrder = processSingleOrder(payload.new, customers);
+          setOrders(prevOrders => prevOrders.map(order =>
+            order.id === updatedOrder.id ? updatedOrder : order
+          ));
+          // Optionally add a toast for updates
+          // toast({ title: 'Order Updated', description: `Order ${updatedOrder.display_id || updatedOrder.id} updated.` });
+        } else if (payload.eventType === 'DELETE') {
+          const deletedOrderId = payload.old?.id;
+          if (!deletedOrderId) return;
+
+          setOrders(prevOrders => prevOrders.filter(order => order.id !== deletedOrderId));
+
+          // If the deleted order was selected, select the first available order or clear selection
+          if (selectedOrderId === deletedOrderId) {
+            // Need to access the state *after* filtering to select the new first item
+            setOrders(currentOrders => {
+              setSelectedOrderId(currentOrders[0]?.id || null);
+              return currentOrders; // Return the already filtered state
+            });
+          }
+          toast({ title: 'Order Deleted', description: `Order ${payload.old?.display_id || deletedOrderId} removed.` });
+        }
+      } catch (error) {
+        console.error("Error processing order change:", error, payload);
+        toast({ title: 'Realtime Update Error', description: 'Could not process order update.', variant: 'destructive' });
+      }
+    };
+
+    // Define handler for order_items table changes
+    const handleOrderItemChange = async (payload: RealtimePostgresChangesPayload<any>) => {
+      console.log('Order items change received:', payload);
+      // Ensure payload.new/old and order_id exist before accessing
+      const orderId = (payload.new as any)?.order_id || (payload.old as any)?.order_id;
+
+      if (!orderId) {
+        console.warn("Order item change received without order_id:", payload);
+        return;
+      }
+
+      try {
+        // Fetch only the affected order using the new server action
+        const updatedOrderData = await getOrderById(orderId); // Assumes this action fetches order with items and customer
+        if (updatedOrderData) {
+          const processedOrder = processSingleOrder(updatedOrderData, customers);
+          setOrders(prevOrders => prevOrders.map(order =>
+            order.id === processedOrder.id ? processedOrder : order
+          ));
+          // Optionally add a toast
+          // toast({ title: 'Order Items Updated', description: `Items for order ${processedOrder.display_id || processedOrder.id} updated.` });
+        } else {
+          console.warn(`Order ${orderId} not found after item change.`);
+          // Optionally remove the order if it's gone, or just log
+          // setOrders(prev => prev.filter(o => o.id !== orderId));
+        }
+        // console.warn(`getOrderById(${orderId}) needs to be implemented and uncommented.`); // Removed warning
+        // toast({ title: 'Info', description: `Order item change detected for ${orderId}, but full order refresh is temporarily disabled.` }); // Removed toast
+
+      } catch (error) {
+        console.error(`Error processing order item change for ${orderId}:`, error);
+        toast({ title: 'Error Updating Order Item', description: `Failed to process item change for order ${orderId}.`, variant: 'destructive' });
+      }
+    };
+
+
     // Subscribe to changes on the orders table
-    const ordersSubscription = supabase
-      .channel('table-changes')
-      .on(
+    const ordersChannel = supabase
+      .channel('orders-changes') // Unique channel name
+      .on<any>( // Use <any> or define a specific type for the payload if available
         'postgres_changes',
         {
           event: '*', // Listen to all changes (insert, update, delete)
           schema: 'public',
           table: 'orders',
         },
-        async (payload) => {
-          console.log('Orders change received:', payload);
-
-          if (payload.eventType === 'DELETE') {
-            // Remove the deleted order from state immediately
-            setOrders(prevOrders => prevOrders.filter(order => order.id !== payload.old.id));
-
-            // If the deleted order was selected, clear selection
-            if (selectedOrderId === payload.old.id) {
-              setSelectedOrderId(null);
-            }
-
-            toast({
-              title: 'Order Deleted',
-              description: 'The order has been removed from the system.',
-            });
-          } else {
-            // For other changes (INSERT, UPDATE), reload the full data
-            await loadData();
-          }
-        }
+        handleOrderChange // Use the handler function
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        if (err) {
+          console.error("Orders subscription error:", err);
+          toast({ title: 'Realtime Connection Error', description: 'Could not connect to order updates.', variant: 'destructive' });
+        } else {
+          console.log("Orders subscription status:", status);
+        }
+      });
 
-    // Subscribe to changes on the order_items table as well
-    const orderItemsSubscription = supabase
-      .channel('order-items-changes')
-      .on(
+
+    // Subscribe to changes on the order_items table
+    const orderItemsChannel = supabase
+      .channel('order-items-changes') // Unique channel name
+      .on<any>( // Use <any> or define a specific type
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
           table: 'order_items',
         },
-        async () => {
-          // Reload data when order items change
-          await loadData();
-        }
+        handleOrderItemChange // Use the handler function
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        if (err) {
+          console.error("Order Items subscription error:", err);
+          toast({ title: 'Realtime Connection Error', description: 'Could not connect to order item updates.', variant: 'destructive' });
+        } else {
+          console.log("Order Items subscription status:", status);
+        }
+      });
+
 
     // Cleanup function to remove subscriptions
     return () => {
-      supabase.removeChannel(ordersSubscription);
-      supabase.removeChannel(orderItemsSubscription);
+      console.log("Cleaning up OrderDashboard subscriptions");
+      if (ordersChannel) supabase.removeChannel(ordersChannel).catch(console.error);
+      if (orderItemsChannel) supabase.removeChannel(orderItemsChannel).catch(console.error);
     };
-  }, [loadData, supabase, toast, selectedOrderId]);
+    // Add customers and processSingleOrder to dependency array
+  }, [loadData, supabase, toast, selectedOrderId, customers, processSingleOrder]);
+
 
   const handleDelete = async (id: string) => {
+    // No change needed here, Supabase Realtime will handle the state update via DELETE event
     try {
       const result = await deleteOrder(id);
-      if (result.success) {
-        toast({
-          title: 'Order deleted',
-          description: 'The order has been successfully deleted.',
-        });
-        if (selectedOrderId === id) {
-          setSelectedOrderId(orders[0]?.id || null);
-        }
-      } else {
-        throw new Error('Failed to delete order');
+      if (!result.success) {
+        // Error is already handled by the action potentially, but add toast here for UI feedback
+        // Corrected: Pass error message string to new Error()
+        const errorMessage = typeof result.error === 'string' ? result.error : 'Failed to delete order server-side';
+        throw new Error(errorMessage);
       }
+      // Toast is now handled by the Realtime DELETE event handler
+      // Selection logic is now handled by the Realtime DELETE event handler
     } catch (error) {
-      console.error('Error deleting order:', error);
+      console.error('Error initiating order deletion:', error);
       toast({
         title: 'Error',
-        description: 'Failed to delete the order. Please try again.',
+        description: `Failed to initiate order deletion: ${error instanceof Error ? error.message : 'Unknown error'}`,
         variant: 'destructive',
       });
     }

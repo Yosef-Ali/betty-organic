@@ -1,11 +1,57 @@
 'use server';
 
-import { createClient as createClientServer } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { cache } from 'react';
 import { AuthError, Profile, AuthResponse } from '@/lib/types/auth';
-import { User } from '@supabase/supabase-js';
+import { Database } from '@/types/supabase';
+import type { User } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
+
+// Database types
+import type { SupabaseClient } from '@supabase/supabase-js';
+
+// Database types
+type Tables = Database['public']['Tables'];
+type Profiles = Tables['profiles'];
+type ProfileRow = Profiles['Row'];
+type ProfileInsert = Profiles['Insert'];
+
+// Role type
+type UserRole = 'admin' | 'sales' | 'customer';
+
+// Utility type for database operations
+type DbClient = SupabaseClient<Database>;
+
+// Default profile data
+const baseProfile = {
+  role: 'customer' as UserRole,
+  status: 'active' as const,
+  auth_provider: null,
+  avatar_url: null
+} as const;
+
+// Type-safe database helper
+const createProfileQuery = (supabase: DbClient) => ({
+  findById: (id: string) =>
+    supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', id)
+      .single<ProfileRow>(),
+
+  insert: (data: ProfileInsert) =>
+    supabase
+      .from('profiles')
+      .insert([data])
+      .single(),
+
+  upsert: (data: ProfileInsert) =>
+    supabase
+      .from('profiles')
+      .upsert([data], { onConflict: 'id' })
+      .single()
+});
 
 // Helper function to set cookies consistently
 async function setCookie(name: string, value: string, options: { path: string; secure: boolean; sameSite: 'lax' | 'strict' | 'none'; maxAge: number; httpOnly: boolean }) {
@@ -22,35 +68,50 @@ export type AuthData = {
 // Cache user data to avoid repeated database queries
 // Using a shorter cache time to prevent stale data issues
 export const getCurrentUser = cache(async (): Promise<AuthData> => {
-  const supabase = await createClientServer();
+  const supabase = await createClient();
 
   try {
+    // Use getUser instead of getSession for better security
+    // getUser verifies with the Supabase Auth server
     const {
-      data: { session },
-      error: sessionError,
-    } = await supabase.auth.getSession();
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
 
-    if (sessionError || !session?.user) {
+    if (userError || !user) {
       return null;
     }
 
     // Fetch the user's profile from the profiles table
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', session.user.id)
-      .single();
+    // Use a safe type casting approach for the Supabase client
+    const supabaseTyped = supabase as unknown as DbClient;
+    const profileQuery = createProfileQuery(supabaseTyped);
+    const { data: profile, error: profileError } = await profileQuery.findById(user.id);
 
-    if (profileError) {
+    if (profileError || !profile) {
       console.error('Profile error:', profileError);
       return null;
     }
 
-    // Return the user and profile
+    // Type-safe profile creation with validation
+    if (!profile.role || !['admin', 'sales', 'customer'].includes(profile.role)) {
+      console.error('Invalid profile role:', profile.role);
+      return null;
+    }
+
+    // Construct userProfile safely after validation
+    const userProfile: Profile = {
+      ...profile, // Spread base properties
+      role: profile.role as 'admin' | 'sales' | 'customer', // Type assertion to ensure correct union type
+      // Assign other potentially null fields safely
+      phone: profile.phone || null,
+      address: profile.address || null
+    };
+
     return {
-      user: session.user,
-      profile: profile as Profile,
-      isAdmin: profile?.role === 'admin',
+      user,
+      profile: userProfile,
+      isAdmin: userProfile.role === 'admin',
     };
   } catch (error) {
     console.error('Auth error:', error);
@@ -79,7 +140,7 @@ export async function signIn(formData: FormData) {
   const email = formData.get('email') as string;
   const password = formData.get('password') as string;
 
-  const supabase = await createClientServer();
+  const supabase = await createClient();
 
   try {
     // Sign in with email and password
@@ -97,20 +158,36 @@ export async function signIn(formData: FormData) {
     }
 
     // Fetch user profile
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', data.user.id)
-      .single();
+    // Use a safe type casting approach for the Supabase client
+    const supabaseTyped = supabase as unknown as DbClient;
+    const profileQuery = createProfileQuery(supabaseTyped);
+    const { data: profileResult, error: profileFetchError } = await profileQuery.findById(data.user.id);
 
-    if (profileError) {
-      console.error('Profile error:', profileError);
+    if (profileFetchError) {
+      console.error('Profile fetch error in signIn:', profileFetchError);
+      // Decide how to handle profile fetch error - return error, null profile, etc.
+      // For now, returning null profile if fetch failed or role is invalid
     }
+
+    // Validate the fetched profile role
+    let validatedProfile: Profile | null = null;
+    if (profileResult && profileResult.role && ['admin', 'sales', 'customer'].includes(profileResult.role)) {
+      validatedProfile = {
+        ...profileResult,
+        role: profileResult.role as 'admin' | 'sales' | 'customer',
+        phone: profileResult.phone || null,
+        address: profileResult.address || null,
+      };
+    } else if (profileResult) {
+      console.warn(`Invalid or missing role ('${profileResult.role}') for user ${data.user.id} during sign in.`);
+      // Optionally handle this case, e.g., assign default role or return error
+    }
+
 
     return {
       success: true,
       user: data.user,
-      profile,
+      profile: validatedProfile, // Return the validated (or null) profile
       redirect: {
         destination: '/',
         type: 'replace',
@@ -128,7 +205,7 @@ export async function signUp(formData: FormData) {
   const password = formData.get('password') as string;
   const full_name = formData.get('full_name') as string;
 
-  const supabase = await createClientServer();
+  const supabase = await createClient();
 
   // Create user with standard auth API
   const { data, error } = await supabase.auth.signUp({
@@ -149,24 +226,32 @@ export async function signUp(formData: FormData) {
   if (data.user) {
     try {
       // Check if profile already exists
-      const { data: existingProfile } = await supabase
+      // Use safer type casting for the query
+      const supabaseTyped = supabase as unknown as DbClient;
+      const { data: existingProfile } = await supabaseTyped
         .from('profiles')
         .select('id')
         .eq('id', data.user.id)
-        .single();
+        .single<ProfileRow>();
 
       if (!existingProfile) {
         // Create profile entry only if it doesn't exist
-        const { error: profileError } = await supabase.from('profiles').insert({
+        const profileData: ProfileInsert = {
           id: data.user.id,
-          name: full_name,
           email: email,
-          role: data.user?.user_metadata?.role || 'customer',
+          name: full_name,
+          role: 'customer',
           status: 'active',
           auth_provider: 'email',
+          avatar_url: null,
           created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        });
+          updated_at: new Date().toISOString()
+        };
+
+        // Use the same safe type casting approach here
+        const { error: profileError } = await supabaseTyped
+          .from('profiles')
+          .insert([profileData]);
 
         if (profileError) {
           console.error('Failed to create profile:', profileError);
@@ -198,15 +283,14 @@ export async function signUp(formData: FormData) {
 
 // Sign in with Google OAuth
 export async function signInWithGoogle(returnTo?: string) {
-  const supabase = await createClientServer();
+  const supabase = await createClient();
 
   try {
     // Initiate Google sign in
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback${returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : ''
-          }`,
+        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback${returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : ''}`
       },
     });
 
@@ -231,7 +315,7 @@ export async function signInWithGoogle(returnTo?: string) {
 // Sign out the current user
 export async function signOut(): Promise<AuthResponse<null>> {
   try {
-    const supabase = await createClientServer();
+    const supabase = await createClient();
 
     // Sign out from Supabase
     const { error } = await supabase.auth.signOut();
@@ -260,7 +344,7 @@ export async function signOut(): Promise<AuthResponse<null>> {
 export async function resetPassword(formData: FormData) {
   const email = formData.get('email') as string;
 
-  const supabase = await createClientServer();
+  const supabase = await createClient();
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/update-password`,
   });
@@ -280,7 +364,7 @@ export async function resetPassword(formData: FormData) {
 
 // Update password after reset
 export async function updatePassword(password: string) {
-  const supabase = await createClientServer();
+  const supabase = await createClient();
 
   const { error } = await supabase.auth.updateUser({
     password,
@@ -301,48 +385,54 @@ export async function updatePassword(password: string) {
 
 // Create or update profile for Google authenticated users
 export async function createGoogleUserProfile(user: { id: string; email: string; user_metadata?: Record<string, any> }) {
-  const supabase = await createClientServer();
+  const supabase = await createClient();
 
   try {
     // Check for existing profile first
-    let existingProfile: Profile | null = null;
-    const { data, error: profileError } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single();
+    // Use a safe type casting approach for the Supabase client
+    const supabaseTyped = supabase as unknown as DbClient;
+    const profileQuery = createProfileQuery(supabaseTyped);
+    // Fetch raw profile data (ProfileRow)
+    const { data: existingProfileData, error: profileFetchError } = await profileQuery.findById(user.id);
 
-    if (profileError && !data) {
-      existingProfile = null;
-    } else {
-      existingProfile = data as Profile;
+    if (profileFetchError && profileFetchError.code !== 'PGRST116') { // Ignore 'not found' error
+      console.error("Error fetching existing profile:", profileFetchError);
+      // Handle fetch error appropriately, maybe throw or return error
     }
+    // existingProfileData is ProfileRow | null here
 
     // Ensure we have valid user metadata
     const userMetadata = user.user_metadata || {};
     const fullName = userMetadata.full_name || userMetadata.name || user.email?.split('@')[0] || 'Unknown User';
 
     // Prepare profile data according to Profile interface
-    const profileData: Profile = {
+    // Validate the role from the fetched data (if any)
+    let roleToSet: UserRole = 'customer'; // Default to customer
+    if (existingProfileData?.role && ['admin', 'sales', 'customer'].includes(existingProfileData.role)) {
+      // Role is valid, use it
+      roleToSet = existingProfileData.role as UserRole;
+    } else if (existingProfileData?.role) {
+      // Role exists but is invalid, warn and use default
+      console.warn(`Invalid existing role ('${existingProfileData.role}') found for Google user ${user.id}. Defaulting to 'customer'.`);
+    }
+    // If no existing profile or role is null, 'customer' default is used.
+
+    // Create strict-typed profile data for upsert
+    const profileToUpsert: ProfileInsert = {
       id: user.id,
-      name: fullName,
       email: user.email,
-      role: existingProfile?.role || 'customer',
+      name: fullName,
+      role: roleToSet, // Use the validated or default role
       status: 'active',
       auth_provider: 'google',
-      avatar_url: userMetadata.avatar_url || userMetadata.picture || undefined,
+      avatar_url: userMetadata.avatar_url || userMetadata.picture || null,
       updated_at: new Date().toISOString(),
-      created_at: existingProfile?.created_at || new Date().toISOString(),
-      phone: existingProfile?.phone,
-      address: existingProfile?.address
+      // Ensure created_at is a string or undefined/null as expected by ProfileInsert
+      created_at: existingProfileData?.created_at ?? new Date().toISOString()
     };
 
     // Upsert the profile with all fields
-    const { error: upsertError } = await supabase
-      .from('profiles')
-      .upsert(profileData, {
-        onConflict: 'id'
-      });
+    const { error: upsertError } = await profileQuery.upsert(profileToUpsert);
 
     if (upsertError) {
       console.error('Profile upsert error:', upsertError);
@@ -358,7 +448,7 @@ export async function createGoogleUserProfile(user: { id: string; email: string;
 
 // Email verification
 export async function verifyEmail(email: string, code: string) {
-  const supabase = await createClientServer();
+  const supabase = await createClient();
 
   try {
     // Instead of querying verification_codes table directly,

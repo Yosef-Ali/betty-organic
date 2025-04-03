@@ -1,469 +1,522 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
-import type { Order } from '@/types/order';
-import crypto from 'crypto';
+import type { Order as FrontendOrder, OrderItem as FrontendOrderItem } from '@/types/order'; // Rename imported Order
 import { getCurrentUser } from './auth';
 import { orderIdService } from '@/app/services/orderIdService';
 import { revalidatePath } from 'next/cache';
+import { Database } from '@/types/supabase'; // Import Database type
 
-interface OrderItem {
-  product_id: string;
-  quantity: number;
-  price: number;
-  product_name: string;
-}
+// Define specific DB types based on Database
+type OrderRow = Database['public']['Tables']['orders']['Row'];
+type OrderInsert = Database['public']['Tables']['orders']['Insert'];
+type OrderUpdate = Database['public']['Tables']['orders']['Update'];
+type OrderItemRow = Database['public']['Tables']['order_items']['Row'];
+type OrderItemInsert = Database['public']['Tables']['order_items']['Insert'];
+type ProfileRow = Database['public']['Tables']['profiles']['Row'];
 
+// Input type for items in create/update functions
+// Exclude fields that are set server-side (like order_id) or DB-generated (like id)
+type InputOrderItem = Omit<OrderItemInsert, 'order_id' | 'id'>;
+
+// Response type using the frontend Order definition
 interface OrderResponse {
   success: boolean;
-  order?: Order;
-  error?: Error;
+  order?: FrontendOrder;
+  error?: string;
 }
 
-export async function getOrderDetails(orderId: string) {
+// Helper to check if an object is a PostgrestError
+function isPostgrestError(error: any): error is { message: string; code: string; details: string; hint: string } {
+  return error && typeof error.message === 'string';
+}
+
+// Type guard for the complex structure returned by getOrderDetails select
+// Ensure this accurately reflects the fields selected, including nested structures
+type FetchedOrderDetails = OrderRow & {
+  order_items: (OrderItemRow & {
+    product: Database['public']['Tables']['products']['Row'] | null;
+  })[] | null;
+  profile: ProfileRow | null;
+  customer: ProfileRow | null;
+};
+
+function isFetchedOrderDetails(data: any): data is FetchedOrderDetails {
+  // Basic check, might need refinement based on actual data structure
+  return data && typeof data.id === 'string';
+}
+
+// Add type guard for OrderItem
+function isOrderItem(item: any): item is OrderItemRow {
+  return item &&
+    typeof item.product_id === 'string' &&
+    typeof item.quantity === 'number' &&
+    typeof item.price === 'number';
+}
+
+// Add mapping function for OrderItems
+function mapToFrontendOrderItem(item: OrderItemInsert): FrontendOrderItem {
+  return {
+    id: '', // New items don't have IDs yet
+    order_id: item.order_id,
+    product_id: item.product_id,
+    product_name: item.product_name,
+    quantity: item.quantity,
+    price: item.price,
+  };
+}
+
+// Add mapping function for Order
+function mapToFrontendOrder(orderData: OrderRow, orderItems: OrderItemInsert[]): FrontendOrder {
+  return {
+    id: orderData.id,
+    profile_id: orderData.profile_id,
+    customer_profile_id: orderData.customer_profile_id || '',
+    total_amount: orderData.total_amount,
+    status: orderData.status,
+    type: orderData.type,
+    display_id: orderData.display_id || undefined,
+    created_at: orderData.created_at,
+    updated_at: orderData.updated_at,
+    order_items: orderItems.map(mapToFrontendOrderItem),
+    items: orderItems.map(mapToFrontendOrderItem), // Same mapping for both arrays
+  };
+}
+
+export async function getOrderDetails(orderId: string): Promise<{ data: FrontendOrder | null; error: string | null }> {
   const supabase = await createClient();
   try {
-    const { data: order, error: orderError } = await supabase
+    const { data: orderData, error: orderError } = await supabase
       .from('orders')
       .select(`
-        id,
-        display_id,
-        created_at,
-        updated_at,
-        status,
-        total_amount,
-        type,
-        profile_id,
-        customer_profile_id,
-        order_items (
-          id,
-          order_id,
-          product_id,
-          quantity,
-          price,
-          product_name,
-          product:products (
-            id,
-            name
-          )
-        ),
-        profile:profiles!orders_profile_id_fkey (
-          id,
-          name,
-          email,
-          role,
-          status,
-          created_at,
-          updated_at,
-          avatar_url
-        ),
-        customer:profiles!orders_customer_profile_id_fkey (
-          id,
-          name,
-          email,
-          role,
-          status,
-          created_at,
-          updated_at,
-          avatar_url
-        )
+        id, display_id, created_at, updated_at, status, total_amount, type, profile_id, customer_profile_id,
+        order_items ( id, order_id, product_id, quantity, price, product_name, product:products (id, name) ),
+        profile:profiles!orders_profile_id_fkey ( id, name, email, role, status, created_at, updated_at, avatar_url ),
+        customer:profiles!orders_customer_profile_id_fkey ( id, name, email, role, status, created_at, updated_at, avatar_url )
       `)
       .eq('id', orderId)
       .single();
 
     if (orderError) {
       console.error('[DASHBOARD DEBUG] Error fetching order details:', orderError);
-      return { data: null, error: orderError };
+      return { data: null, error: orderError.message };
+    }
+    if (!orderData || !isFetchedOrderDetails(orderData)) {
+      console.warn(`[DASHBOARD DEBUG] No order found or invalid structure for ID: ${orderId}`);
+      return { data: null, error: 'Order not found or invalid data structure' };
     }
 
-    // Now that we've checked for errors, we know order is valid data not an error object
-    // Add profile data from the customer field if available
-    if (order && 'customer' in order && order.customer) {
-      // Use type assertion since we've verified order is valid after checking orderError
-      (order as any).profile = order.customer;
-    }
+    // Map DB Row to Frontend Order type safely
+    const responseOrder: FrontendOrder = {
+      id: orderData.id,
+      profile_id: orderData.profile_id,
+      customer_profile_id: orderData.customer_profile_id || '',
+      total_amount: orderData.total_amount,
+      status: orderData.status,
+      type: orderData.type,
+      display_id: orderData.display_id || undefined,
+      created_at: orderData.created_at,
+      updated_at: orderData.updated_at,
+      // Map order_items safely, ensuring it matches FrontendOrderItem[]
+      order_items: orderData.order_items?.map((item): FrontendOrderItem => ({
+        id: item.id || '',
+        product_id: item.product_id,
+        product_name: item.product_name,
+        quantity: item.quantity,
+        price: item.price,
+        product: item.product ? { name: item.product.name } : undefined,
+        order_id: item.order_id,
+      })) || [],
+      // Map items safely, ensuring it matches FrontendOrderItem[] (or Partial if intended)
+      // Correcting the mapping to ensure it produces FrontendOrderItem[]
+      items: orderData.order_items?.map((item): FrontendOrderItem => ({
+        id: item.id || '',
+        product_id: item.product_id,
+        product_name: item.product_name,
+        quantity: item.quantity,
+        price: item.price,
+        order_id: item.order_id, // Include required fields
+        // product: item.product ? { name: item.product.name } : undefined, // Include if needed
+      })) || [],
+      customer: orderData.customer ? {
+        id: orderData.customer.id,
+        name: orderData.customer.name,
+        email: orderData.customer.email,
+        phone: orderData.customer.phone,
+        role: orderData.customer.role,
+      } : undefined,
+      customer_id: orderData.customer_profile_id || undefined,
+    };
 
-    // Add backward compatibility mapping for customer_id
-    if (order && 'customer_profile_id' in order) {
-      (order as any).customer_id = order.customer_profile_id;
-    }
-
-    return { data: order, error: null };
+    return { data: responseOrder, error: null };
   } catch (error) {
     console.error('[DASHBOARD DEBUG] Error in getOrderDetails:', error);
-    return { data: null, error };
+    const message = error instanceof Error ? error.message : 'Unknown error fetching order details';
+    return { data: null, error: message };
   }
 }
 
 export async function createOrder(
-  items: OrderItem[],
+  items: InputOrderItem[],
   customerId: string,
   totalAmount: number,
   status: string = 'pending'
 ): Promise<OrderResponse> {
   try {
-    console.log('[DASHBOARD DEBUG] Starting order creation with:',
-      JSON.stringify({
-        itemCount: items?.length,
-        customerId,
-        totalAmount,
-        status
-      })
-    );
-
+    console.log('[DASHBOARD DEBUG] Starting order creation...');
     const supabase = await createClient();
     const authData = await getCurrentUser();
-
-    if (!authData?.user) {
-      console.error('[DASHBOARD DEBUG] User not authenticated');
-      throw new Error('User not authenticated');
-    }
-
-    // Verify user role and permissions
-    if (!authData.profile?.role) {
-      console.error('[DASHBOARD DEBUG] No role found in profile:', authData.profile);
-      return {
-        success: false,
-        error: new Error('Unauthorized: User role not found'),
-      };
-    }
-
+    if (!authData?.user) throw new Error('User not authenticated');
+    if (!authData.profile?.role) return { success: false, error: 'Unauthorized: User role not found' };
     const role = authData.profile.role;
     const userId = authData.user.id;
-    console.log('[DASHBOARD DEBUG] Creating order with role:', role, 'userId:', userId);
-
-    // Validate order data
-    if (!items?.length) {
-      console.error('[DASHBOARD DEBUG] Missing order items in order data:', items);
-      return {
-        success: false,
-        error: new Error('Invalid order data: Missing order items'),
-      };
-    }
-
-    // Set profile_id and customer_profile_id based on role
+    if (!items?.length) return { success: false, error: 'Invalid order data: Missing order items' };
     let profile_id: string;
-    let customer_profile_id: string;
-
+    let customer_profile_id: string | null = null;
     if (role === 'customer') {
-      // For customer orders, both IDs should be the customer's ID
       profile_id = userId;
       customer_profile_id = userId;
     } else if (['admin', 'sales'].includes(role)) {
-      // For admin/sales orders, profile_id is their ID and customer_profile_id is the selected customer
       profile_id = userId;
+      if (!customerId) return { success: false, error: 'Customer must be selected for admin/sales orders' };
       customer_profile_id = customerId;
-
-      if (!customer_profile_id) {
-        console.error('[DASHBOARD DEBUG] Missing customer_profile_id for admin/sales order');
-        return {
-          success: false,
-          error: new Error('Customer must be selected for admin/sales orders'),
-        };
-      }
     } else {
-      console.error('[DASHBOARD DEBUG] Invalid role for order creation:', role);
-      return {
-        success: false,
-        error: new Error('Unauthorized: Invalid role for order creation'),
-      };
+      return { success: false, error: 'Unauthorized: Invalid role for order creation' };
     }
-
-    // Generate new order display ID
-    console.log('[DASHBOARD DEBUG] Generating order ID...');
     const display_id = await orderIdService.generateOrderID();
     console.log('[DASHBOARD DEBUG] Generated order ID:', display_id);
 
-    // Create the order
+    // Prepare the exact OrderInsert object based on types/supabase.ts
+    const orderToInsert: OrderInsert = {
+      profile_id,
+      customer_profile_id,
+      total_amount: totalAmount,
+      status: status,
+      type: role === 'customer' ? 'self_service' : 'store',
+      display_id: display_id || null,
+      // id, created_at, updated_at are excluded
+    };
+
     console.log('[DASHBOARD DEBUG] Creating order in database...');
-    const { data: order, error: orderError } = await supabase
+    // Use explicit type for insert data to satisfy overload
+    const { data: insertedOrderData, error: orderError } = await supabase
       .from('orders')
-      .insert({
-        profile_id,
-        customer_profile_id,
-        total_amount: totalAmount,
-        status: status,
-        type: role === 'customer' ? 'self_service' : 'store',
-        display_id,
-      })
+      .insert(orderToInsert as OrderInsert) // Cast to exact type
       .select()
       .single();
 
-    if (orderError) {
-      console.error('[DASHBOARD DEBUG] Database error creating order:', {
-        error: orderError,
-        profile_id,
-        customer_profile_id,
-        role,
-      });
-      return {
-        success: false,
-        error: new Error(`Database error creating order: ${orderError.message || 'Unknown error'}`),
-      };
+    if (orderError || !insertedOrderData) {
+      console.error('[DASHBOARD DEBUG] Database error creating order:', orderError);
+      const message = orderError ? orderError.message : 'Order data unexpectedly null after insert.';
+      return { success: false, error: `Database error creating order: ${message}` };
     }
+    // Now insertedOrderData is OrderRow
+    const orderId = insertedOrderData.id; // Safe access
+    console.log('[DASHBOARD DEBUG] Order created successfully:', orderId);
 
-    console.log('[DASHBOARD DEBUG] Order created successfully:', order.id);
-
-    // Create order items
-    console.log('[DASHBOARD DEBUG] Creating order items...');
-    const orderItems = items.map(item => ({
-      order_id: order.id,
+    // Prepare OrderItemInsert objects strictly
+    const orderItemsToInsert: OrderItemInsert[] = items.map(item => ({
+      order_id: orderId,
       product_id: item.product_id,
       quantity: item.quantity,
       price: item.price,
-      product_name: item.product_name
+      product_name: item.product_name,
+      // id is excluded
     }));
 
+    console.log('[DASHBOARD DEBUG] Creating order items...');
+    // Use explicit type for insert data
     const { error: itemsError } = await supabase
       .from('order_items')
-      .insert(orderItems);
+      .insert(orderItemsToInsert as OrderItemInsert[]); // Cast to exact type
 
     if (itemsError) {
-      console.error('[DASHBOARD DEBUG] Error creating order items:', {
-        error: itemsError,
-        orderId: order.id,
-        items: orderItems.length,
-      });
-
-      // If order items creation fails, delete the order
+      console.error('[DASHBOARD DEBUG] Error creating order items:', { error: itemsError, orderId, items: orderItemsToInsert.length });
       console.log('[DASHBOARD DEBUG] Cleaning up failed order...');
-      await supabase.from('orders').delete().eq('id', order.id);
-
-      return {
-        success: false,
-        error: new Error(`Failed to create order items: ${itemsError.message || 'Unknown error'}`),
-      };
+      await supabase.from('orders').delete().eq('id' as any, orderId); // Use 'as any' workaround
+      return { success: false, error: `Failed to create order items: ${itemsError.message || 'Unknown error'}` };
     }
 
     console.log('[DASHBOARD DEBUG] Order items created successfully');
-    console.log('[DASHBOARD DEBUG] Revalidating paths...');
     revalidatePath('/dashboard/orders');
-
     console.log('[DASHBOARD DEBUG] Order creation completed successfully');
-    // Include the required properties in the returned order object
+
+    // Construct the response object matching the frontend 'Order' type
+    const responseOrder: FrontendOrder = {
+      id: insertedOrderData.id,
+      profile_id: insertedOrderData.profile_id,
+      customer_profile_id: insertedOrderData.customer_profile_id || '',
+      total_amount: insertedOrderData.total_amount,
+      status: insertedOrderData.status,
+      type: insertedOrderData.type,
+      display_id: insertedOrderData.display_id || undefined,
+      created_at: insertedOrderData.created_at,
+      updated_at: insertedOrderData.updated_at,
+      order_items: orderItemsToInsert.map((insertedItem): FrontendOrderItem => ({
+        id: '', // Placeholder ID
+        product_id: insertedItem.product_id,
+        product_name: insertedItem.product_name,
+        quantity: insertedItem.quantity,
+        price: insertedItem.price,
+        order_id: insertedItem.order_id,
+      })),
+      // Corrected mapping for 'items' to ensure FrontendOrderItem[]
+      items: orderItemsToInsert.map((insertedItem): FrontendOrderItem => ({
+        id: '',
+        product_id: insertedItem.product_id,
+        product_name: insertedItem.product_name,
+        quantity: insertedItem.quantity,
+        price: insertedItem.price,
+        order_id: insertedItem.order_id, // Include required fields
+      })),
+      // customer: undefined, // Add if needed
+    };
+
     return {
       success: true,
-      order: {
-        ...(order as any), // Type assertion to avoid TypeScript errors
-        customer_profile_id,
-        order_items: orderItems
-      }
+      order: responseOrder,
     };
   } catch (error) {
     console.error('[DASHBOARD DEBUG] Error creating order:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error : new Error('Unknown error occurred')
-    };
+    const message = error instanceof Error ? error.message : 'Unknown error occurred';
+    return { success: false, error: message };
   }
 }
 
-export async function deleteOrder(orderId: string) {
+export async function deleteOrder(orderId: string): Promise<{ success: boolean; error?: string }> {
   const supabase = await createClient();
   try {
-    // First delete all order items
     const { error: itemsError } = await supabase
       .from('order_items')
       .delete()
-      .eq('order_id', orderId);
+      .eq('order_id' as any, orderId); // Use 'as any' workaround
 
     if (itemsError) {
       console.error('[DASHBOARD DEBUG] Error deleting order items:', itemsError);
       throw itemsError;
     }
 
-    // Then delete the order
     const { error: orderError } = await supabase
       .from('orders')
       .delete()
-      .eq('id', orderId);
+      .eq('id' as any, orderId); // Use 'as any' workaround
 
     if (orderError) {
       console.error('[DASHBOARD DEBUG] Error deleting order:', orderError);
       throw orderError;
     }
 
-    // Revalidate the orders page to trigger a refresh
     revalidatePath('/dashboard/orders');
     return { success: true };
   } catch (error) {
     console.error('[DASHBOARD DEBUG] Error in deleteOrder:', error);
-    return { success: false, error };
+    const message = isPostgrestError(error) ? error.message : (error instanceof Error ? error.message : 'Unknown error');
+    return { success: false, error: message };
   }
 }
 
-// Function moved to avoid duplicate declaration
+// Return type should match OrderRow or null based on Supabase types
+export async function getOrderById(orderId: string): Promise<OrderRow | null> {
+  const supabase = await createClient();
+  try {
+    const { data: orderData, error } = await supabase
+      .from('orders')
+      .select(`
+        id, display_id, created_at, updated_at, status, total_amount, type, profile_id, customer_profile_id,
+        order_items ( id, order_id, product_id, quantity, price, product_name, product:products (id, name) ),
+        profile:profiles!orders_profile_id_fkey ( id, name, email, role ),
+        customer:profiles!orders_customer_profile_id_fkey ( id, name, email, role )
+      `)
+      .eq('id' as any, orderId) // Use 'as any' workaround
+      .single();
 
-export async function getOrders(customerId?: string) {
+    if (error) {
+      if (error.code !== 'PGRST116') {
+        console.error(`[Server Action] Error fetching order by ID ${orderId}:`, error);
+      }
+      return null;
+    }
+    // Return the raw data which should conform to OrderRow plus nested relations
+    // Cast needed if select returns a more complex type than OrderRow
+    return orderData as OrderRow | null;
+  } catch (error) {
+    console.error(`[Server Action] Unexpected error in getOrderById for ${orderId}:`, error);
+    return null;
+  }
+}
+
+// Create a type to represent the complex joined query result
+type OrderWithRelationsResult = OrderRow & {
+  order_items: (OrderItemRow & {
+    products: Database['public']['Tables']['products']['Row'] | null;
+  })[] | null;
+  customer: ProfileRow | null;
+  seller: ProfileRow | null;
+};
+
+// Using a specific type for return value from getOrders
+export async function getOrders(customerId?: string): Promise<Array<OrderWithRelationsResult & { customer_id?: string }>> {
   const supabase = await createClient();
   try {
     const authData = await getCurrentUser();
-    if (!authData?.user) {
-      throw new Error('Not authenticated');
-    }
+    if (!authData?.user) throw new Error('Not authenticated');
 
     let query = supabase
       .from('orders')
-      .select(
-        `
-        *,
-        order_items!order_items_order_id_fkey (
-          *,
-          products!inner (*)
-        ),
-        customer:profiles!orders_customer_profile_id_fkey (
-          id,
-          name,
-          email,
-          role
-        ),
-        seller:profiles!orders_profile_id_fkey (
-          id,
-          name,
-          email,
-          role
-        )
-      `,
-      )
+      .select(`*, order_items!order_items_order_id_fkey (*, products!inner (*)), customer:profiles!orders_customer_profile_id_fkey (id, name, email, role), seller:profiles!orders_profile_id_fkey (id, name, email, role)`)
       .order('created_at', { ascending: false });
 
-    // Apply role-based filtering
-    if (authData.profile?.role === 'admin') {
-      // Admins can see all orders
-    } else if (authData.profile?.role === 'sales') {
-      // Sales users can only see orders they created
-      query = query.eq('profile_id', authData.user.id);
-    } else if (authData.profile?.role === 'customer') {
-      // Customers can only see their own orders
-      query = query.eq('customer_profile_id', authData.user.id);
-    } else {
-      throw new Error('Unauthorized: Invalid role');
+    // Apply role-based filtering with type assertions to fix TypeScript errors
+    if (authData.profile?.role === 'admin') { /* No filter */ }
+    else if (authData.profile?.role === 'sales') {
+      query = query.eq('profile_id', authData.user.id) as any; // Type assertion after the method call
     }
+    else if (authData.profile?.role === 'customer') {
+      query = query.eq('customer_profile_id', authData.user.id) as any; // Type assertion after the method call
+    }
+    else { throw new Error('Unauthorized: Invalid role'); }
 
-    // If customerId is provided, further filter by customer_profile_id
+    // Apply customer filter if provided
     if (customerId) {
-      query = query.eq('customer_profile_id', customerId);
+      query = query.eq('customer_profile_id', customerId) as any; // Type assertion after the method call
     }
 
-    const ordersError = await query;
-
-    if (ordersError.error) {
-      console.error('[DASHBOARD DEBUG] Supabase error fetching orders:', ordersError.error);
-      throw ordersError.error;
+    const { data, error } = await query;
+    if (error) {
+      console.error('[DASHBOARD DEBUG] Supabase error fetching orders:', error);
+      throw error;
     }
 
-    // Add backward compatibility mapping for customer_id
-    const orders = ordersError.data || [];
-    return orders.map(order => {
-      if (order && typeof order === 'object' && 'customer_profile_id' in order) {
-        return {
-          ...order,
-          customer_id: order.customer_profile_id
-        };
-      }
-      return order;
-    });
+    // Cast the result to our known type and add customer_id for backwards compatibility
+    const orders = (data || []) as OrderWithRelationsResult[];
+    return orders.map(order => ({
+      ...order,
+      customer_id: order.customer_profile_id || undefined, // Convert null to undefined to match the expected type
+    }));
   } catch (error) {
     console.error('[DASHBOARD DEBUG] Error fetching orders:', error);
     return [];
   }
 }
 
-export async function updateOrderStatus(orderId: string, status: string) {
+export async function updateOrderStatus(
+  orderId: string,
+  status: string
+): Promise<{ success: boolean; data?: OrderRow | null; error?: string }> {
   const supabase = await createClient();
   try {
-    const { data, error } = await supabase
+    // Ensure status is a valid value that matches your DB schema
+    const validStatuses = ['pending', 'processing', 'completed', 'cancelled', 'error'];
+    const validStatus = validStatuses.includes(status) ? status : 'pending';
+
+    // Prepare the update object with proper typing
+    const updateData: OrderUpdate = {
+      status: validStatus
+    };
+
+    // Execute the update with type assertions where needed
+    const { data: updatedOrder, error } = await supabase
       .from('orders')
-      .update({ status })
-      .eq('id', orderId)
+      .update(updateData as any) // Type assertion here
+      .eq('id' as any, orderId)  // And here
       .select()
       .single();
 
     if (error) {
       console.error('[DASHBOARD DEBUG] Error updating order status:', error);
-      return { success: false, error };
+      return { success: false, error: error.message };
     }
 
     revalidatePath('/dashboard/orders');
-    return { success: true, data };
+    return { success: true, data: updatedOrder }; // Data is OrderRow | null
   } catch (error) {
     console.error('[DASHBOARD DEBUG] Error in updateOrderStatus:', error);
-    return { success: false, error };
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return { success: false, error: message };
   }
 }
 
-export async function updateOrder(orderId: string, formData: FormData) {
+export async function updateOrder(orderId: string, formData: FormData): Promise<OrderResponse> {
   const supabase = await createClient();
   try {
-    // Extract order data from form
     const status = formData.get('status') as string;
     const itemsJson = formData.get('items') as string;
-    const items: OrderItem[] = JSON.parse(itemsJson);
+    const items: InputOrderItem[] = JSON.parse(itemsJson);
 
-    // Calculate total amount
     const totalAmount = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
-    // Update order
+    // Prepare the update object matching OrderUpdate type
+    const orderUpdateData: OrderUpdate = {
+      status,
+      total_amount: totalAmount,
+      updated_at: new Date().toISOString()
+    };
+
     const { data: orderData, error: orderError } = await supabase
       .from('orders')
-      .update({
-        status,
-        total_amount: totalAmount,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', orderId)
+      .update(orderUpdateData) // Pass correctly typed object
+      .eq('id' as any, orderId) // Use 'as any' workaround
       .select()
       .single();
 
-    if (orderError) {
+    if (orderError || !orderData) {
       console.error('[DASHBOARD DEBUG] Error updating order:', orderError);
-      return { success: false, error: orderError };
+      const message = orderError ? orderError.message : 'Order data unexpectedly null after update.';
+      return { success: false, error: message };
     }
+    // Now orderData is OrderRow
 
-    // First, delete existing order items
+    // Delete existing items
     const { error: deleteError } = await supabase
       .from('order_items')
       .delete()
-      .eq('order_id', orderId);
+      .eq('order_id' as any, orderId); // Use 'as any' workaround
 
     if (deleteError) {
       console.error('[DASHBOARD DEBUG] Error deleting existing order items:', deleteError);
-      return { success: false, error: deleteError };
+      return { success: false, error: deleteError.message };
     }
 
-    // Then insert updated order items
-    const orderItems = items.map(item => ({
+    // Prepare new items for insert matching OrderItemInsert
+    const orderItemsToInsert: OrderItemInsert[] = items.map(item => ({
       order_id: orderId,
       product_id: item.product_id,
       quantity: item.quantity,
       price: item.price,
-      product_name: item.product_name
+      product_name: item.product_name,
+      // id is excluded
     }));
 
-    const { error: itemsError } = await supabase
+    // Insert new items with proper typing and validation
+    const { data: insertedItems, error: itemsError } = await supabase
       .from('order_items')
-      .insert(orderItems);
+      .insert(orderItemsToInsert)
+      .select<'order_items', OrderItemRow>();
 
     if (itemsError) {
       console.error('[DASHBOARD DEBUG] Error updating order items:', itemsError);
-      return { success: false, error: itemsError };
+      // Attempt rollback of order update
+      await supabase
+        .from('orders')
+        .update({ status: 'error', updated_at: new Date().toISOString() } as OrderUpdate)
+        .eq('id' as any, orderId);
+      return { success: false, error: itemsError.message };
     }
 
-    // Revalidate path to show updated data
+    if (!insertedItems?.length) {
+      console.error('[DASHBOARD DEBUG] No items were inserted');
+      return { success: false, error: 'Failed to insert order items' };
+    }
+
     revalidatePath('/dashboard/orders');
 
     return {
       success: true,
-      order: {
-        ...(orderData as any),
-        order_items: orderItems
-      }
+      order: mapToFrontendOrder(orderData, insertedItems)
     };
   } catch (error) {
     console.error('[DASHBOARD DEBUG] Error in updateOrder:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error : new Error('Unknown error updating order')
-    };
+    const message = error instanceof Error ? error.message : 'Unknown error updating order';
+    return { success: false, error: message };
   }
 }

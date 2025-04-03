@@ -5,23 +5,27 @@ export async function GET() {
   try {
     const supabase = await createClient();
 
-    // Get current session
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    // Use getUser instead of getSession for better security
+    // getUser verifies with the Supabase Auth server
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-    if (sessionError) {
-      console.error('Session error:', sessionError);
-      return NextResponse.json({ error: 'Session error' }, { status: 401 });
+    if (userError) {
+      console.error('User authentication error:', userError);
+      return NextResponse.json({ error: 'Authentication error' }, { status: 401 });
     }
 
-    if (!session) {
-      return NextResponse.json({ status: 'no_session' }, { status: 200 });
+    if (!user) {
+      return NextResponse.json({ status: 'not_authenticated' }, { status: 200 });
     }
+
+    // Get session for additional data if needed
+    const { data: { session } } = await supabase.auth.getSession();
 
     // Fetch user profile
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('*')
-      .eq('id', session.user.id)
+      .eq('id', user.id)
       .single();
 
     if (profileError) {

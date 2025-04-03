@@ -48,21 +48,22 @@ export async function middleware(request: NextRequest) {
 
     // Auth routes don't need session validation, but we'll pass through the session if it exists
     if (request.nextUrl.pathname.startsWith('/auth')) {
-      const { data: { session } } = await supabase.auth.getSession();
+      // Use getUser instead of getSession for better security
+      const { data: { user } } = await supabase.auth.getUser();
 
       // If user is already logged in and trying to access auth pages, redirect to dashboard
-      if (session && !request.nextUrl.pathname.startsWith('/auth/logout')) {
+      if (user && !request.nextUrl.pathname.startsWith('/auth/logout')) {
         return NextResponse.redirect(new URL('/dashboard', request.url));
       }
 
       return response;
     }
 
-    // For all other routes, validate session
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    // For all other routes, validate session using getUser for better security
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-    if (sessionError) {
-      console.error('Session error:', sessionError);
+    if (userError) {
+      console.error('User authentication error:', userError);
       return redirectToLogin(request);
     }
 
@@ -79,22 +80,25 @@ export async function middleware(request: NextRequest) {
       request.nextUrl.pathname.startsWith(route)
     );
 
-    // If there's no session and the user is trying to access a protected route
-    if (!session && isProtectedRoute) {
+    // If there's no authenticated user and the user is trying to access a protected route
+    if (!user && isProtectedRoute) {
       return redirectToLogin(request);
     }
 
-    // If we have a session, get the user's profile for role-based access
-    if (session) {
+    // If we have an authenticated user, get the user's profile for role-based access
+    if (user) {
+      // Get the session for additional data if needed
+      const { data: { session } } = await supabase.auth.getSession();
+
       const { data: profile } = await supabase
         .from('profiles')
         .select('role, status')
-        .eq('id', session.user.id)
+        .eq('id', user.id)
         .single();
 
       // Set user role in response header for client access (secure way to make role available to client)
       response.headers.set('x-user-role', profile?.role || 'customer');
-      response.headers.set('x-user-id', session.user.id);
+      response.headers.set('x-user-id', user.id);
       response.headers.set('x-user-authenticated', 'true');
 
       // Check if user is inactive and deny access

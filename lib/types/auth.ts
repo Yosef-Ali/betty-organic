@@ -18,19 +18,15 @@ export interface UpdatePasswordFormType {
   confirmPassword: string;
 }
 
-export interface Profile {
-  id: string;
-  email: string;
-  name: string | null;
-  role: 'admin' | 'sales' | 'customer';
-  status: string | null;
-  auth_provider: string | null;
-  avatar_url?: string | null;
-  created_at: string | null;
-  updated_at: string;
+import { Tables } from '@/types/supabase';
+
+export type BaseProfile = Tables<'profiles'>;
+
+export type Profile = BaseProfile & {
   phone?: string | null;
   address?: string | null;
-}
+  role: 'admin' | 'sales' | 'customer';
+};
 
 export interface AuthResponse<T = unknown> {
   error: string | null;

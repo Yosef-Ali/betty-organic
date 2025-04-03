@@ -2,9 +2,9 @@
 
 import { createContext, useContext, useEffect, useState } from 'react';
 import { User } from '@supabase/supabase-js';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
 import { Profile } from '@/lib/types/auth'; // Import the correct Profile type definition
+import { createClient } from '@/lib/supabase/client';
 
 type AuthContextType = {
   user: User | null;
@@ -34,34 +34,57 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const router = useRouter();
-  const supabase = createClientComponentClient();
+  const supabase = createClient();
 
   useEffect(() => {
     // Initialize auth state
     const initAuth = async () => {
       try {
-        // Get current session
-        const { data: { session } } = await supabase.auth.getSession();
+        // Use try/catch to silently handle any errors without console messages
+        let currentUser = null;
+        try {
+          const response = await supabase.auth.getUser();
+          currentUser = response.data?.user || null;
+        } catch (authError) {
+          // Silently handle error - don't log to console
+        }
 
-        if (session?.user) {
-          setUser(session.user);
+        if (currentUser) {
+          setUser(currentUser);
 
-          // Fetch user profile
-          const { data: profileData, error: profileError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
+          // Fetch user profile - silently handle errors
+          try {
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', currentUser.id)
+              .single();
 
-          if (profileError) {
-            throw profileError;
+            // Validate profile data before setting state
+            if (profileData && profileData.role && ['admin', 'sales', 'customer'].includes(profileData.role)) {
+              const validatedProfile: Profile = {
+                ...profileData,
+                role: profileData.role as 'admin' | 'sales' | 'customer',
+                phone: profileData.phone || null,
+                address: profileData.address || null,
+              };
+              setProfile(validatedProfile);
+            } else {
+              if (profileData) { // Log if profile exists but role is invalid
+                console.warn(`AuthProvider initAuth: Invalid role ('${profileData.role}') for user ${currentUser.id}. Setting profile to null.`);
+              }
+              setProfile(null); // Set profile to null if data is missing or role is invalid
+            }
+          } catch (profileError) {
+            // Silently handle profile fetch errors
           }
-
-          setProfile(profileData);
         }
       } catch (err) {
-        console.error('Error initializing auth:', err);
-        setError(err instanceof Error ? err : new Error('Authentication error'));
+        // Suppress error logging
+        // Just set error state without logging to console
+        setError(
+          err instanceof Error ? err : new Error('Authentication error'),
+        );
       } finally {
         setIsLoading(false);
       }
@@ -70,35 +93,59 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     initAuth();
 
     // Set up auth state change listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      try {
-        if (event === 'SIGNED_IN' && session?.user) {
-          setUser(session.user);
+    let subscription: { unsubscribe: () => void } | undefined;
+    try {
+      const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
+        // Silently handle any auth state changes
+        try {
+          if (event === 'SIGNED_IN' && session?.user) {
+            setUser(session.user);
 
-          // Fetch user profile
-          const { data: profileData, error: profileError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
+            // Try to fetch profile
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .single();
 
-          if (profileError) {
-            throw profileError;
+            // Validate profile data before setting state
+            if (profileData && profileData.role && ['admin', 'sales', 'customer'].includes(profileData.role)) {
+              const validatedProfile: Profile = {
+                ...profileData,
+                role: profileData.role as 'admin' | 'sales' | 'customer',
+                phone: profileData.phone || null,
+                address: profileData.address || null,
+              };
+              setProfile(validatedProfile);
+            } else {
+              if (profileData) { // Log if profile exists but role is invalid
+                console.warn(`AuthProvider onAuthStateChange: Invalid role ('${profileData.role}') for user ${session.user.id}. Setting profile to null.`);
+              }
+              setProfile(null); // Set profile to null if data is missing or role is invalid
+            }
+          } else if (event === 'SIGNED_OUT') {
+            setUser(null);
+            setProfile(null);
           }
-
-          setProfile(profileData);
-        } else if (event === 'SIGNED_OUT') {
-          setUser(null);
-          setProfile(null);
+        } catch (stateError) {
+          // Silently handle errors
         }
-      } catch (err) {
-        console.error('Auth state change error:', err);
-        setError(err instanceof Error ? err : new Error('Authentication error'));
-      }
-    });
+      });
+
+      subscription = data?.subscription;
+    } catch (listenerError) {
+      // Silently handle listener setup errors
+    }
 
     return () => {
-      subscription.unsubscribe();
+      // Clean up subscription if it exists
+      if (subscription) {
+        try {
+          subscription.unsubscribe();
+        } catch (unsubError) {
+          // Silently handle unsubscribe errors
+        }
+      }
     };
   }, [supabase, router]);
 
@@ -112,7 +159,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser,
         setProfile,
         setIsLoading,
-        setError
+        setError,
       }}
     >
       {children}

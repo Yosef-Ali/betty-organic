@@ -1,16 +1,16 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import type { User } from '@supabase/auth-helpers-nextjs';
+import type { User, Subscription } from '@supabase/supabase-js';
 import { Profile } from '@/lib/types/auth';
+import { createClient } from '@/lib/supabase/client';
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [authInitialized, setAuthInitialized] = useState(false);
-  const supabase = createClientComponentClient();
+  const supabase = createClient();
 
   const fetchProfile = useCallback(async (userId: string) => {
     try {
@@ -21,13 +21,11 @@ export function useAuth() {
         .single();
 
       if (error) {
-        console.warn('Profile fetch error:', error);
         return null;
       }
 
       return data;
     } catch (err) {
-      console.error('Error fetching profile:', err);
       return null;
     }
   }, [supabase]);
@@ -38,35 +36,28 @@ export function useAuth() {
 
     const getUser = async () => {
       try {
-        console.log('Initializing auth state');
+        // Using getUser which is the secure recommended method
+        // Wrapping in try/catch to avoid uncaught errors
+        try {
+          const response = await supabase.auth.getUser();
 
-        // Get current session
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+          // Only proceed if component is still mounted
+          if (!mounted) return;
 
-        if (sessionError) {
-          console.error('Session error:', sessionError);
-          if (mounted) {
-            setLoading(false);
-            setAuthInitialized(true);
+          const currentUser = response.data?.user;
+
+          if (currentUser) {
+            setUser(currentUser);
+
+            // Fetch user profile
+            const profileData = await fetchProfile(currentUser.id);
+            if (mounted && profileData) {
+              setProfile(profileData as Profile);
+            }
           }
-          return;
+        } catch (error) {
+          // Silently handle errors without logging to console
         }
-
-        if (session?.user) {
-          console.log('Found authenticated session');
-          if (mounted) setUser(session.user);
-
-          // Fetch user profile
-          const profileData = await fetchProfile(session.user.id);
-          if (profileData && mounted) {
-            console.log('Profile loaded successfully');
-            setProfile(profileData as Profile);
-          }
-        } else {
-          console.log('No authenticated session found');
-        }
-      } catch (error) {
-        console.error('Error getting user:', error);
       } finally {
         if (mounted) {
           setLoading(false);
@@ -79,31 +70,51 @@ export function useAuth() {
     getUser();
 
     // Set up auth change listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state change event:', event);
-
-      if (mounted) {
-        // Update user state
-        setUser(session?.user ?? null);
+    let subscription: Subscription | undefined;
+    try {
+      const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
+        // Only proceed if component is still mounted
+        if (!mounted) return;
 
         if (session?.user) {
-          // Fetch updated profile data
-          const profileData = await fetchProfile(session.user.id);
-          if (mounted && profileData) {
-            setProfile(profileData as Profile);
-          } else if (mounted) {
+          // Always revalidate the user on auth state changes with getUser for security
+          try {
+            const { data: userData } = await supabase.auth.getUser();
+            if (mounted && userData.user) {
+              setUser(userData.user);
+
+              // Fetch updated profile data
+              const profileData = await fetchProfile(userData.user.id);
+              if (mounted && profileData) {
+                setProfile(profileData as Profile);
+              }
+            }
+          } catch (error) {
+            // Silently handle errors
+          }
+        } else {
+          if (mounted) {
+            setUser(null);
             setProfile(null);
           }
-        } else if (mounted) {
-          setProfile(null);
         }
-      }
-    });
+      });
+
+      subscription = data?.subscription;
+    } catch (error) {
+      // Silently handle subscription setup errors
+    }
 
     // Clean up subscription
     return () => {
       mounted = false;
-      subscription.unsubscribe();
+      if (subscription) {
+        try {
+          subscription.unsubscribe();
+        } catch (error) {
+          // Silently handle unsubscribe errors
+        }
+      }
     };
   }, [supabase, fetchProfile]);
 

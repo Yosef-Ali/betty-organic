@@ -23,14 +23,15 @@ export function useUser() {
 
     const loadUserData = async () => {
       try {
-        // Get session
+        // Use getUser instead of getSession for better security
+        // getUser verifies with the Supabase Auth server
         const {
-          data: { session },
-          error: sessionError,
-        } = await supabase.auth.getSession();
-        if (sessionError) throw sessionError;
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
+        if (userError) throw userError;
 
-        if (!session?.user) {
+        if (!user) {
           if (mounted) {
             setUser(null);
             setRole(null);
@@ -43,16 +44,19 @@ export function useUser() {
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('role, avatar_url')
-          .eq('id', session.user.id)
+          .eq('id', user.id)
           .single();
 
         if (profileError) throw profileError;
 
+        // Get session for additional data if needed
+        const { data: { session } } = await supabase.auth.getSession();
+
         if (mounted) {
           setUser({
-            ...session.user,
+            ...user,
             user_metadata: {
-              ...session.user.user_metadata,
+              ...user.user_metadata,
               role: profile?.role,
               avatar_url: profile?.avatar_url,
             },

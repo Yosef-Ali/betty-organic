@@ -1,14 +1,14 @@
-'use client'
+'use client';
 
-import { useCallback, useEffect, useState } from 'react'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useForm } from 'react-hook-form'
-import * as z from 'zod'
-import { useRouter } from 'next/navigation'
-import Image from 'next/image'
-import Link from 'next/link'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { toast } from 'sonner'
+import { useCallback, useEffect, useState } from 'react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
+import * as z from 'zod';
+import { useRouter } from 'next/navigation';
+import Image from 'next/image';
+import Link from 'next/link';
+import { createClient } from '@/lib/supabase/client';
+import { toast } from 'sonner';
 import {
   Form,
   FormControl,
@@ -16,27 +16,36 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 
-const formSchema = z.object({
-  password: z.string()
-    .min(8, 'Password must be at least 8 characters')
-    .max(64, 'Password must be less than 64 characters'),
-  confirmPassword: z.string(),
-}).refine((data) => data.password === data.confirmPassword, {
-  path: ['confirmPassword'],
-  message: 'Passwords do not match',
-})
+const formSchema = z
+  .object({
+    password: z
+      .string()
+      .min(8, 'Password must be at least 8 characters')
+      .max(64, 'Password must be less than 64 characters'),
+    confirmPassword: z.string(),
+  })
+  .refine(data => data.password === data.confirmPassword, {
+    path: ['confirmPassword'],
+    message: 'Passwords do not match',
+  });
 
-type UpdatePasswordFormType = z.infer<typeof formSchema>
+type UpdatePasswordFormType = z.infer<typeof formSchema>;
 
 export default function UpdatePasswordPage() {
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const router = useRouter()
-  const supabase = createClientComponentClient()
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const router = useRouter();
+  const supabase = createClient();
 
   const form = useForm<UpdatePasswordFormType>({
     resolver: zodResolver(formSchema),
@@ -44,46 +53,55 @@ export default function UpdatePasswordPage() {
       password: '',
       confirmPassword: '',
     },
-  })
+  });
 
-  // Verify that we have a session before allowing password update
+  // Verify that we have an authenticated user before allowing password update
   useEffect(() => {
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
-        toast.error('Invalid or expired reset link')
-        router.push('/auth/login')
+    const checkAuth = async () => {
+      // Use getUser instead of getSession for better security
+      // getUser verifies with the Supabase Auth server
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser();
+
+      if (error || !user) {
+        toast.error('Invalid or expired reset link');
+        router.push('/auth/login');
       }
-    }
+    };
 
-    checkSession()
-  }, [supabase, router])
+    checkAuth();
+  }, [supabase, router]);
 
-  const onSubmit = useCallback(async (data: UpdatePasswordFormType) => {
-    try {
-      setIsSubmitting(true)
+  const onSubmit = useCallback(
+    async (data: UpdatePasswordFormType) => {
+      try {
+        setIsSubmitting(true);
 
-      const { error } = await supabase.auth.updateUser({
-        password: data.password
-      })
+        const { error } = await supabase.auth.updateUser({
+          password: data.password,
+        });
 
-      if (error) {
-        toast.error(error.message)
-        return
+        if (error) {
+          toast.error(error.message);
+          return;
+        }
+
+        toast.success('Password updated successfully');
+
+        // Sign out the user and redirect to login
+        await supabase.auth.signOut();
+        router.push('/auth/login');
+      } catch (error) {
+        console.error('Password update error:', error);
+        toast.error('Failed to update password. Please try again.');
+      } finally {
+        setIsSubmitting(false);
       }
-
-      toast.success('Password updated successfully')
-
-      // Sign out the user and redirect to login
-      await supabase.auth.signOut()
-      router.push('/auth/login')
-    } catch (error) {
-      console.error('Password update error:', error)
-      toast.error('Failed to update password. Please try again.')
-    } finally {
-      setIsSubmitting(false)
-    }
-  }, [supabase, router])
+    },
+    [supabase, router],
+  );
 
   return (
     <div className="grid h-screen lg:grid-cols-2">
@@ -104,13 +122,14 @@ export default function UpdatePasswordPage() {
           <Card className="w-full max-w-sm">
             <CardHeader>
               <CardTitle>Update Password</CardTitle>
-              <CardDescription>
-                Enter your new password below.
-              </CardDescription>
+              <CardDescription>Enter your new password below.</CardDescription>
             </CardHeader>
             <CardContent>
               <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                <form
+                  onSubmit={form.handleSubmit(onSubmit)}
+                  className="space-y-6"
+                >
                   <FormField
                     control={form.control}
                     name="password"
@@ -176,5 +195,5 @@ export default function UpdatePasswordPage() {
         />
       </div>
     </div>
-  )
+  );
 }

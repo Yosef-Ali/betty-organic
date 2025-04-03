@@ -1,7 +1,7 @@
 'use client';
 
 import { Database } from '@/types/supabase';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/lib/supabase/client';
 
 import { useRouter } from 'next/navigation';
 
@@ -38,7 +38,7 @@ export interface NewKnowledgeBaseEntry {
 }
 
 export const useKnowledgeBase = () => {
-  const supabase = createClientComponentClient<Database>();
+  const supabase = createClient();
   const router = useRouter();
 
   const parseLinks = (rawLinks: any): Link[] => {

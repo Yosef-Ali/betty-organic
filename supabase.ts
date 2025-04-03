@@ -60,7 +60,55 @@ export type Database = {
         }
         Relationships: []
       }
-      // ...existing code...
+      orders: {
+        Row: {
+          id: string
+          profile_id: string
+          customer_profile_id: string | null
+          total_amount: number
+          status: string
+          type: string
+          display_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          profile_id: string
+          customer_profile_id?: string | null
+          total_amount: number
+          status?: string
+          type?: string
+          display_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          profile_id?: string
+          customer_profile_id?: string | null
+          total_amount?: number
+          status?: string
+          type?: string
+          display_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_profile_id_fkey"
+            columns: ["profile_id"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_customer_profile_id_fkey"
+            columns: ["customer_profile_id"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never
