@@ -66,7 +66,10 @@ export async function applyTestOrderPolicy() {
 
     // Use the admin client to apply the policy
     // This requires the SUPABASE_SERVICE_ROLE_KEY environment variable to be set
-    const { error: policyError } = await supabaseAdmin.rpc('apply_test_order_policy', {});
+    const { error: policyError } = await supabaseAdmin.rpc(
+      'apply_test_order_policy' as any,
+      {}
+    );
 
     if (policyError) {
       // If RPC fails, try direct SQL approach

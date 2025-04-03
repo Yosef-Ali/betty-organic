@@ -9,20 +9,20 @@ import { createClient } from '@/lib/supabase/server';
 export async function applyDirectTestOrderPolicy() {
   try {
     const supabase = await createClient();
-    
+
     // Get current user to verify authentication
     const { data: { user }, error: userError } = await supabase.auth.getUser();
-    
+
     if (userError || !user) {
       return {
         success: false,
         error: 'Authentication required to apply policy'
       };
     }
-    
+
     // Apply the policy directly with SQL
-    const { error } = await supabase.rpc('create_test_order_policy');
-    
+    const { error } = await supabase.rpc('create_test_order_policy' as any);
+
     if (error) {
       console.error('Error applying test order policy:', error);
       return {
@@ -30,7 +30,7 @@ export async function applyDirectTestOrderPolicy() {
         error: `Failed to apply test order policy: ${error.message}`
       };
     }
-    
+
     return {
       success: true,
       message: 'Test order policy applied successfully'
