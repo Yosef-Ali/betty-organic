@@ -1,5 +1,3 @@
-'use client';
-
 import React, { useEffect, useState, useRef } from 'react';
 import { Bell, BellRing } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
@@ -22,7 +20,10 @@ const POLLING_INTERVAL = 30000; // 30 seconds
 const RECONNECT_INTERVAL = 5000; // 5 seconds for connection retries
 const DEBUG_REALTIME = true; // Enable debug logging
 
-type NotificationOrder = Pick<ExtendedOrder, 'id' | 'status' | 'created_at' | 'profiles'> & {
+type NotificationOrder = Pick<
+  ExtendedOrder,
+  'id' | 'status' | 'created_at' | 'profiles'
+> & {
   created_at: string; // Ensure created_at is not null
 };
 
@@ -74,7 +75,8 @@ export function NotificationBell() {
 
     // Skip if no user is authenticated
     if (!user) {
-      if (DEBUG_REALTIME) console.log('Skipping notification fetch - no authenticated user');
+      if (DEBUG_REALTIME)
+        console.log('Skipping notification fetch - no authenticated user');
       return;
     }
 
@@ -85,8 +87,8 @@ export function NotificationBell() {
       const supabase = supabaseRef.current;
       // Add null check for supabase
       if (!supabase) {
-        console.error("Supabase client not initialized in fetchNotifications");
-        setError("Supabase client not available");
+        console.error('Supabase client not initialized in fetchNotifications');
+        setError('Supabase client not available');
         setIsLoading(false);
         return;
       }
@@ -113,7 +115,11 @@ export function NotificationBell() {
       const actualCount = typeof count === 'number' ? count : 0;
 
       if (DEBUG_REALTIME) {
-        console.log(`fetchNotifications: Received count = ${actualCount}, data length = ${data?.length ?? 0}`);
+        console.log(
+          `fetchNotifications: Received count = ${actualCount}, data length = ${
+            data?.length ?? 0
+          }`,
+        );
       }
 
       // Filter out null created_at and map to NotificationOrder type
@@ -123,23 +129,29 @@ export function NotificationBell() {
           id: order.id,
           status: order.status,
           created_at: order.created_at as string,
-          profiles: order.profiles
+          profiles: order.profiles,
         }));
 
       if (DEBUG_REALTIME) {
-        console.log(`fetchNotifications: Filtered pending orders = ${pendingOrders.length}`);
+        console.log(
+          `fetchNotifications: Filtered pending orders = ${pendingOrders.length}`,
+        );
       }
 
       // Use the exact count from Supabase for notification badge
       if (!isInitialLoadRef.current && actualCount > previousCountRef.current) {
         if (DEBUG_REALTIME) {
-          console.log(`Count increased from ${previousCountRef.current} to ${actualCount}. Animating bell.`);
+          console.log(
+            `Count increased from ${previousCountRef.current} to ${actualCount}. Animating bell.`,
+          );
         }
         setAnimateBell(true);
         playNotificationSound();
       } else {
         if (DEBUG_REALTIME) {
-          console.log(`Count changed from ${previousCountRef.current} to ${actualCount}. No animation needed.`);
+          console.log(
+            `Count changed from ${previousCountRef.current} to ${actualCount}. No animation needed.`,
+          );
         }
       }
 
@@ -152,11 +164,18 @@ export function NotificationBell() {
       // Skip state updates if component unmounted
       if (!mountedRef.current) return;
 
-      setError(error instanceof Error ? error.message : 'Failed to fetch notifications');
+      setError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to fetch notifications',
+      );
       console.error('Notification fetch error:', error);
 
       retryCountRef.current += 1;
-      const backoffTime = Math.min(1000 * Math.pow(2, retryCountRef.current), 10000);
+      const backoffTime = Math.min(
+        1000 * Math.pow(2, retryCountRef.current),
+        10000,
+      );
 
       if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
       retryTimeoutRef.current = setTimeout(() => {
@@ -180,8 +199,10 @@ export function NotificationBell() {
       const supabase = supabaseRef.current;
       // Add null check for supabase
       if (!supabase) {
-        console.error("Supabase client not initialized in setupRealtimeSubscription");
-        setError("Supabase client not available");
+        console.error(
+          'Supabase client not initialized in setupRealtimeSubscription',
+        );
+        setError('Supabase client not available');
         return;
       }
 
@@ -194,80 +215,142 @@ export function NotificationBell() {
         }
       }
 
-      // Channel name for postgres_changes
+      // Channel name for postgres_changes and order_status_channel
       const channelName = 'order-status';
 
       if (DEBUG_REALTIME) {
         console.log('Setting up realtime subscription:', {
           channelName,
           userId: user?.id,
-          role: profile?.role
+          role: profile?.role,
         });
       }
 
       // Create channel
       const channel = supabase.channel(channelName);
 
-      // Workaround for Supabase's realtime API TypeScript issues
-      // We need to cast as any to bypass type checking for postgres_changes
-      (channel as any).on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'orders',
-          filter: 'status=eq.pending',
-          select: 'id,created_at,status,profile_id'
-        },
-        (payload: any) => {
+      // Listen for both postgres_changes and order_status_channel
+
+      // 1. Listen for postgres_changes (table-level changes)
+      (channel as any)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'orders',
+            filter: 'status=eq.pending',
+            select: 'id,created_at,status,profile_id',
+          },
+          (payload: any) => {
+            // Skip if component unmounted
+            if (!mountedRef.current) return;
+
+            if (DEBUG_REALTIME) {
+              console.log('Order status change received (postgres_changes):', {
+                eventType: payload.eventType,
+                table: payload.table,
+                schema: payload.schema,
+                new: payload.new,
+                old: payload.old,
+                timestamp: new Date().toISOString(),
+              });
+            }
+
+            if (
+              payload.eventType === 'INSERT' ||
+              payload.eventType === 'UPDATE'
+            ) {
+              // New or updated pending order
+              if (DEBUG_REALTIME)
+                console.log('New/Updated pending order:', payload.new);
+              setAnimateBell(true);
+              playNotificationSound();
+              // Fetch notifications to get the latest count and details
+              fetchNotifications();
+            } else if (payload.eventType === 'DELETE') {
+              // Pending order deleted or status changed from pending
+              if (DEBUG_REALTIME)
+                console.log(
+                  'Pending order removed/status changed:',
+                  payload.old,
+                );
+              fetchNotifications(); // Fetch to update count after delete/status change
+            }
+          },
+        )
+
+        // 2. Listen for broadcast messages from order_status_channel
+        .on('broadcast', { event: 'order_status_channel' }, (payload: any) => {
           // Skip if component unmounted
           if (!mountedRef.current) return;
 
+          try {
+            if (DEBUG_REALTIME) {
+              console.log(
+                'Order status notification received (broadcast):',
+                payload,
+              );
+            }
+
+            // Parse the payload if it's a string
+            const data =
+              typeof payload.payload === 'string'
+                ? JSON.parse(payload.payload)
+                : payload.payload;
+
+            if (DEBUG_REALTIME) {
+              console.log('Parsed notification data:', data);
+            }
+
+            // Handle the notification based on the event type
+            if (data.event === 'INSERT' || data.event === 'UPDATE') {
+              if (data.status === 'pending') {
+                if (DEBUG_REALTIME)
+                  console.log(
+                    'New/Updated pending order from notification:',
+                    data,
+                  );
+                setAnimateBell(true);
+                playNotificationSound();
+                fetchNotifications();
+              }
+            } else if (data.event === 'DELETE') {
+              if (DEBUG_REALTIME)
+                console.log('Deleted order from notification:', data);
+              fetchNotifications();
+            }
+          } catch (error) {
+            console.error('Error processing order status notification:', error);
+          }
+        })
+        .subscribe((status: string) => {
+          if (!mountedRef.current) return;
+
+          setConnectionStatus(status);
+
           if (DEBUG_REALTIME) {
-            console.log('Order status change received:', {
-              eventType: payload.eventType,
-              table: payload.table,
-              schema: payload.schema,
-              new: payload.new,
-              old: payload.old,
-              timestamp: new Date().toISOString()
-            });
+            console.log(
+              `Realtime ${channelName} status:`,
+              status,
+              new Date().toISOString(),
+            );
           }
 
-          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-            // New or updated pending order
-            if (DEBUG_REALTIME) console.log('New/Updated pending order:', payload.new);
-            setAnimateBell(true);
-            playNotificationSound();
-            // Fetch notifications to get the latest count and details
+          if (status === 'SUBSCRIBED') {
+            if (DEBUG_REALTIME) console.log('Realtime connected successfully');
+            // Fetch initial notifications upon successful subscription
             fetchNotifications();
-          } else if (payload.eventType === 'DELETE') {
-            // Pending order deleted or status changed from pending
-            if (DEBUG_REALTIME) console.log('Pending order removed/status changed:', payload.old);
-            fetchNotifications(); // Fetch to update count after delete/status change
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            console.error(
+              `Realtime channel error or timed out (${status}), will retry`,
+            );
+            if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
+            retryTimeoutRef.current = setTimeout(() => {
+              if (mountedRef.current) setupRealtimeSubscription();
+            }, RECONNECT_INTERVAL);
           }
-        }
-      ).subscribe((status: string) => {
-        if (!mountedRef.current) return;
-
-        setConnectionStatus(status);
-
-        if (DEBUG_REALTIME) {
-          console.log(`Realtime ${channelName} status:`, status, new Date().toISOString());
-        }
-
-        if (status === 'SUBSCRIBED') {
-          if (DEBUG_REALTIME) console.log('Realtime connected successfully');
-          // Fetch initial notifications upon successful subscription
-          fetchNotifications();
-        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          console.error(`Realtime channel error or timed out (${status}), will retry`);
-          if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
-          retryTimeoutRef.current = setTimeout(() => {
-            if (mountedRef.current) setupRealtimeSubscription();
-          }, RECONNECT_INTERVAL);
-        }
-      });
+        });
 
       channelRef.current = channel;
     } catch (error) {
@@ -301,7 +384,8 @@ export function NotificationBell() {
 
       refreshAttemptRef.current += 1;
 
-      if (DEBUG_REALTIME) console.log('Attempting auth refresh', refreshAttemptRef.current);
+      if (DEBUG_REALTIME)
+        console.log('Attempting auth refresh', refreshAttemptRef.current);
 
       // Create a new Supabase client after refresh
       supabaseRef.current = createClient();
@@ -323,7 +407,7 @@ export function NotificationBell() {
     if (!mountedRef.current || !user) return;
 
     const {
-      data: { subscription }
+      data: { subscription },
     } = supabaseRef.current.auth.onAuthStateChange((event, session) => {
       if (DEBUG_REALTIME) console.log('Auth event:', event);
 
@@ -369,7 +453,7 @@ export function NotificationBell() {
           user: user.id,
           email: user.email,
           role: profile?.role,
-          isLoading: authLoading
+          isLoading: authLoading,
         });
       }
 
@@ -445,16 +529,21 @@ export function NotificationBell() {
 
   // If no authenticated user but we had cached admin state, still show the bell
   if (!user && !cachedIsAdmin) {
-    if (DEBUG_REALTIME) console.log('NotificationBell: No user - hiding component');
+    if (DEBUG_REALTIME)
+      console.log('NotificationBell: No user - hiding component');
     return null;
   }
 
   if (DEBUG_REALTIME) {
-    console.log('NotificationBell: Rendering for user', user?.email || 'cached admin');
+    console.log(
+      'NotificationBell: Rendering for user',
+      user?.email || 'cached admin',
+    );
   }
 
   // Always show the bell for cached admins, otherwise check profile
-  const isAdminOrSales = cachedIsAdmin || profile?.role === 'admin' || profile?.role === 'sales';
+  const isAdminOrSales =
+    cachedIsAdmin || profile?.role === 'admin' || profile?.role === 'sales';
 
   // Don't render if not admin or sales
   if (!isAdminOrSales) {
@@ -471,10 +560,12 @@ export function NotificationBell() {
           disabled={isLoading}
         >
           {animateBell ? (
-            <BellRing className={cn(
-              'h-5 w-5',
-              animateBell && 'animate-pulse text-yellow-500'
-            )} />
+            <BellRing
+              className={cn(
+                'h-5 w-5',
+                animateBell && 'animate-pulse text-yellow-500',
+              )}
+            />
           ) : (
             <Bell className="h-5 w-5" />
           )}
