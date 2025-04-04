@@ -184,7 +184,7 @@ export function NotificationDebugger() {
 
       // Try to enable the policy by calling an RPC function
       const { error: rpcError } = await supabase.rpc(
-        'enable_test_orders_for_user',
+        'enable_test_orders_for_user' as any,
         {
           user_id: user.id,
         },
