@@ -137,7 +137,7 @@ export function NotificationBell() {
         console.warn('Failed to play test notification sound:', err),
       );
     }
-  }, [soundEnabled]);
+  }, [soundEnabled, playNotificationSound]);
 
   // Load sound preference from localStorage on mount
   useEffect(() => {
@@ -169,7 +169,7 @@ export function NotificationBell() {
     return () => clearTimeout(timer);
   }, [animateBell]);
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     // Skip if component is unmounted
     if (!mountedRef.current) return;
 
@@ -192,11 +192,11 @@ export function NotificationBell() {
       setIsLoading(true);
       setError(null);
 
-      const supabase = supabaseRef.current;
-      // Add null check for supabase
-      if (!supabase) {
-        console.error('Supabase client not initialized in fetchNotifications');
-        setError('Supabase client not available');
+      const client = supabaseRef.current;
+      // Add null check for client
+      if (!client) {
+        console.error('Client not initialized in fetchNotifications');
+        setError('Client not available');
         setIsLoading(false);
         return;
       }
@@ -211,7 +211,7 @@ export function NotificationBell() {
         role: profile?.role,
       });
 
-      const { data, error, count } = await supabase
+      const { data, error, count } = await client
         .from('orders')
         .select('id, status, created_at, profiles!orders_profile_id_fkey(*)', {
           count: 'exact',
@@ -229,7 +229,7 @@ export function NotificationBell() {
       });
 
       if (error) {
-        console.error('Supabase fetch error:', error);
+        console.error('Database fetch error:', error);
         throw new Error(error.message || 'Failed to fetch orders');
       }
 
@@ -310,27 +310,25 @@ export function NotificationBell() {
         setIsLoading(false);
       }
     }
-  };
+  }, [user, profile, playNotificationSound]);
 
-  const setupRealtimeSubscription = () => {
+  const setupRealtimeSubscription = useCallback((): void => {
     // Exit if component unmounted
     if (!mountedRef.current) return;
 
     try {
-      const supabase = supabaseRef.current;
-      // Add null check for supabase
-      if (!supabase) {
-        console.error(
-          'Supabase client not initialized in setupRealtimeSubscription',
-        );
-        setError('Supabase client not available');
+      const client = supabaseRef.current;
+      // Add null check for client
+      if (!client) {
+        console.error('Client not initialized in setupRealtimeSubscription');
+        setError('Client not available');
         return;
       }
 
       // Remove existing channel if it exists
       if (channelRef.current) {
         try {
-          supabase.removeChannel(channelRef.current);
+          client.removeChannel(channelRef.current);
         } catch (err) {
           console.warn('Error removing existing channel:', err);
         }
@@ -350,7 +348,7 @@ export function NotificationBell() {
       // Create channel with the correct pattern from official docs
       console.log('Setting up realtime channel:', channelName);
 
-      const channel = supabase
+      const channel = client
         .channel(channelName)
         .on(
           'postgres_changes',
@@ -536,7 +534,7 @@ export function NotificationBell() {
         }
       }, RECONNECT_INTERVAL);
     }
-  };
+  }, [user, profile, playNotificationSound, fetchNotifications]);
 
   // Keep track of refresh attempts to avoid infinite loops
   const refreshAttemptRef = useRef(0);
@@ -564,7 +562,7 @@ export function NotificationBell() {
       console.error('Auth refresh error:', err);
       setError('Authentication error. Please reload the page.');
     }
-  };
+  }; // Add missing closing parenthesis
 
   // Listen for auth state changes
   useEffect(() => {
@@ -659,7 +657,7 @@ export function NotificationBell() {
       console.error('Error in notification bell setup:', err);
       setError('Failed to initialize notifications');
     }
-  }, [authLoading, user, profile]);
+  }, [authLoading, user, profile, setupRealtimeSubscription]);
 
   const handleNotificationClick = (orderId: string) => {
     router.push(`/dashboard/orders/${orderId}`);
@@ -688,6 +686,7 @@ export function NotificationBell() {
     return (
       <Button variant="ghost" size="icon" className="relative" disabled>
         <Bell className="h-5 w-5 text-muted-foreground" />
+        <span className="absolute -bottom-1 -right-1 h-2 w-2 rounded-full bg-gray-300 animate-pulse" />
       </Button>
     );
   }
