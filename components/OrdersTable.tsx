@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ExtendedOrder } from '@/types/order';
 import { OrdersDataTable } from '@/components/orders/orders-data-table';
 import { createClient } from '@/lib/supabase/client';
@@ -11,8 +11,8 @@ interface OrdersTableProps {
   onDeleteOrder: (id: string) => Promise<void>;
   isLoading: boolean;
   connectionStatus?: string;
-  onOrdersUpdated?: () => void; // New prop to handle orders refresh
-  setConnectionStatus?: (status: string) => void; // New prop to update connection status
+  onOrdersUpdated?: () => void; // Callback to refresh orders
+  setConnectionStatus?: (status: string) => void; // Update connection status
 }
 
 const OrdersTable: React.FC<OrdersTableProps> = ({
@@ -24,6 +24,8 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
   onOrdersUpdated,
   setConnectionStatus,
 }) => {
+  const [lastRefresh, setLastRefresh] = useState(new Date());
+
   // Setup real-time listener
   useEffect(() => {
     // Skip if we don't have the callback to refresh orders
@@ -52,19 +54,30 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
         },
         payload => {
           // When any order changes, refresh the orders list
+          console.log(`Received order change: ${payload.eventType}`, payload);
           onOrdersUpdated();
+          setLastRefresh(new Date());
         }
       )
       .subscribe(status => {
         // Update connection status if the setter is provided
         if (setConnectionStatus) {
+          console.log(`Orders subscription status: ${status}`);
           setConnectionStatus(status);
         }
       });
 
-    // Cleanup function to remove the channel when component unmounts
+    // Additional periodic refresh every 30 seconds regardless of events
+    const refreshInterval = setInterval(() => {
+      console.log('Periodic refresh of orders table');
+      onOrdersUpdated();
+      setLastRefresh(new Date());
+    }, 30000); // 30 seconds refresh
+
+    // Cleanup function to remove the channel and interval when component unmounts
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(refreshInterval);
     };
   }, [onOrdersUpdated, setConnectionStatus]);
 
@@ -76,6 +89,24 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
           <span className="text-yellow-700">Connecting to real-time updates...</span>
         </div>
       )}
+
+      <div className="flex justify-between items-center">
+        <div className="text-sm text-muted-foreground">
+          {lastRefresh && `Last updated: ${lastRefresh.toLocaleTimeString()}`}
+        </div>
+        {onOrdersUpdated && (
+          <button
+            onClick={() => {
+              console.log('Manual refresh triggered');
+              onOrdersUpdated();
+              setLastRefresh(new Date());
+            }}
+            className="text-sm text-blue-600 hover:underline"
+          >
+            Refresh
+          </button>
+        )}
+      </div>
 
       <OrdersDataTable
         orders={orders}

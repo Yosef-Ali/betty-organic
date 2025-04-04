@@ -32,6 +32,9 @@ interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
   searchKey: string;
+  searchPlaceholder?: string;
+  sorting?: any;
+  onSortingChange?: any;
   meta?: Record<string, any>;
 }
 
@@ -39,6 +42,9 @@ export function DataTable<TData, TValue>({
   columns,
   data,
   searchKey,
+  searchPlaceholder,
+  sorting,
+  onSortingChange,
   meta,
 }: DataTableProps<TData, TValue>) {
   const table = useReactTable({
@@ -48,6 +54,10 @@ export function DataTable<TData, TValue>({
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
+    state: {
+      sorting: sorting,
+    },
+    onSortingChange: onSortingChange,
     initialState: {
       pagination: {
         pageSize: 12,
@@ -80,6 +90,18 @@ export function DataTable<TData, TValue>({
 
   return (
     <div>
+      {searchKey && (
+        <div className="flex items-center py-4">
+          <input
+            type="search"
+            placeholder={searchPlaceholder || `Search by ${searchKey}...`}
+            className="max-w-sm border border-input rounded-md px-3 py-2 text-sm mb-4"
+            onChange={(event) => {
+              table.getColumn(searchKey)?.setFilterValue(event.target.value);
+            }}
+          />
+        </div>
+      )}
       <div className="rounded-md border">
         <Table>
           <TableHeader>
