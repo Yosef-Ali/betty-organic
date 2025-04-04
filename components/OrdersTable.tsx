@@ -25,8 +25,32 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
   setConnectionStatus,
 }) => {
   const [lastRefresh, setLastRefresh] = useState(new Date());
+  const [pollingEnabled, setPollingEnabled] = useState(true);
 
-  // Setup real-time listener
+  // Setup more aggressive polling like the NotificationDebugger
+  useEffect(() => {
+    // Skip if we don't have the callback to refresh orders
+    if (!onOrdersUpdated || !pollingEnabled) return;
+
+    console.log('Starting aggressive order polling...');
+
+    // Initial fetch
+    onOrdersUpdated();
+
+    // Very frequent polling (5 seconds)
+    const frequentPolling = setInterval(() => {
+      console.log('Polling orders table for updates');
+      onOrdersUpdated();
+      setLastRefresh(new Date());
+    }, 5000); // Poll every 5 seconds
+
+    return () => {
+      console.log('Stopping order polling');
+      clearInterval(frequentPolling);
+    };
+  }, [onOrdersUpdated, pollingEnabled]);
+
+  // Setup real-time listener (as a backup to polling)
   useEffect(() => {
     // Skip if we don't have the callback to refresh orders
     if (!onOrdersUpdated) return;
@@ -54,7 +78,7 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
         },
         payload => {
           // When any order changes, refresh the orders list
-          console.log(`Received order change: ${payload.eventType}`, payload);
+          console.log(`Received real-time order change: ${payload.eventType}`, payload);
           onOrdersUpdated();
           setLastRefresh(new Date());
         }
@@ -67,17 +91,9 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
         }
       });
 
-    // Additional periodic refresh every 30 seconds regardless of events
-    const refreshInterval = setInterval(() => {
-      console.log('Periodic refresh of orders table');
-      onOrdersUpdated();
-      setLastRefresh(new Date());
-    }, 30000); // 30 seconds refresh
-
-    // Cleanup function to remove the channel and interval when component unmounts
+    // Cleanup function to remove the channel when component unmounts
     return () => {
       supabase.removeChannel(channel);
-      clearInterval(refreshInterval);
     };
   }, [onOrdersUpdated, setConnectionStatus]);
 
@@ -94,18 +110,29 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
         <div className="text-sm text-muted-foreground">
           {lastRefresh && `Last updated: ${lastRefresh.toLocaleTimeString()}`}
         </div>
-        {onOrdersUpdated && (
-          <button
-            onClick={() => {
-              console.log('Manual refresh triggered');
-              onOrdersUpdated();
-              setLastRefresh(new Date());
-            }}
-            className="text-sm text-blue-600 hover:underline"
-          >
-            Refresh
-          </button>
-        )}
+        <div className="flex gap-3">
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={pollingEnabled}
+              onChange={(e) => setPollingEnabled(e.target.checked)}
+              className="rounded"
+            />
+            Auto-refresh
+          </label>
+          {onOrdersUpdated && (
+            <button
+              onClick={() => {
+                console.log('Manual refresh triggered');
+                onOrdersUpdated();
+                setLastRefresh(new Date());
+              }}
+              className="text-sm text-blue-600 hover:underline"
+            >
+              Refresh Now
+            </button>
+          )}
+        </div>
       </div>
 
       <OrdersDataTable
