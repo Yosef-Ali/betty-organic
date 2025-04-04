@@ -192,6 +192,86 @@ export function NotificationBell() {
       setIsLoading(true);
       setError(null);
 
+      if (DEBUG_REALTIME)
+        console.log('Fetching notification data using simplified approach...');
+
+      // Log debug information
+      console.log('Fetching pending orders with query:', {
+        table: 'orders',
+        status: 'pending',
+        userId: user?.id,
+        role: profile?.role,
+        method: 'simplified server action',
+      });
+
+      // Try to use the simplified server action first
+      try {
+        // Import the server action dynamically
+        const { fetchPendingOrders } = await import(
+          '@/app/actions/simpleServerActions'
+        );
+        const result = await fetchPendingOrders();
+
+        // Log the result
+        console.log('Server action result:', {
+          success: result.success,
+          count: result.count,
+          ordersLength: result.orders?.length || 0,
+          error: result.error,
+        });
+
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to fetch orders');
+        }
+
+        // Skip state update if component is unmounted
+        if (!mountedRef.current) return;
+
+        const actualCount = typeof result.count === 'number' ? result.count : 0;
+
+        if (DEBUG_REALTIME) {
+          console.log(
+            `fetchNotifications: Received count = ${actualCount}, data length = ${
+              result.orders?.length ?? 0
+            }`,
+          );
+        }
+
+        // Filter out null created_at and map to NotificationOrder type
+        const pendingOrders = (result.orders || [])
+          .filter(
+            (order: any) => order?.created_at && order.status === 'pending',
+          )
+          .map(
+            (order: any): NotificationOrder => ({
+              // Ensure correct type mapping
+              id: order.id,
+              status: order.status,
+              created_at: order.created_at as string, // Already filtered non-null
+              profiles: order.profiles,
+            }),
+          );
+
+        if (DEBUG_REALTIME) {
+          console.log(
+            `fetchNotifications (Initial Load): Filtered pending orders = ${pendingOrders.length}`,
+          );
+        }
+
+        // Set initial state based on fetch
+        setNotifications(pendingOrders);
+        setUnreadCount(actualCount); // Use actualCount directly from initial fetch
+        retryCountRef.current = 0; // Reset retries on successful fetch
+        return; // Exit early if server action worked
+      } catch (serverActionError) {
+        // If server action fails, log it and continue with direct client approach
+        console.warn(
+          'Server action failed, falling back to direct client:',
+          serverActionError,
+        );
+      }
+
+      // Fallback to direct client approach if server action failed
       const client = supabaseRef.current;
       // Add null check for client
       if (!client) {
@@ -201,15 +281,7 @@ export function NotificationBell() {
         return;
       }
 
-      if (DEBUG_REALTIME) console.log('Fetching notification data...');
-
-      // Add console log to debug the query
-      console.log('Fetching pending orders with query:', {
-        table: 'orders',
-        status: 'pending',
-        userId: user?.id,
-        role: profile?.role,
-      });
+      console.log('Falling back to direct client query');
 
       const { data, error, count } = await client
         .from('orders')
@@ -221,7 +293,7 @@ export function NotificationBell() {
         .limit(10);
 
       // Log the result
-      console.log('Pending orders query result:', {
+      console.log('Direct client query result:', {
         success: !error,
         count,
         dataLength: data?.length || 0,

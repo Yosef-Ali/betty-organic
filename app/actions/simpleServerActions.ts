@@ -27,18 +27,18 @@ export async function testServerAction() {
 export async function fetchPendingOrders() {
   try {
     const supabase = await createClient();
-    
+
     const { data, error, count } = await supabase
       .from('orders')
-      .select('id, status, created_at', { count: 'exact' })
+      .select('id, status, created_at, profiles!orders_profile_id_fkey(*)', { count: 'exact' })
       .eq('status', 'pending')
       .order('created_at', { ascending: false })
       .limit(10);
-    
+
     if (error) {
       throw new Error(error.message);
     }
-    
+
     return {
       success: true,
       orders: data || [],
@@ -61,14 +61,14 @@ export async function fetchPendingOrders() {
 export async function createTestOrder() {
   try {
     const supabase = await createClient();
-    
+
     // Get current user
     const { data: { user }, error: userError } = await supabase.auth.getUser();
-    
+
     if (userError || !user) {
       throw new Error('Authentication required');
     }
-    
+
     // Create a test order
     const { data, error } = await supabase
       .from('orders')
@@ -82,11 +82,11 @@ export async function createTestOrder() {
       })
       .select()
       .single();
-    
+
     if (error) {
       throw new Error(error.message);
     }
-    
+
     return {
       success: true,
       message: 'Test order created successfully',
