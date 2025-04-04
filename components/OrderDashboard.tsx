@@ -28,11 +28,19 @@ export type OrderType = (typeof OrderType)[keyof typeof OrderType];
 
 const OrderDashboard: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
-  const [customers, setCustomers] = useState<any[]>([]); // Add state for customers
+  const [customers, setCustomers] = useState<any[]>([]);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [connectionStatus, setConnectionStatus] = useState<string>('Not connected');
+  const [logs, setLogs] = useState<string[]>([]);
   const { toast } = useToast();
   const supabase = createClient();
+
+  // Add debug logging function
+  const addLog = (message: string) => {
+    console.log(`[OrderDashboard] ${message}`);
+    setLogs(prev => [...prev, `${new Date().toISOString()} - ${message}`]);
+  };
 
   // Function to convert a single raw order from DB/payload to the Order type used in UI
   const processSingleOrder = useCallback((orderData: any, customerList: any[]): Order => {
@@ -159,10 +167,20 @@ const OrderDashboard: React.FC = () => {
   useEffect(() => {
     // Load initial data
     loadData();
+    addLog('Setting up realtime listeners...');
+
+    // Clear any existing listeners to prevent duplicates
+    if (typeof localStorage !== 'undefined') {
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('supabase.realtime')) {
+          localStorage.removeItem(key);
+        }
+      });
+    }
 
     // Define handler for orders table changes
     const handleOrderChange = (payload: RealtimePostgresChangesPayload<any>) => {
-      console.log('Orders change received:', payload);
+      addLog(`Orders change received: ${payload.eventType}`);
 
       try {
         if (payload.eventType === 'INSERT') {
@@ -170,124 +188,115 @@ const OrderDashboard: React.FC = () => {
           setOrders(prevOrders => [newOrder, ...prevOrders].sort(
             (a, b) => new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime()
           ));
-          toast({ title: 'New Order Created', description: `Order ${newOrder.display_id || newOrder.id} added.` });
+          toast({
+            title: 'New Order',
+            description: `Order ${newOrder.display_id || newOrder.id.slice(0, 8)} has been created.`
+          });
         } else if (payload.eventType === 'UPDATE') {
           const updatedOrder = processSingleOrder(payload.new, customers);
           setOrders(prevOrders => prevOrders.map(order =>
             order.id === updatedOrder.id ? updatedOrder : order
           ));
-          // Optionally add a toast for updates
-          // toast({ title: 'Order Updated', description: `Order ${updatedOrder.display_id || updatedOrder.id} updated.` });
+          addLog(`Order ${updatedOrder.display_id || updatedOrder.id} updated`);
         } else if (payload.eventType === 'DELETE') {
           const deletedOrderId = payload.old?.id;
           if (!deletedOrderId) return;
 
           setOrders(prevOrders => prevOrders.filter(order => order.id !== deletedOrderId));
 
-          // If the deleted order was selected, select the first available order or clear selection
           if (selectedOrderId === deletedOrderId) {
-            // Need to access the state *after* filtering to select the new first item
             setOrders(currentOrders => {
               setSelectedOrderId(currentOrders[0]?.id || null);
-              return currentOrders; // Return the already filtered state
+              return currentOrders;
             });
           }
-          toast({ title: 'Order Deleted', description: `Order ${payload.old?.display_id || deletedOrderId} removed.` });
+          addLog(`Order ${payload.old?.display_id || deletedOrderId} deleted`);
         }
       } catch (error) {
         console.error("Error processing order change:", error, payload);
-        toast({ title: 'Realtime Update Error', description: 'Could not process order update.', variant: 'destructive' });
+        addLog(`Error processing order change: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        toast({
+          title: 'Update Error',
+          description: 'Failed to process order update.',
+          variant: 'destructive'
+        });
       }
     };
 
-    // Define handler for order_items table changes
-    const handleOrderItemChange = async (payload: RealtimePostgresChangesPayload<any>) => {
-      console.log('Order items change received:', payload);
-      // Ensure payload.new/old and order_id exist before accessing
-      const orderId = (payload.new as any)?.order_id || (payload.old as any)?.order_id;
-
-      if (!orderId) {
-        console.warn("Order item change received without order_id:", payload);
-        return;
-      }
-
-      try {
-        // Fetch only the affected order using the new server action
-        const updatedOrderData = await getOrderById(orderId); // Assumes this action fetches order with items and customer
-        if (updatedOrderData) {
-          const processedOrder = processSingleOrder(updatedOrderData, customers);
-          setOrders(prevOrders => prevOrders.map(order =>
-            order.id === processedOrder.id ? processedOrder : order
-          ));
-          // Optionally add a toast
-          // toast({ title: 'Order Items Updated', description: `Items for order ${processedOrder.display_id || processedOrder.id} updated.` });
-        } else {
-          console.warn(`Order ${orderId} not found after item change.`);
-          // Optionally remove the order if it's gone, or just log
-          // setOrders(prev => prev.filter(o => o.id !== orderId));
-        }
-        // console.warn(`getOrderById(${orderId}) needs to be implemented and uncommented.`); // Removed warning
-        // toast({ title: 'Info', description: `Order item change detected for ${orderId}, but full order refresh is temporarily disabled.` }); // Removed toast
-
-      } catch (error) {
-        console.error(`Error processing order item change for ${orderId}:`, error);
-        toast({ title: 'Error Updating Order Item', description: `Failed to process item change for order ${orderId}.`, variant: 'destructive' });
-      }
-    };
-
-
-    // Subscribe to changes on the orders table
+    // Subscribe to changes on the orders table with better error handling
     const ordersChannel = supabase
-      .channel('orders-changes') // Unique channel name
-      .on<any>( // Use <any> or define a specific type for the payload if available
+      .channel('orders-dashboard')
+      .on(
         'postgres_changes',
         {
-          event: '*', // Listen to all changes (insert, update, delete)
+          event: '*',
           schema: 'public',
           table: 'orders',
         },
-        handleOrderChange // Use the handler function
+        handleOrderChange
       )
-      .subscribe((status, err) => {
-        if (err) {
-          console.error("Orders subscription error:", err);
-          toast({ title: 'Realtime Connection Error', description: 'Could not connect to order updates.', variant: 'destructive' });
-        } else {
-          console.log("Orders subscription status:", status);
+      .subscribe((status) => {
+        addLog(`Orders subscription status: ${status}`);
+        setConnectionStatus(status);
+
+        if (status === 'SUBSCRIBED') {
+          toast({
+            title: 'Connected',
+            description: 'Real-time updates are now active',
+          });
+        } else if (status === 'CHANNEL_ERROR') {
+          toast({
+            title: 'Connection Error',
+            description: 'Failed to connect to real-time updates',
+            variant: 'destructive',
+          });
         }
       });
 
-
-    // Subscribe to changes on the order_items table
+    // Subscribe to changes on order_items with better error handling
     const orderItemsChannel = supabase
-      .channel('order-items-changes') // Unique channel name
-      .on<any>( // Use <any> or define a specific type
+      .channel('order-items-dashboard')
+      .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
           table: 'order_items',
         },
-        handleOrderItemChange // Use the handler function
-      )
-      .subscribe((status, err) => {
-        if (err) {
-          console.error("Order Items subscription error:", err);
-          toast({ title: 'Realtime Connection Error', description: 'Could not connect to order item updates.', variant: 'destructive' });
-        } else {
-          console.log("Order Items subscription status:", status);
+        async (payload) => {
+          addLog('Order items change detected');
+          const orderId = (payload.new as any)?.order_id || (payload.old as any)?.order_id;
+
+          if (!orderId) {
+            addLog('Warning: Order item change received without order_id');
+            return;
+          }
+
+          try {
+            const updatedOrderData = await getOrderById(orderId);
+            if (updatedOrderData) {
+              const processedOrder = processSingleOrder(updatedOrderData, customers);
+              setOrders(prevOrders => prevOrders.map(order =>
+                order.id === processedOrder.id ? processedOrder : order
+              ));
+              addLog(`Updated order ${processedOrder.display_id || processedOrder.id} after item change`);
+            }
+          } catch (error) {
+            console.error(`Error updating order ${orderId} after item change:`, error);
+            addLog(`Error updating order after item change: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          }
         }
+      )
+      .subscribe((status) => {
+        addLog(`Order items subscription status: ${status}`);
       });
 
-
-    // Cleanup function to remove subscriptions
     return () => {
-      console.log("Cleaning up OrderDashboard subscriptions");
-      if (ordersChannel) supabase.removeChannel(ordersChannel).catch(console.error);
-      if (orderItemsChannel) supabase.removeChannel(orderItemsChannel).catch(console.error);
+      addLog('Cleaning up realtime subscriptions');
+      ordersChannel.unsubscribe();
+      orderItemsChannel.unsubscribe();
     };
-    // Add customers and processSingleOrder to dependency array
-  }, [loadData, supabase, toast, selectedOrderId, customers, processSingleOrder]);
+  }, [loadData, supabase, toast]);
 
 
   const handleDelete = async (id: string) => {
@@ -425,6 +434,7 @@ const OrderDashboard: React.FC = () => {
               onSelectOrder={setSelectedOrderId}
               onDeleteOrder={handleDelete}
               isLoading={isLoading}
+              connectionStatus={connectionStatus}
             />
           </TabsContent>
           <TabsContent value="month">
@@ -434,6 +444,7 @@ const OrderDashboard: React.FC = () => {
               onSelectOrder={setSelectedOrderId}
               onDeleteOrder={handleDelete}
               isLoading={isLoading}
+              connectionStatus={connectionStatus}
             />
           </TabsContent>
         </Tabs>

@@ -74,7 +74,8 @@ export function DataTable<TData, TValue>({
         pages.push(-1); // Represents ellipsis
       }
     }
-    return [...new Set(pages)]; // Remove duplicates
+    // Remove duplicates without using Set
+    return pages.filter((value, index, self) => self.indexOf(value) === index);
   };
 
   return (
