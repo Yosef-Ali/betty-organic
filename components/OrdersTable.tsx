@@ -49,12 +49,12 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
     }
   };
 
-  // Setup realtime listener - exactly like NotificationDebugger
+  // Enhanced realtime listener with better error handling and multiple table subscriptions
   const setupRealtimeListener = () => {
-    addLog('Setting up realtime listener...');
+    addLog('Setting up enhanced realtime listener...');
     const supabase = createClient();
 
-    // Clear any existing listeners
+    // Clear any existing listeners to prevent duplicates
     if (typeof localStorage !== 'undefined') {
       Object.keys(localStorage).forEach(key => {
         if (key.startsWith('supabase.realtime')) {
@@ -63,7 +63,8 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
       });
     }
 
-    const channel = supabase
+    // Subscribe to orders table changes
+    const ordersChannel = supabase
       .channel('orders-table-updates')
       .on(
         'postgres_changes',
@@ -73,7 +74,24 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
           table: 'orders',
         },
         payload => {
-          addLog(`Received postgres_changes: ${payload.eventType}`);
+          const eventType = payload.eventType;
+          const orderId = payload.new?.id || payload.old?.id;
+          addLog(`Received orders change: ${eventType} for order ${orderId}`);
+
+          // Different handling based on event type
+          switch (eventType) {
+            case 'INSERT':
+              addLog(`New order created: ${orderId}`);
+              break;
+            case 'UPDATE':
+              addLog(`Order updated: ${orderId}`);
+              break;
+            case 'DELETE':
+              addLog(`Order deleted: ${orderId}`);
+              break;
+          }
+
+          // Refresh orders data
           fetchOrders();
         },
       )
@@ -81,18 +99,44 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
         if (setConnectionStatus) {
           setConnectionStatus(status);
         }
-        addLog(`Subscription status: ${status}`);
+        addLog(`Orders subscription status: ${status}`);
       });
 
-    // Poll every 5 seconds as a backup
+    // Also subscribe to order_items table for complete coverage
+    const orderItemsChannel = supabase
+      .channel('order-items-table-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'order_items',
+        },
+        payload => {
+          const eventType = payload.eventType;
+          const itemId = payload.new?.id || payload.old?.id;
+          const orderId = payload.new?.order_id || payload.old?.order_id;
+
+          addLog(
+            `Received order_items change: ${eventType} for item ${itemId} in order ${orderId}`,
+          );
+          fetchOrders();
+        },
+      )
+      .subscribe(status => {
+        addLog(`Order items subscription status: ${status}`);
+      });
+
+    // Poll every 30 seconds as a backup (reduced frequency to avoid unnecessary requests)
     const pollingInterval = setInterval(() => {
-      addLog('Polling for orders updates');
+      addLog('Backup polling for orders updates');
       fetchOrders();
-    }, 5000);
+    }, 30000);
 
     return () => {
-      addLog('Cleaning up realtime subscription');
-      supabase.removeChannel(channel);
+      addLog('Cleaning up realtime subscriptions');
+      supabase.removeChannel(ordersChannel);
+      supabase.removeChannel(orderItemsChannel);
       clearInterval(pollingInterval);
     };
   };
@@ -108,22 +152,56 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
     <div className="space-y-4">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <h3 className="font-medium">Connection:</h3>
+          <h3 className="font-medium">Realtime:</h3>
           <Badge
             variant={
-              connectionStatus === 'SUBSCRIBED' ? 'default' : 'destructive'
+              connectionStatus === 'SUBSCRIBED' ? 'success' : 'destructive'
+            }
+            className={
+              connectionStatus === 'SUBSCRIBED'
+                ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                : ''
             }
           >
-            {connectionStatus || 'Not connected'}
+            {connectionStatus === 'SUBSCRIBED'
+              ? 'Connected'
+              : connectionStatus || 'Not connected'}
           </Badge>
+
+          {connectionStatus === 'SUBSCRIBED' && (
+            <span className="text-xs text-muted-foreground ml-2">
+              Updates will appear automatically
+            </span>
+          )}
         </div>
         <Button
           variant="outline"
           size="sm"
           onClick={fetchOrders}
           disabled={isLoading}
+          className="flex items-center gap-1"
         >
-          Refresh Orders
+          <svg
+            className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`}
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            ></circle>
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            ></path>
+          </svg>
+          Refresh
         </Button>
       </div>
 
@@ -140,23 +218,38 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
         </div>
       )}
 
-      {/* Debug logs (hidden by default, can be enabled for debugging) */}
-      {logs.length > 0 && (
-        <div className="mt-4">
-          <details>
-            <summary className="cursor-pointer text-sm text-muted-foreground">
-              Debug logs ({logs.length})
-            </summary>
-            <div className="bg-muted p-2 rounded-md h-40 overflow-y-auto text-xs font-mono mt-2">
-              {logs.map((log, index) => (
-                <div key={index} className="py-1">
+      {/* Debug logs with improved UI */}
+      <div className="mt-4 border rounded-md overflow-hidden">
+        <details>
+          <summary className="cursor-pointer p-2 bg-muted flex items-center justify-between hover:bg-muted/80 transition-colors">
+            <div className="flex items-center gap-2">
+              <span className="font-medium">Realtime Activity</span>
+              <Badge variant="outline" className="ml-2">
+                {logs.length} events
+              </Badge>
+            </div>
+            <span className="text-xs text-muted-foreground">
+              Click to {logs.length > 0 ? 'view' : 'hide'} activity log
+            </span>
+          </summary>
+          <div className="bg-muted/30 p-2 max-h-60 overflow-y-auto text-xs font-mono">
+            {logs.length > 0 ? (
+              logs.map((log, index) => (
+                <div
+                  key={index}
+                  className="py-1 border-b border-muted last:border-0"
+                >
                   {log}
                 </div>
-              ))}
-            </div>
-          </details>
-        </div>
-      )}
+              ))
+            ) : (
+              <div className="py-4 text-center text-muted-foreground">
+                No activity recorded yet
+              </div>
+            )}
+          </div>
+        </details>
+      </div>
     </div>
   );
 };
