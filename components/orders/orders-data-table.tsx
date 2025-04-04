@@ -8,6 +8,7 @@ import {
   getPaginationRowModel,
   getSortedRowModel,
   getFilteredRowModel,
+  Row,
 } from '@tanstack/react-table';
 
 import {
@@ -75,6 +76,12 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+// Define a type for the extended row data
+type ExtendedOrderRow = ExtendedOrder & {
+  formattedDate?: string;
+  formattedAmount?: string;
+};
+
 export function OrdersDataTable({
   orders,
   onSelectOrder,
@@ -96,11 +103,11 @@ export function OrdersDataTable({
     }));
   }, [orders]);
 
-  const columns = useMemo(() => [
+  const columns = useMemo<ColumnDef<ExtendedOrderRow>[]>(() => [
     {
       accessorKey: 'display_id',
       header: 'Order ID',
-      cell: ({ row }) => {
+      cell: ({ row }: { row: Row<ExtendedOrderRow> }) => {
         const orderId = row.original.id;
         const displayId = row.original.display_id || row.original.id.slice(0, 8);
         return (
@@ -113,7 +120,7 @@ export function OrdersDataTable({
     {
       accessorKey: 'status',
       header: 'Status',
-      cell: ({ row }) => {
+      cell: ({ row }: { row: Row<ExtendedOrderRow> }) => {
         const status = row.original.status;
         const getStatusStyles = (status: string) => {
           switch (status) {
@@ -137,28 +144,28 @@ export function OrdersDataTable({
     {
       accessorKey: 'customer.name',
       header: 'Customer',
-      cell: ({ row }) => row.original.customer?.name || 'Anonymous',
+      cell: ({ row }: { row: Row<ExtendedOrderRow> }) => row.original.customer?.name || 'Anonymous',
     },
     {
       accessorKey: 'type',
       header: 'Type',
-      cell: ({ row }) => (
+      cell: ({ row }: { row: Row<ExtendedOrderRow> }) => (
         <span className="capitalize">{row.original.type}</span>
       ),
     },
     {
       accessorKey: 'total_amount',
       header: 'Amount',
-      cell: ({ row }) => row.original.formattedAmount,
+      cell: ({ row }: { row: Row<ExtendedOrderRow> }) => row.original.formattedAmount,
     },
     {
       accessorKey: 'created_at',
       header: 'Date',
-      cell: ({ row }) => row.original.formattedDate,
+      cell: ({ row }: { row: Row<ExtendedOrderRow> }) => row.original.formattedDate,
     },
     {
       id: 'actions',
-      cell: ({ row }) => {
+      cell: ({ row }: { row: Row<ExtendedOrderRow> }) => {
         return (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -193,9 +200,7 @@ export function OrdersDataTable({
       <DataTable
         columns={columns}
         data={data}
-        sorting={sorting}
-        onSortingChange={setSorting}
-        defaultSorting={[{ id: 'created_at', desc: true }]}
+        searchKey="display_id"
       />
 
       {isLoading && (
