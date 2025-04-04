@@ -59,9 +59,12 @@ export function NotificationBell() {
     }
   };
 
+  // Enhanced animation effect for the bell
   useEffect(() => {
     if (!animateBell) return;
-    const timer = setTimeout(() => setAnimateBell(false), 1000);
+
+    // Animate for longer (3 seconds) with a more noticeable effect
+    const timer = setTimeout(() => setAnimateBell(false), 3000);
     return () => clearTimeout(timer);
   }, [animateBell]);
 
@@ -120,7 +123,8 @@ export function NotificationBell() {
 
       if (DEBUG_REALTIME) {
         console.log(
-          `fetchNotifications: Received count = ${actualCount}, data length = ${data?.length ?? 0
+          `fetchNotifications: Received count = ${actualCount}, data length = ${
+            data?.length ?? 0
           }`,
         );
       }
@@ -128,12 +132,15 @@ export function NotificationBell() {
       // Filter out null created_at and map to NotificationOrder type
       const pendingOrders = (data || [])
         .filter((order: any) => order?.created_at && order.status === 'pending')
-        .map((order: any): NotificationOrder => ({ // Ensure correct type mapping
-          id: order.id,
-          status: order.status,
-          created_at: order.created_at as string, // Already filtered non-null
-          profiles: order.profiles,
-        }));
+        .map(
+          (order: any): NotificationOrder => ({
+            // Ensure correct type mapping
+            id: order.id,
+            status: order.status,
+            created_at: order.created_at as string, // Already filtered non-null
+            profiles: order.profiles,
+          }),
+        );
 
       if (DEBUG_REALTIME) {
         console.log(
@@ -149,7 +156,10 @@ export function NotificationBell() {
       // Skip state updates if component unmounted
       if (!mountedRef.current) return;
 
-      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch notifications';
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : 'Failed to fetch notifications';
       setError(errorMessage);
       console.error('Initial Notification fetch error:', error);
 
@@ -160,7 +170,9 @@ export function NotificationBell() {
           1000 * Math.pow(2, retryCountRef.current),
           10000,
         );
-        console.log(`Retrying initial fetch in ${backoffTime}ms (Attempt ${retryCountRef.current})`);
+        console.log(
+          `Retrying initial fetch in ${backoffTime}ms (Attempt ${retryCountRef.current})`,
+        );
         if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
         retryTimeoutRef.current = setTimeout(() => {
           if (mountedRef.current) {
@@ -168,8 +180,12 @@ export function NotificationBell() {
           }
         }, backoffTime);
       } else {
-        console.error(`Max retries (${MAX_RETRIES}) reached for initial notification fetch.`);
-        setError(`Failed to load notifications after ${MAX_RETRIES} attempts. ${errorMessage}`);
+        console.error(
+          `Max retries (${MAX_RETRIES}) reached for initial notification fetch.`,
+        );
+        setError(
+          `Failed to load notifications after ${MAX_RETRIES} attempts. ${errorMessage}`,
+        );
       }
     } finally {
       // Skip state updates if component unmounted
@@ -226,7 +242,8 @@ export function NotificationBell() {
             // No filter needed here, we handle status changes in the callback
             // filter: 'status=eq.pending', // REMOVED FILTER
           },
-          (payload: RealtimePostgresChangesPayload<any>) => { // Add type to payload
+          (payload: RealtimePostgresChangesPayload<any>) => {
+            // Add type to payload
             // Skip if component unmounted
             if (!mountedRef.current) return;
 
@@ -243,8 +260,11 @@ export function NotificationBell() {
             const oldRecord = payload.old as any;
 
             // Helper to create NotificationOrder from payload record
-            const createNotification = (record: any): NotificationOrder | null => {
-              if (!record || !record.created_at || !record.id || !record.status) return null;
+            const createNotification = (
+              record: any,
+            ): NotificationOrder | null => {
+              if (!record || !record.created_at || !record.id || !record.status)
+                return null;
               return {
                 id: record.id,
                 status: record.status,
@@ -257,8 +277,12 @@ export function NotificationBell() {
               if (newRecord?.status === 'pending') {
                 const newNotification = createNotification(newRecord);
                 if (newNotification) {
-                  if (DEBUG_REALTIME) console.log('INSERT pending:', newNotification);
-                  setNotifications(prev => [newNotification, ...prev.slice(0, 9)]); // Add to start, limit to 10
+                  if (DEBUG_REALTIME)
+                    console.log('INSERT pending:', newNotification);
+                  setNotifications(prev => [
+                    newNotification,
+                    ...prev.slice(0, 9),
+                  ]); // Add to start, limit to 10
                   setUnreadCount(prev => prev + 1);
                   setAnimateBell(true);
                   playNotificationSound();
@@ -272,23 +296,37 @@ export function NotificationBell() {
                 // Became pending
                 const newNotification = createNotification(newRecord);
                 if (newNotification) {
-                  if (DEBUG_REALTIME) console.log('UPDATE to pending:', newNotification);
-                  setNotifications(prev => [newNotification, ...prev.filter(n => n.id !== newNotification.id).slice(0, 9)]);
+                  if (DEBUG_REALTIME)
+                    console.log('UPDATE to pending:', newNotification);
+                  setNotifications(prev => [
+                    newNotification,
+                    ...prev
+                      .filter(n => n.id !== newNotification.id)
+                      .slice(0, 9),
+                  ]);
                   setUnreadCount(prev => prev + 1);
                   setAnimateBell(true);
                   playNotificationSound();
                 }
               } else if (oldStatus === 'pending' && newStatus !== 'pending') {
                 // No longer pending
-                if (DEBUG_REALTIME) console.log('UPDATE from pending:', oldRecord);
-                setNotifications(prev => prev.filter(n => n.id !== oldRecord.id));
+                if (DEBUG_REALTIME)
+                  console.log('UPDATE from pending:', oldRecord);
+                setNotifications(prev =>
+                  prev.filter(n => n.id !== oldRecord.id),
+                );
                 setUnreadCount(prev => Math.max(0, prev - 1));
               } else if (oldStatus === 'pending' && newStatus === 'pending') {
                 // Still pending, update details if necessary (e.g., profile info)
                 const updatedNotification = createNotification(newRecord);
                 if (updatedNotification) {
-                  if (DEBUG_REALTIME) console.log('UPDATE still pending:', updatedNotification);
-                  setNotifications(prev => prev.map(n => n.id === updatedNotification.id ? updatedNotification : n));
+                  if (DEBUG_REALTIME)
+                    console.log('UPDATE still pending:', updatedNotification);
+                  setNotifications(prev =>
+                    prev.map(n =>
+                      n.id === updatedNotification.id ? updatedNotification : n,
+                    ),
+                  );
                   // Do NOT change unread count or animate/sound here
                 }
               }
@@ -296,13 +334,15 @@ export function NotificationBell() {
               if (oldRecord?.status === 'pending') {
                 // Deleted while pending
                 if (DEBUG_REALTIME) console.log('DELETE pending:', oldRecord);
-                setNotifications(prev => prev.filter(n => n.id !== oldRecord.id));
+                setNotifications(prev =>
+                  prev.filter(n => n.id !== oldRecord.id),
+                );
                 setUnreadCount(prev => Math.max(0, prev - 1));
               }
             }
-          }
+          },
         )
-        .subscribe((status) => {
+        .subscribe(status => {
           if (!mountedRef.current) return;
 
           setConnectionStatus(status);
@@ -537,49 +577,92 @@ export function NotificationBell() {
           className="relative"
           disabled={isLoading}
         >
-          {animateBell ? (
-            <BellRing
-              className={cn(
-                'h-5 w-5',
-                animateBell && 'animate-pulse text-yellow-500',
-              )}
-            />
-          ) : (
-            <Bell className="h-5 w-5" />
-          )}
+          <div className={cn(animateBell && 'animate-bell')}>
+            {animateBell ? (
+              <BellRing className={cn('h-5 w-5', 'text-yellow-500')} />
+            ) : (
+              <Bell
+                className={cn('h-5 w-5', unreadCount > 0 && 'text-red-500')}
+              />
+            )}
+          </div>
           {unreadCount > 0 && (
-            <Badge className="absolute -right-1 -top-1 h-5 w-5 rounded-full p-0">
+            <Badge className="absolute -right-1 -top-1 h-5 w-5 rounded-full p-0 flex items-center justify-center bg-red-500 text-white border-2 border-background">
               {unreadCount}
             </Badge>
           )}
-          <span className="absolute -bottom-1 -right-1 h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+          {connectionStatus === 'SUBSCRIBED' && (
+            <span className="absolute -bottom-1 -right-1 h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+          )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-64">
+      <DropdownMenuContent align="end" className="w-80 p-2">
+        <div className="flex items-center justify-between mb-2 px-2">
+          <h4 className="font-semibold text-sm">Notifications</h4>
+          {connectionStatus === 'SUBSCRIBED' ? (
+            <div className="flex items-center text-xs text-green-600">
+              <span className="h-2 w-2 rounded-full bg-green-500 mr-1"></span>
+              Live
+            </div>
+          ) : (
+            <div className="flex items-center text-xs text-yellow-600">
+              <span className="h-2 w-2 rounded-full bg-yellow-500 mr-1"></span>
+              Connecting...
+            </div>
+          )}
+        </div>
+
         {error ? (
-          <DropdownMenuItem className="text-red-500">
-            Failed to load notifications: {error}
-          </DropdownMenuItem>
+          <div className="p-3 text-red-500 bg-red-50 rounded-md mb-1">
+            <div className="font-medium">Error</div>
+            <div className="text-sm">{error}</div>
+          </div>
         ) : notifications.length === 0 ? (
-          <DropdownMenuItem>No new notifications</DropdownMenuItem>
+          <div className="p-4 text-center text-muted-foreground">
+            <div className="mb-2">📭</div>
+            <div>No pending orders</div>
+          </div>
         ) : (
-          notifications.map(notification => (
-            <DropdownMenuItem
-              key={notification.id}
-              onClick={() => handleNotificationClick(notification.id)}
-              className="cursor-pointer"
-            >
-              <div className="flex flex-col">
-                <span className="font-medium">
-                  New {notification.status} order
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {new Date(notification.created_at).toLocaleString()}
-                </span>
-              </div>
-            </DropdownMenuItem>
-          ))
+          <div className="max-h-[300px] overflow-y-auto">
+            {notifications.map(notification => (
+              <DropdownMenuItem
+                key={notification.id}
+                onClick={() => handleNotificationClick(notification.id)}
+                className="cursor-pointer mb-1 hover:bg-muted rounded-md"
+              >
+                <div className="flex items-start gap-2 w-full">
+                  <div className="bg-yellow-100 text-yellow-800 p-2 rounded-full">
+                    <BellRing className="h-4 w-4" />
+                  </div>
+                  <div className="flex flex-col flex-1">
+                    <div className="flex justify-between items-center w-full">
+                      <span className="font-medium">
+                        New {notification.status} order
+                      </span>
+                      <Badge variant="outline" className="ml-2 text-xs">
+                        Pending
+                      </Badge>
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(notification.created_at).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              </DropdownMenuItem>
+            ))}
+          </div>
         )}
+
+        <div className="mt-2 pt-2 border-t border-muted">
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full text-xs"
+            onClick={() => router.push('/dashboard/orders')}
+          >
+            View All Orders
+          </Button>
+        </div>
       </DropdownMenuContent>
     </DropdownMenu>
   );
