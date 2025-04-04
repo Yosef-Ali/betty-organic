@@ -201,13 +201,46 @@ export function NotificationBell() {
         status: 'pending',
         userId: user?.id,
         role: profile?.role,
-        method: 'simplified server action',
+        method: 'direct client only - no server actions',
       });
 
-      // Skip server actions entirely and use direct client approach
-      console.log('Using direct client approach for notifications');
+      // Skip server actions entirely and use direct client approach only
+      console.log(
+        'Using direct client approach for notifications - bypassing server actions completely',
+      );
 
-      // No server action attempt - this avoids the server action error completely
+      // Set default test data for development mode
+      if (process.env.NODE_ENV === 'development' && !user) {
+        console.log('Development mode: Setting default notification test data');
+
+        // Create test notification objects
+        const testNotifications: NotificationOrder[] = [
+          {
+            id: 'test-1',
+            status: 'pending',
+            created_at: new Date().toISOString(),
+            profiles: undefined, // Use undefined instead of null to match the type
+          },
+          {
+            id: 'test-2',
+            status: 'pending',
+            created_at: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
+            profiles: undefined,
+          },
+          {
+            id: 'test-3',
+            status: 'pending',
+            created_at: new Date(Date.now() - 7200000).toISOString(), // 2 hours ago
+            profiles: undefined,
+          },
+        ];
+
+        // Set test data
+        setNotifications(testNotifications);
+        setUnreadCount(testNotifications.length);
+        setIsLoading(false);
+        return; // Exit early in development mode with test data
+      }
 
       // Fallback to direct client approach if server action failed
       const client = supabaseRef.current;
@@ -549,8 +582,8 @@ export function NotificationBell() {
   // Keep track of refresh attempts to avoid infinite loops
   const refreshAttemptRef = useRef(0);
 
-  // Function to handle auth refresh
-  const refreshAuth = async () => {
+  // Function to handle auth refresh - called when token is refreshed
+  const refreshAuth = useCallback(async () => {
     try {
       // Only try refreshing 3 times max
       if (refreshAttemptRef.current >= 3) return;
@@ -572,7 +605,7 @@ export function NotificationBell() {
       console.error('Auth refresh error:', err);
       setError('Authentication error. Please reload the page.');
     }
-  }; // Add missing closing parenthesis
+  }, [setupRealtimeSubscription, fetchNotifications]);
 
   // Listen for auth state changes
   useEffect(() => {
@@ -581,12 +614,16 @@ export function NotificationBell() {
 
     const {
       data: { subscription },
-    } = supabaseRef.current.auth.onAuthStateChange((event, session) => {
+    } = supabaseRef.current.auth.onAuthStateChange((event, _session) => {
       if (DEBUG_REALTIME) console.log('Auth event:', event);
 
       if (event === 'TOKEN_REFRESHED') {
         if (DEBUG_REALTIME) console.log('Token refreshed successfully');
-        // Refresh data without full re-instantiation
+        // Call the refreshAuth function to handle token refresh
+        refreshAuth().catch(err =>
+          console.error('Error refreshing auth:', err),
+        );
+        // Also refresh data
         fetchNotifications();
       } else if (event === 'SIGNED_OUT') {
         // Clean up and hide component
@@ -601,7 +638,7 @@ export function NotificationBell() {
     return () => {
       subscription.unsubscribe();
     };
-  }, [user]);
+  }, [user, fetchNotifications, refreshAuth]);
 
   // Wait for auth to be ready before setting up subscriptions
   useEffect(() => {
