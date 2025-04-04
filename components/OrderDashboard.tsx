@@ -124,80 +124,104 @@ const OrderDashboard: React.FC = () => {
     [processSingleOrder],
   );
 
-  // Enhanced function to load data with visual feedback for updates
-  const loadData = useCallback(async () => {
-    setIsLoading(true);
-    setIsUpdating(true); // Show that we're updating data
+  // Enhanced function to load data with event-driven visual feedback
+  const loadData = useCallback(
+    async (options?: { silent?: boolean; isInitial?: boolean }) => {
+      const { silent = false, isInitial = false } = options || {};
 
-    try {
-      // Fetch customers first or in parallel
-      const customersResponse = await getCustomers();
-      const customersData = Array.isArray(customersResponse)
-        ? customersResponse
-        : [];
-      setCustomers(customersData); // Store customers in state
-
-      // Fetch orders
-      const ordersResponse = await getOrders();
-      if (!ordersResponse) {
-        throw new Error('Failed to fetch orders');
-      }
-      const ordersData = Array.isArray(ordersResponse) ? ordersResponse : [];
-
-      // Process orders using the stored customer list
-      const processedOrders = processMultipleOrders(ordersData, customersData);
-
-      const sortedOrders = processedOrders.sort(
-        (a, b) =>
-          new Date(b.created_at ?? 0).getTime() -
-          new Date(a.created_at ?? 0).getTime(),
-      );
-
-      // Check if orders have changed before updating state
-      const ordersChanged =
-        JSON.stringify(sortedOrders) !== JSON.stringify(orders);
-
-      if (ordersChanged) {
-        addLog(`Orders updated: ${sortedOrders.length} orders loaded`);
-        setOrders(sortedOrders);
-        setLastUpdateTime(new Date()); // Record the update time
-      } else {
-        addLog('No changes detected in orders data');
+      // Only show loading state for initial loads or manual refreshes, not for real-time updates
+      if (isInitial || !silent) {
+        setIsLoading(true);
       }
 
-      // Set initial selection only if no order is currently selected
-      if (sortedOrders.length > 0 && !selectedOrderId) {
-        setSelectedOrderId(sortedOrders[0].id);
-      } else if (sortedOrders.length === 0) {
-        setSelectedOrderId(null); // Clear selection if no orders
-      }
-    } catch (error) {
-      console.error('Error fetching data:', error);
-      const errorMessage =
-        error instanceof Error ? error.message : 'Failed to fetch data';
-      toast({
-        title: 'Error',
-        description: `${errorMessage}. Please try again.`,
-        variant: 'destructive',
-      });
-      setOrders([]);
-      setCustomers([]); // Clear customers on error too
-      setSelectedOrderId(null); // Clear selection on error
-    } finally {
-      setIsLoading(false);
-      setIsUpdating(false);
+      // Always indicate we're updating data internally
+      setIsUpdating(true);
 
-      // Show a brief visual indicator that data was updated
-      setTimeout(() => {
-        // This will be used for a visual pulse effect in the UI
-      }, 1000);
-    }
-  }, [processMultipleOrders, toast, selectedOrderId, orders]); // Add orders as dependency
+      try {
+        // Fetch customers first or in parallel
+        const customersResponse = await getCustomers();
+        const customersData = Array.isArray(customersResponse)
+          ? customersResponse
+          : [];
+        setCustomers(customersData); // Store customers in state
+
+        // Fetch orders
+        const ordersResponse = await getOrders();
+        if (!ordersResponse) {
+          throw new Error('Failed to fetch orders');
+        }
+        const ordersData = Array.isArray(ordersResponse) ? ordersResponse : [];
+
+        // Process orders using the stored customer list
+        const processedOrders = processMultipleOrders(
+          ordersData,
+          customersData,
+        );
+
+        const sortedOrders = processedOrders.sort(
+          (a, b) =>
+            new Date(b.created_at ?? 0).getTime() -
+            new Date(a.created_at ?? 0).getTime(),
+        );
+
+        // Check if orders have changed before updating state
+        const ordersChanged =
+          JSON.stringify(sortedOrders) !== JSON.stringify(orders);
+
+        if (ordersChanged) {
+          addLog(`Orders updated: ${sortedOrders.length} orders loaded`);
+          setOrders(sortedOrders);
+          setLastUpdateTime(new Date()); // Record the update time
+
+          // Only show toast for non-silent updates when data actually changed
+          if (!silent && !isInitial) {
+            toast({
+              title: 'Orders Updated',
+              description: `${sortedOrders.length} orders loaded`,
+              // Short duration for update notifications
+              duration: 3000,
+            });
+          }
+        } else {
+          addLog('No changes detected in orders data');
+        }
+
+        // Set initial selection only if no order is currently selected
+        if (sortedOrders.length > 0 && !selectedOrderId) {
+          setSelectedOrderId(sortedOrders[0].id);
+        } else if (sortedOrders.length === 0) {
+          setSelectedOrderId(null); // Clear selection if no orders
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        const errorMessage =
+          error instanceof Error ? error.message : 'Failed to fetch data';
+
+        // Always show errors, even in silent mode
+        toast({
+          title: 'Error',
+          description: `${errorMessage}. Please try again.`,
+          variant: 'destructive',
+          // Mark error toasts as important so they require manual dismissal
+          important: true,
+        });
+
+        setOrders([]);
+        setCustomers([]); // Clear customers on error too
+        setSelectedOrderId(null); // Clear selection on error
+      } finally {
+        // Always turn off loading states
+        setIsLoading(false);
+        setIsUpdating(false);
+      }
+    },
+    [processMultipleOrders, toast, selectedOrderId, orders],
+  ); // Add orders as dependency
 
   // Enhanced Supabase real-time subscriptions with better error handling and visual feedback
   useEffect(() => {
-    // Load initial data
-    loadData();
+    // Load initial data with initial flag set to true
+    loadData({ isInitial: true });
     addLog('Setting up enhanced realtime listeners...');
 
     // Clear any existing listeners to prevent duplicates
@@ -240,6 +264,7 @@ const OrderDashboard: React.FC = () => {
                 title: 'New Order Created',
                 description: `Order #${displayId} has been created`,
                 variant: 'default',
+                duration: 5000, // 5 seconds for new orders
               });
               break;
             case 'UPDATE':
@@ -251,6 +276,7 @@ const OrderDashboard: React.FC = () => {
                     payload.old?.status || 'unknown'
                   } to ${payload.new?.status || 'unknown'}`,
                   variant: 'default',
+                  duration: 4000, // 4 seconds for status updates
                 });
               }
               break;
@@ -259,12 +285,13 @@ const OrderDashboard: React.FC = () => {
                 title: 'Order Deleted',
                 description: `Order #${displayId} has been deleted`,
                 variant: 'default',
+                duration: 5000, // 5 seconds for deletions
               });
               break;
           }
 
-          // Refresh the data
-          await loadData();
+          // Refresh the data silently (no loading spinner or additional toast)
+          await loadData({ silent: true });
         },
       )
       .subscribe(status => {
@@ -275,12 +302,14 @@ const OrderDashboard: React.FC = () => {
           toast({
             title: 'Realtime Connected',
             description: 'You will receive live order updates automatically',
+            duration: 3000, // Short duration for connection notification
           });
         } else if (status === 'CHANNEL_ERROR') {
           toast({
             title: 'Connection Error',
             description: 'Failed to connect to real-time updates. Retrying...',
             variant: 'destructive',
+            important: true, // Mark as important so user must dismiss it
           });
 
           // Try to reconnect after a delay
@@ -317,11 +346,12 @@ const OrderDashboard: React.FC = () => {
               title: 'Order Item Added',
               description: `New item added to an order`,
               variant: 'default',
+              duration: 3000, // Short duration
             });
           }
 
-          // Refresh the data
-          await loadData();
+          // Refresh the data silently
+          await loadData({ silent: true });
         },
       )
       .subscribe(status => {
@@ -331,7 +361,7 @@ const OrderDashboard: React.FC = () => {
     // Add a backup polling mechanism for reliability
     const pollingInterval = setInterval(() => {
       addLog('Backup polling for order updates');
-      loadData();
+      loadData({ silent: true }); // Silent update for polling
     }, 60000); // Poll every minute as a backup
 
     return () => {
@@ -365,6 +395,7 @@ const OrderDashboard: React.FC = () => {
           error instanceof Error ? error.message : 'Unknown error'
         }`,
         variant: 'destructive',
+        important: true, // Mark error as important
       });
     }
   };
@@ -498,7 +529,7 @@ const OrderDashboard: React.FC = () => {
                 variant="outline"
                 size="sm"
                 className="h-8 gap-1"
-                onClick={() => loadData()}
+                onClick={() => loadData({ silent: false })} // Show loading state for manual refresh
                 disabled={isLoading}
               >
                 <svg
@@ -542,7 +573,7 @@ const OrderDashboard: React.FC = () => {
               onDeleteOrder={handleDelete}
               isLoading={isLoading}
               connectionStatus={connectionStatus}
-              onOrdersUpdated={loadData}
+              onOrdersUpdated={options => loadData(options)}
               setConnectionStatus={setConnectionStatus}
             />
           </TabsContent>
@@ -554,7 +585,7 @@ const OrderDashboard: React.FC = () => {
               onDeleteOrder={handleDelete}
               isLoading={isLoading}
               connectionStatus={connectionStatus}
-              onOrdersUpdated={loadData}
+              onOrdersUpdated={options => loadData(options)}
               setConnectionStatus={setConnectionStatus}
             />
           </TabsContent>

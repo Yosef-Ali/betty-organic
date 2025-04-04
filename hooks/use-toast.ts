@@ -2,14 +2,22 @@ import * as React from 'react';
 
 import type { ToastActionElement, ToastProps } from '@/components/ui/toast';
 
-const TOAST_LIMIT = 1;
-const TOAST_REMOVE_DELAY = 1000000;
+const TOAST_LIMIT = 3; // Allow up to 3 toasts at once
+const TOAST_REMOVE_DELAY = 5000; // Default 5 seconds for auto-dismiss
+
+// Custom interface to allow for event-based toast dismissal
+interface ToastOptions {
+  duration?: number | null; // null means no auto-dismiss
+  important?: boolean; // Important toasts require manual dismissal
+}
 
 type ToasterToast = ToastProps & {
   id: string;
   title?: React.ReactNode;
   description?: React.ReactNode;
   action?: ToastActionElement;
+  duration?: number | null; // null means no auto-dismiss
+  important?: boolean; // Important toasts require manual dismissal
 };
 
 const actionTypes = {
@@ -52,10 +60,18 @@ interface State {
 
 const toastTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
 
-const addToRemoveQueue = (toastId: string) => {
+const addToRemoveQueue = (toastId: string, duration?: number | null) => {
+  // Clear any existing timeout for this toast
   if (toastTimeouts.has(toastId)) {
-    return;
+    clearTimeout(toastTimeouts.get(toastId));
+    toastTimeouts.delete(toastId);
   }
+
+  // If duration is null, don't auto-dismiss
+  if (duration === null) return;
+
+  // Use specified duration or default
+  const actualDuration = typeof duration === 'number' ? duration : TOAST_REMOVE_DELAY;
 
   const timeout = setTimeout(() => {
     toastTimeouts.delete(toastId);
@@ -63,7 +79,7 @@ const addToRemoveQueue = (toastId: string) => {
       type: 'REMOVE_TOAST',
       toastId: toastId,
     });
-  }, TOAST_REMOVE_DELAY);
+  }, actualDuration);
 
   toastTimeouts.set(toastId, timeout);
 };
@@ -88,10 +104,11 @@ export const reducer = (state: State, action: Action): State => {
       const { toastId } = action;
 
       if (toastId) {
-        addToRemoveQueue(toastId);
+        const toast = state.toasts.find(t => t.id === toastId);
+        addToRemoveQueue(toastId, toast?.duration);
       } else {
         state.toasts.forEach(toast => {
-          addToRemoveQueue(toast.id);
+          addToRemoveQueue(toast.id, toast.duration);
         });
       }
 
@@ -137,7 +154,7 @@ function dispatch(action: Action) {
 
 type Toast = Omit<ToasterToast, 'id'>;
 
-function toast({ ...props }: Toast) {
+function toast({ duration, important, ...props }: Toast & ToastOptions) {
   const id = genId();
 
   const update = (props: ToasterToast) =>
@@ -147,17 +164,27 @@ function toast({ ...props }: Toast) {
     });
   const dismiss = () => dispatch({ type: 'DISMISS_TOAST', toastId: id });
 
+  // If toast is marked as important, set duration to null (no auto-dismiss)
+  const actualDuration = important ? null : duration;
+
   dispatch({
     type: 'ADD_TOAST',
     toast: {
       ...props,
       id,
+      duration: actualDuration,
+      important,
       open: true,
       onOpenChange: (open: boolean) => {
         if (!open) dismiss();
       },
     },
   });
+
+  // Add to remove queue with the specified duration
+  if (!important && actualDuration !== null) {
+    addToRemoveQueue(id, actualDuration);
+  }
 
   return {
     id,

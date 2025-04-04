@@ -13,7 +13,7 @@ interface OrdersTableProps {
   onDeleteOrder: (id: string) => Promise<void>;
   isLoading: boolean;
   connectionStatus?: string;
-  onOrdersUpdated?: () => void; // Callback to refresh orders
+  onOrdersUpdated?: (options?: { silent?: boolean }) => void; // Callback to refresh orders with options
   setConnectionStatus?: (status: string) => void; // Update connection status
 }
 
@@ -34,14 +34,14 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
     setLogs(prev => [...prev, `${new Date().toISOString()} - ${message}`]);
   };
 
-  // Main fetch function - similar pattern to NotificationDebugger
-  const fetchOrders = async () => {
+  // Main fetch function with silent option
+  const fetchOrders = async (silent: boolean = false) => {
     if (!onOrdersUpdated) return;
 
-    addLog('Fetching orders...');
+    addLog(`Fetching orders... ${silent ? '(silent)' : '(with UI update)'}`);
     try {
-      // Call the parent component's update function
-      await onOrdersUpdated();
+      // Call the parent component's update function with silent option
+      await onOrdersUpdated({ silent });
       addLog(`Fetched ${orders.length} orders`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
@@ -91,8 +91,8 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
               break;
           }
 
-          // Refresh orders data
-          fetchOrders();
+          // Refresh orders data silently
+          fetchOrders(true);
         },
       )
       .subscribe(status => {
@@ -120,7 +120,7 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
           addLog(
             `Received order_items change: ${eventType} for item ${itemId} in order ${orderId}`,
           );
-          fetchOrders();
+          fetchOrders(true);
         },
       )
       .subscribe(status => {
@@ -130,7 +130,7 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
     // Poll every 30 seconds as a backup (reduced frequency to avoid unnecessary requests)
     const pollingInterval = setInterval(() => {
       addLog('Backup polling for orders updates');
-      fetchOrders();
+      fetchOrders(true); // Silent update for polling
     }, 30000);
 
     return () => {
@@ -141,16 +141,17 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
     };
   };
 
-  // Initialize just like NotificationDebugger
+  // Initialize with improved loading state management
   useEffect(() => {
-    fetchOrders();
+    // Initial fetch with visible loading state
+    fetchOrders(false);
     const cleanup = setupRealtimeListener();
     return cleanup;
   }, []);
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center mb-4">
         <div className="flex items-center gap-2">
           <h3 className="font-medium">Realtime:</h3>
           <Badge
@@ -174,35 +175,6 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
             </span>
           )}
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={fetchOrders}
-          disabled={isLoading}
-          className="flex items-center gap-1"
-        >
-          <svg
-            className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`}
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            ></circle>
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-            ></path>
-          </svg>
-          Refresh
-        </Button>
       </div>
 
       <OrdersDataTable
