@@ -1,9 +1,11 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ExtendedOrder } from '@/types/order';
 import { OrdersDataTable } from '@/components/orders/orders-data-table';
 import { createClient } from '@/lib/supabase/client';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 
 interface OrdersTableProps {
   orders: ExtendedOrder[];
@@ -24,37 +26,32 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
   onOrdersUpdated,
   setConnectionStatus,
 }) => {
-  const [lastRefresh, setLastRefresh] = useState(new Date());
-  const [pollingEnabled, setPollingEnabled] = useState(true);
+  const [logs, setLogs] = useState<string[]>([]);
 
-  // Setup more aggressive polling like the NotificationDebugger
-  useEffect(() => {
-    // Skip if we don't have the callback to refresh orders
-    if (!onOrdersUpdated || !pollingEnabled) return;
+  // Add a log function that's similar to the NotificationDebugger
+  const addLog = (message: string) => {
+    console.log(`[OrdersTable] ${message}`);
+    setLogs(prev => [...prev, `${new Date().toISOString()} - ${message}`]);
+  };
 
-    console.log('Starting aggressive order polling...');
-
-    // Initial fetch
-    onOrdersUpdated();
-
-    // Very frequent polling (5 seconds)
-    const frequentPolling = setInterval(() => {
-      console.log('Polling orders table for updates');
-      onOrdersUpdated();
-      setLastRefresh(new Date());
-    }, 5000); // Poll every 5 seconds
-
-    return () => {
-      console.log('Stopping order polling');
-      clearInterval(frequentPolling);
-    };
-  }, [onOrdersUpdated, pollingEnabled]);
-
-  // Setup real-time listener (as a backup to polling)
-  useEffect(() => {
-    // Skip if we don't have the callback to refresh orders
+  // Main fetch function - similar pattern to NotificationDebugger
+  const fetchOrders = async () => {
     if (!onOrdersUpdated) return;
 
+    addLog('Fetching orders...');
+    try {
+      // Call the parent component's update function
+      await onOrdersUpdated();
+      addLog(`Fetched ${orders.length} orders`);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      addLog(`Error: ${errorMessage}`);
+    }
+  };
+
+  // Setup realtime listener - exactly like NotificationDebugger
+  const setupRealtimeListener = () => {
+    addLog('Setting up realtime listener...');
     const supabase = createClient();
 
     // Clear any existing listeners
@@ -66,73 +63,68 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
       });
     }
 
-    // Create and subscribe to channel
     const channel = supabase
-      .channel('orders-updates')
+      .channel('orders-table-updates')
       .on(
         'postgres_changes',
         {
-          event: '*', // Listen for all events (insert, update, delete)
+          event: '*',
           schema: 'public',
           table: 'orders',
         },
         payload => {
-          // When any order changes, refresh the orders list
-          console.log(`Received real-time order change: ${payload.eventType}`, payload);
-          onOrdersUpdated();
-          setLastRefresh(new Date());
-        }
+          addLog(`Received postgres_changes: ${payload.eventType}`);
+          fetchOrders();
+        },
       )
       .subscribe(status => {
-        // Update connection status if the setter is provided
         if (setConnectionStatus) {
-          console.log(`Orders subscription status: ${status}`);
           setConnectionStatus(status);
         }
+        addLog(`Subscription status: ${status}`);
       });
 
-    // Cleanup function to remove the channel when component unmounts
+    // Poll every 5 seconds as a backup
+    const pollingInterval = setInterval(() => {
+      addLog('Polling for orders updates');
+      fetchOrders();
+    }, 5000);
+
     return () => {
+      addLog('Cleaning up realtime subscription');
       supabase.removeChannel(channel);
+      clearInterval(pollingInterval);
     };
-  }, [onOrdersUpdated, setConnectionStatus]);
+  };
+
+  // Initialize just like NotificationDebugger
+  useEffect(() => {
+    fetchOrders();
+    const cleanup = setupRealtimeListener();
+    return cleanup;
+  }, []);
 
   return (
     <div className="space-y-4">
-      {connectionStatus && connectionStatus !== 'SUBSCRIBED' && (
-        <div className="bg-yellow-50 border border-yellow-100 rounded-md p-3 text-sm flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse"></span>
-          <span className="text-yellow-700">Connecting to real-time updates...</span>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <h3 className="font-medium">Connection:</h3>
+          <Badge
+            variant={
+              connectionStatus === 'SUBSCRIBED' ? 'default' : 'destructive'
+            }
+          >
+            {connectionStatus || 'Not connected'}
+          </Badge>
         </div>
-      )}
-
-      <div className="flex justify-between items-center">
-        <div className="text-sm text-muted-foreground">
-          {lastRefresh && `Last updated: ${lastRefresh.toLocaleTimeString()}`}
-        </div>
-        <div className="flex gap-3">
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={pollingEnabled}
-              onChange={(e) => setPollingEnabled(e.target.checked)}
-              className="rounded"
-            />
-            Auto-refresh
-          </label>
-          {onOrdersUpdated && (
-            <button
-              onClick={() => {
-                console.log('Manual refresh triggered');
-                onOrdersUpdated();
-                setLastRefresh(new Date());
-              }}
-              className="text-sm text-blue-600 hover:underline"
-            >
-              Refresh Now
-            </button>
-          )}
-        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={fetchOrders}
+          disabled={isLoading}
+        >
+          Refresh Orders
+        </Button>
       </div>
 
       <OrdersDataTable
@@ -145,6 +137,24 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
       {orders.length === 0 && !isLoading && (
         <div className="text-center py-12">
           <p className="text-muted-foreground">No orders found</p>
+        </div>
+      )}
+
+      {/* Debug logs (hidden by default, can be enabled for debugging) */}
+      {logs.length > 0 && (
+        <div className="mt-4">
+          <details>
+            <summary className="cursor-pointer text-sm text-muted-foreground">
+              Debug logs ({logs.length})
+            </summary>
+            <div className="bg-muted p-2 rounded-md h-40 overflow-y-auto text-xs font-mono mt-2">
+              {logs.map((log, index) => (
+                <div key={index} className="py-1">
+                  {log}
+                </div>
+              ))}
+            </div>
+          </details>
         </div>
       )}
     </div>
