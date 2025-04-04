@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { Bell, BellRing } from 'lucide-react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { Bell, BellRing, Volume2, VolumeX } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
@@ -35,6 +35,7 @@ export function NotificationBell() {
   const [error, setError] = useState<string | null>(null);
   const [animateBell, setAnimateBell] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<string | null>(null);
+  const [soundEnabled, setSoundEnabled] = useState(true); // Default to enabled
   const router = useRouter();
   const { user, profile, loading: authLoading } = useAuth();
 
@@ -47,17 +48,117 @@ export function NotificationBell() {
   const supabaseRef = useRef(createClient());
   const mountedRef = useRef(true); // Track component mount state
 
-  const playNotificationSound = () => {
+  // Function to check if a sound file exists
+  const checkSoundFileExists = async (url: string): Promise<boolean> => {
     try {
+      const response = await fetch(url, { method: 'HEAD' });
+      return response.ok;
+    } catch (err) {
+      console.warn(`Failed to check if sound file exists at ${url}:`, err);
+      return false;
+    }
+  };
+
+  // Play notification sound with multiple fallback options
+  const playNotificationSound = async () => {
+    // Only play sound if enabled
+    if (!soundEnabled) {
+      if (DEBUG_REALTIME)
+        console.log('Sound disabled, skipping notification sound');
+      return;
+    }
+
+    try {
+      // If we don't have an audio element yet, create one
       if (!audioRef.current) {
-        audioRef.current = new Audio('/notification.mp3');
+        // Try different paths in order of preference
+        const soundPaths = [
+          '/sound/notification.mp3',
+          '/sounds/notification.mp3',
+          '/notification.mp3',
+          '/assets/notification.mp3',
+          '/assets/sounds/notification.mp3',
+        ];
+
+        // Find the first path that exists
+        for (const path of soundPaths) {
+          if (await checkSoundFileExists(path)) {
+            if (DEBUG_REALTIME) console.log(`Found sound file at ${path}`);
+            audioRef.current = new Audio(path);
+            break;
+          }
+        }
+
+        // If no path worked, use the first one anyway and hope for the best
+        if (!audioRef.current) {
+          console.warn(
+            'Could not find notification sound file, using default path',
+          );
+          audioRef.current = new Audio('/sound/notification.mp3');
+        }
       }
+
+      // Play the sound
       audioRef.current.currentTime = 0;
-      audioRef.current.play().catch(e => console.warn('Audio play failed:', e));
+      audioRef.current.play().catch(e => {
+        console.warn('Audio play failed:', e);
+        // If play fails due to user interaction requirements, we'll just skip it
+        // This happens in browsers that require user interaction before playing audio
+      });
     } catch (err) {
       console.warn('Notification sound error:', err);
     }
   };
+
+  // Toggle sound settings and save to localStorage
+  const toggleSound = useCallback(() => {
+    const newSoundEnabled = !soundEnabled;
+    setSoundEnabled(newSoundEnabled);
+
+    // Save preference to localStorage
+    try {
+      localStorage.setItem(
+        'notification_sound_enabled',
+        newSoundEnabled ? 'true' : 'false',
+      );
+      if (DEBUG_REALTIME)
+        console.log(
+          `Sound ${
+            newSoundEnabled ? 'enabled' : 'disabled'
+          } and saved to localStorage`,
+        );
+    } catch (err) {
+      console.warn('Failed to save sound preference to localStorage:', err);
+    }
+
+    // Play a test sound if enabled
+    if (newSoundEnabled) {
+      playNotificationSound().catch(err =>
+        console.warn('Failed to play test notification sound:', err),
+      );
+    }
+  }, [soundEnabled]);
+
+  // Load sound preference from localStorage on mount
+  useEffect(() => {
+    try {
+      const savedPreference = localStorage.getItem(
+        'notification_sound_enabled',
+      );
+      if (savedPreference !== null) {
+        const isEnabled = savedPreference === 'true';
+        setSoundEnabled(isEnabled);
+        if (DEBUG_REALTIME)
+          console.log(
+            `Loaded sound preference from localStorage: ${
+              isEnabled ? 'enabled' : 'disabled'
+            }`,
+          );
+      }
+    } catch (err) {
+      console.warn('Failed to load sound preference from localStorage:', err);
+    }
+  }, []);
 
   // Enhanced animation effect for the bell
   useEffect(() => {
@@ -285,7 +386,9 @@ export function NotificationBell() {
                   ]); // Add to start, limit to 10
                   setUnreadCount(prev => prev + 1);
                   setAnimateBell(true);
-                  playNotificationSound();
+                  playNotificationSound().catch(err =>
+                    console.warn('Failed to play notification sound:', err),
+                  );
                 }
               }
             } else if (payload.eventType === 'UPDATE') {
@@ -306,7 +409,9 @@ export function NotificationBell() {
                   ]);
                   setUnreadCount(prev => prev + 1);
                   setAnimateBell(true);
-                  playNotificationSound();
+                  playNotificationSound().catch(err =>
+                    console.warn('Failed to play notification sound:', err),
+                  );
                 }
               } else if (oldStatus === 'pending' && newStatus !== 'pending') {
                 // No longer pending
@@ -577,13 +682,27 @@ export function NotificationBell() {
           className="relative"
           disabled={isLoading}
         >
-          <div className={cn(animateBell && 'animate-bell')}>
+          <div
+            className={cn(animateBell && 'animate-bell')}
+            title={
+              soundEnabled
+                ? 'Notification sounds on'
+                : 'Notification sounds off'
+            }
+          >
             {animateBell ? (
               <BellRing className={cn('h-5 w-5', 'text-yellow-500')} />
             ) : (
               <Bell
-                className={cn('h-5 w-5', unreadCount > 0 && 'text-red-500')}
+                className={cn(
+                  'h-5 w-5',
+                  unreadCount > 0 && 'text-red-500',
+                  !soundEnabled && 'opacity-70',
+                )}
               />
+            )}
+            {!soundEnabled && (
+              <div className="absolute bottom-0 right-0 h-2 w-2 bg-gray-400 rounded-full border border-background"></div>
             )}
           </div>
           {unreadCount > 0 && (
@@ -654,14 +773,53 @@ export function NotificationBell() {
         )}
 
         <div className="mt-2 pt-2 border-t border-muted">
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full text-xs"
-            onClick={() => router.push('/dashboard/orders')}
-          >
-            View All Orders
-          </Button>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="flex items-center gap-1 text-xs"
+                onClick={toggleSound}
+              >
+                {soundEnabled ? (
+                  <>
+                    <Volume2 className="h-3 w-3" />
+                    <span>Sound On</span>
+                  </>
+                ) : (
+                  <>
+                    <VolumeX className="h-3 w-3" />
+                    <span>Sound Off</span>
+                  </>
+                )}
+              </Button>
+
+              {soundEnabled && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs"
+                  onClick={() =>
+                    playNotificationSound().catch(err =>
+                      console.warn('Failed to play test sound:', err),
+                    )
+                  }
+                  title="Test notification sound"
+                >
+                  Test
+                </Button>
+              )}
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs"
+              onClick={() => router.push('/dashboard/orders')}
+            >
+              View All Orders
+            </Button>
+          </div>
         </div>
       </DropdownMenuContent>
     </DropdownMenu>
