@@ -203,6 +203,14 @@ export function NotificationBell() {
 
       if (DEBUG_REALTIME) console.log('Fetching notification data...');
 
+      // Add console log to debug the query
+      console.log('Fetching pending orders with query:', {
+        table: 'orders',
+        status: 'pending',
+        userId: user?.id,
+        role: profile?.role,
+      });
+
       const { data, error, count } = await supabase
         .from('orders')
         .select('id, status, created_at, profiles!orders_profile_id_fkey(*)', {
@@ -211,6 +219,14 @@ export function NotificationBell() {
         .eq('status', 'pending')
         .order('created_at', { ascending: false })
         .limit(10);
+
+      // Log the result
+      console.log('Pending orders query result:', {
+        success: !error,
+        count,
+        dataLength: data?.length || 0,
+        error: error?.message,
+      });
 
       if (error) {
         console.error('Supabase fetch error:', error);
@@ -332,6 +348,8 @@ export function NotificationBell() {
       }
 
       // Create channel with the correct pattern from official docs
+      console.log('Setting up realtime channel:', channelName);
+
       const channel = supabase
         .channel(channelName)
         .on(
@@ -340,8 +358,7 @@ export function NotificationBell() {
             event: '*',
             schema: 'public',
             table: 'orders',
-            // No filter needed here, we handle status changes in the callback
-            // filter: 'status=eq.pending', // REMOVED FILTER
+            filter: 'status=eq.pending', // Add filter back to focus on pending orders
           },
           (payload: RealtimePostgresChangesPayload<any>) => {
             // Add type to payload
@@ -376,15 +393,32 @@ export function NotificationBell() {
 
             if (payload.eventType === 'INSERT') {
               if (newRecord?.status === 'pending') {
+                // Always log new pending orders for debugging
+                console.log('🔔 NEW PENDING ORDER RECEIVED:', newRecord);
+
                 const newNotification = createNotification(newRecord);
                 if (newNotification) {
-                  if (DEBUG_REALTIME)
-                    console.log('INSERT pending:', newNotification);
+                  console.log(
+                    '🔔 Adding notification to list:',
+                    newNotification,
+                  );
+
+                  // Update notifications list
                   setNotifications(prev => [
                     newNotification,
                     ...prev.slice(0, 9),
                   ]); // Add to start, limit to 10
-                  setUnreadCount(prev => prev + 1);
+
+                  // Increment unread count
+                  setUnreadCount(prev => {
+                    const newCount = prev + 1;
+                    console.log(
+                      `🔔 Unread count updated: ${prev} -> ${newCount}`,
+                    );
+                    return newCount;
+                  });
+
+                  // Animate bell and play sound
                   setAnimateBell(true);
                   playNotificationSound().catch(err =>
                     console.warn('Failed to play notification sound:', err),
@@ -450,6 +484,9 @@ export function NotificationBell() {
         .subscribe(status => {
           if (!mountedRef.current) return;
 
+          // Always log the channel status for debugging
+          console.log(`Notification Bell - Channel status: ${status}`);
+
           setConnectionStatus(status);
 
           if (DEBUG_REALTIME) {
@@ -461,16 +498,21 @@ export function NotificationBell() {
           }
 
           if (status === 'SUBSCRIBED') {
-            if (DEBUG_REALTIME) console.log('Realtime connected successfully');
+            console.log(
+              'Notification Bell - Successfully subscribed, refreshing data...',
+            );
             // Fetch initial notifications upon successful subscription
             fetchNotifications(); // Fetch initial state
           } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
             console.error(
-              `Realtime channel error or timed out (${status}), will retry`,
+              `Notification Bell - Channel error or timed out (${status}), will retry`,
             );
             if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
             retryTimeoutRef.current = setTimeout(() => {
-              if (mountedRef.current) setupRealtimeSubscription();
+              if (mountedRef.current) {
+                console.log('Notification Bell - Attempting to reconnect...');
+                setupRealtimeSubscription();
+              }
             }, RECONNECT_INTERVAL);
           }
         });
@@ -706,7 +748,10 @@ export function NotificationBell() {
             )}
           </div>
           {unreadCount > 0 && (
-            <Badge className="absolute -right-1 -top-1 h-5 w-5 rounded-full p-0 flex items-center justify-center bg-red-500 text-white border-2 border-background">
+            <Badge
+              className="absolute -right-1 -top-1 h-6 w-6 rounded-full p-0 flex items-center justify-center bg-red-500 text-white border-2 border-background animate-pulse"
+              style={{ fontSize: '0.75rem', fontWeight: 'bold' }}
+            >
               {unreadCount}
             </Badge>
           )}
