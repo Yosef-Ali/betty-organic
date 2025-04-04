@@ -178,53 +178,10 @@ const OrderDashboard: React.FC = () => {
       });
     }
 
-    // Define handler for orders table changes
-    const handleOrderChange = (payload: RealtimePostgresChangesPayload<any>) => {
-      addLog(`Orders change received: ${payload.eventType}`);
+    const supabaseClient = createClient();
 
-      try {
-        if (payload.eventType === 'INSERT') {
-          const newOrder = processSingleOrder(payload.new, customers);
-          setOrders(prevOrders => [newOrder, ...prevOrders].sort(
-            (a, b) => new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime()
-          ));
-          toast({
-            title: 'New Order',
-            description: `Order ${newOrder.display_id || newOrder.id.slice(0, 8)} has been created.`
-          });
-        } else if (payload.eventType === 'UPDATE') {
-          const updatedOrder = processSingleOrder(payload.new, customers);
-          setOrders(prevOrders => prevOrders.map(order =>
-            order.id === updatedOrder.id ? updatedOrder : order
-          ));
-          addLog(`Order ${updatedOrder.display_id || updatedOrder.id} updated`);
-        } else if (payload.eventType === 'DELETE') {
-          const deletedOrderId = payload.old?.id;
-          if (!deletedOrderId) return;
-
-          setOrders(prevOrders => prevOrders.filter(order => order.id !== deletedOrderId));
-
-          if (selectedOrderId === deletedOrderId) {
-            setOrders(currentOrders => {
-              setSelectedOrderId(currentOrders[0]?.id || null);
-              return currentOrders;
-            });
-          }
-          addLog(`Order ${payload.old?.display_id || deletedOrderId} deleted`);
-        }
-      } catch (error) {
-        console.error("Error processing order change:", error, payload);
-        addLog(`Error processing order change: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        toast({
-          title: 'Update Error',
-          description: 'Failed to process order update.',
-          variant: 'destructive'
-        });
-      }
-    };
-
-    // Subscribe to changes on the orders table with better error handling
-    const ordersChannel = supabase
+    // Subscribe to changes on the orders table with simplified subscription
+    const ordersChannel = supabaseClient
       .channel('orders-dashboard')
       .on(
         'postgres_changes',
@@ -233,7 +190,11 @@ const OrderDashboard: React.FC = () => {
           schema: 'public',
           table: 'orders',
         },
-        handleOrderChange
+        async (payload) => {
+          addLog(`Orders change received: ${payload.eventType}`);
+          // Instead of manually processing the change, simply refresh the data
+          await loadData();
+        }
       )
       .subscribe((status) => {
         addLog(`Orders subscription status: ${status}`);
@@ -253,8 +214,8 @@ const OrderDashboard: React.FC = () => {
         }
       });
 
-    // Subscribe to changes on order_items with better error handling
-    const orderItemsChannel = supabase
+    // Subscribe to changes on order_items with simplified subscription
+    const orderItemsChannel = supabaseClient
       .channel('order-items-dashboard')
       .on(
         'postgres_changes',
@@ -263,28 +224,10 @@ const OrderDashboard: React.FC = () => {
           schema: 'public',
           table: 'order_items',
         },
-        async (payload) => {
+        async () => {
           addLog('Order items change detected');
-          const orderId = (payload.new as any)?.order_id || (payload.old as any)?.order_id;
-
-          if (!orderId) {
-            addLog('Warning: Order item change received without order_id');
-            return;
-          }
-
-          try {
-            const updatedOrderData = await getOrderById(orderId);
-            if (updatedOrderData) {
-              const processedOrder = processSingleOrder(updatedOrderData, customers);
-              setOrders(prevOrders => prevOrders.map(order =>
-                order.id === processedOrder.id ? processedOrder : order
-              ));
-              addLog(`Updated order ${processedOrder.display_id || processedOrder.id} after item change`);
-            }
-          } catch (error) {
-            console.error(`Error updating order ${orderId} after item change:`, error);
-            addLog(`Error updating order after item change: ${error instanceof Error ? error.message : 'Unknown error'}`);
-          }
+          // Simply refresh the data on any order items change
+          await loadData();
         }
       )
       .subscribe((status) => {
@@ -293,10 +236,10 @@ const OrderDashboard: React.FC = () => {
 
     return () => {
       addLog('Cleaning up realtime subscriptions');
-      ordersChannel.unsubscribe();
-      orderItemsChannel.unsubscribe();
+      supabaseClient.removeChannel(ordersChannel);
+      supabaseClient.removeChannel(orderItemsChannel);
     };
-  }, [loadData, supabase, toast]);
+  }, [loadData, toast]);
 
 
   const handleDelete = async (id: string) => {
