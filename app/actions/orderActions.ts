@@ -94,7 +94,7 @@ export async function getOrderDetails(orderId: string): Promise<{ data: Frontend
         profile:profiles!orders_profile_id_fkey ( id, name, email, role, status, created_at, updated_at, avatar_url ),
         customer:profiles!orders_customer_profile_id_fkey ( id, name, email, role, status, created_at, updated_at, avatar_url )
       `)
-      .eq('id', orderId)
+      .eq('id' as any, orderId)
       .single();
 
     if (orderError) {
