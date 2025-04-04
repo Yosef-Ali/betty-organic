@@ -378,6 +378,8 @@ const OrderDashboard: React.FC = () => {
               onDeleteOrder={handleDelete}
               isLoading={isLoading}
               connectionStatus={connectionStatus}
+              onOrdersUpdated={loadData}
+              setConnectionStatus={setConnectionStatus}
             />
           </TabsContent>
           <TabsContent value="month">
@@ -388,6 +390,8 @@ const OrderDashboard: React.FC = () => {
               onDeleteOrder={handleDelete}
               isLoading={isLoading}
               connectionStatus={connectionStatus}
+              onOrdersUpdated={loadData}
+              setConnectionStatus={setConnectionStatus}
             />
           </TabsContent>
         </Tabs>

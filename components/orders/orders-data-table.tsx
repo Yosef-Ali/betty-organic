@@ -30,7 +30,6 @@ import {
 } from '@/components/ui/pagination';
 
 import { Input } from '@/components/ui/input';
-import { columns } from './columns';
 import React, { useState, useEffect, useMemo } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -44,11 +43,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Eye, PenLine, Trash } from 'lucide-react';
+import { MoreHorizontal, Eye, Trash, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import { ExtendedOrder, OrderItem } from '@/types/order';
 import { formatOrderId } from '@/lib/utils';
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@/lib/supabase/client';
 import { DataTable } from '@/components/ui/data-table';
 import { formatCurrency } from '@/lib/utils';
 import { SortingState } from '@tanstack/react-table';
@@ -70,11 +69,6 @@ const formatDate = (dateString: string | null | undefined): string => {
     return 'Invalid date';
   }
 };
-
-// Supabase client initialization - use environment variables
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Define a type for the extended row data
 type ExtendedOrderRow = ExtendedOrder & {
@@ -130,8 +124,10 @@ export function OrdersDataTable({
               return 'bg-blue-100 text-blue-800';
             case 'cancelled':
               return 'bg-red-100 text-red-800';
-            default:
+            case 'pending':
               return 'bg-yellow-100 text-yellow-800';
+            default:
+              return 'bg-gray-100 text-gray-800';
           }
         };
         return (
@@ -201,6 +197,9 @@ export function OrdersDataTable({
         columns={columns}
         data={data}
         searchKey="display_id"
+        searchPlaceholder="Search orders..."
+        sorting={sorting}
+        onSortingChange={setSorting}
       />
 
       {isLoading && (

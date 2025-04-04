@@ -35,6 +35,19 @@ import { AuthErrorBoundary } from './AuthErrorBoundary';
 
 interface HeaderProps {
   onMobileMenuToggle: () => void;
+  profile?: {
+    role: 'admin' | 'sales' | 'customer';
+    address: string | null;
+    auth_provider: string | null;
+    avatar_url: string | null;
+    created_at: string | null;
+    email: string;
+    id: string;
+    name: string | null;
+    phone: string | null;
+    status: string | null;
+    updated_at: string;
+  } | null;
 }
 
 const allNavItems = [
@@ -76,10 +89,12 @@ const allNavItems = [
   },
 ];
 
-export default function Header({ onMobileMenuToggle }: HeaderProps) {
-  const { profile, loading, authInitialized } = useAuth();
+export default function Header({ onMobileMenuToggle, profile }: HeaderProps) {
+  const { profile: authProfile, loading, authInitialized } = useAuth();
+  // Prefer passed profile over auth context profile
+  const activeProfile = profile || authProfile;
   const filteredNavItems = allNavItems.filter(item =>
-    item.roles.some(role => role === (profile?.role || 'customer')),
+    item.roles.some(role => role === (activeProfile?.role || 'customer')),
   );
   const pathname = usePathname();
   const router = useRouter();
@@ -177,7 +192,7 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
         />
       </div>
 
-      {!loading && authInitialized && (profile?.role === 'admin' || profile?.role === 'sales') && (
+      {!loading && authInitialized && (activeProfile?.role === 'admin' || activeProfile?.role === 'sales') && (
         <div className="flex items-center gap-2">
           <AuthErrorBoundary>
             <NotificationBell />
@@ -193,7 +208,7 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
             className="overflow-hidden rounded-full"
           >
             <Image
-              src={profile?.avatar_url || '/placeholder-user.webp'}
+              src={activeProfile?.avatar_url || '/placeholder-user.webp'}
               width={36}
               height={36}
               alt="Avatar"
@@ -204,7 +219,7 @@ export default function Header({ onMobileMenuToggle }: HeaderProps) {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>
-            {profile?.name || profile?.email}
+            {activeProfile?.name || activeProfile?.email}
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem asChild>
