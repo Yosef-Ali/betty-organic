@@ -192,12 +192,9 @@ export default function Header({ onMobileMenuToggle, profile }: HeaderProps) {
         />
       </div>
 
-      {/* Show notification bell for all signed-in users */}
-
-      <div className="flex items-center gap-2 mx-2">
-        <div className="relative z-10 transition-all duration-300 hover:scale-110 bg-yellow-50 p-1 rounded-full border border-yellow-200">
-          <NotificationBell />
-        </div>
+      {/* Notification bell with simplified container */}
+      <div className="mx-2">
+        <NotificationBell />
       </div>
 
       <DropdownMenu>

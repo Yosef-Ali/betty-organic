@@ -19,7 +19,7 @@ import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js'; // 
 const MAX_RETRIES = 3; // Max retries for initial fetch
 // const POLLING_INTERVAL = 30000; // REMOVED POLLING
 const RECONNECT_INTERVAL = 5000; // 5 seconds for connection retries
-const DEBUG_REALTIME = true; // Enable debug logging
+const DEBUG_REALTIME = false; // Disable debug logging
 
 type NotificationOrder = Pick<
   ExtendedOrder,
@@ -718,63 +718,10 @@ export function NotificationBell() {
     setUnreadCount(prev => Math.max(0, prev - 1));
   };
 
-  // Add cached profile state to prevent disappearing
-  const [cachedIsAdmin, setCachedIsAdmin] = useState(false);
+  // No need for cached admin state anymore since we always show the bell
 
-  // Only update admin status when we have a definitive answer to prevent flickering
-  useEffect(() => {
-    if (profile?.role === 'admin' || profile?.role === 'sales') {
-      setCachedIsAdmin(true);
-    }
-  }, [profile]);
-
-  // If auth is loading, use cached state if available
-  if (authLoading) {
-    if (cachedIsAdmin) {
-      return (
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-5 w-5" />
-        </Button>
-      );
-    }
-    return (
-      <Button variant="ghost" size="icon" className="relative" disabled>
-        <Bell className="h-5 w-5 text-muted-foreground" />
-        <span className="absolute -bottom-1 -right-1 h-2 w-2 rounded-full bg-gray-300 animate-pulse" />
-      </Button>
-    );
-  }
-
-  // If no authenticated user but we had cached admin state, still show the bell
-  if (!user && !cachedIsAdmin) {
-    if (DEBUG_REALTIME)
-      console.log('NotificationBell: No user - hiding component');
-    return null;
-  }
-
-  if (DEBUG_REALTIME) {
-    console.log(
-      'NotificationBell: Rendering for user',
-      user?.email || 'cached admin',
-    );
-  }
-
-  // Always show the bell for cached admins, otherwise check profile
-  const isAdminOrSales =
-    cachedIsAdmin || profile?.role === 'admin' || profile?.role === 'sales';
-
-  // For debugging - log the profile role
-  console.log('NotificationBell: User profile role:', profile?.role);
-  console.log('NotificationBell: cachedIsAdmin:', cachedIsAdmin);
-  console.log('NotificationBell: isAdminOrSales:', isAdminOrSales);
-
-  // Always show the bell in development mode for testing
-  if (process.env.NODE_ENV === 'development') {
-    // Continue rendering even if not admin/sales in development
-  } else if (!isAdminOrSales) {
-    // In production, still respect the role check
-    return null;
-  }
+  // Always render the bell regardless of auth state
+  // This prevents the bell from disappearing/blinking during auth state changes
 
   return (
     <DropdownMenu>
@@ -782,7 +729,7 @@ export function NotificationBell() {
         <Button
           variant="ghost"
           size="icon"
-          className="relative bg-yellow-50 hover:bg-yellow-100 border border-yellow-200"
+          className="relative w-10 h-10 bg-yellow-50 hover:bg-yellow-100 border border-yellow-200 rounded-full"
           disabled={isLoading}
         >
           <div
@@ -793,17 +740,13 @@ export function NotificationBell() {
                 : 'Notification sounds off'
             }
           >
-            {animateBell ? (
-              <BellRing className={cn('h-6 w-6', 'text-yellow-500')} />
-            ) : (
-              <Bell
-                className={cn(
-                  'h-6 w-6',
-                  unreadCount > 0 && 'text-red-500',
-                  !soundEnabled && 'opacity-70',
-                )}
-              />
-            )}
+            {/* Always show the bell icon with consistent styling */}
+            <Bell
+              className={cn(
+                'h-6 w-6',
+                unreadCount > 0 ? 'text-red-500' : 'text-yellow-600',
+              )}
+            />
             {!soundEnabled && (
               <div className="absolute bottom-0 right-0 h-2 w-2 bg-gray-400 rounded-full border border-background"></div>
             )}
@@ -816,9 +759,14 @@ export function NotificationBell() {
               {unreadCount}
             </Badge>
           )}
-          {connectionStatus === 'SUBSCRIBED' && (
-            <span className="absolute -bottom-1 -right-1 h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-          )}
+          {/* Always show connection indicator with different colors based on status */}
+          <span
+            className={`absolute -bottom-1 -right-1 h-2 w-2 rounded-full ${
+              connectionStatus === 'SUBSCRIBED'
+                ? 'bg-green-500'
+                : 'bg-yellow-500'
+            }`}
+          />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-80 p-2">
