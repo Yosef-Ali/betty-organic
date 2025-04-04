@@ -171,22 +171,79 @@ export function NotificationDebugger() {
     addLog('Applying test order policy...');
 
     try {
-      // Import the server action dynamically to avoid issues with SSR
-      const { applyTestOrderPolicy } = await import(
-        '@/app/actions/applyTestOrderPolicy'
-      );
-      const result = await applyTestOrderPolicy();
+      // Try the new fixed server action first
+      try {
+        // Import the new server action dynamically
+        const { fixTestOrderPolicy } = await import(
+          '@/app/actions/fixTestOrderPolicy'
+        );
+        const result = await fixTestOrderPolicy();
 
-      if (!result.success) {
-        throw new Error(result.error as string);
+        if (result.success) {
+          addLog('Test order policy applied successfully using new method');
+          setShowRlsError(false);
+          toast({
+            title: 'Success',
+            description:
+              result.message || 'Test order policy applied successfully',
+          });
+          setIsLoading(false);
+          return;
+        }
+      } catch (fixError) {
+        // If the new method fails, log it but continue to try the old method
+        console.warn('New policy method failed, trying fallback:', fixError);
+        addLog('New policy method failed, trying fallback...');
       }
 
-      addLog('Test order policy applied successfully');
-      setShowRlsError(false);
-      toast({
-        title: 'Success',
-        description: 'Test order policy applied successfully',
-      });
+      // Try the direct method as a fallback
+      try {
+        const { applyDirectTestOrderPolicy } = await import(
+          '@/app/actions/directTestOrderPolicy'
+        );
+        const result = await applyDirectTestOrderPolicy();
+
+        if (result.success) {
+          addLog('Test order policy applied successfully using direct method');
+          setShowRlsError(false);
+          toast({
+            title: 'Success',
+            description:
+              result.message || 'Test order policy applied successfully',
+          });
+          setIsLoading(false);
+          return;
+        }
+      } catch (directError) {
+        // If the direct method fails, log it but continue to try the original method
+        console.warn(
+          'Direct policy method failed, trying original method:',
+          directError,
+        );
+        addLog('Direct policy method failed, trying original method...');
+      }
+
+      // Try the original method as a last resort
+      try {
+        const { applyTestOrderPolicy } = await import(
+          '@/app/actions/applyTestOrderPolicy'
+        );
+        const result = await applyTestOrderPolicy();
+
+        if (!result.success) {
+          throw new Error(result.error as string);
+        }
+
+        addLog('Test order policy applied successfully using original method');
+        setShowRlsError(false);
+        toast({
+          title: 'Success',
+          description: 'Test order policy applied successfully',
+        });
+      } catch (originalError) {
+        console.error('All policy methods failed:', originalError);
+        throw originalError; // Re-throw to be caught by the outer catch
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(errorMessage);

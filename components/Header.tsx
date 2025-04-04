@@ -192,18 +192,19 @@ export default function Header({ onMobileMenuToggle, profile }: HeaderProps) {
         />
       </div>
 
-      {!loading &&
+      {/* Always show notification bell in development mode */}
+      {((!loading &&
         authInitialized &&
-        (activeProfile?.role === 'admin' ||
-          activeProfile?.role === 'sales') && (
-          <div className="flex items-center gap-2 mx-2">
-            <AuthErrorBoundary>
-              <div className="relative z-10 transition-all duration-300 hover:scale-110">
-                <NotificationBell />
-              </div>
-            </AuthErrorBoundary>
-          </div>
-        )}
+        (activeProfile?.role === 'admin' || activeProfile?.role === 'sales')) ||
+        process.env.NODE_ENV === 'development') && (
+        <div className="flex items-center gap-2 mx-2">
+          <AuthErrorBoundary>
+            <div className="relative z-10 transition-all duration-300 hover:scale-110 bg-yellow-50 p-1 rounded-full border border-yellow-200">
+              <NotificationBell />
+            </div>
+          </AuthErrorBoundary>
+        </div>
+      )}
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>

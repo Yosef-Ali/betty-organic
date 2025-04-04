@@ -710,8 +710,16 @@ export function NotificationBell() {
   const isAdminOrSales =
     cachedIsAdmin || profile?.role === 'admin' || profile?.role === 'sales';
 
-  // Don't render if not admin or sales
-  if (!isAdminOrSales) {
+  // For debugging - log the profile role
+  console.log('NotificationBell: User profile role:', profile?.role);
+  console.log('NotificationBell: cachedIsAdmin:', cachedIsAdmin);
+  console.log('NotificationBell: isAdminOrSales:', isAdminOrSales);
+
+  // Always show the bell in development mode for testing
+  if (process.env.NODE_ENV === 'development') {
+    // Continue rendering even if not admin/sales in development
+  } else if (!isAdminOrSales) {
+    // In production, still respect the role check
     return null;
   }
 
@@ -721,7 +729,7 @@ export function NotificationBell() {
         <Button
           variant="ghost"
           size="icon"
-          className="relative"
+          className="relative bg-yellow-50 hover:bg-yellow-100 border border-yellow-200"
           disabled={isLoading}
         >
           <div
@@ -733,11 +741,11 @@ export function NotificationBell() {
             }
           >
             {animateBell ? (
-              <BellRing className={cn('h-5 w-5', 'text-yellow-500')} />
+              <BellRing className={cn('h-6 w-6', 'text-yellow-500')} />
             ) : (
               <Bell
                 className={cn(
-                  'h-5 w-5',
+                  'h-6 w-6',
                   unreadCount > 0 && 'text-red-500',
                   !soundEnabled && 'opacity-70',
                 )}
@@ -749,8 +757,8 @@ export function NotificationBell() {
           </div>
           {unreadCount > 0 && (
             <Badge
-              className="absolute -right-1 -top-1 h-6 w-6 rounded-full p-0 flex items-center justify-center bg-red-500 text-white border-2 border-background animate-pulse"
-              style={{ fontSize: '0.75rem', fontWeight: 'bold' }}
+              className="absolute -right-1 -top-1 h-7 w-7 rounded-full p-0 flex items-center justify-center bg-red-500 text-white border-2 border-background animate-pulse"
+              style={{ fontSize: '0.85rem', fontWeight: 'bold' }}
             >
               {unreadCount}
             </Badge>
