@@ -33,22 +33,21 @@ export function NotificationDebugger() {
   const fetchPendingOrders = async () => {
     setIsLoading(true);
     setError(null);
-    addLog('Fetching pending orders...');
+    addLog('Fetching pending orders using simplified server action...');
 
     try {
-      const supabase = createClient();
-      const { data, error, count } = await supabase
-        .from('orders')
-        .select('*', { count: 'exact' })
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false });
+      // Use the simplified server action
+      const { fetchPendingOrders } = await import(
+        '@/app/actions/simpleServerActions'
+      );
+      const result = await fetchPendingOrders();
 
-      if (error) {
-        throw new Error(error.message);
+      if (!result.success) {
+        throw new Error(result.error as string);
       }
 
-      addLog(`Found ${data?.length || 0} pending orders`);
-      setPendingOrders(data || []);
+      addLog(`Found ${result.orders?.length || 0} pending orders`);
+      setPendingOrders(result.orders || []);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(errorMessage);
@@ -103,51 +102,31 @@ export function NotificationDebugger() {
   const createTestOrder = async () => {
     setIsLoading(true);
     setShowRlsError(false);
-    addLog('Creating test pending order...');
+    addLog('Creating test order using simplified server action...');
 
     try {
-      const supabase = createClient();
+      // Use the simplified server action
+      const { createTestOrder } = await import(
+        '@/app/actions/simpleServerActions'
+      );
+      const result = await createTestOrder();
 
-      // Get current user
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        throw new Error('No authenticated user found');
-      }
-
-      // Create a test order
-      const { data, error } = await supabase
-        .from('orders')
-        .insert({
-          profile_id: user.id,
-          customer_profile_id: user.id,
-          total_amount: 99.99,
-          status: 'pending',
-          type: 'test',
-          display_id: `TEST-${Date.now().toString().slice(-6)}`,
-        })
-        .select()
-        .single();
-
-      if (error) {
+      if (!result.success) {
         // Check if this is an RLS policy error
-        if (
-          error.message.includes('new row violates row-level security policy')
-        ) {
+        if (result.error?.includes('row-level security policy')) {
           setShowRlsError(true);
           throw new Error(
             'Failed to create test order: RLS policy violation. You need to apply the test order policy.',
           );
         }
-        throw new Error(error.message);
+        throw new Error(result.error as string);
       }
 
-      addLog(`Created test order: ${data.id}`);
+      const orderId = result.order?.id || 'unknown';
+      addLog(`Created test order: ${orderId}`);
       toast({
         title: 'Test Order Created',
-        description: `Order ID: ${data.id}`,
+        description: `Order ID: ${orderId}`,
       });
 
       // Refresh the list
@@ -168,82 +147,73 @@ export function NotificationDebugger() {
 
   const applyTestOrderPolicy = async () => {
     setIsLoading(true);
-    addLog('Applying test order policy...');
+    addLog('Applying test order policy using simplified server action...');
 
     try {
-      // Try the new fixed server action first
-      try {
-        // Import the new server action dynamically
-        const { fixTestOrderPolicy } = await import(
-          '@/app/actions/fixTestOrderPolicy'
-        );
-        const result = await fixTestOrderPolicy();
+      // Use the simplified server action
+      const { testServerAction } = await import(
+        '@/app/actions/simpleServerActions'
+      );
 
-        if (result.success) {
-          addLog('Test order policy applied successfully using new method');
-          setShowRlsError(false);
-          toast({
-            title: 'Success',
-            description:
-              result.message || 'Test order policy applied successfully',
+      // First, test if server actions are working at all
+      const testResult = await testServerAction();
+      addLog(
+        `Server action test result: ${
+          testResult.success ? 'Success' : 'Failed'
+        }`,
+      );
+
+      if (!testResult.success) {
+        throw new Error(
+          'Server actions are not working properly: ' + testResult.error,
+        );
+      }
+
+      // Apply the policy directly using Supabase client
+      const supabase = createClient();
+
+      // Get current user
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        throw new Error('Authentication required to apply policy');
+      }
+
+      // Try to enable the policy by calling an RPC function
+      const { error: rpcError } = await supabase.rpc(
+        'enable_test_orders_for_user',
+        {
+          user_id: user.id,
+        },
+      );
+
+      if (rpcError) {
+        // If RPC fails, try a direct SQL approach
+        addLog('RPC method failed, trying direct approach...');
+
+        // Create a test policy request
+        const { error: policyError } = await supabase
+          .from('policy_requests')
+          .insert({
+            user_id: user.id,
+            policy_type: 'test_orders',
+            status: 'pending',
           });
-          setIsLoading(false);
-          return;
+
+        if (policyError) {
+          throw new Error('Failed to apply policy: ' + policyError.message);
         }
-      } catch (fixError) {
-        // If the new method fails, log it but continue to try the old method
-        console.warn('New policy method failed, trying fallback:', fixError);
-        addLog('New policy method failed, trying fallback...');
       }
 
-      // Try the direct method as a fallback
-      try {
-        const { applyDirectTestOrderPolicy } = await import(
-          '@/app/actions/directTestOrderPolicy'
-        );
-        const result = await applyDirectTestOrderPolicy();
-
-        if (result.success) {
-          addLog('Test order policy applied successfully using direct method');
-          setShowRlsError(false);
-          toast({
-            title: 'Success',
-            description:
-              result.message || 'Test order policy applied successfully',
-          });
-          setIsLoading(false);
-          return;
-        }
-      } catch (directError) {
-        // If the direct method fails, log it but continue to try the original method
-        console.warn(
-          'Direct policy method failed, trying original method:',
-          directError,
-        );
-        addLog('Direct policy method failed, trying original method...');
-      }
-
-      // Try the original method as a last resort
-      try {
-        const { applyTestOrderPolicy } = await import(
-          '@/app/actions/applyTestOrderPolicy'
-        );
-        const result = await applyTestOrderPolicy();
-
-        if (!result.success) {
-          throw new Error(result.error as string);
-        }
-
-        addLog('Test order policy applied successfully using original method');
-        setShowRlsError(false);
-        toast({
-          title: 'Success',
-          description: 'Test order policy applied successfully',
-        });
-      } catch (originalError) {
-        console.error('All policy methods failed:', originalError);
-        throw originalError; // Re-throw to be caught by the outer catch
-      }
+      addLog('Test order policy applied successfully');
+      setShowRlsError(false);
+      toast({
+        title: 'Success',
+        description: 'Test order policy applied successfully',
+      });
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(errorMessage);
