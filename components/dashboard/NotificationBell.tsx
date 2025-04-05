@@ -26,6 +26,8 @@ type NotificationOrder = {
   id: string;
   status: string;
   created_at: string; // Ensure created_at is not null
+  display_id?: string | null; // Add display_id field
+  total_amount?: number; // Add total_amount field
   profiles?: {
     id: string;
     name: string | null;
@@ -187,10 +189,15 @@ export function NotificationBell() {
         throw new Error('Failed to initialize Supabase client');
       }
 
-      const { data: pendingOrders, error } = await client
+      const {
+        data: pendingOrders,
+        error,
+        count,
+      } = await client
         .from('orders')
         .select(
-          'id, status, created_at, customer_profile_id, customer:customer_profile_id(id, name, email, role, phone, avatar_url)',
+          'id, status, created_at, display_id, total_amount, customer_profile_id, customer:customer_profile_id(id, name, email, role, phone, avatar_url)',
+          { count: 'exact' },
         )
         .eq('status', 'pending')
         .order('created_at', { ascending: false })
@@ -204,11 +211,13 @@ export function NotificationBell() {
         id: order.id,
         status: order.status,
         created_at: order.created_at || new Date().toISOString(),
+        display_id: order.display_id,
+        total_amount: order.total_amount,
         profiles: order.customer || null,
       }));
 
       setNotifications(formattedNotifications);
-      setUnreadCount(formattedNotifications.length);
+      setUnreadCount(count || formattedNotifications.length);
       setConnectionStatus('SUBSCRIBED');
 
       if (formattedNotifications.length > 0) {
@@ -325,6 +334,8 @@ export function NotificationBell() {
                 id: record.id,
                 status: record.status,
                 created_at: record.created_at as string,
+                display_id: record.display_id,
+                total_amount: record.total_amount,
                 profiles: record.profiles,
               };
             };
@@ -340,10 +351,40 @@ export function NotificationBell() {
                     newNotification,
                   );
 
-                  setNotifications(prev => [
-                    newNotification,
-                    ...prev.slice(0, 9),
-                  ]);
+                  // Fetch the full order details to get display_id
+                  client
+                    .from('orders')
+                    .select(
+                      'id, status, created_at, display_id, total_amount, customer_profile_id, customer:customer_profile_id(id, name, email, role, phone, avatar_url)',
+                    )
+                    .eq('id', newNotification.id)
+                    .single()
+                    .then(({ data }: { data: any }) => {
+                      if (data) {
+                        const updatedNotification = {
+                          ...newNotification,
+                          display_id: data.display_id,
+                          total_amount: data.total_amount,
+                        };
+
+                        setNotifications(prev => [
+                          updatedNotification,
+                          ...prev.slice(0, 9),
+                        ]);
+                      } else {
+                        setNotifications(prev => [
+                          newNotification,
+                          ...prev.slice(0, 9),
+                        ]);
+                      }
+                    })
+                    .catch((err: Error) => {
+                      console.warn('Failed to fetch full order details:', err);
+                      setNotifications(prev => [
+                        newNotification,
+                        ...prev.slice(0, 9),
+                      ]);
+                    });
 
                   setUnreadCount(prev => {
                     const newCount = prev + 1;
@@ -683,6 +724,15 @@ export function NotificationBell() {
                         Pending
                       </Badge>
                     </div>
+                    <div className="text-xs font-medium">
+                      {notification.display_id ||
+                        `Order #${notification.id.slice(0, 8)}`}
+                    </div>
+                    {notification.total_amount && (
+                      <div className="text-xs text-muted-foreground">
+                        ETB {notification.total_amount.toFixed(2)}
+                      </div>
+                    )}
                     <span className="text-xs text-muted-foreground">
                       {new Date(notification.created_at).toLocaleString()}
                     </span>
