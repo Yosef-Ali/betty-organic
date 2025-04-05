@@ -131,6 +131,7 @@ export function NotificationBell() {
       const { data: allOrders, error } = await supabaseRef.current
         .from('orders')
         .select('id, display_id, status, created_at, total_amount, profiles(*)')
+        .eq('user_id', user?.id)
         .order('created_at', { ascending: false })
         .limit(50);
 
@@ -309,12 +310,13 @@ export function NotificationBell() {
 
       console.log('NotificationBell mounted, initializing...');
 
-      // Skip auth check in development mode or if we have anonymous read access
-      const skipAuthCheck = process.env.NODE_ENV === 'development' || true;
+      // Enforce auth check in production
+      const skipAuthCheck = process.env.NODE_ENV === 'development';
 
       if (!user && !skipAuthCheck) {
-        console.log('No authenticated user found, but continuing anyway');
-        // Don't return here, continue with subscription setup
+        console.log('Authentication required - blocking notifications');
+        setError('Authentication required to view notifications');
+        return;
       }
 
       if (DEBUG_REALTIME) {
@@ -372,6 +374,15 @@ export function NotificationBell() {
     router.push(`/dashboard/orders/${orderId}`);
     setUnreadCount(prev => Math.max(0, prev - 1));
   };
+
+  // Show login prompt if no user
+  if (!user && !authLoading) {
+    return (
+      <div className="p-2 text-sm text-muted-foreground border border-yellow-200 rounded-md">
+        Please login to view notifications
+      </div>
+    );
+  }
 
   return (
     <>
