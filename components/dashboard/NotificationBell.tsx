@@ -403,7 +403,7 @@ export function NotificationBell() {
   if (!user && !authLoading && authInitialized) {
     console.log('User not authenticated, showing login prompt');
     return (
-      <div className="p-2 text-sm text-muted-foreground border border-yellow-200 rounded-md">
+      <div className="p-2 text-sm text-muted-foreground border border-yellow-200 rounded-md bg-yellow-50">
         Please login to view notifications
       </div>
     );
