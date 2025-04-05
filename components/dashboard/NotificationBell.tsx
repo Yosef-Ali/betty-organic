@@ -27,14 +27,7 @@ type NotificationOrder = {
   created_at: string; // Ensure created_at is not null
   display_id?: string | null; // Add display_id field
   total_amount?: number; // Add total_amount field
-  profiles?: {
-    id: string;
-    name: string | null;
-    email: string;
-    role: string;
-    phone?: string | null;
-    avatar_url?: string | null;
-  } | null;
+  user_id: string; // User ID field
 };
 
 export function NotificationBell() {
@@ -131,9 +124,7 @@ export function NotificationBell() {
       // Create a query that works whether user is authenticated or not
       let query = supabaseRef.current
         .from('orders')
-        .select(
-          'id, display_id, status, created_at, total_amount, profiles(*)',
-        );
+        .select('id, display_id, status, created_at, total_amount, user_id');
 
       // Always fetch orders - we're already in a protected route
       // If we have a user ID, filter by it for better security
