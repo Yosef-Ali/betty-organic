@@ -18,8 +18,7 @@ import { useAuth } from '@/hooks/useAuth';
 import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js'; // Import payload type
 import type { Database } from '@/types/supabase';
 
-const MAX_RETRIES = 3; // Max retries for initial fetch
-const RECONNECT_INTERVAL = 5000; // 5 seconds for connection retries
+// Debug flag for realtime logging
 const DEBUG_REALTIME = false; // Disable debug logging
 
 type NotificationOrder = {
@@ -54,10 +53,10 @@ export function NotificationBell() {
     }
   });
   const router = useRouter();
-  const { user, profile, loading: authLoading } = useAuth();
+  const { user, profile, loading: authLoading, authInitialized } = useAuth();
 
+  // Audio reference for notification sounds
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const retryCountRef = useRef(0); // Keep for initial fetch retries
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Keep for initial fetch/connection retries
   const channelRef = useRef<RealtimeChannel | null>(null);
   const supabaseRef = useRef<SupabaseClient<Database> | null>(null);
@@ -132,7 +131,9 @@ export function NotificationBell() {
       // Create a query that works whether user is authenticated or not
       let query = supabaseRef.current
         .from('orders')
-        .select('id, display_id, status, created_at, total_amount, profiles(*)');
+        .select(
+          'id, display_id, status, created_at, total_amount, profiles(*)',
+        );
 
       // Only filter by user_id if we have a user
       if (user?.id) {
@@ -236,20 +237,22 @@ export function NotificationBell() {
               schema: 'public',
               table: 'orders',
               // Filter for specific user in production
-              ...(user?.id && process.env.NODE_ENV === 'production' ? { filter: `user_id=eq.${user.id}` } : {})
+              ...(user?.id && process.env.NODE_ENV === 'production'
+                ? { filter: `user_id=eq.${user.id}` }
+                : {}),
             },
             (payload: RealtimePostgresChangesPayload<NotificationOrder>) => {
               // Safe access to payload properties
               const orderId =
                 typeof payload.new === 'object' &&
-                  payload.new &&
-                  'id' in payload.new
+                payload.new &&
+                'id' in payload.new
                   ? payload.new.id
                   : typeof payload.old === 'object' &&
                     payload.old &&
                     'id' in payload.old
-                    ? payload.old.id
-                    : 'unknown';
+                  ? payload.old.id
+                  : 'unknown';
 
               // Check if this is a pending order (case insensitive)
               // Use includes() instead of exact match to catch variations
@@ -280,7 +283,8 @@ export function NotificationBell() {
               // Only animate and play sound for new pending orders
               if (
                 isPending &&
-                (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE')
+                (payload.eventType === 'INSERT' ||
+                  payload.eventType === 'UPDATE')
               ) {
                 console.log(
                   'Animating bell and playing sound for new pending order',
@@ -329,12 +333,11 @@ export function NotificationBell() {
 
       console.log('NotificationBell mounted, initializing...');
 
-      // Enforce auth check in production
-      const skipAuthCheck = process.env.NODE_ENV === 'development';
-
-      if (!user && !skipAuthCheck) {
+      // Only enforce auth check if we're sure the user is not authenticated
+      // This prevents blocking notifications during auth loading
+      if (!user && authInitialized) {
         console.log('Authentication required - blocking notifications');
-        setError('Authentication required to view notifications');
+        setError('Please login to view notifications');
         return;
       }
 
@@ -385,6 +388,7 @@ export function NotificationBell() {
     authLoading,
     user,
     profile,
+    authInitialized,
     setupRealtimeSubscription,
     handleFetchNotifications,
   ]);
@@ -394,9 +398,10 @@ export function NotificationBell() {
     setUnreadCount(prev => Math.max(0, prev - 1));
   };
 
-  // Only show login prompt in production when definitely not logged in
-  // In development, always show the bell to make testing easier
-  if (process.env.NODE_ENV === 'production' && !user && !authLoading) {
+  // Only show login prompt when definitely not logged in AND we're done loading auth state
+  // This ensures we don't show the login message when we're still checking auth
+  if (!user && !authLoading && authInitialized) {
+    console.log('User not authenticated, showing login prompt');
     return (
       <div className="p-2 text-sm text-muted-foreground border border-yellow-200 rounded-md">
         Please login to view notifications
@@ -442,10 +447,11 @@ export function NotificationBell() {
 
             {/* Connection status indicator */}
             <span
-              className={`absolute -bottom-1 -right-1 h-2 w-2 rounded-full ${connectionStatus === 'SUBSCRIBED'
-                ? 'bg-green-500'
-                : 'bg-yellow-500'
-                }`}
+              className={`absolute -bottom-1 -right-1 h-2 w-2 rounded-full ${
+                connectionStatus === 'SUBSCRIBED'
+                  ? 'bg-green-500'
+                  : 'bg-yellow-500'
+              }`}
             />
           </Button>
         </DropdownMenuTrigger>
