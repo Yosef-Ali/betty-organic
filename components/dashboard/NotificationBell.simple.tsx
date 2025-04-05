@@ -29,7 +29,7 @@ export function SimpleNotificationBell() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [showAnimation, setShowAnimation] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<string>('CONNECTING');
-  
+
   // Audio reference
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const router = useRouter();
@@ -41,7 +41,7 @@ export function SimpleNotificationBell() {
     try {
       // Create a new Audio instance each time
       const audio = new Audio('/sound/notification.mp3');
-      
+
       // Play the sound
       audio.play().catch(err => {
         console.warn('Failed to play sound:', err);
@@ -55,14 +55,14 @@ export function SimpleNotificationBell() {
   const toggleSound = () => {
     const newSoundEnabled = !soundEnabled;
     setSoundEnabled(newSoundEnabled);
-    
+
     // Save to localStorage
     try {
       localStorage.setItem('notification_sound', newSoundEnabled.toString());
     } catch (err) {
       console.warn('Failed to save sound setting:', err);
     }
-    
+
     // Play test sound if enabling
     if (newSoundEnabled) {
       playSound();
@@ -95,19 +95,19 @@ export function SimpleNotificationBell() {
     const fetchPendingOrders = async () => {
       try {
         const supabase = createClient();
-        
+
         const { data, error } = await supabase
           .from('orders')
           .select('id, display_id, status, created_at, total_amount')
           .eq('status', 'pending')
           .order('created_at', { ascending: false })
           .limit(10);
-        
+
         if (error) {
           console.error('Error fetching pending orders:', error);
           return;
         }
-        
+
         if (data && data.length > 0) {
           setNotifications(data as OrderNotification[]);
           setCount(data.length);
@@ -122,7 +122,7 @@ export function SimpleNotificationBell() {
 
     // Initial fetch
     fetchPendingOrders();
-    
+
     // Set up real-time subscription
     const supabase = createClient();
     const channel = supabase
@@ -138,13 +138,13 @@ export function SimpleNotificationBell() {
           // For INSERT events
           if (payload.eventType === 'INSERT') {
             const newOrder = payload.new as OrderNotification;
-            
+
             // Only add to notifications if it's pending
             if (newOrder.status === 'pending') {
-              // Add the new order to notifications
-              setNotifications(prev => [newOrder, ...prev.slice(0, 8)]);
+              // Add the new order to notifications, keeping up to 10
+              setNotifications(prev => [newOrder, ...prev.slice(0, 9)]);
               setCount(prev => prev + 1);
-              
+
               // Show animation and play sound
               setShowAnimation(true);
               playSound();
@@ -167,9 +167,9 @@ export function SimpleNotificationBell() {
               payload.new?.status === 'pending'
             ) {
               const updatedOrder = payload.new as OrderNotification;
-              setNotifications(prev => [updatedOrder, ...prev.slice(0, 8)]);
+              setNotifications(prev => [updatedOrder, ...prev.slice(0, 9)]);
               setCount(prev => prev + 1);
-              
+
               // Show animation and play sound for new pending orders
               setShowAnimation(true);
               playSound();
@@ -186,7 +186,7 @@ export function SimpleNotificationBell() {
       )
       .subscribe(status => {
         setConnectionStatus(status);
-        
+
         // When connected, fetch orders again to ensure we have the latest
         if (status === 'SUBSCRIBED') {
           fetchPendingOrders();
@@ -216,7 +216,7 @@ export function SimpleNotificationBell() {
               />
             )}
           </div>
-          
+
           {count > 0 && (
             <Badge
               className="absolute -right-1 -top-1 h-5 w-5 rounded-full p-0 flex items-center justify-center bg-red-500 text-white border-2 border-background"
@@ -224,15 +224,14 @@ export function SimpleNotificationBell() {
               {count}
             </Badge>
           )}
-          
-          <span 
-            className={`absolute -bottom-1 -right-1 h-2 w-2 rounded-full ${
-              connectionStatus === 'SUBSCRIBED' ? 'bg-green-500' : 'bg-yellow-500'
-            }`} 
+
+          <span
+            className={`absolute -bottom-1 -right-1 h-2 w-2 rounded-full ${connectionStatus === 'SUBSCRIBED' ? 'bg-green-500' : 'bg-yellow-500'
+              }`}
           />
         </Button>
       </DropdownMenuTrigger>
-      
+
       <DropdownMenuContent align="end" className="w-64 p-2">
         <div className="flex items-center justify-between mb-2">
           <h4 className="font-semibold text-sm">Pending Orders</h4>
@@ -241,7 +240,7 @@ export function SimpleNotificationBell() {
             Live
           </div>
         </div>
-        
+
         {notifications.length === 0 ? (
           <div className="p-4 text-center text-muted-foreground">
             <div className="mb-2">📭</div>
@@ -250,8 +249,8 @@ export function SimpleNotificationBell() {
         ) : (
           <div className="max-h-[300px] overflow-y-auto space-y-2 mb-2">
             {notifications.map((notification) => (
-              <DropdownMenuItem 
-                key={notification.id} 
+              <DropdownMenuItem
+                key={notification.id}
                 className="cursor-pointer"
                 onClick={() => viewOrderDetails(notification.id)}
               >
@@ -276,7 +275,7 @@ export function SimpleNotificationBell() {
             ))}
           </div>
         )}
-        
+
         <div className="pt-2 border-t border-muted">
           <div className="flex justify-between items-center">
             <Button
@@ -297,7 +296,7 @@ export function SimpleNotificationBell() {
                 </>
               )}
             </Button>
-            
+
             {soundEnabled && (
               <Button
                 variant="outline"
