@@ -29,4 +29,13 @@ export function createAdminClient() {
 }
 
 // Export a static instance for backward compatibility, but using the function is preferred
-export const supabaseAdmin = createAdminClient();
+// Wrap in try-catch to avoid errors when environment variables are missing
+let supabaseAdmin: ReturnType<typeof createAdminClient> | null = null;
+try {
+  supabaseAdmin = createAdminClient();
+} catch (error) {
+  console.warn('Failed to create admin client:', error);
+  // Will be null, which callers should handle
+}
+
+export { supabaseAdmin };
