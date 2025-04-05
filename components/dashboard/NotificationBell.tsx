@@ -112,12 +112,17 @@ export function NotificationBell() {
     setIsLoading(true);
     try {
       console.log('Fetching pending orders for notifications...');
+      console.log('Querying for pending orders...');
+      // Use or condition to handle different case variations of 'pending'
       const { data, error } = await supabaseRef.current
         .from('orders')
         .select('id, display_id, status, created_at, total_amount, profiles(*)')
-        .eq('status', 'pending')
+        .or('status.eq.pending,status.eq.Pending,status.eq.PENDING')
         .order('created_at', { ascending: false })
         .limit(10);
+
+      // Log the raw data for debugging
+      console.log('Raw pending orders data:', data);
 
       if (error) throw error;
 
@@ -167,7 +172,8 @@ export function NotificationBell() {
             event: '*',
             schema: 'public',
             table: 'orders',
-            filter: 'status=eq.pending',
+            // No filter on status here - we'll filter in the callback
+            // This ensures we catch all order changes and can check status
           },
           (payload: RealtimePostgresChangesPayload<NotificationOrder>) => {
             // Safe access to payload properties
@@ -182,19 +188,43 @@ export function NotificationBell() {
                 ? payload.old.id
                 : 'unknown';
 
+            // Check if this is a pending order (case insensitive)
+            const isPending =
+              typeof payload.new === 'object' &&
+              payload.new &&
+              'status' in payload.new &&
+              typeof payload.new.status === 'string' &&
+              payload.new.status.toLowerCase() === 'pending';
+
             console.log(
               'Realtime notification received:',
               payload.eventType,
               orderId,
+              'Status:',
+              typeof payload.new === 'object' &&
+                payload.new &&
+                'status' in payload.new
+                ? String(payload.new.status)
+                : 'unknown',
+              'Is Pending:',
+              isPending,
             );
 
-            // Refresh notifications list
+            // Always refresh notifications list to keep it up to date
             handleFetchNotifications();
 
-            // Animate bell and play sound
-            setAnimateBell(true);
-            playNotificationSound();
-            setTimeout(() => setAnimateBell(false), 2000);
+            // Only animate and play sound for new pending orders
+            if (
+              isPending &&
+              (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE')
+            ) {
+              console.log(
+                'Animating bell and playing sound for new pending order',
+              );
+              setAnimateBell(true);
+              playNotificationSound();
+              setTimeout(() => setAnimateBell(false), 2000);
+            }
           },
         )
         .subscribe(status => {
@@ -445,6 +475,20 @@ export function NotificationBell() {
                     Test
                   </Button>
                 )}
+
+                {/* Debug button to manually fetch pending orders */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs"
+                  onClick={() => {
+                    console.log('Manual refresh triggered');
+                    handleFetchNotifications();
+                  }}
+                  title="Manually refresh pending orders"
+                >
+                  Refresh
+                </Button>
               </div>
 
               <Button
