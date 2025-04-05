@@ -397,7 +397,7 @@ export function NotificationBell() {
           <Button
             variant="ghost"
             size="icon"
-            className="relative w-10 h-10 bg-yellow-50 hover:bg-yellow-100 border border-yellow-200 rounded-full"
+            className="relative w-10 h-10 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-full shadow-sm transition-all duration-200 hover:shadow"
             disabled={isLoading}
           >
             <div className={cn(animateBell && 'animate-bell')}>
@@ -407,7 +407,7 @@ export function NotificationBell() {
                 <Bell
                   className={cn(
                     'h-6 w-6',
-                    unreadCount > 0 ? 'text-red-500' : 'text-yellow-600',
+                    unreadCount > 0 ? 'text-red-500' : 'text-amber-600',
                   )}
                 />
               )}
@@ -462,16 +462,21 @@ export function NotificationBell() {
           </div>
 
           {error ? (
-            <div className="p-3 text-red-500 bg-red-50 rounded-md mb-1">
-              <div className="font-medium">Error</div>
-              <div className="text-sm">{error}</div>
+            <div className="p-3 text-red-600 bg-red-50 rounded-md mb-1 border border-red-200 shadow-sm">
+              <div className="font-medium flex items-center gap-1">
+                <span>⚠️</span>
+                <span>Error Loading Notifications</span>
+              </div>
+              <div className="text-sm mt-1">{error}</div>
             </div>
           ) : notifications.length === 0 ? (
-            <div className="p-4 text-center text-muted-foreground">
-              <div className="mb-2">📭</div>
-              <div>No pending orders</div>
-              <div className="text-xs mt-2 text-gray-500">
-                Check console for debugging info
+            <div className="p-4 text-center text-muted-foreground bg-amber-50 rounded-md border border-amber-200">
+              <div className="mb-2 text-2xl">📭</div>
+              <div className="font-medium text-amber-800">
+                No pending orders
+              </div>
+              <div className="text-xs mt-2 text-amber-600">
+                Notifications will appear here when new orders arrive
               </div>
             </div>
           ) : (
@@ -480,7 +485,7 @@ export function NotificationBell() {
                 <DropdownMenuItem
                   key={notification.id}
                   onClick={() => handleNotificationClick(notification.id)}
-                  className="cursor-pointer mb-1 hover:bg-muted rounded-md"
+                  className="cursor-pointer mb-1 hover:bg-yellow-50 rounded-md transition-colors duration-200 border border-transparent hover:border-yellow-200"
                 >
                   <div className="flex items-start gap-2 w-full">
                     <div className="bg-yellow-100 text-yellow-800 p-2 rounded-full">
@@ -515,57 +520,59 @@ export function NotificationBell() {
           )}
 
           <div className="mt-2 pt-2 border-t border-muted">
+            {/* Sound controls */}
             <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="flex items-center gap-1 text-xs"
-                  onClick={toggleSound}
-                >
-                  {soundEnabled ? (
-                    <>
-                      <Volume2 className="h-3 w-3" />
-                      <span>Sound On</span>
-                    </>
-                  ) : (
-                    <>
-                      <VolumeX className="h-3 w-3" />
-                      <span>Sound Off</span>
-                    </>
-                  )}
-                </Button>
-
-                {soundEnabled && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-xs"
-                    onClick={() =>
-                      playNotificationSound().catch(err =>
-                        console.warn('Failed to play test sound:', err),
-                      )
-                    }
-                    title="Test notification sound"
-                  >
-                    Test
-                  </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="flex items-center gap-1 text-xs"
+                onClick={toggleSound}
+              >
+                {soundEnabled ? (
+                  <>
+                    <Volume2 className="h-3 w-3" />
+                    <span>Sound On</span>
+                  </>
+                ) : (
+                  <>
+                    <VolumeX className="h-3 w-3" />
+                    <span>Sound Off</span>
+                  </>
                 )}
+              </Button>
 
-                {/* Debug button to manually fetch pending orders */}
+              {soundEnabled && (
                 <Button
                   variant="ghost"
                   size="sm"
                   className="text-xs"
-                  onClick={() => {
-                    console.log('Manual refresh triggered');
-                    handleFetchNotifications();
-                  }}
-                  title="Manually refresh pending orders"
+                  onClick={() =>
+                    playNotificationSound().catch(err =>
+                      console.warn('Failed to play test sound:', err),
+                    )
+                  }
+                  title="Test notification sound"
                 >
-                  Refresh
+                  Test
                 </Button>
-              </div>
+              )}
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex items-center justify-between mt-2">
+              {/* Debug button to manually fetch pending orders */}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs"
+                onClick={() => {
+                  console.log('Manual refresh triggered');
+                  handleFetchNotifications();
+                }}
+                title="Manually refresh pending orders"
+              >
+                Refresh
+              </Button>
 
               <Button
                 variant="outline"
