@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Bell, BellRing, Volume2, VolumeX } from 'lucide-react';
-// Don't import Supabase client to avoid authentication issues
-import type { RealtimeChannel } from '@supabase/supabase-js';
+// Import the Supabase client to handle real-time updates properly
+import { createClient } from '@/lib/supabase/client';
+import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -12,20 +13,27 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
-import { ExtendedOrder } from '@/types/order';
+// No longer using ExtendedOrder directly
 import { useAuth } from '@/hooks/useAuth';
 import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js'; // Import payload type
+import type { Database } from '@/types/supabase';
 
 const MAX_RETRIES = 3; // Max retries for initial fetch
-// const POLLING_INTERVAL = 30000; // REMOVED POLLING
 const RECONNECT_INTERVAL = 5000; // 5 seconds for connection retries
 const DEBUG_REALTIME = false; // Disable debug logging
 
-type NotificationOrder = Pick<
-  ExtendedOrder,
-  'id' | 'status' | 'created_at' | 'profiles'
-> & {
+type NotificationOrder = {
+  id: string;
+  status: string;
   created_at: string; // Ensure created_at is not null
+  profiles?: {
+    id: string;
+    name: string | null;
+    email: string;
+    role: string;
+    phone?: string | null;
+    avatar_url?: string | null;
+  } | null;
 };
 
 export function NotificationBell() {
@@ -42,16 +50,12 @@ export function NotificationBell() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const retryCountRef = useRef(0); // Keep for initial fetch retries
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Keep for initial fetch/connection retries
-  // const previousCountRef = useRef(0); // REMOVED - count updated directly
-  // const isInitialLoadRef = useRef(true); // REMOVED - initial fetch handled differently
   const channelRef = useRef<RealtimeChannel | null>(null);
-  // Don't use Supabase client to avoid authentication issues
-  const supabaseRef = useRef(null);
+  const supabaseRef = useRef<SupabaseClient<Database> | null>(null);
   const mountedRef = useRef(true); // Track component mount state
 
   // Play notification sound with multiple fallback options
   const playNotificationSound = useCallback(async () => {
-    // Function to check if a sound file exists
     const checkSoundFileExists = async (url: string): Promise<boolean> => {
       try {
         const response = await fetch(url, { method: 'HEAD' });
@@ -62,7 +66,6 @@ export function NotificationBell() {
       }
     };
 
-    // Only play sound if enabled
     if (!soundEnabled) {
       if (DEBUG_REALTIME)
         console.log('Sound disabled, skipping notification sound');
@@ -70,12 +73,9 @@ export function NotificationBell() {
     }
 
     try {
-      // If we don't have an audio element yet, create one
       if (!audioRef.current) {
-        // We've added the sound file to public/sound/notification.mp3
         const soundPaths = ['/sound/notification.mp3'];
 
-        // Find the first path that exists
         for (const path of soundPaths) {
           if (await checkSoundFileExists(path)) {
             if (DEBUG_REALTIME) console.log(`Found sound file at ${path}`);
@@ -84,7 +84,6 @@ export function NotificationBell() {
           }
         }
 
-        // If no path worked, use the first one anyway and hope for the best
         if (!audioRef.current) {
           console.warn(
             'Could not find notification sound file, using default path',
@@ -93,24 +92,19 @@ export function NotificationBell() {
         }
       }
 
-      // Play the sound
       audioRef.current.currentTime = 0;
       audioRef.current.play().catch(e => {
         console.warn('Audio play failed:', e);
-        // If play fails due to user interaction requirements, we'll just skip it
-        // This happens in browsers that require user interaction before playing audio
       });
     } catch (err) {
       console.warn('Notification sound error:', err);
     }
   }, [soundEnabled]);
 
-  // Toggle sound settings and save to localStorage
   const toggleSound = useCallback(() => {
     const newSoundEnabled = !soundEnabled;
     setSoundEnabled(newSoundEnabled);
 
-    // Save preference to localStorage
     try {
       localStorage.setItem(
         'notification_sound_enabled',
@@ -126,7 +120,6 @@ export function NotificationBell() {
       console.warn('Failed to save sound preference to localStorage:', err);
     }
 
-    // Play a test sound if enabled
     if (newSoundEnabled) {
       playNotificationSound().catch(err =>
         console.warn('Failed to play test notification sound:', err),
@@ -134,7 +127,6 @@ export function NotificationBell() {
     }
   }, [soundEnabled, playNotificationSound]);
 
-  // Load sound preference from localStorage on mount
   useEffect(() => {
     try {
       const savedPreference = localStorage.getItem(
@@ -155,83 +147,80 @@ export function NotificationBell() {
     }
   }, []);
 
-  // Enhanced animation effect for the bell
   useEffect(() => {
     if (!animateBell) return;
 
-    // Animate for longer (3 seconds) with a more noticeable effect
     const timer = setTimeout(() => setAnimateBell(false), 3000);
     return () => clearTimeout(timer);
   }, [animateBell]);
 
-  // Trigger bell animation periodically to draw attention
   useEffect(() => {
-    // Initial animation when component mounts
     setAnimateBell(true);
 
     if (unreadCount > 0) {
-      // Animate the bell every 30 seconds if there are unread notifications
       const animationInterval = setInterval(() => {
         setAnimateBell(true);
-        // Also play sound if enabled
         if (soundEnabled) {
           playNotificationSound().catch(err =>
             console.warn('Failed to play notification sound:', err),
           );
         }
-      }, 30000); // Every 30 seconds
+      }, 30000);
 
       return () => clearInterval(animationInterval);
     }
   }, [unreadCount, soundEnabled, playNotificationSound]);
 
-  // Simplified fetchNotifications function that just uses test data
-  const fetchNotifications = useCallback(() => {
-    // Skip if component is unmounted
+  const fetchNotifications = useCallback(async () => {
     if (!mountedRef.current) return;
 
     setIsLoading(true);
     setError(null);
 
     try {
-      // Create test notification objects
-      const testNotifications: NotificationOrder[] = [
-        {
-          id: 'test-1',
-          status: 'pending',
-          created_at: new Date().toISOString(),
-          profiles: undefined,
-        },
-        {
-          id: 'test-2',
-          status: 'pending',
-          created_at: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
-          profiles: undefined,
-        },
-        {
-          id: 'test-3',
-          status: 'pending',
-          created_at: new Date(Date.now() - 7200000).toISOString(), // 2 hours ago
-          profiles: undefined,
-        },
-      ];
+      if (!supabaseRef.current) {
+        supabaseRef.current = createClient();
+      }
 
-      // Set test data
-      setNotifications(testNotifications);
-      setUnreadCount(testNotifications.length);
-      setConnectionStatus('SUBSCRIBED'); // Simulate connected state
+      const client = supabaseRef.current;
+      if (!client) {
+        throw new Error('Failed to initialize Supabase client');
+      }
 
-      // Trigger bell animation
-      setAnimateBell(true);
+      const { data: pendingOrders, error } = await client
+        .from('orders')
+        .select(
+          'id, status, created_at, customer_profile_id, customer:customer_profile_id(id, name, email, role, phone, avatar_url)',
+        )
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false })
+        .limit(10);
 
-      // Play notification sound if enabled
-      if (soundEnabled) {
-        playNotificationSound().catch(err =>
-          console.warn('Failed to play notification sound:', err),
-        );
+      if (error) throw error;
+
+      const formattedNotifications: NotificationOrder[] = (
+        pendingOrders || []
+      ).map((order: any) => ({
+        id: order.id,
+        status: order.status,
+        created_at: order.created_at || new Date().toISOString(),
+        profiles: order.customer || null,
+      }));
+
+      setNotifications(formattedNotifications);
+      setUnreadCount(formattedNotifications.length);
+      setConnectionStatus('SUBSCRIBED');
+
+      if (formattedNotifications.length > 0) {
+        setAnimateBell(true);
+
+        if (soundEnabled) {
+          playNotificationSound().catch(err =>
+            console.warn('Failed to play notification sound:', err),
+          );
+        }
       }
     } catch (error) {
-      // Skip state updates if component unmounted
       if (!mountedRef.current) return;
 
       const errorMessage =
@@ -241,7 +230,6 @@ export function NotificationBell() {
       setError(errorMessage);
       console.error('Initial Notification fetch error:', error);
 
-      // Retry logic specifically for initial fetch
       if (retryCountRef.current < MAX_RETRIES) {
         retryCountRef.current += 1;
         const backoffTime = Math.min(
@@ -254,7 +242,7 @@ export function NotificationBell() {
         if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
         retryTimeoutRef.current = setTimeout(() => {
           if (mountedRef.current) {
-            fetchNotifications(); // Retry initial fetch
+            fetchNotifications();
           }
         }, backoffTime);
       } else {
@@ -266,27 +254,23 @@ export function NotificationBell() {
         );
       }
     } finally {
-      // Skip state updates if component unmounted
       if (mountedRef.current) {
         setIsLoading(false);
       }
     }
-  }, [user, profile]);
+  }, [playNotificationSound, soundEnabled]);
 
   const setupRealtimeSubscription = useCallback((): void => {
-    // Exit if component unmounted
     if (!mountedRef.current) return;
 
     try {
       const client = supabaseRef.current;
-      // Add null check for client
       if (!client) {
         console.error('Client not initialized in setupRealtimeSubscription');
         setError('Client not available');
         return;
       }
 
-      // Remove existing channel if it exists
       if (channelRef.current) {
         try {
           client.removeChannel(channelRef.current);
@@ -295,7 +279,6 @@ export function NotificationBell() {
         }
       }
 
-      // Channel name for postgres_changes
       const channelName = 'order-status';
 
       if (DEBUG_REALTIME) {
@@ -306,7 +289,6 @@ export function NotificationBell() {
         });
       }
 
-      // Create channel with the correct pattern from official docs
       console.log('Setting up realtime channel:', channelName);
 
       const channel = client
@@ -317,11 +299,9 @@ export function NotificationBell() {
             event: '*',
             schema: 'public',
             table: 'orders',
-            filter: 'status=eq.pending', // Add filter back to focus on pending orders
+            filter: 'status=eq.pending',
           },
-          (payload: RealtimePostgresChangesPayload<any>) => {
-            // Add type to payload
-            // Skip if component unmounted
+          (payload: RealtimePostgresChangesPayload<Record<string, any>>) => {
             if (!mountedRef.current) return;
 
             if (DEBUG_REALTIME) {
@@ -333,12 +313,11 @@ export function NotificationBell() {
               });
             }
 
-            const newRecord = payload.new as any;
-            const oldRecord = payload.old as any;
+            const newRecord = payload.new as Record<string, any>;
+            const oldRecord = payload.old as Record<string, any>;
 
-            // Helper to create NotificationOrder from payload record
             const createNotification = (
-              record: any,
+              record: Record<string, any>,
             ): NotificationOrder | null => {
               if (!record || !record.created_at || !record.id || !record.status)
                 return null;
@@ -346,13 +325,12 @@ export function NotificationBell() {
                 id: record.id,
                 status: record.status,
                 created_at: record.created_at as string,
-                profiles: record.profiles, // Assuming profiles are included in the payload if selected
+                profiles: record.profiles,
               };
             };
 
             if (payload.eventType === 'INSERT') {
               if (newRecord?.status === 'pending') {
-                // Always log new pending orders for debugging
                 console.log('🔔 NEW PENDING ORDER RECEIVED:', newRecord);
 
                 const newNotification = createNotification(newRecord);
@@ -362,13 +340,11 @@ export function NotificationBell() {
                     newNotification,
                   );
 
-                  // Update notifications list
                   setNotifications(prev => [
                     newNotification,
                     ...prev.slice(0, 9),
-                  ]); // Add to start, limit to 10
+                  ]);
 
-                  // Increment unread count
                   setUnreadCount(prev => {
                     const newCount = prev + 1;
                     console.log(
@@ -377,7 +353,6 @@ export function NotificationBell() {
                     return newCount;
                   });
 
-                  // Animate bell and play sound
                   setAnimateBell(true);
                   playNotificationSound().catch(err =>
                     console.warn('Failed to play notification sound:', err),
@@ -389,7 +364,6 @@ export function NotificationBell() {
               const newStatus = newRecord?.status;
 
               if (oldStatus !== 'pending' && newStatus === 'pending') {
-                // Became pending
                 const newNotification = createNotification(newRecord);
                 if (newNotification) {
                   if (DEBUG_REALTIME)
@@ -407,7 +381,6 @@ export function NotificationBell() {
                   );
                 }
               } else if (oldStatus === 'pending' && newStatus !== 'pending') {
-                // No longer pending
                 if (DEBUG_REALTIME)
                   console.log('UPDATE from pending:', oldRecord);
                 setNotifications(prev =>
@@ -415,7 +388,6 @@ export function NotificationBell() {
                 );
                 setUnreadCount(prev => Math.max(0, prev - 1));
               } else if (oldStatus === 'pending' && newStatus === 'pending') {
-                // Still pending, update details if necessary (e.g., profile info)
                 const updatedNotification = createNotification(newRecord);
                 if (updatedNotification) {
                   if (DEBUG_REALTIME)
@@ -425,12 +397,10 @@ export function NotificationBell() {
                       n.id === updatedNotification.id ? updatedNotification : n,
                     ),
                   );
-                  // Do NOT change unread count or animate/sound here
                 }
               }
             } else if (payload.eventType === 'DELETE') {
               if (oldRecord?.status === 'pending') {
-                // Deleted while pending
                 if (DEBUG_REALTIME) console.log('DELETE pending:', oldRecord);
                 setNotifications(prev =>
                   prev.filter(n => n.id !== oldRecord.id),
@@ -440,10 +410,9 @@ export function NotificationBell() {
             }
           },
         )
-        .subscribe(status => {
+        .subscribe((status: string) => {
           if (!mountedRef.current) return;
 
-          // Always log the channel status for debugging
           console.log(`Notification Bell - Channel status: ${status}`);
 
           setConnectionStatus(status);
@@ -460,8 +429,7 @@ export function NotificationBell() {
             console.log(
               'Notification Bell - Successfully subscribed, refreshing data...',
             );
-            // Fetch initial notifications upon successful subscription
-            fetchNotifications(); // Fetch initial state
+            fetchNotifications();
           } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
             console.error(
               `Notification Bell - Channel error or timed out (${status}), will retry`,
@@ -480,15 +448,12 @@ export function NotificationBell() {
     } catch (error) {
       console.error('Realtime setup error:', error);
 
-      // Skip if component unmounted
       if (!mountedRef.current) return;
 
-      // Clear any existing reconnect attempts
       if (retryTimeoutRef.current) {
         clearTimeout(retryTimeoutRef.current);
       }
 
-      // Schedule reconnection attempt with backoff
       retryTimeoutRef.current = setTimeout(() => {
         if (mountedRef.current) {
           setupRealtimeSubscription();
@@ -497,13 +462,10 @@ export function NotificationBell() {
     }
   }, [user, profile, playNotificationSound, fetchNotifications]);
 
-  // Keep track of refresh attempts to avoid infinite loops
   const refreshAttemptRef = useRef(0);
 
-  // Function to handle auth refresh - called when token is refreshed
   const refreshAuth = useCallback(async () => {
     try {
-      // Only try refreshing 3 times max
       if (refreshAttemptRef.current >= 3) return;
 
       refreshAttemptRef.current += 1;
@@ -511,13 +473,10 @@ export function NotificationBell() {
       if (DEBUG_REALTIME)
         console.log('Attempting auth refresh', refreshAttemptRef.current);
 
-      // Create a new Supabase client after refresh
       supabaseRef.current = createClient();
 
-      // Set up realtime subscription after refresh
       setupRealtimeSubscription();
 
-      // Fetch notifications
       fetchNotifications();
     } catch (err) {
       console.error('Auth refresh error:', err);
@@ -525,10 +484,15 @@ export function NotificationBell() {
     }
   }, [setupRealtimeSubscription, fetchNotifications]);
 
-  // Listen for auth state changes
   useEffect(() => {
-    // Skip if not mounted or no user
     if (!mountedRef.current || !user) return;
+
+    if (!supabaseRef.current) {
+      supabaseRef.current = createClient();
+    }
+
+    // Skip if supabaseRef is still null
+    if (!supabaseRef.current) return;
 
     const {
       data: { subscription },
@@ -537,18 +501,14 @@ export function NotificationBell() {
 
       if (event === 'TOKEN_REFRESHED') {
         if (DEBUG_REALTIME) console.log('Token refreshed successfully');
-        // Call the refreshAuth function to handle token refresh
         refreshAuth().catch(err =>
           console.error('Error refreshing auth:', err),
         );
-        // Also refresh data
         fetchNotifications();
       } else if (event === 'SIGNED_OUT') {
-        // Clean up and hide component
         setNotifications([]);
         setUnreadCount(0);
       } else if (event === 'USER_UPDATED') {
-        // Fetch fresh data
         fetchNotifications();
       }
     });
@@ -558,19 +518,17 @@ export function NotificationBell() {
     };
   }, [user, fetchNotifications, refreshAuth]);
 
-  // Wait for auth to be ready before setting up subscriptions
   useEffect(() => {
     try {
-      // Set mounted ref
       mountedRef.current = true;
 
-      // Exit early if auth is still loading
       if (authLoading) {
         if (DEBUG_REALTIME) console.log('Auth is still loading');
         return;
       }
 
-      // For development, allow the component to work even without authentication
+      supabaseRef.current = createClient();
+
       if (!user && process.env.NODE_ENV !== 'development') {
         if (DEBUG_REALTIME) console.log('No authenticated user found');
         setError('Authentication required');
@@ -587,7 +545,6 @@ export function NotificationBell() {
         });
       }
 
-      // Clear existing localStorage keys for realtime to prevent stale connections
       if (typeof localStorage !== 'undefined') {
         Object.keys(localStorage).forEach(key => {
           if (key.startsWith('supabase.realtime')) {
@@ -596,18 +553,13 @@ export function NotificationBell() {
         });
       }
 
-      // Force a direct fetch of notifications first
       fetchNotifications();
 
-      // Set up realtime subscription with proper error handling
-      setupRealtimeSubscription(); // This will trigger initial fetch on 'SUBSCRIBED'
+      setupRealtimeSubscription();
 
       return () => {
-        // Set mounted ref to false to avoid state updates after unmount
         mountedRef.current = false;
 
-        // clearInterval(pollingInterval); // REMOVED POLLING
-        // Add null check for supabaseRef.current
         if (supabaseRef.current && channelRef.current) {
           try {
             supabaseRef.current.removeChannel(channelRef.current);
@@ -636,11 +588,6 @@ export function NotificationBell() {
     setUnreadCount(prev => Math.max(0, prev - 1));
   };
 
-  // No need for cached admin state anymore since we always show the bell
-
-  // Always render the bell regardless of auth state
-  // This prevents the bell from disappearing/blinking during auth state changes
-
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -658,7 +605,6 @@ export function NotificationBell() {
                 : 'Notification sounds off'
             }
           >
-            {/* Show animated bell or regular bell based on state */}
             {animateBell ? (
               <BellRing className="h-6 w-6 text-red-500 animate-bell" />
             ) : (
@@ -681,7 +627,6 @@ export function NotificationBell() {
               {unreadCount}
             </Badge>
           )}
-          {/* Always show connection indicator with different colors based on status */}
           <span
             className={`absolute -bottom-1 -right-1 h-2 w-2 rounded-full ${
               connectionStatus === 'SUBSCRIBED'

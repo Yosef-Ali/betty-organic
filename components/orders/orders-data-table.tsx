@@ -30,7 +30,7 @@ import {
 } from '@/components/ui/pagination';
 
 import { Input } from '@/components/ui/input';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
@@ -57,6 +57,10 @@ import { format } from 'date-fns';
 import { ExtendedOrder, OrderItem } from '@/types/order';
 import { formatOrderId } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
+import type {
+  RealtimeChannel,
+  RealtimePostgresChangesPayload,
+} from '@supabase/supabase-js';
 import { DataTable } from '@/components/ui/data-table';
 import { formatCurrency } from '@/lib/utils';
 import { updateOrderStatus } from '@/app/actions/orderActions';
@@ -68,6 +72,7 @@ interface OrdersDataTableProps {
   onSelectOrder: (id: string) => void;
   onDeleteOrder: (id: string) => Promise<void>;
   isLoading: boolean;
+  onOrdersUpdated?: (options?: { silent?: boolean }) => Promise<void>;
 }
 
 const formatDate = (dateString: string | null | undefined): string => {
@@ -87,16 +92,178 @@ type ExtendedOrderRow = ExtendedOrder & {
   formattedAmount?: string;
 };
 
+// Add type for the realtime payload
+interface OrderPayload {
+  id: string;
+  [key: string]: any;
+}
+
+// Type guard to check if an object is an OrderPayload
+function isOrderPayload(obj: any): obj is OrderPayload {
+  return obj && typeof obj.id === 'string';
+}
+
 export function OrdersDataTable({
   orders,
   onSelectOrder,
   onDeleteOrder,
   isLoading,
+  onOrdersUpdated,
 }: OrdersDataTableProps) {
   const { toast } = useToast();
   const [sorting, setSorting] = useState<SortingState>([
     { id: 'created_at', desc: true },
   ]);
+  const [realTimeStatus, setRealTimeStatus] = useState<string>('Not connected');
+  const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null);
+  const channelRef = useRef<RealtimeChannel | null>(null);
+  const mountedRef = useRef<boolean>(true);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+
+  // Initialize Supabase realtime subscription
+  useEffect(() => {
+    mountedRef.current = true;
+
+    // Create Supabase client if not already created
+    if (!supabaseRef.current) {
+      supabaseRef.current = createClient();
+    }
+
+    // Setup realtime channel for order updates
+    const setupRealtimeSubscription = () => {
+      try {
+        const client = supabaseRef.current;
+        if (!client) {
+          console.error('Supabase client not initialized');
+          return;
+        }
+
+        // Remove existing channel if it exists
+        if (channelRef.current) {
+          try {
+            client.removeChannel(channelRef.current);
+          } catch (err) {
+            console.warn('Error removing existing channel:', err);
+          }
+        }
+
+        const channelName = 'orders-table-updates';
+        console.log('Setting up orders table realtime channel:', channelName);
+
+        const channel = client
+          .channel(channelName)
+          .on(
+            'postgres_changes',
+            {
+              event: '*', // Listen for all events (INSERT, UPDATE, DELETE)
+              schema: 'public',
+              table: 'orders',
+            },
+            (payload: RealtimePostgresChangesPayload<OrderPayload>) => {
+              if (!mountedRef.current) return;
+
+              console.log('Order table change received:', {
+                eventType: payload.eventType,
+                orderId: isOrderPayload(payload.new)
+                  ? payload.new.id
+                  : isOrderPayload(payload.old)
+                  ? payload.old.id
+                  : 'unknown',
+              });
+
+              const eventType = payload.eventType;
+
+              // Handle different event types with minimal disruption
+              switch (eventType) {
+                case 'INSERT':
+                  // For new orders, update the table silently and show a subtle indicator
+                  // in the UI instead of a toast notification
+                  break;
+                case 'UPDATE':
+                  // For updates, only log the change - no toast needed
+                  break;
+                case 'DELETE':
+                  // For deletions, only log the change - no toast needed
+                  // If the currently selected order was deleted, select a different one
+                  if (isOrderPayload(payload.old)) {
+                    const firstAvailableOrder = orders.find(
+                      o => o.id !== payload.old.id,
+                    );
+                    if (firstAvailableOrder) {
+                      setSelectedOrderId(firstAvailableOrder.id);
+                    } else {
+                      setSelectedOrderId(null);
+                    }
+                  }
+                  break;
+              }
+
+              // Handle the update by refreshing data through the parent component
+              // This approach ensures all order data is consistent
+              if (onOrdersUpdated) {
+                onOrdersUpdated({ silent: true }).catch(err => {
+                  console.error(
+                    'Error updating orders after realtime event:',
+                    err,
+                  );
+                });
+              }
+            },
+          )
+          .subscribe((status: string) => {
+            if (!mountedRef.current) return;
+
+            console.log(`Orders table - Realtime status: ${status}`);
+            setRealTimeStatus(status);
+
+            if (status === 'SUBSCRIBED') {
+              console.log(
+                'Orders table - Successfully subscribed to real-time updates',
+              );
+            } else if (status === 'CHANNEL_ERROR') {
+              console.error(
+                'Orders table - Channel error, will retry connection',
+              );
+              // Retry connection after a delay
+              setTimeout(() => {
+                if (mountedRef.current) {
+                  setupRealtimeSubscription();
+                }
+              }, 5000);
+            }
+          });
+
+        channelRef.current = channel;
+      } catch (error) {
+        console.error('Error setting up realtime subscription:', error);
+      }
+    };
+
+    // Clear existing localStorage keys for realtime to prevent stale connections
+    if (typeof localStorage !== 'undefined') {
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('supabase.realtime')) {
+          localStorage.removeItem(key);
+        }
+      });
+    }
+
+    // Set up the subscription
+    setupRealtimeSubscription();
+
+    // Cleanup function
+    return () => {
+      mountedRef.current = false;
+
+      if (supabaseRef.current && channelRef.current) {
+        try {
+          supabaseRef.current.removeChannel(channelRef.current);
+        } catch (err) {
+          console.warn('Error removing channel during cleanup:', err);
+        }
+      }
+    };
+  }, [onOrdersUpdated, orders]);
 
   // Memoize the data transformation to prevent unnecessary re-renders
   const data = useMemo(() => {
@@ -292,7 +459,7 @@ export function OrdersDataTable({
   );
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 relative">
       <DataTable
         columns={columns}
         data={data}
@@ -302,9 +469,23 @@ export function OrdersDataTable({
         onSortingChange={setSorting}
       />
 
+      {/* Real-time status indicator */}
+      <div className="absolute top-2 right-2 flex items-center gap-2 bg-background/80 p-2 rounded-md text-xs text-muted-foreground">
+        <div
+          className={`h-2 w-2 rounded-full ${
+            realTimeStatus === 'SUBSCRIBED'
+              ? 'bg-green-500'
+              : 'bg-yellow-500 animate-pulse'
+          }`}
+        />
+        <span>
+          {realTimeStatus === 'SUBSCRIBED' ? 'Live updates' : 'Connecting...'}
+        </span>
+      </div>
+
       {/* More subtle loading indicator that doesn't block the entire table */}
       {isLoading && (
-        <div className="absolute top-2 right-2 flex items-center gap-2 bg-background/80 p-2 rounded-md shadow-sm border text-xs text-muted-foreground">
+        <div className="absolute top-2 right-28 flex items-center gap-2 bg-background/80 p-2 rounded-md shadow-sm border text-xs text-muted-foreground">
           <div className="animate-spin w-3 h-3 border-2 border-primary border-t-transparent rounded-full" />
           <span>Updating...</span>
         </div>

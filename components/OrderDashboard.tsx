@@ -21,6 +21,11 @@ import type { Order, OrderItem } from '@/types/order'; // Removed CustomerProfil
 import { createClient } from '@/lib/supabase/client';
 import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 
+interface OrderPayload {
+  id: string;
+  [key: string]: any;
+}
+
 export const OrderType = {
   SALE: 'sale',
   REFUND: 'refund',
@@ -126,8 +131,8 @@ const OrderDashboard: React.FC = () => {
 
   // Enhanced function to load data with minimal visual disruption
   const loadData = useCallback(
-    async (options?: { silent?: boolean; isInitial?: boolean }) => {
-      const { silent = false, isInitial = false } = options || {};
+    async (options?: { silent?: boolean; isInitial?: boolean; showToast?: boolean }) => {
+      const { silent = false, isInitial = false, showToast = false } = options || {};
 
       // Only show loading state for initial loads or explicit manual refreshes
       if (isInitial) {
@@ -176,7 +181,7 @@ const OrderDashboard: React.FC = () => {
           setLastUpdateTime(new Date()); // Record the update time
 
           // Only show toast for explicit manual refresh button clicks
-          if (!silent && !isInitial && options?.showToast) {
+          if (!silent && !isInitial && showToast) {
             toast({
               title: 'Orders Updated',
               description: `${sortedOrders.length} orders loaded`,
@@ -246,13 +251,13 @@ const OrderDashboard: React.FC = () => {
           schema: 'public',
           table: 'orders',
         },
-        async payload => {
+        async (payload: RealtimePostgresChangesPayload<OrderPayload>) => {
           const eventType = payload.eventType;
           const orderId = payload.new?.id || payload.old?.id;
           const displayId =
-            payload.new?.display_id ||
-            payload.old?.display_id ||
-            orderId?.slice(0, 8);
+            (payload.new && 'display_id' in payload.new ? payload.new.display_id : undefined) ||
+            (payload.old && 'display_id' in payload.old ? payload.old.display_id : undefined) ||
+            (orderId ? orderId.slice(0, 8) : 'unknown');
 
           addLog(
             `Orders change received: ${eventType} for order #${displayId}`,
@@ -269,6 +274,15 @@ const OrderDashboard: React.FC = () => {
               break;
             case 'DELETE':
               // For deletions, only log the change - no toast needed
+              // If the currently selected order was deleted, select a different one
+              if (payload.old && typeof payload.old === 'object' && 'id' in payload.old && payload.old.id && selectedOrderId === payload.old.id) {
+                const firstAvailableOrder = orders.find(o => o.id !== payload.old?.id);
+                if (firstAvailableOrder) {
+                  setSelectedOrderId(firstAvailableOrder.id);
+                } else {
+                  setSelectedOrderId(null);
+                }
+              }
               break;
           }
 
@@ -311,10 +325,12 @@ const OrderDashboard: React.FC = () => {
           schema: 'public',
           table: 'order_items',
         },
-        async payload => {
+        async (payload: RealtimePostgresChangesPayload<OrderPayload>) => {
           const eventType = payload.eventType;
-          const itemId = payload.new?.id || payload.old?.id;
-          const orderId = payload.new?.order_id || payload.old?.order_id;
+          const itemId = payload.new && 'id' in payload.new ? payload.new.id :
+            payload.old && 'id' in payload.old ? payload.old.id : 'unknown';
+          const orderId = payload.new && 'order_id' in payload.new ? payload.new.order_id :
+            payload.old && 'order_id' in payload.old ? payload.old.order_id : 'unknown';
 
           addLog(
             `Order items change detected: ${eventType} for item ${itemId} in order ${orderId}`,
@@ -342,7 +358,7 @@ const OrderDashboard: React.FC = () => {
       supabaseClient.removeChannel(orderItemsChannel);
       clearInterval(pollingInterval);
     };
-  }, [loadData, toast]);
+  }, [loadData, toast, selectedOrderId, orders]);
 
   const handleDelete = async (id: string) => {
     // No change needed here, Supabase Realtime will handle the state update via DELETE event
@@ -363,9 +379,8 @@ const OrderDashboard: React.FC = () => {
       console.error('Error initiating order deletion:', error);
       toast({
         title: 'Error',
-        description: `Failed to initiate order deletion: ${
-          error instanceof Error ? error.message : 'Unknown error'
-        }`,
+        description: `Failed to initiate order deletion: ${error instanceof Error ? error.message : 'Unknown error'
+          }`,
         variant: 'destructive',
         important: true, // Mark error as important
       });
@@ -451,17 +466,15 @@ const OrderDashboard: React.FC = () => {
           <StatCard
             title="This Week"
             value={`Br ${currentWeekTotal.toFixed(2)}`}
-            change={`${
-              currentWeekChangePercentage >= 0 ? '+' : ''
-            }${currentWeekChangePercentage.toFixed(2)}% from last week`}
+            change={`${currentWeekChangePercentage >= 0 ? '+' : ''
+              }${currentWeekChangePercentage.toFixed(2)}% from last week`}
             changePercentage={currentWeekChangePercentage}
           />
           <StatCard
             title="This Month"
             value={`Br ${currentMonthTotal.toFixed(2)}`}
-            change={`${
-              currentMonthChangePercentage >= 0 ? '+' : ''
-            }${currentMonthChangePercentage.toFixed(2)}% from last month`}
+            change={`${currentMonthChangePercentage >= 0 ? '+' : ''
+              }${currentMonthChangePercentage.toFixed(2)}% from last month`}
             changePercentage={currentMonthChangePercentage}
           />
         </div>
@@ -476,11 +489,10 @@ const OrderDashboard: React.FC = () => {
               {/* Realtime status indicator - more subtle */}
               <div className="flex items-center ml-2">
                 <div
-                  className={`h-2 w-2 rounded-full mr-1 ${
-                    connectionStatus === 'SUBSCRIBED'
-                      ? 'bg-green-500' // No animation to avoid distraction
-                      : 'bg-yellow-500' // Yellow instead of red for less alarm
-                  }`}
+                  className={`h-2 w-2 rounded-full mr-1 ${connectionStatus === 'SUBSCRIBED'
+                    ? 'bg-green-500' // No animation to avoid distraction
+                    : 'bg-yellow-500' // Yellow instead of red for less alarm
+                    }`}
                 ></div>
                 <span className="text-xs text-muted-foreground">
                   {connectionStatus === 'SUBSCRIBED' ? 'Live' : 'Connecting...'}
@@ -541,7 +553,7 @@ const OrderDashboard: React.FC = () => {
               orders={orders}
               onSelectOrder={setSelectedOrderId}
               onDeleteOrder={handleDelete}
-              isLoading={isLoading}
+              isLoading={isLoading || isUpdating}
               connectionStatus={connectionStatus}
               onOrdersUpdated={options => loadData(options)}
               setConnectionStatus={setConnectionStatus}
@@ -553,7 +565,7 @@ const OrderDashboard: React.FC = () => {
               orders={orders}
               onSelectOrder={setSelectedOrderId}
               onDeleteOrder={handleDelete}
-              isLoading={isLoading}
+              isLoading={isLoading || isUpdating}
               connectionStatus={connectionStatus}
               onOrdersUpdated={options => loadData(options)}
               setConnectionStatus={setConnectionStatus}
