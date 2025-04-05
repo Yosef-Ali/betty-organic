@@ -25,9 +25,10 @@ type NotificationOrder = {
   id: string;
   status: string;
   created_at: string; // Ensure created_at is not null
-  display_id?: string | null; // Add display_id field
-  total_amount?: number; // Add total_amount field
-  user_id: string; // User ID field
+  display_id?: string | null; // Display ID field
+  total_amount?: number; // Total amount field
+  profile_id: string; // Creator profile ID
+  customer_profile_id?: string | null; // Customer profile ID
 };
 
 export function NotificationBell() {
@@ -124,12 +125,14 @@ export function NotificationBell() {
       // Create a query that works whether user is authenticated or not
       let query = supabaseRef.current
         .from('orders')
-        .select('id, display_id, status, created_at, total_amount, user_id');
+        .select(
+          'id, display_id, status, created_at, total_amount, profile_id, customer_profile_id',
+        );
 
       // Always fetch orders - we're already in a protected route
-      // If we have a user ID, filter by it for better security
+      // If we have a user ID, filter by customer_profile_id for better security
       if (user?.id) {
-        query = query.eq('user_id', user.id);
+        query = query.eq('customer_profile_id', user.id);
       }
 
       const { data: allOrders, error } = await query
@@ -222,9 +225,9 @@ export function NotificationBell() {
               event: '*',
               schema: 'public',
               table: 'orders',
-              // Filter for specific user in production
-              ...(user?.id && process.env.NODE_ENV === 'production'
-                ? { filter: `user_id=eq.${user.id}` }
+              // Filter by customer_profile_id if user is authenticated
+              ...(user?.id
+                ? { filter: `customer_profile_id=eq.${user.id}` }
                 : {}),
             },
             (payload: RealtimePostgresChangesPayload<NotificationOrder>) => {
