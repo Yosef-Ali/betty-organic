@@ -112,24 +112,40 @@ export function NotificationBell() {
     setIsLoading(true);
     try {
       console.log('Fetching pending orders for notifications...');
-      console.log('Querying for pending orders...');
-      // Use or condition to handle different case variations of 'pending'
-      const { data, error } = await supabaseRef.current
+      console.log('Querying for all orders to find pending ones...');
+      // Get all orders and filter for pending status in JavaScript
+      // This avoids any issues with case sensitivity or format in the database
+      const { data: allOrders, error } = await supabaseRef.current
         .from('orders')
         .select('id, display_id, status, created_at, total_amount, profiles(*)')
-        .or('status.eq.pending,status.eq.Pending,status.eq.PENDING')
         .order('created_at', { ascending: false })
-        .limit(10);
+        .limit(50);
 
       // Log the raw data for debugging
-      console.log('Raw pending orders data:', data);
+      console.log('Raw orders data:', allOrders);
+
+      // Filter for pending orders in JavaScript (case insensitive)
+      const pendingOrders =
+        allOrders?.filter(
+          (order: any) =>
+            order.status &&
+            typeof order.status === 'string' &&
+            order.status.toLowerCase().includes('pending'),
+        ) || [];
+
+      console.log(
+        'Filtered pending orders:',
+        pendingOrders,
+        'Count:',
+        pendingOrders.length,
+      );
 
       if (error) throw error;
 
       if (mountedRef.current) {
-        console.log(`Found ${data.length} pending orders`);
-        setNotifications(data as NotificationOrder[]);
-        setUnreadCount(data.length);
+        console.log(`Found ${pendingOrders.length} pending orders`);
+        setNotifications(pendingOrders as NotificationOrder[]);
+        setUnreadCount(pendingOrders.length);
         setError(null);
       }
     } catch (err) {
@@ -189,12 +205,13 @@ export function NotificationBell() {
                 : 'unknown';
 
             // Check if this is a pending order (case insensitive)
+            // Use includes() instead of exact match to catch variations
             const isPending =
               typeof payload.new === 'object' &&
               payload.new &&
               'status' in payload.new &&
               typeof payload.new.status === 'string' &&
-              payload.new.status.toLowerCase() === 'pending';
+              payload.new.status.toLowerCase().includes('pending');
 
             console.log(
               'Realtime notification received:',
@@ -368,7 +385,12 @@ export function NotificationBell() {
 
         <DropdownMenuContent align="end" className="w-64 p-2">
           <div className="flex items-center justify-between mb-2">
-            <h4 className="font-semibold text-sm">Pending Orders</h4>
+            <h4 className="font-semibold text-sm">
+              Pending Orders
+              <span className="text-xs font-normal text-gray-500 ml-1">
+                ({notifications.length})
+              </span>
+            </h4>
             <Button
               variant="ghost"
               size="icon"
@@ -397,6 +419,9 @@ export function NotificationBell() {
             <div className="p-4 text-center text-muted-foreground">
               <div className="mb-2">📭</div>
               <div>No pending orders</div>
+              <div className="text-xs mt-2 text-gray-500">
+                Check console for debugging info
+              </div>
             </div>
           ) : (
             <div className="max-h-[300px] overflow-y-auto">
