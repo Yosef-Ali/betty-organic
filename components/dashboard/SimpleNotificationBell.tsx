@@ -133,7 +133,15 @@ export function SimpleNotificationBell() {
   const fetchPendingOrders = useCallback(async () => {
     console.log('🔎 Fetching pending orders from database...');
     try {
+      console.log('Creating Supabase client for fetch...');
       const supabase = createClient();
+
+      if (!supabase) {
+        console.error('Failed to create Supabase client');
+        setNotifications([]);
+        setCount(0);
+        return;
+      }
 
       // Log the query we're about to make
       console.log('Querying for all orders to find pending ones...');
@@ -168,6 +176,8 @@ export function SimpleNotificationBell() {
 
       if (error) {
         console.error('Error fetching pending orders:', error);
+        setNotifications([]);
+        setCount(0);
         return;
       }
 
@@ -194,6 +204,8 @@ export function SimpleNotificationBell() {
       }
     } catch (err) {
       console.error('Failed to fetch pending orders:', err);
+      setNotifications([]);
+      setCount(0);
     }
   }, [connectionStatus, playSound]);
 

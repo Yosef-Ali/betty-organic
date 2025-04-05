@@ -28,7 +28,8 @@ export function SimpleNotificationBell() {
   const [count, setCount] = useState(0);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [showAnimation, setShowAnimation] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState<string>('CONNECTING');
+  const [connectionStatus, setConnectionStatus] =
+    useState<string>('CONNECTING');
 
   // Audio reference
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -94,7 +95,15 @@ export function SimpleNotificationBell() {
     // Fetch pending orders from database
     const fetchPendingOrders = async () => {
       try {
+        console.log('Creating Supabase client for fetch...');
         const supabase = createClient();
+
+        if (!supabase) {
+          console.error('Failed to create Supabase client');
+          setNotifications([]);
+          setCount(0);
+          return;
+        }
 
         const { data, error } = await supabase
           .from('orders')
@@ -105,6 +114,8 @@ export function SimpleNotificationBell() {
 
         if (error) {
           console.error('Error fetching pending orders:', error);
+          setNotifications([]);
+          setCount(0);
           return;
         }
 
@@ -117,6 +128,8 @@ export function SimpleNotificationBell() {
         }
       } catch (err) {
         console.error('Failed to fetch pending orders:', err);
+        setNotifications([]);
+        setCount(0);
       }
     };
 
@@ -178,7 +191,9 @@ export function SimpleNotificationBell() {
           } else if (payload.eventType === 'DELETE') {
             // Remove deleted order
             if (payload.old?.status === 'pending') {
-              setNotifications(prev => prev.filter(n => n.id !== payload.old.id));
+              setNotifications(prev =>
+                prev.filter(n => n.id !== payload.old.id),
+              );
               setCount(prev => Math.max(0, prev - 1));
             }
           }
@@ -212,22 +227,25 @@ export function SimpleNotificationBell() {
               <BellRing className="h-6 w-6 text-red-500" />
             ) : (
               <Bell
-                className={`h-6 w-6 ${count > 0 ? 'text-red-500' : 'text-yellow-600'}`}
+                className={`h-6 w-6 ${
+                  count > 0 ? 'text-red-500' : 'text-yellow-600'
+                }`}
               />
             )}
           </div>
 
           {count > 0 && (
-            <Badge
-              className="absolute -right-1 -top-1 h-5 w-5 rounded-full p-0 flex items-center justify-center bg-red-500 text-white border-2 border-background"
-            >
+            <Badge className="absolute -right-1 -top-1 h-5 w-5 rounded-full p-0 flex items-center justify-center bg-red-500 text-white border-2 border-background">
               {count}
             </Badge>
           )}
 
           <span
-            className={`absolute -bottom-1 -right-1 h-2 w-2 rounded-full ${connectionStatus === 'SUBSCRIBED' ? 'bg-green-500' : 'bg-yellow-500'
-              }`}
+            className={`absolute -bottom-1 -right-1 h-2 w-2 rounded-full ${
+              connectionStatus === 'SUBSCRIBED'
+                ? 'bg-green-500'
+                : 'bg-yellow-500'
+            }`}
           />
         </Button>
       </DropdownMenuTrigger>
@@ -248,7 +266,7 @@ export function SimpleNotificationBell() {
           </div>
         ) : (
           <div className="max-h-[300px] overflow-y-auto space-y-2 mb-2">
-            {notifications.map((notification) => (
+            {notifications.map(notification => (
               <DropdownMenuItem
                 key={notification.id}
                 className="cursor-pointer"
@@ -260,7 +278,10 @@ export function SimpleNotificationBell() {
                   </div>
                   <div className="flex-1">
                     <div className="font-medium">New pending order</div>
-                    <div className="text-sm">{notification.display_id || `Order #${notification.id.slice(0, 8)}`}</div>
+                    <div className="text-sm">
+                      {notification.display_id ||
+                        `Order #${notification.id.slice(0, 8)}`}
+                    </div>
                     {notification.total_amount && (
                       <div className="text-xs text-muted-foreground">
                         ${notification.total_amount.toFixed(2)}

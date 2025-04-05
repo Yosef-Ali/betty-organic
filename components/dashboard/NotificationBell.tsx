@@ -107,7 +107,20 @@ export function NotificationBell() {
   }, []);
 
   const handleFetchNotifications = useCallback(async () => {
-    if (!supabaseRef.current || !mountedRef.current) return;
+    if (!mountedRef.current) return;
+
+    // Check if Supabase client is initialized
+    if (!supabaseRef.current) {
+      console.log('Initializing Supabase client for fetch...');
+      try {
+        supabaseRef.current = createClient();
+      } catch (err) {
+        console.error('Failed to create Supabase client:', err);
+        setError('Failed to connect to database');
+        setIsLoading(false);
+        return;
+      }
+    }
 
     setIsLoading(true);
     try {
@@ -120,6 +133,15 @@ export function NotificationBell() {
         .select('id, display_id, status, created_at, total_amount, profiles(*)')
         .order('created_at', { ascending: false })
         .limit(50);
+
+      // Check for error first
+      if (error) {
+        console.error('Error fetching orders:', error);
+        setError(`Failed to load orders: ${error.message || 'Unknown error'}`);
+        setNotifications([]);
+        setUnreadCount(0);
+        return;
+      }
 
       // Log the raw data for debugging
       console.log('Raw orders data:', allOrders);
@@ -140,8 +162,6 @@ export function NotificationBell() {
         pendingOrders.length,
       );
 
-      if (error) throw error;
-
       if (mountedRef.current) {
         console.log(`Found ${pendingOrders.length} pending orders`);
         setNotifications(pendingOrders as NotificationOrder[]);
@@ -151,20 +171,31 @@ export function NotificationBell() {
     } catch (err) {
       console.error('Error fetching notifications:', err);
       if (mountedRef.current) {
-        setError('Failed to load notifications');
+        const errorMessage =
+          err instanceof Error ? err.message : 'Unknown error';
+        setError(`Failed to load notifications: ${errorMessage}`);
+        setNotifications([]);
+        setUnreadCount(0);
       }
     } finally {
       if (mountedRef.current) {
         setIsLoading(false);
       }
     }
-  }, []);
+  }, [setError, setNotifications, setUnreadCount, setIsLoading]);
 
   const setupRealtimeSubscription = useCallback(() => {
     try {
+      // Check if Supabase client is initialized
       if (!supabaseRef.current) {
-        console.warn('Supabase client not initialized');
-        return;
+        console.log('Initializing Supabase client for realtime...');
+        try {
+          supabaseRef.current = createClient();
+        } catch (err) {
+          console.error('Failed to create Supabase client for realtime:', err);
+          setError('Failed to connect to realtime updates');
+          return;
+        }
       }
 
       // Remove existing channel if it exists
@@ -257,8 +288,9 @@ export function NotificationBell() {
       channelRef.current = channel;
     } catch (err) {
       console.error('Error setting up realtime subscription:', err);
+      setError('Failed to set up realtime updates');
     }
-  }, [playNotificationSound, handleFetchNotifications]);
+  }, [playNotificationSound, handleFetchNotifications, setError]);
 
   useEffect(() => {
     try {
@@ -270,8 +302,15 @@ export function NotificationBell() {
       }
 
       // Create a new client
-      const client = createClient();
-      supabaseRef.current = client;
+      try {
+        console.log('Creating Supabase client in useEffect...');
+        const client = createClient();
+        supabaseRef.current = client;
+      } catch (err) {
+        console.error('Failed to create Supabase client in useEffect:', err);
+        setError('Failed to initialize notification system');
+        return;
+      }
 
       console.log('NotificationBell mounted, initializing...');
 
