@@ -31,7 +31,7 @@ import { Profile } from '@/lib/types/auth';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { NotificationBell } from './dashboard/NotificationBell';
-import { ErrorBoundary } from './ErrorBoundary';
+import { NotificationErrorBoundary } from './dashboard/NotificationErrorBoundary';
 
 interface HeaderProps {
   onMobileMenuToggle: () => void;
@@ -192,11 +192,11 @@ export default function Header({ onMobileMenuToggle, profile }: HeaderProps) {
         />
       </div>
 
-      {/* Notification bell */}
+      {/* Notification bell with simplified error boundary */}
       <div className="mx-2">
-        <ErrorBoundary fallback={<div className="p-2 text-sm text-red-500">Notification system unavailable</div>}>
+        <NotificationErrorBoundary>
           <NotificationBell />
-        </ErrorBoundary>
+        </NotificationErrorBoundary>
       </div>
 
       <DropdownMenu>
