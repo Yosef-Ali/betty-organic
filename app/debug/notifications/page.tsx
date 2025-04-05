@@ -195,7 +195,8 @@ export default function NotificationDebugPage() {
         <h2 className="text-xl font-semibold mb-4">Instructions</h2>
         <ol className="list-decimal pl-5 space-y-2">
           <li>
-            Click the "Create Test Order" button to create a test pending order
+            Click the &quot;Create Test Order&quot; button to create a test
+            pending order
           </li>
           <li>
             The notification bell in the header should update to show the new
