@@ -1,6 +1,17 @@
 'use server';
 
 import { createAdminClient } from '@/lib/supabase/admin';
+import { createClient } from '@/lib/supabase/client';
+
+// Fallback function to use regular client when admin client is not available
+function getSupabaseClient() {
+  try {
+    return createAdminClient();
+  } catch (error) {
+    console.warn('Admin client not available, falling back to regular client');
+    return createClient();
+  }
+}
 
 /**
  * Creates a test pending order using an admin user
@@ -8,8 +19,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
  */
 export async function createTestPendingOrderForDebug() {
   try {
-    // Get the admin client using the cached function
-    const supabaseAdmin = createAdminClient();
+    // Get the client (admin if available, regular if not)
+    const supabaseAdmin = getSupabaseClient();
 
     // Find an admin user
     const { data: adminUsers, error: adminError } = await supabaseAdmin
@@ -76,8 +87,8 @@ export async function createTestPendingOrderForDebug() {
  */
 export async function getPendingOrdersForDebug() {
   try {
-    // Get the admin client using the cached function
-    const supabaseAdmin = createAdminClient();
+    // Get the client (admin if available, regular if not)
+    const supabaseAdmin = getSupabaseClient();
 
     // Fetch pending orders
     const { data, error, count } = await supabaseAdmin
@@ -120,8 +131,19 @@ export async function getPendingOrdersForDebug() {
  * This is useful for debugging environment variable issues
  */
 export async function checkSupabaseEnvVars() {
+  // Try to get a client to test if we can connect
+  let clientWorks = false;
+  try {
+    const client = getSupabaseClient();
+    const { error } = await client.from('profiles').select('count').limit(1);
+    clientWorks = !error;
+  } catch (e) {
+    clientWorks = false;
+  }
+
   return {
     success: true,
+    clientWorks,
     hasUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
     hasAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
