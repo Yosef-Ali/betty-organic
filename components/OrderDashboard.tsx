@@ -124,18 +124,20 @@ const OrderDashboard: React.FC = () => {
     [processSingleOrder],
   );
 
-  // Enhanced function to load data with event-driven visual feedback
+  // Enhanced function to load data with minimal visual disruption
   const loadData = useCallback(
     async (options?: { silent?: boolean; isInitial?: boolean }) => {
       const { silent = false, isInitial = false } = options || {};
 
-      // Only show loading state for initial loads or manual refreshes, not for real-time updates
-      if (isInitial || !silent) {
+      // Only show loading state for initial loads or explicit manual refreshes
+      if (isInitial) {
+        // For initial load, show loading indicator
         setIsLoading(true);
+      } else if (!silent) {
+        // For manual refresh, show a subtle updating indicator
+        setIsUpdating(true);
       }
-
-      // Always indicate we're updating data internally
-      setIsUpdating(true);
+      // For real-time updates (silent=true), don't show any loading indicators
 
       try {
         // Fetch customers first or in parallel
@@ -173,12 +175,11 @@ const OrderDashboard: React.FC = () => {
           setOrders(sortedOrders);
           setLastUpdateTime(new Date()); // Record the update time
 
-          // Only show toast for non-silent updates when data actually changed
-          if (!silent && !isInitial) {
+          // Only show toast for explicit manual refresh button clicks
+          if (!silent && !isInitial && options?.showToast) {
             toast({
               title: 'Orders Updated',
               description: `${sortedOrders.length} orders loaded`,
-              // Short duration for update notifications
               duration: 3000,
             });
           }
@@ -218,11 +219,11 @@ const OrderDashboard: React.FC = () => {
     [processMultipleOrders, toast, selectedOrderId, orders],
   ); // Add orders as dependency
 
-  // Enhanced Supabase real-time subscriptions with better error handling and visual feedback
+  // Enhanced Supabase real-time subscriptions with minimal visual disruption
   useEffect(() => {
     // Load initial data with initial flag set to true
     loadData({ isInitial: true });
-    addLog('Setting up enhanced realtime listeners...');
+    addLog('Setting up realtime listeners...');
 
     // Clear any existing listeners to prevent duplicates
     if (typeof localStorage !== 'undefined') {
@@ -257,40 +258,21 @@ const OrderDashboard: React.FC = () => {
             `Orders change received: ${eventType} for order #${displayId}`,
           );
 
-          // Different handling based on event type with visual feedback
+          // Handle different event types with minimal disruption
           switch (eventType) {
             case 'INSERT':
-              toast({
-                title: 'New Order Created',
-                description: `Order #${displayId} has been created`,
-                variant: 'default',
-                duration: 5000, // 5 seconds for new orders
-              });
+              // For new orders, update the table silently and show a subtle indicator
+              // in the UI instead of a toast notification
               break;
             case 'UPDATE':
-              // Only show toast if the status changed
-              if (payload.old?.status !== payload.new?.status) {
-                toast({
-                  title: 'Order Status Updated',
-                  description: `Order #${displayId} status changed from ${
-                    payload.old?.status || 'unknown'
-                  } to ${payload.new?.status || 'unknown'}`,
-                  variant: 'default',
-                  duration: 4000, // 4 seconds for status updates
-                });
-              }
+              // For updates, only log the change - no toast needed
               break;
             case 'DELETE':
-              toast({
-                title: 'Order Deleted',
-                description: `Order #${displayId} has been deleted`,
-                variant: 'default',
-                duration: 5000, // 5 seconds for deletions
-              });
+              // For deletions, only log the change - no toast needed
               break;
           }
 
-          // Refresh the data silently (no loading spinner or additional toast)
+          // Refresh the data silently without any visual indicators
           await loadData({ silent: true });
         },
       )
@@ -299,12 +281,10 @@ const OrderDashboard: React.FC = () => {
         setConnectionStatus(status);
 
         if (status === 'SUBSCRIBED') {
-          toast({
-            title: 'Realtime Connected',
-            description: 'You will receive live order updates automatically',
-            duration: 3000, // Short duration for connection notification
-          });
+          // Just update the connection status indicator - no toast needed
+          console.log('Realtime connected successfully');
         } else if (status === 'CHANNEL_ERROR') {
+          // Only show toast for connection errors since they require attention
           toast({
             title: 'Connection Error',
             description: 'Failed to connect to real-time updates. Retrying...',
@@ -340,17 +320,8 @@ const OrderDashboard: React.FC = () => {
             `Order items change detected: ${eventType} for item ${itemId} in order ${orderId}`,
           );
 
-          // Only show toast for significant changes to avoid notification fatigue
-          if (eventType === 'INSERT') {
-            toast({
-              title: 'Order Item Added',
-              description: `New item added to an order`,
-              variant: 'default',
-              duration: 3000, // Short duration
-            });
-          }
-
-          // Refresh the data silently
+          // No toasts for order item changes - just update the data silently
+          // Refresh the data silently without any visual indicators
           await loadData({ silent: true });
         },
       )
@@ -358,11 +329,12 @@ const OrderDashboard: React.FC = () => {
         addLog(`Order items subscription status: ${status}`);
       });
 
-    // Add a backup polling mechanism for reliability
+    // Add a very infrequent backup polling mechanism for reliability
+    // This is just a safety net in case realtime updates fail
     const pollingInterval = setInterval(() => {
       addLog('Backup polling for order updates');
-      loadData({ silent: true }); // Silent update for polling
-    }, 60000); // Poll every minute as a backup
+      loadData({ silent: true }); // Completely silent update for polling
+    }, 300000); // Poll every 5 minutes as a backup - reduced frequency
 
     return () => {
       addLog('Cleaning up realtime subscriptions');
@@ -501,24 +473,22 @@ const OrderDashboard: React.FC = () => {
                 <TabsTrigger value="month">This Month</TabsTrigger>
               </TabsList>
 
-              {/* Realtime status indicator */}
+              {/* Realtime status indicator - more subtle */}
               <div className="flex items-center ml-2">
                 <div
                   className={`h-2 w-2 rounded-full mr-1 ${
                     connectionStatus === 'SUBSCRIBED'
-                      ? 'bg-green-500 animate-pulse'
-                      : 'bg-red-500'
+                      ? 'bg-green-500' // No animation to avoid distraction
+                      : 'bg-yellow-500' // Yellow instead of red for less alarm
                   }`}
                 ></div>
                 <span className="text-xs text-muted-foreground">
-                  {connectionStatus === 'SUBSCRIBED'
-                    ? 'Live updates'
-                    : 'Connecting...'}
+                  {connectionStatus === 'SUBSCRIBED' ? 'Live' : 'Connecting...'}
                 </span>
 
                 {lastUpdateTime && (
                   <span className="text-xs text-muted-foreground ml-2">
-                    Last updated: {lastUpdateTime.toLocaleTimeString()}
+                    Updated: {lastUpdateTime.toLocaleTimeString()}
                   </span>
                 )}
               </div>
@@ -529,7 +499,7 @@ const OrderDashboard: React.FC = () => {
                 variant="outline"
                 size="sm"
                 className="h-8 gap-1"
-                onClick={() => loadData({ silent: false })} // Show loading state for manual refresh
+                onClick={() => loadData({ silent: false, showToast: true })} // Show loading state and toast for manual refresh
                 disabled={isLoading}
               >
                 <svg

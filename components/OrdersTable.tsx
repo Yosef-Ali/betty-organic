@@ -34,14 +34,18 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
     setLogs(prev => [...prev, `${new Date().toISOString()} - ${message}`]);
   };
 
-  // Main fetch function with silent option
-  const fetchOrders = async (silent: boolean = false) => {
+  // Main fetch function with silent option and minimal visual disruption
+  const fetchOrders = async (
+    options: { silent?: boolean; showToast?: boolean } = {},
+  ) => {
     if (!onOrdersUpdated) return;
+
+    const { silent = false, showToast = false } = options;
 
     addLog(`Fetching orders... ${silent ? '(silent)' : '(with UI update)'}`);
     try {
-      // Call the parent component's update function with silent option
-      await onOrdersUpdated({ silent });
+      // Call the parent component's update function with options
+      await onOrdersUpdated({ silent, showToast });
       addLog(`Fetched ${orders.length} orders`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
@@ -91,8 +95,8 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
               break;
           }
 
-          // Refresh orders data silently
-          fetchOrders(true);
+          // Refresh orders data silently without visual indicators
+          fetchOrders({ silent: true });
         },
       )
       .subscribe(status => {
@@ -120,18 +124,18 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
           addLog(
             `Received order_items change: ${eventType} for item ${itemId} in order ${orderId}`,
           );
-          fetchOrders(true);
+          fetchOrders({ silent: true });
         },
       )
       .subscribe(status => {
         addLog(`Order items subscription status: ${status}`);
       });
 
-    // Poll every 30 seconds as a backup (reduced frequency to avoid unnecessary requests)
+    // Poll very infrequently as a backup (significantly reduced frequency)
     const pollingInterval = setInterval(() => {
       addLog('Backup polling for orders updates');
-      fetchOrders(true); // Silent update for polling
-    }, 30000);
+      fetchOrders({ silent: true }); // Completely silent update for polling
+    }, 300000); // Every 5 minutes instead of 30 seconds
 
     return () => {
       addLog('Cleaning up realtime subscriptions');
@@ -141,39 +145,29 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
     };
   };
 
-  // Initialize with improved loading state management
+  // Initialize with minimal visual disruption
   useEffect(() => {
-    // Initial fetch with visible loading state
-    fetchOrders(false);
+    // Initial fetch with visible loading state only for first load
+    fetchOrders({ silent: false });
     const cleanup = setupRealtimeListener();
     return cleanup;
   }, []);
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center mb-4">
-        <div className="flex items-center gap-2">
-          <h3 className="font-medium">Realtime:</h3>
-          <Badge
-            variant={
-              connectionStatus === 'SUBSCRIBED' ? 'success' : 'destructive'
-            }
-            className={
+      {/* More subtle real-time indicator */}
+      <div className="flex items-center mb-4 justify-end">
+        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+          <div
+            className={`h-2 w-2 rounded-full ${
               connectionStatus === 'SUBSCRIBED'
-                ? 'bg-green-100 text-green-800 hover:bg-green-200'
-                : ''
-            }
-          >
-            {connectionStatus === 'SUBSCRIBED'
-              ? 'Connected'
-              : connectionStatus || 'Not connected'}
-          </Badge>
-
-          {connectionStatus === 'SUBSCRIBED' && (
-            <span className="text-xs text-muted-foreground ml-2">
-              Updates will appear automatically
-            </span>
-          )}
+                ? 'bg-green-500'
+                : 'bg-yellow-500'
+            }`}
+          />
+          <span>
+            {connectionStatus === 'SUBSCRIBED' ? 'Live' : 'Connecting...'}
+          </span>
         </div>
       </div>
 

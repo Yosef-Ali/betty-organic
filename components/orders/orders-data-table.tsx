@@ -302,9 +302,11 @@ export function OrdersDataTable({
         onSortingChange={setSorting}
       />
 
+      {/* More subtle loading indicator that doesn't block the entire table */}
       {isLoading && (
-        <div className="absolute inset-0 bg-background/50 flex items-center justify-center">
-          <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+        <div className="absolute top-2 right-2 flex items-center gap-2 bg-background/80 p-2 rounded-md shadow-sm border text-xs text-muted-foreground">
+          <div className="animate-spin w-3 h-3 border-2 border-primary border-t-transparent rounded-full" />
+          <span>Updating...</span>
         </div>
       )}
     </div>
