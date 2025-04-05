@@ -430,6 +430,46 @@ export function SimpleNotificationBell() {
               </Button>
             )}
           </div>
+
+          {/* Debug section */}
+          <div className="mt-2 pt-2 border-t border-muted">
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-muted-foreground">
+                Connection: {connectionStatus}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs"
+                onClick={() => {
+                  // Simulate a new notification for testing
+                  const testNotification = {
+                    id: `test-${Date.now()}`,
+                    display_id: `BO-${new Date()
+                      .toISOString()
+                      .slice(0, 10)}-${Math.floor(Math.random() * 1000)}`,
+                    status: 'pending',
+                    created_at: new Date().toISOString(),
+                    total_amount: Math.floor(Math.random() * 200) + 50,
+                  };
+
+                  // Add to notifications
+                  setNotifications(prev => [
+                    testNotification,
+                    ...prev.slice(0, 8),
+                  ]);
+                  setCount(prev => prev + 1);
+
+                  // Show animation and play sound
+                  setShowAnimation(true);
+                  playSound();
+                  setTimeout(() => setShowAnimation(false), 2000);
+                }}
+              >
+                Add Test Notification
+              </Button>
+            </div>
+          </div>
         </div>
       </DropdownMenuContent>
     </DropdownMenu>
