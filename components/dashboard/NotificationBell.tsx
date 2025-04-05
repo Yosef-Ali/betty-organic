@@ -412,8 +412,8 @@ export function NotificationBell() {
             {/* Connection status indicator */}
             <span
               className={`absolute -bottom-1 -right-1 h-2 w-2 rounded-full ${connectionStatus === 'SUBSCRIBED'
-                  ? 'bg-green-500'
-                  : 'bg-yellow-500'
+                ? 'bg-green-500'
+                : 'bg-yellow-500'
                 }`}
             />
           </Button>
