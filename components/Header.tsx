@@ -30,7 +30,7 @@ import { signOut } from '@/app/actions/auth';
 import { Profile } from '@/lib/types/auth';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
-import { SimpleNotificationBell } from './dashboard/NotificationBell.simple';
+import { NotificationBell } from './dashboard/NotificationBell';
 import { AuthErrorBoundary } from './AuthErrorBoundary';
 
 interface HeaderProps {
@@ -192,9 +192,9 @@ export default function Header({ onMobileMenuToggle, profile }: HeaderProps) {
         />
       </div>
 
-      {/* Simple notification bell */}
+      {/* Notification bell */}
       <div className="mx-2">
-        <SimpleNotificationBell />
+        <NotificationBell />
       </div>
 
       <DropdownMenu>

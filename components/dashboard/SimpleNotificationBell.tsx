@@ -129,6 +129,74 @@ export function SimpleNotificationBell() {
     playSound();
   };
 
+  // Enhanced fetch of pending orders with better error handling and debugging
+  const fetchPendingOrders = useCallback(async () => {
+    console.log('🔎 Fetching pending orders from database...');
+    try {
+      const supabase = createClient();
+
+      // Log the query we're about to make
+      console.log('Querying for all orders to find pending ones...');
+
+      // Get all orders and filter for pending status in JavaScript
+      // This avoids any issues with case sensitivity or format in the database
+      const {
+        data: allOrders,
+        error,
+        count,
+      } = await supabase
+        .from('orders')
+        .select('id, display_id, status, created_at, total_amount', {
+          count: 'exact',
+        })
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      // Log the raw data for debugging
+      console.log('Raw orders data:', allOrders);
+
+      // Filter for pending orders in JavaScript (case insensitive)
+      const data =
+        allOrders?.filter(
+          (order: any) =>
+            order.status &&
+            typeof order.status === 'string' &&
+            order.status.toLowerCase().includes('pending'),
+        ) || [];
+
+      console.log('Filtered pending orders:', data, 'Count:', data.length);
+
+      if (error) {
+        console.error('Error fetching pending orders:', error);
+        return;
+      }
+
+      console.log(
+        `Found ${data?.length || 0} pending orders, total count: ${count || 0}`,
+      );
+
+      if (data && data.length > 0) {
+        console.log('Pending orders data:', data);
+        setNotifications(data as OrderNotification[]);
+        setCount(data.length);
+
+        // Play sound on initial load if there are pending orders and this isn't the first render
+        if (data.length > 0 && connectionStatus !== 'CONNECTING') {
+          console.log('Playing sound for initial pending orders');
+          setShowAnimation(true);
+          playSound();
+          setTimeout(() => setShowAnimation(false), 2000);
+        }
+      } else {
+        console.log('No pending orders found');
+        setNotifications([]);
+        setCount(0);
+      }
+    } catch (err) {
+      console.error('Failed to fetch pending orders:', err);
+    }
+  }, [connectionStatus, playSound]);
+
   // Set up real-time subscription to orders table
   useEffect(() => {
     // Load sound setting from localStorage
@@ -141,57 +209,7 @@ export function SimpleNotificationBell() {
       console.warn('Failed to load sound setting:', err);
     }
 
-    // Enhanced initial fetch of pending orders with better error handling and debugging
-    const fetchPendingOrders = async () => {
-      console.log('🔎 Fetching pending orders from database...');
-      try {
-        const supabase = createClient();
-
-        // Log the query we're about to make
-        console.log('Querying orders table for status=pending');
-
-        const { data, error, count } = await supabase
-          .from('orders')
-          .select('id, display_id, status, created_at, total_amount', {
-            count: 'exact',
-          })
-          .eq('status', 'pending')
-          .order('created_at', { ascending: false })
-          .limit(10);
-
-        if (error) {
-          console.error('Error fetching pending orders:', error);
-          return;
-        }
-
-        console.log(
-          `Found ${data?.length || 0} pending orders, total count: ${
-            count || 0
-          }`,
-        );
-
-        if (data && data.length > 0) {
-          console.log('Pending orders data:', data);
-          setNotifications(data as OrderNotification[]);
-          setCount(data.length);
-
-          // Play sound on initial load if there are pending orders and this isn't the first render
-          if (data.length > 0 && connectionStatus !== 'CONNECTING') {
-            console.log('Playing sound for initial pending orders');
-            setShowAnimation(true);
-            playSound();
-            setTimeout(() => setShowAnimation(false), 2000);
-          }
-        } else {
-          console.log('No pending orders found');
-          setNotifications([]);
-          setCount(0);
-        }
-      } catch (err) {
-        console.error('Failed to fetch pending orders:', err);
-      }
-    };
-
+    // Initial fetch of pending orders
     fetchPendingOrders();
 
     // Set up real-time subscription with enhanced debugging
@@ -226,8 +244,21 @@ export function SimpleNotificationBell() {
             const newOrder = payload.new as OrderNotification;
             console.log('New order detected:', newOrder);
 
+            // Check if this is a pending order (case insensitive)
+            const isPending =
+              newOrder.status &&
+              typeof newOrder.status === 'string' &&
+              newOrder.status.toLowerCase().includes('pending');
+
+            console.log(
+              'Is order pending?',
+              isPending,
+              'Status:',
+              newOrder.status,
+            );
+
             // Only add to notifications if it's pending
-            if (newOrder.status === 'pending') {
+            if (isPending) {
               // Add the new order to notifications
               setNotifications(prev => [newOrder, ...prev.slice(0, 8)]);
               setCount(prev => prev + 1);
@@ -240,21 +271,39 @@ export function SimpleNotificationBell() {
             }
           } else if (payload.eventType === 'UPDATE') {
             console.log('Order updated:', payload.old, '->', payload.new);
+            // Check if old status was pending (case insensitive)
+            const wasPending =
+              payload.old?.status &&
+              typeof payload.old.status === 'string' &&
+              payload.old.status.toLowerCase().includes('pending');
+
+            // Check if new status is pending (case insensitive)
+            const isPending =
+              payload.new?.status &&
+              typeof payload.new.status === 'string' &&
+              payload.new.status.toLowerCase().includes('pending');
+
+            console.log(
+              'Status change:',
+              'Was pending:',
+              wasPending,
+              'Is pending:',
+              isPending,
+              'Old:',
+              payload.old?.status,
+              'New:',
+              payload.new?.status,
+            );
+
             // If status changed from pending to something else, remove it
-            if (
-              payload.old?.status === 'pending' &&
-              payload.new?.status !== 'pending'
-            ) {
+            if (wasPending && !isPending) {
               setNotifications(prev =>
                 prev.filter(n => n.id !== payload.new.id),
               );
               setCount(prev => Math.max(0, prev - 1));
             }
             // If status changed TO pending, add it
-            else if (
-              payload.old?.status !== 'pending' &&
-              payload.new?.status === 'pending'
-            ) {
+            else if (!wasPending && isPending) {
               const updatedOrder = payload.new as OrderNotification;
               setNotifications(prev => [updatedOrder, ...prev.slice(0, 8)]);
               setCount(prev => prev + 1);
@@ -266,8 +315,21 @@ export function SimpleNotificationBell() {
             }
           } else if (payload.eventType === 'DELETE') {
             console.log('Order deleted:', payload.old);
-            // Remove deleted order
-            if (payload.old?.status === 'pending') {
+            // Check if deleted order was pending (case insensitive)
+            const wasPending =
+              payload.old?.status &&
+              typeof payload.old.status === 'string' &&
+              payload.old.status.toLowerCase().includes('pending');
+
+            console.log(
+              'Deleted order was pending?',
+              wasPending,
+              'Status:',
+              payload.old?.status,
+            );
+
+            // Remove deleted order if it was pending
+            if (wasPending) {
               setNotifications(prev =>
                 prev.filter(n => n.id !== payload.old.id),
               );
@@ -291,7 +353,7 @@ export function SimpleNotificationBell() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [playSound]);
+  }, [fetchPendingOrders]);
 
   // Navigate to order details
   const viewOrderDetails = (orderId: string) => {
@@ -400,35 +462,51 @@ export function SimpleNotificationBell() {
 
         <div className="pt-2 border-t border-muted">
           <div className="flex justify-between items-center">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="justify-start text-xs"
-              onClick={toggleSound}
-            >
-              {soundEnabled ? (
-                <>
-                  <Volume2 className="mr-2 h-4 w-4" />
-                  Sound On
-                </>
-              ) : (
-                <>
-                  <VolumeX className="mr-2 h-4 w-4" />
-                  Sound Off
-                </>
-              )}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="justify-start text-xs"
+                onClick={toggleSound}
+              >
+                {soundEnabled ? (
+                  <>
+                    <Volume2 className="mr-2 h-4 w-4" />
+                    Sound On
+                  </>
+                ) : (
+                  <>
+                    <VolumeX className="mr-2 h-4 w-4" />
+                    Sound Off
+                  </>
+                )}
+              </Button>
 
-            {soundEnabled && (
+              {soundEnabled && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs"
+                  onClick={testSound}
+                >
+                  Test Sound
+                </Button>
+              )}
+
+              {/* Manual refresh button */}
               <Button
                 variant="outline"
                 size="sm"
                 className="text-xs"
-                onClick={testSound}
+                onClick={() => {
+                  console.log('Manual refresh triggered');
+                  fetchPendingOrders();
+                }}
+                title="Manually refresh pending orders"
               >
-                Test Sound
+                Refresh
               </Button>
-            )}
+            </div>
           </div>
 
           {/* Debug section */}
