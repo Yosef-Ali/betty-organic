@@ -30,7 +30,7 @@ import { signOut } from '@/app/actions/auth';
 import { Profile } from '@/lib/types/auth';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
-import { SimpleNotificationBell } from './dashboard/SimpleNotificationBell';
+import { SimpleNotificationBell } from './dashboard/NotificationBell.simple';
 import { AuthErrorBoundary } from './AuthErrorBoundary';
 
 interface HeaderProps {
