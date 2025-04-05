@@ -45,7 +45,14 @@ export function NotificationBell() {
   const [error, setError] = useState<string | null>(null);
   const [animateBell, setAnimateBell] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<string | null>(null);
-  const [soundEnabled, setSoundEnabled] = useState(true); // Default to enabled
+  const [soundEnabled, setSoundEnabled] = useState(() => {
+    try {
+      const saved = localStorage.getItem('notification_sound');
+      return saved !== null ? saved === 'true' : true;
+    } catch (e) {
+      return true;
+    }
+  });
   const router = useRouter();
   const { user, profile, loading: authLoading } = useAuth();
 
@@ -58,252 +65,101 @@ export function NotificationBell() {
 
   // Play notification sound with multiple fallback options
   const playNotificationSound = useCallback(async () => {
-    const checkSoundFileExists = async (url: string): Promise<boolean> => {
-      try {
-        const response = await fetch(url, { method: 'HEAD' });
-        return response.ok;
-      } catch (err) {
-        console.warn(`Failed to check if sound file exists at ${url}:`, err);
-        return false;
-      }
-    };
-
-    if (!soundEnabled) {
-      if (DEBUG_REALTIME)
-        console.log('Sound disabled, skipping notification sound');
-      return;
-    }
+    if (!soundEnabled) return;
 
     try {
+      // Initialize audio element if it doesn't exist
       if (!audioRef.current) {
-        const soundPaths = ['/sound/notification.mp3'];
-
-        for (const path of soundPaths) {
-          if (await checkSoundFileExists(path)) {
-            if (DEBUG_REALTIME) console.log(`Found sound file at ${path}`);
-            audioRef.current = new Audio(path);
-            break;
-          }
-        }
-
-        if (!audioRef.current) {
-          console.warn(
-            'Could not find notification sound file, using default path',
-          );
-          audioRef.current = new Audio('/sound/notification.mp3');
-        }
+        console.log('Creating new Audio element for notification sound');
+        audioRef.current = new Audio('/sound/notification.mp3');
+        audioRef.current.preload = 'auto';
       }
 
+      // Reset to beginning and play
       audioRef.current.currentTime = 0;
-      audioRef.current.play().catch(e => {
-        console.warn('Audio play failed:', e);
-      });
+      const playPromise = audioRef.current.play();
+
+      if (playPromise !== undefined) {
+        playPromise.catch(err => {
+          console.warn('Audio play failed:', err);
+          // Create new instance as fallback
+          const fallbackAudio = new Audio('/sound/notification.mp3');
+          fallbackAudio
+            .play()
+            .catch(e => console.warn('Fallback audio failed:', e));
+        });
+      }
     } catch (err) {
       console.warn('Notification sound error:', err);
     }
   }, [soundEnabled]);
 
   const toggleSound = useCallback(() => {
-    const newSoundEnabled = !soundEnabled;
-    setSoundEnabled(newSoundEnabled);
-
-    try {
-      localStorage.setItem(
-        'notification_sound_enabled',
-        newSoundEnabled ? 'true' : 'false',
-      );
-      if (DEBUG_REALTIME)
-        console.log(
-          `Sound ${
-            newSoundEnabled ? 'enabled' : 'disabled'
-          } and saved to localStorage`,
-        );
-    } catch (err) {
-      console.warn('Failed to save sound preference to localStorage:', err);
-    }
-
-    if (newSoundEnabled) {
-      playNotificationSound().catch(err =>
-        console.warn('Failed to play test notification sound:', err),
-      );
-    }
-  }, [soundEnabled, playNotificationSound]);
-
-  useEffect(() => {
-    try {
-      const savedPreference = localStorage.getItem(
-        'notification_sound_enabled',
-      );
-      if (savedPreference !== null) {
-        const isEnabled = savedPreference === 'true';
-        setSoundEnabled(isEnabled);
-        if (DEBUG_REALTIME)
-          console.log(
-            `Loaded sound preference from localStorage: ${
-              isEnabled ? 'enabled' : 'disabled'
-            }`,
-          );
+    setSoundEnabled(prev => {
+      const newValue = !prev;
+      try {
+        localStorage.setItem('notification_sound', newValue.toString());
+      } catch (e) {
+        console.warn('Failed to save sound preference:', e);
       }
-    } catch (err) {
-      console.warn('Failed to load sound preference from localStorage:', err);
-    }
+      return newValue;
+    });
   }, []);
 
-  useEffect(() => {
-    if (!animateBell) return;
-
-    const timer = setTimeout(() => setAnimateBell(false), 3000);
-    return () => clearTimeout(timer);
-  }, [animateBell]);
-
-  useEffect(() => {
-    setAnimateBell(true);
-
-    if (unreadCount > 0) {
-      const animationInterval = setInterval(() => {
-        setAnimateBell(true);
-        if (soundEnabled) {
-          playNotificationSound().catch(err =>
-            console.warn('Failed to play notification sound:', err),
-          );
-        }
-      }, 30000);
-
-      return () => clearInterval(animationInterval);
-    }
-  }, [unreadCount, soundEnabled, playNotificationSound]);
-
-  const fetchNotifications = useCallback(async () => {
-    if (!mountedRef.current) return;
+  const handleFetchNotifications = useCallback(async () => {
+    if (!supabaseRef.current || !mountedRef.current) return;
 
     setIsLoading(true);
-    setError(null);
-
     try {
-      // Create a new client each time to ensure fresh connection
-      const client = createClient();
-      supabaseRef.current = client;
-
-      console.log('Fetching pending orders...');
-
-      // First, get the count of pending orders
-      const { count: pendingCount, error: countError } = await client
+      console.log('Fetching pending orders for notifications...');
+      const { data, error } = await supabaseRef.current
         .from('orders')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'pending');
-
-      if (countError) {
-        console.error('Error fetching pending count:', countError);
-        throw countError;
-      }
-
-      console.log('Pending orders count:', pendingCount);
-
-      // Set the unread count immediately
-      setUnreadCount(pendingCount || 0);
-
-      // Then get the actual pending orders with details
-      const { data: pendingOrders, error } = await client
-        .from('orders')
-        .select(
-          'id, status, created_at, display_id, total_amount, customer_profile_id, customer:profiles!orders_customer_profile_id_fk(id, name, email, role, phone, avatar_url)',
-        )
+        .select('id, display_id, status, created_at, total_amount, profiles(*)')
         .eq('status', 'pending')
         .order('created_at', { ascending: false })
         .limit(10);
 
-      if (error) {
-        console.error('Error fetching pending orders:', error);
-        throw error;
+      if (error) throw error;
+
+      if (mountedRef.current) {
+        console.log(`Found ${data.length} pending orders`);
+        setNotifications(data as NotificationOrder[]);
+        setUnreadCount(data.length);
+        setError(null);
       }
-
-      console.log('Fetched pending orders:', pendingOrders?.length || 0);
-
-      const formattedNotifications: NotificationOrder[] = (
-        pendingOrders || []
-      ).map((order: any) => ({
-        id: order.id,
-        status: order.status,
-        created_at: order.created_at || new Date().toISOString(),
-        display_id: order.display_id,
-        total_amount: order.total_amount,
-        profiles: order.customer || null,
-      }));
-
-      console.log('Formatted notifications:', formattedNotifications.length);
-      setNotifications(formattedNotifications);
-      setConnectionStatus('SUBSCRIBED');
-
-      if (formattedNotifications.length > 0) {
-        setAnimateBell(true);
-
-        if (soundEnabled) {
-          playNotificationSound().catch(err =>
-            console.warn('Failed to play notification sound:', err),
-          );
-        }
-      }
-    } catch (error) {
-      if (!mountedRef.current) return;
-
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : 'Failed to fetch notifications';
-      setError(errorMessage);
-      console.error('Initial Notification fetch error:', error);
-
-      if (retryCountRef.current < MAX_RETRIES) {
-        retryCountRef.current += 1;
-        const backoffTime = Math.min(
-          1000 * Math.pow(2, retryCountRef.current),
-          10000,
-        );
-        console.log(
-          `Retrying initial fetch in ${backoffTime}ms (Attempt ${retryCountRef.current})`,
-        );
-        if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
-        retryTimeoutRef.current = setTimeout(() => {
-          if (mountedRef.current) {
-            fetchNotifications();
-          }
-        }, backoffTime);
-      } else {
-        console.error(
-          `Max retries (${MAX_RETRIES}) reached for initial notification fetch.`,
-        );
-        setError(
-          `Failed to load notifications after ${MAX_RETRIES} attempts. ${errorMessage}`,
-        );
+    } catch (err) {
+      console.error('Error fetching notifications:', err);
+      if (mountedRef.current) {
+        setError('Failed to load notifications');
       }
     } finally {
       if (mountedRef.current) {
         setIsLoading(false);
       }
     }
-  }, [playNotificationSound, soundEnabled]);
+  }, []);
 
-  const setupRealtimeSubscription = useCallback((): void => {
-    if (!mountedRef.current) return;
-
+  const setupRealtimeSubscription = useCallback(() => {
     try {
-      // Create a new client each time to ensure fresh connection
-      const client = createClient();
-      supabaseRef.current = client;
+      if (!supabaseRef.current) {
+        console.warn('Supabase client not initialized');
+        return;
+      }
 
+      // Remove existing channel if it exists
       if (channelRef.current) {
         try {
-          client.removeChannel(channelRef.current);
+          console.log('Removing existing realtime channel');
+          supabaseRef.current.removeChannel(channelRef.current);
         } catch (err) {
           console.warn('Error removing existing channel:', err);
         }
       }
 
-      const channelName = 'order-status';
+      console.log('Setting up new realtime subscription for pending orders');
+      const channelName = 'orders-notifications-' + Date.now();
 
-      console.log('Setting up realtime channel:', channelName);
-
-      const channel = client
+      const channel = supabaseRef.current
         .channel(channelName)
         .on(
           'postgres_changes',
@@ -313,254 +169,49 @@ export function NotificationBell() {
             table: 'orders',
             filter: 'status=eq.pending',
           },
-          (payload: RealtimePostgresChangesPayload<Record<string, any>>) => {
-            if (!mountedRef.current) return;
+          (payload: RealtimePostgresChangesPayload<NotificationOrder>) => {
+            // Safe access to payload properties
+            const orderId =
+              typeof payload.new === 'object' &&
+              payload.new &&
+              'id' in payload.new
+                ? payload.new.id
+                : typeof payload.old === 'object' &&
+                  payload.old &&
+                  'id' in payload.old
+                ? payload.old.id
+                : 'unknown';
 
-            if (DEBUG_REALTIME) {
-              console.log('Realtime Order change received:', {
-                eventType: payload.eventType,
-                new: payload.new,
-                old: payload.old,
-                timestamp: new Date().toISOString(),
-              });
-            }
+            console.log(
+              'Realtime notification received:',
+              payload.eventType,
+              orderId,
+            );
 
-            const newRecord = payload.new as Record<string, any>;
-            const oldRecord = payload.old as Record<string, any>;
+            // Refresh notifications list
+            handleFetchNotifications();
 
-            const createNotification = (
-              record: Record<string, any>,
-            ): NotificationOrder | null => {
-              if (!record || !record.created_at || !record.id || !record.status)
-                return null;
-              return {
-                id: record.id,
-                status: record.status,
-                created_at: record.created_at as string,
-                display_id: record.display_id,
-                total_amount: record.total_amount,
-                profiles: record.profiles,
-              };
-            };
-
-            if (payload.eventType === 'INSERT') {
-              if (newRecord?.status === 'pending') {
-                console.log('🔔 NEW PENDING ORDER RECEIVED:', newRecord);
-
-                const newNotification = createNotification(newRecord);
-                if (newNotification) {
-                  console.log(
-                    '🔔 Adding notification to list:',
-                    newNotification,
-                  );
-
-                  // Fetch the full order details to get display_id
-                  client
-                    .from('orders')
-                    .select(
-                      'id, status, created_at, display_id, total_amount, customer_profile_id, customer:customer_profile_id(id, name, email, role, phone, avatar_url)',
-                    )
-                    .eq('id', newNotification.id)
-                    .single()
-                    .then(({ data }: { data: any }) => {
-                      if (data) {
-                        const updatedNotification = {
-                          ...newNotification,
-                          display_id: data.display_id,
-                          total_amount: data.total_amount,
-                        };
-
-                        setNotifications(prev => [
-                          updatedNotification,
-                          ...prev.slice(0, 9),
-                        ]);
-                      } else {
-                        setNotifications(prev => [
-                          newNotification,
-                          ...prev.slice(0, 9),
-                        ]);
-                      }
-                    })
-                    .catch((err: Error) => {
-                      console.warn('Failed to fetch full order details:', err);
-                      setNotifications(prev => [
-                        newNotification,
-                        ...prev.slice(0, 9),
-                      ]);
-                    });
-
-                  setUnreadCount(prev => {
-                    const newCount = prev + 1;
-                    console.log(
-                      `🔔 Unread count updated: ${prev} -> ${newCount}`,
-                    );
-                    return newCount;
-                  });
-
-                  setAnimateBell(true);
-                  playNotificationSound().catch(err =>
-                    console.warn('Failed to play notification sound:', err),
-                  );
-                }
-              }
-            } else if (payload.eventType === 'UPDATE') {
-              const oldStatus = oldRecord?.status;
-              const newStatus = newRecord?.status;
-
-              if (oldStatus !== 'pending' && newStatus === 'pending') {
-                const newNotification = createNotification(newRecord);
-                if (newNotification) {
-                  if (DEBUG_REALTIME)
-                    console.log('UPDATE to pending:', newNotification);
-                  setNotifications(prev => [
-                    newNotification,
-                    ...prev
-                      .filter(n => n.id !== newNotification.id)
-                      .slice(0, 9),
-                  ]);
-                  setUnreadCount(prev => prev + 1);
-                  setAnimateBell(true);
-                  playNotificationSound().catch(err =>
-                    console.warn('Failed to play notification sound:', err),
-                  );
-                }
-              } else if (oldStatus === 'pending' && newStatus !== 'pending') {
-                if (DEBUG_REALTIME)
-                  console.log('UPDATE from pending:', oldRecord);
-                setNotifications(prev =>
-                  prev.filter(n => n.id !== oldRecord.id),
-                );
-                setUnreadCount(prev => Math.max(0, prev - 1));
-              } else if (oldStatus === 'pending' && newStatus === 'pending') {
-                const updatedNotification = createNotification(newRecord);
-                if (updatedNotification) {
-                  if (DEBUG_REALTIME)
-                    console.log('UPDATE still pending:', updatedNotification);
-                  setNotifications(prev =>
-                    prev.map(n =>
-                      n.id === updatedNotification.id ? updatedNotification : n,
-                    ),
-                  );
-                }
-              }
-            } else if (payload.eventType === 'DELETE') {
-              if (oldRecord?.status === 'pending') {
-                if (DEBUG_REALTIME) console.log('DELETE pending:', oldRecord);
-                setNotifications(prev =>
-                  prev.filter(n => n.id !== oldRecord.id),
-                );
-                setUnreadCount(prev => Math.max(0, prev - 1));
-              }
-            }
+            // Animate bell and play sound
+            setAnimateBell(true);
+            playNotificationSound();
+            setTimeout(() => setAnimateBell(false), 2000);
           },
         )
-        .subscribe((status: string) => {
-          if (!mountedRef.current) return;
-
-          console.log(`Notification Bell - Channel status: ${status}`);
-
+        .subscribe(status => {
+          console.log(`Realtime subscription status: ${status}`);
           setConnectionStatus(status);
-
-          if (DEBUG_REALTIME) {
-            console.log(
-              `Realtime ${channelName} status:`,
-              status,
-              new Date().toISOString(),
-            );
-          }
-
           if (status === 'SUBSCRIBED') {
-            console.log(
-              'Notification Bell - Successfully subscribed, refreshing data...',
-            );
-            fetchNotifications();
-          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-            console.error(
-              `Notification Bell - Channel error or timed out (${status}), will retry`,
-            );
-            if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
-            retryTimeoutRef.current = setTimeout(() => {
-              if (mountedRef.current) {
-                console.log('Notification Bell - Attempting to reconnect...');
-                setupRealtimeSubscription();
-              }
-            }, RECONNECT_INTERVAL);
+            console.log('Successfully subscribed to order notifications');
+            // Fetch initial data when subscription is established
+            handleFetchNotifications();
           }
         });
 
       channelRef.current = channel;
-    } catch (error) {
-      console.error('Realtime setup error:', error);
-
-      if (!mountedRef.current) return;
-
-      if (retryTimeoutRef.current) {
-        clearTimeout(retryTimeoutRef.current);
-      }
-
-      retryTimeoutRef.current = setTimeout(() => {
-        if (mountedRef.current) {
-          setupRealtimeSubscription();
-        }
-      }, RECONNECT_INTERVAL);
-    }
-  }, [playNotificationSound, fetchNotifications]);
-
-  const refreshAttemptRef = useRef(0);
-
-  const refreshAuth = useCallback(async () => {
-    try {
-      if (refreshAttemptRef.current >= 3) return;
-
-      refreshAttemptRef.current += 1;
-
-      if (DEBUG_REALTIME)
-        console.log('Attempting auth refresh', refreshAttemptRef.current);
-
-      supabaseRef.current = createClient();
-
-      setupRealtimeSubscription();
-
-      fetchNotifications();
     } catch (err) {
-      console.error('Auth refresh error:', err);
-      setError('Authentication error. Please reload the page.');
+      console.error('Error setting up realtime subscription:', err);
     }
-  }, [setupRealtimeSubscription, fetchNotifications]);
-
-  useEffect(() => {
-    if (!mountedRef.current || !user) return;
-
-    if (!supabaseRef.current) {
-      supabaseRef.current = createClient();
-    }
-
-    // Skip if supabaseRef is still null
-    if (!supabaseRef.current) return;
-
-    const {
-      data: { subscription },
-    } = supabaseRef.current.auth.onAuthStateChange((event, _session) => {
-      if (DEBUG_REALTIME) console.log('Auth event:', event);
-
-      if (event === 'TOKEN_REFRESHED') {
-        if (DEBUG_REALTIME) console.log('Token refreshed successfully');
-        refreshAuth().catch(err =>
-          console.error('Error refreshing auth:', err),
-        );
-        fetchNotifications();
-      } else if (event === 'SIGNED_OUT') {
-        setNotifications([]);
-        setUnreadCount(0);
-      } else if (event === 'USER_UPDATED') {
-        fetchNotifications();
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [user, fetchNotifications, refreshAuth]);
+  }, [playNotificationSound, handleFetchNotifications]);
 
   useEffect(() => {
     try {
@@ -600,10 +251,12 @@ export function NotificationBell() {
           }
         });
       }
-
-      fetchNotifications();
+      // Call setupRealtimeSubscription here
 
       setupRealtimeSubscription();
+
+      // Store timeout ref in a local variable for cleanup
+      const timeoutRef = retryTimeoutRef.current;
 
       return () => {
         mountedRef.current = false;
@@ -615,8 +268,8 @@ export function NotificationBell() {
             console.warn('Error removing channel:', err);
           }
         }
-        if (retryTimeoutRef.current) {
-          clearTimeout(retryTimeoutRef.current);
+        if (timeoutRef) {
+          clearTimeout(timeoutRef);
         }
       };
     } catch (err) {
@@ -628,7 +281,7 @@ export function NotificationBell() {
     user,
     profile,
     setupRealtimeSubscription,
-    fetchNotifications,
+    handleFetchNotifications,
   ]);
 
   const handleNotificationClick = (orderId: string) => {
@@ -637,169 +290,175 @@ export function NotificationBell() {
   };
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="relative w-10 h-10 bg-yellow-50 hover:bg-yellow-100 border border-yellow-200 rounded-full"
-          disabled={isLoading}
-        >
-          <div
-            className={cn(animateBell && 'animate-bell')}
-            title={
-              soundEnabled
-                ? 'Notification sounds on'
-                : 'Notification sounds off'
-            }
+    <>
+      {/* Hidden audio element for notifications */}
+      <audio src="/sound/notification.mp3" ref={audioRef} preload="auto" />
+
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="relative w-10 h-10 bg-yellow-50 hover:bg-yellow-100 border border-yellow-200 rounded-full"
+            disabled={isLoading}
           >
-            {animateBell ? (
-              <BellRing className="h-6 w-6 text-red-500 animate-bell" />
-            ) : (
-              <Bell
-                className={cn(
-                  'h-6 w-6',
-                  unreadCount > 0 ? 'text-red-500' : 'text-yellow-600',
-                )}
-              />
-            )}
-            {!soundEnabled && (
-              <div className="absolute bottom-0 right-0 h-2 w-2 bg-gray-400 rounded-full border border-background"></div>
-            )}
-          </div>
-          {unreadCount > 0 && (
-            <Badge
-              className="absolute -right-1 -top-1 h-7 w-7 rounded-full p-0 flex items-center justify-center bg-red-500 text-white border-2 border-background animate-pulse"
-              style={{ fontSize: '0.85rem', fontWeight: 'bold' }}
-            >
-              {unreadCount}
-            </Badge>
-          )}
-          <span
-            className={`absolute -bottom-1 -right-1 h-2 w-2 rounded-full ${
-              connectionStatus === 'SUBSCRIBED'
-                ? 'bg-green-500'
-                : 'bg-yellow-500'
-            }`}
-          />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80 p-2">
-        <div className="flex items-center justify-between mb-2 px-2">
-          <h4 className="font-semibold text-sm">Notifications</h4>
-          {connectionStatus === 'SUBSCRIBED' ? (
-            <div className="flex items-center text-xs text-green-600">
-              <span className="h-2 w-2 rounded-full bg-green-500 mr-1"></span>
-              Live
-            </div>
-          ) : (
-            <div className="flex items-center text-xs text-yellow-600">
-              <span className="h-2 w-2 rounded-full bg-yellow-500 mr-1"></span>
-              Connecting...
-            </div>
-          )}
-        </div>
-
-        {error ? (
-          <div className="p-3 text-red-500 bg-red-50 rounded-md mb-1">
-            <div className="font-medium">Error</div>
-            <div className="text-sm">{error}</div>
-          </div>
-        ) : notifications.length === 0 ? (
-          <div className="p-4 text-center text-muted-foreground">
-            <div className="mb-2">📭</div>
-            <div>No pending orders</div>
-          </div>
-        ) : (
-          <div className="max-h-[300px] overflow-y-auto">
-            {notifications.map(notification => (
-              <DropdownMenuItem
-                key={notification.id}
-                onClick={() => handleNotificationClick(notification.id)}
-                className="cursor-pointer mb-1 hover:bg-muted rounded-md"
-              >
-                <div className="flex items-start gap-2 w-full">
-                  <div className="bg-yellow-100 text-yellow-800 p-2 rounded-full">
-                    <BellRing className="h-4 w-4" />
-                  </div>
-                  <div className="flex flex-col flex-1">
-                    <div className="flex justify-between items-center w-full">
-                      <span className="font-medium">
-                        New {notification.status} order
-                      </span>
-                      <Badge variant="outline" className="ml-2 text-xs">
-                        Pending
-                      </Badge>
-                    </div>
-                    <div className="text-xs font-medium">
-                      {notification.display_id ||
-                        `Order #${notification.id.slice(0, 8)}`}
-                    </div>
-                    {notification.total_amount && (
-                      <div className="text-xs text-muted-foreground">
-                        ETB {notification.total_amount.toFixed(2)}
-                      </div>
-                    )}
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(notification.created_at).toLocaleString()}
-                    </span>
-                  </div>
-                </div>
-              </DropdownMenuItem>
-            ))}
-          </div>
-        )}
-
-        <div className="mt-2 pt-2 border-t border-muted">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="flex items-center gap-1 text-xs"
-                onClick={toggleSound}
-              >
-                {soundEnabled ? (
-                  <>
-                    <Volume2 className="h-3 w-3" />
-                    <span>Sound On</span>
-                  </>
-                ) : (
-                  <>
-                    <VolumeX className="h-3 w-3" />
-                    <span>Sound Off</span>
-                  </>
-                )}
-              </Button>
-
-              {soundEnabled && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-xs"
-                  onClick={() =>
-                    playNotificationSound().catch(err =>
-                      console.warn('Failed to play test sound:', err),
-                    )
-                  }
-                  title="Test notification sound"
-                >
-                  Test
-                </Button>
+            <div className={cn(animateBell && 'animate-bell')}>
+              {animateBell ? (
+                <BellRing className="h-6 w-6 text-red-500 animate-bell" />
+              ) : (
+                <Bell
+                  className={cn(
+                    'h-6 w-6',
+                    unreadCount > 0 ? 'text-red-500' : 'text-yellow-600',
+                  )}
+                />
+              )}
+              {!soundEnabled && (
+                <VolumeX className="absolute bottom-0 right-0 h-3 w-3 text-gray-500" />
               )}
             </div>
 
+            {/* Fixed badge implementation */}
+            {unreadCount > 0 && (
+              <Badge className="absolute -right-1 -top-1 h-5 w-5 rounded-full p-0 flex items-center justify-center bg-red-500 text-white border-2 border-background animate-pulse">
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </Badge>
+            )}
+
+            {/* Connection status indicator */}
+            <span
+              className={`absolute -bottom-1 -right-1 h-2 w-2 rounded-full ${
+                connectionStatus === 'SUBSCRIBED'
+                  ? 'bg-green-500'
+                  : 'bg-yellow-500'
+              }`}
+            />
+          </Button>
+        </DropdownMenuTrigger>
+
+        <DropdownMenuContent align="end" className="w-64 p-2">
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="font-semibold text-sm">Pending Orders</h4>
             <Button
-              variant="outline"
-              size="sm"
-              className="text-xs"
-              onClick={() => router.push('/dashboard/orders')}
+              variant="ghost"
+              size="icon"
+              onClick={toggleSound}
+              className="h-6 w-6"
+              title={
+                soundEnabled
+                  ? 'Mute notifications'
+                  : 'Enable notification sounds'
+              }
             >
-              View All Orders
+              {soundEnabled ? (
+                <Volume2 className="h-4 w-4" />
+              ) : (
+                <VolumeX className="h-4 w-4" />
+              )}
             </Button>
           </div>
-        </div>
-      </DropdownMenuContent>
-    </DropdownMenu>
+
+          {error ? (
+            <div className="p-3 text-red-500 bg-red-50 rounded-md mb-1">
+              <div className="font-medium">Error</div>
+              <div className="text-sm">{error}</div>
+            </div>
+          ) : notifications.length === 0 ? (
+            <div className="p-4 text-center text-muted-foreground">
+              <div className="mb-2">📭</div>
+              <div>No pending orders</div>
+            </div>
+          ) : (
+            <div className="max-h-[300px] overflow-y-auto">
+              {notifications.map(notification => (
+                <DropdownMenuItem
+                  key={notification.id}
+                  onClick={() => handleNotificationClick(notification.id)}
+                  className="cursor-pointer mb-1 hover:bg-muted rounded-md"
+                >
+                  <div className="flex items-start gap-2 w-full">
+                    <div className="bg-yellow-100 text-yellow-800 p-2 rounded-full">
+                      <BellRing className="h-4 w-4" />
+                    </div>
+                    <div className="flex flex-col flex-1">
+                      <div className="flex justify-between items-center w-full">
+                        <span className="font-medium">
+                          New {notification.status} order
+                        </span>
+                        <Badge variant="outline" className="ml-2 text-xs">
+                          Pending
+                        </Badge>
+                      </div>
+                      <div className="text-xs font-medium">
+                        {notification.display_id ||
+                          `Order #${notification.id.slice(0, 8)}`}
+                      </div>
+                      {notification.total_amount && (
+                        <div className="text-xs text-muted-foreground">
+                          ETB {notification.total_amount.toFixed(2)}
+                        </div>
+                      )}
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(notification.created_at).toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                </DropdownMenuItem>
+              ))}
+            </div>
+          )}
+
+          <div className="mt-2 pt-2 border-t border-muted">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="flex items-center gap-1 text-xs"
+                  onClick={toggleSound}
+                >
+                  {soundEnabled ? (
+                    <>
+                      <Volume2 className="h-3 w-3" />
+                      <span>Sound On</span>
+                    </>
+                  ) : (
+                    <>
+                      <VolumeX className="h-3 w-3" />
+                      <span>Sound Off</span>
+                    </>
+                  )}
+                </Button>
+
+                {soundEnabled && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs"
+                    onClick={() =>
+                      playNotificationSound().catch(err =>
+                        console.warn('Failed to play test sound:', err),
+                      )
+                    }
+                    title="Test notification sound"
+                  >
+                    Test
+                  </Button>
+                )}
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs"
+                onClick={() => router.push('/dashboard/orders')}
+              >
+                View All Orders
+              </Button>
+            </div>
+          </div>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </>
   );
 }
