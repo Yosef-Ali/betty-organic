@@ -26,6 +26,13 @@ interface OrderPayload {
   [key: string]: any;
 }
 
+// Type guard to check if an object is an OrderPayload
+function isOrderPayload(obj: any): obj is OrderPayload {
+  return (
+    obj && typeof obj === 'object' && 'id' in obj && typeof obj.id === 'string'
+  );
+}
+
 export const OrderType = {
   SALE: 'sale',
   REFUND: 'refund',
@@ -131,8 +138,16 @@ const OrderDashboard: React.FC = () => {
 
   // Enhanced function to load data with minimal visual disruption
   const loadData = useCallback(
-    async (options?: { silent?: boolean; isInitial?: boolean; showToast?: boolean }) => {
-      const { silent = false, isInitial = false, showToast = false } = options || {};
+    async (options?: {
+      silent?: boolean;
+      isInitial?: boolean;
+      showToast?: boolean;
+    }) => {
+      const {
+        silent = false,
+        isInitial = false,
+        showToast = false,
+      } = options || {};
 
       // Only show loading state for initial loads or explicit manual refreshes
       if (isInitial) {
@@ -253,10 +268,22 @@ const OrderDashboard: React.FC = () => {
         },
         async (payload: RealtimePostgresChangesPayload<OrderPayload>) => {
           const eventType = payload.eventType;
-          const orderId = payload.new?.id || payload.old?.id;
+          const orderId = isOrderPayload(payload.new)
+            ? payload.new.id
+            : isOrderPayload(payload.old)
+            ? payload.old.id
+            : undefined;
           const displayId =
-            (payload.new && 'display_id' in payload.new ? payload.new.display_id : undefined) ||
-            (payload.old && 'display_id' in payload.old ? payload.old.display_id : undefined) ||
+            (payload.new &&
+            typeof payload.new === 'object' &&
+            'display_id' in payload.new
+              ? payload.new.display_id
+              : undefined) ||
+            (payload.old &&
+            typeof payload.old === 'object' &&
+            'display_id' in payload.old
+              ? payload.old.display_id
+              : undefined) ||
             (orderId ? orderId.slice(0, 8) : 'unknown');
 
           addLog(
@@ -275,8 +302,13 @@ const OrderDashboard: React.FC = () => {
             case 'DELETE':
               // For deletions, only log the change - no toast needed
               // If the currently selected order was deleted, select a different one
-              if (payload.old && typeof payload.old === 'object' && 'id' in payload.old && payload.old.id && selectedOrderId === payload.old.id) {
-                const firstAvailableOrder = orders.find(o => o.id !== payload.old?.id);
+              if (
+                isOrderPayload(payload.old) &&
+                selectedOrderId === payload.old.id
+              ) {
+                const firstAvailableOrder = orders.find(
+                  o => o.id !== payload.old.id,
+                );
                 if (firstAvailableOrder) {
                   setSelectedOrderId(firstAvailableOrder.id);
                 } else {
@@ -290,7 +322,7 @@ const OrderDashboard: React.FC = () => {
           await loadData({ silent: true });
         },
       )
-      .subscribe(status => {
+      .subscribe((status: string) => {
         addLog(`Orders subscription status: ${status}`);
         setConnectionStatus(status);
 
@@ -327,10 +359,21 @@ const OrderDashboard: React.FC = () => {
         },
         async (payload: RealtimePostgresChangesPayload<OrderPayload>) => {
           const eventType = payload.eventType;
-          const itemId = payload.new && 'id' in payload.new ? payload.new.id :
-            payload.old && 'id' in payload.old ? payload.old.id : 'unknown';
-          const orderId = payload.new && 'order_id' in payload.new ? payload.new.order_id :
-            payload.old && 'order_id' in payload.old ? payload.old.order_id : 'unknown';
+          const itemId = isOrderPayload(payload.new)
+            ? payload.new.id
+            : isOrderPayload(payload.old)
+            ? payload.old.id
+            : 'unknown';
+          const orderId =
+            payload.new &&
+            typeof payload.new === 'object' &&
+            'order_id' in payload.new
+              ? payload.new.order_id
+              : payload.old &&
+                typeof payload.old === 'object' &&
+                'order_id' in payload.old
+              ? payload.old.order_id
+              : 'unknown';
 
           addLog(
             `Order items change detected: ${eventType} for item ${itemId} in order ${orderId}`,
@@ -341,7 +384,7 @@ const OrderDashboard: React.FC = () => {
           await loadData({ silent: true });
         },
       )
-      .subscribe(status => {
+      .subscribe((status: string) => {
         addLog(`Order items subscription status: ${status}`);
       });
 
@@ -379,8 +422,9 @@ const OrderDashboard: React.FC = () => {
       console.error('Error initiating order deletion:', error);
       toast({
         title: 'Error',
-        description: `Failed to initiate order deletion: ${error instanceof Error ? error.message : 'Unknown error'
-          }`,
+        description: `Failed to initiate order deletion: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`,
         variant: 'destructive',
         important: true, // Mark error as important
       });
@@ -466,15 +510,17 @@ const OrderDashboard: React.FC = () => {
           <StatCard
             title="This Week"
             value={`Br ${currentWeekTotal.toFixed(2)}`}
-            change={`${currentWeekChangePercentage >= 0 ? '+' : ''
-              }${currentWeekChangePercentage.toFixed(2)}% from last week`}
+            change={`${
+              currentWeekChangePercentage >= 0 ? '+' : ''
+            }${currentWeekChangePercentage.toFixed(2)}% from last week`}
             changePercentage={currentWeekChangePercentage}
           />
           <StatCard
             title="This Month"
             value={`Br ${currentMonthTotal.toFixed(2)}`}
-            change={`${currentMonthChangePercentage >= 0 ? '+' : ''
-              }${currentMonthChangePercentage.toFixed(2)}% from last month`}
+            change={`${
+              currentMonthChangePercentage >= 0 ? '+' : ''
+            }${currentMonthChangePercentage.toFixed(2)}% from last month`}
             changePercentage={currentMonthChangePercentage}
           />
         </div>
@@ -489,10 +535,11 @@ const OrderDashboard: React.FC = () => {
               {/* Realtime status indicator - more subtle */}
               <div className="flex items-center ml-2">
                 <div
-                  className={`h-2 w-2 rounded-full mr-1 ${connectionStatus === 'SUBSCRIBED'
-                    ? 'bg-green-500' // No animation to avoid distraction
-                    : 'bg-yellow-500' // Yellow instead of red for less alarm
-                    }`}
+                  className={`h-2 w-2 rounded-full mr-1 ${
+                    connectionStatus === 'SUBSCRIBED'
+                      ? 'bg-green-500' // No animation to avoid distraction
+                      : 'bg-yellow-500' // Yellow instead of red for less alarm
+                  }`}
                 ></div>
                 <span className="text-xs text-muted-foreground">
                   {connectionStatus === 'SUBSCRIBED' ? 'Live' : 'Connecting...'}
