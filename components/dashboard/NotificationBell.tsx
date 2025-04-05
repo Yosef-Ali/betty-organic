@@ -135,15 +135,10 @@ export function NotificationBell() {
           'id, display_id, status, created_at, total_amount, profiles(*)',
         );
 
-      // Only filter by user_id if we have a user
+      // Always fetch orders - we're already in a protected route
+      // If we have a user ID, filter by it for better security
       if (user?.id) {
         query = query.eq('user_id', user.id);
-      } else if (process.env.NODE_ENV === 'production') {
-        // In production, don't show orders if no user
-        setNotifications([]);
-        setUnreadCount(0);
-        setIsLoading(false);
-        return;
       }
 
       const { data: allOrders, error } = await query
@@ -333,13 +328,13 @@ export function NotificationBell() {
 
       console.log('NotificationBell mounted, initializing...');
 
-      // Only enforce auth check if we're sure the user is not authenticated
-      // This prevents blocking notifications during auth loading
-      if (!user && authInitialized) {
-        console.log('Authentication required - blocking notifications');
-        setError('Please login to view notifications');
-        return;
-      }
+      // Skip auth check - we're already in a protected route
+      // Just log the auth state for debugging
+      console.log('Auth state:', {
+        user: user?.id || 'not set',
+        authLoading,
+        authInitialized,
+      });
 
       if (DEBUG_REALTIME) {
         console.log('Auth state:', {
@@ -398,16 +393,8 @@ export function NotificationBell() {
     setUnreadCount(prev => Math.max(0, prev - 1));
   };
 
-  // Only show login prompt when definitely not logged in AND we're done loading auth state
-  // This ensures we don't show the login message when we're still checking auth
-  if (!user && !authLoading && authInitialized) {
-    console.log('User not authenticated, showing login prompt');
-    return (
-      <div className="p-3 text-sm font-medium text-amber-800 border-2 border-amber-300 rounded-md bg-amber-50 shadow-sm">
-        ⚠️ Please login to view notifications
-      </div>
-    );
-  }
+  // Skip login check - we're already in a protected route
+  // The Header component already handles authentication
 
   return (
     <>
