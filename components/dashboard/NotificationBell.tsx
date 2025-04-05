@@ -394,8 +394,9 @@ export function NotificationBell() {
     setUnreadCount(prev => Math.max(0, prev - 1));
   };
 
-  // Show login prompt if no user
-  if (!user && !authLoading) {
+  // Only show login prompt in production when definitely not logged in
+  // In development, always show the bell to make testing easier
+  if (process.env.NODE_ENV === 'production' && !user && !authLoading) {
     return (
       <div className="p-2 text-sm text-muted-foreground border border-yellow-200 rounded-md">
         Please login to view notifications
