@@ -180,30 +180,44 @@ export function NotificationBell() {
     setError(null);
 
     try {
-      if (!supabaseRef.current) {
-        supabaseRef.current = createClient();
+      // Create a new client each time to ensure fresh connection
+      const client = createClient();
+      supabaseRef.current = client;
+
+      console.log('Fetching pending orders...');
+
+      // First, get the count of pending orders
+      const { count: pendingCount, error: countError } = await client
+        .from('orders')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending');
+
+      if (countError) {
+        console.error('Error fetching pending count:', countError);
+        throw countError;
       }
 
-      const client = supabaseRef.current;
-      if (!client) {
-        throw new Error('Failed to initialize Supabase client');
-      }
+      console.log('Pending orders count:', pendingCount);
 
-      const {
-        data: pendingOrders,
-        error,
-        count,
-      } = await client
+      // Set the unread count immediately
+      setUnreadCount(pendingCount || 0);
+
+      // Then get the actual pending orders with details
+      const { data: pendingOrders, error } = await client
         .from('orders')
         .select(
-          'id, status, created_at, display_id, total_amount, customer_profile_id, customer:customer_profile_id(id, name, email, role, phone, avatar_url)',
-          { count: 'exact' },
+          'id, status, created_at, display_id, total_amount, customer_profile_id, customer:profiles!orders_customer_profile_id_fkey(id, name, email, role, phone, avatar_url)',
         )
         .eq('status', 'pending')
         .order('created_at', { ascending: false })
         .limit(10);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching pending orders:', error);
+        throw error;
+      }
+
+      console.log('Fetched pending orders:', pendingOrders?.length || 0);
 
       const formattedNotifications: NotificationOrder[] = (
         pendingOrders || []
@@ -216,8 +230,8 @@ export function NotificationBell() {
         profiles: order.customer || null,
       }));
 
+      console.log('Formatted notifications:', formattedNotifications.length);
       setNotifications(formattedNotifications);
-      setUnreadCount(count || formattedNotifications.length);
       setConnectionStatus('SUBSCRIBED');
 
       if (formattedNotifications.length > 0) {
@@ -273,12 +287,9 @@ export function NotificationBell() {
     if (!mountedRef.current) return;
 
     try {
-      const client = supabaseRef.current;
-      if (!client) {
-        console.error('Client not initialized in setupRealtimeSubscription');
-        setError('Client not available');
-        return;
-      }
+      // Create a new client each time to ensure fresh connection
+      const client = createClient();
+      supabaseRef.current = client;
 
       if (channelRef.current) {
         try {
@@ -289,14 +300,6 @@ export function NotificationBell() {
       }
 
       const channelName = 'order-status';
-
-      if (DEBUG_REALTIME) {
-        console.log('Setting up realtime subscription:', {
-          channelName,
-          userId: user?.id,
-          role: profile?.role,
-        });
-      }
 
       console.log('Setting up realtime channel:', channelName);
 
@@ -564,14 +567,18 @@ export function NotificationBell() {
       mountedRef.current = true;
 
       if (authLoading) {
-        if (DEBUG_REALTIME) console.log('Auth is still loading');
+        console.log('Auth is still loading');
         return;
       }
 
-      supabaseRef.current = createClient();
+      // Create a new client
+      const client = createClient();
+      supabaseRef.current = client;
+
+      console.log('NotificationBell mounted, initializing...');
 
       if (!user && process.env.NODE_ENV !== 'development') {
-        if (DEBUG_REALTIME) console.log('No authenticated user found');
+        console.log('No authenticated user found');
         setError('Authentication required');
         return;
       }
