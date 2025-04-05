@@ -206,7 +206,7 @@ export function NotificationBell() {
       const { data: pendingOrders, error } = await client
         .from('orders')
         .select(
-          'id, status, created_at, display_id, total_amount, customer_profile_id, customer:profiles!orders_customer_profile_id_fkey(id, name, email, role, phone, avatar_url)',
+          'id, status, created_at, display_id, total_amount, customer_profile_id, customer:profiles!orders_customer_profile_id_fk(id, name, email, role, phone, avatar_url)',
         )
         .eq('status', 'pending')
         .order('created_at', { ascending: false })
@@ -504,7 +504,7 @@ export function NotificationBell() {
         }
       }, RECONNECT_INTERVAL);
     }
-  }, [user, profile, playNotificationSound, fetchNotifications]);
+  }, [playNotificationSound, fetchNotifications]);
 
   const refreshAttemptRef = useRef(0);
 

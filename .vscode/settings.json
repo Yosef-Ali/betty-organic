@@ -67,5 +67,8 @@
         "env": {}
       }
     }
-  }
+  },
+  "cSpell.words": [
+    "supabase"
+  ]
 }
