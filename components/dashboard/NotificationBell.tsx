@@ -128,10 +128,24 @@ export function NotificationBell() {
       console.log('Querying for all orders to find pending ones...');
       // Get all orders and filter for pending status in JavaScript
       // This avoids any issues with case sensitivity or format in the database
-      const { data: allOrders, error } = await supabaseRef.current
+
+      // Create a query that works whether user is authenticated or not
+      let query = supabaseRef.current
         .from('orders')
-        .select('id, display_id, status, created_at, total_amount, profiles(*)')
-        .eq('user_id', user?.id)
+        .select('id, display_id, status, created_at, total_amount, profiles(*)');
+
+      // Only filter by user_id if we have a user
+      if (user?.id) {
+        query = query.eq('user_id', user.id);
+      } else if (process.env.NODE_ENV === 'production') {
+        // In production, don't show orders if no user
+        setNotifications([]);
+        setUnreadCount(0);
+        setIsLoading(false);
+        return;
+      }
+
+      const { data: allOrders, error } = await query
         .order('created_at', { ascending: false })
         .limit(50);
 
@@ -183,7 +197,7 @@ export function NotificationBell() {
         setIsLoading(false);
       }
     }
-  }, [setError, setNotifications, setUnreadCount, setIsLoading]);
+  }, [user, setError, setNotifications, setUnreadCount, setIsLoading]);
 
   const setupRealtimeSubscription = useCallback(() => {
     try {
@@ -212,86 +226,91 @@ export function NotificationBell() {
       console.log('Setting up new realtime subscription for pending orders');
       const channelName = 'orders-notifications-' + Date.now();
 
-      const channel = supabaseRef.current
-        .channel(channelName)
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'orders',
-            // No filter on status here - we'll filter in the callback
-            // This ensures we catch all order changes and can check status
-          },
-          (payload: RealtimePostgresChangesPayload<NotificationOrder>) => {
-            // Safe access to payload properties
-            const orderId =
-              typeof payload.new === 'object' &&
+      try {
+        const channel = supabaseRef.current
+          .channel(channelName)
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'orders',
+              // Filter for specific user in production
+              ...(user?.id && process.env.NODE_ENV === 'production' ? { filter: `user_id=eq.${user.id}` } : {})
+            },
+            (payload: RealtimePostgresChangesPayload<NotificationOrder>) => {
+              // Safe access to payload properties
+              const orderId =
+                typeof payload.new === 'object' &&
+                  payload.new &&
+                  'id' in payload.new
+                  ? payload.new.id
+                  : typeof payload.old === 'object' &&
+                    payload.old &&
+                    'id' in payload.old
+                    ? payload.old.id
+                    : 'unknown';
+
+              // Check if this is a pending order (case insensitive)
+              // Use includes() instead of exact match to catch variations
+              const isPending =
+                typeof payload.new === 'object' &&
                 payload.new &&
-                'id' in payload.new
-                ? payload.new.id
-                : typeof payload.old === 'object' &&
-                  payload.old &&
-                  'id' in payload.old
-                  ? payload.old.id
-                  : 'unknown';
+                'status' in payload.new &&
+                typeof payload.new.status === 'string' &&
+                payload.new.status.toLowerCase().includes('pending');
 
-            // Check if this is a pending order (case insensitive)
-            // Use includes() instead of exact match to catch variations
-            const isPending =
-              typeof payload.new === 'object' &&
-              payload.new &&
-              'status' in payload.new &&
-              typeof payload.new.status === 'string' &&
-              payload.new.status.toLowerCase().includes('pending');
-
-            console.log(
-              'Realtime notification received:',
-              payload.eventType,
-              orderId,
-              'Status:',
-              typeof payload.new === 'object' &&
-                payload.new &&
-                'status' in payload.new
-                ? String(payload.new.status)
-                : 'unknown',
-              'Is Pending:',
-              isPending,
-            );
-
-            // Always refresh notifications list to keep it up to date
-            handleFetchNotifications();
-
-            // Only animate and play sound for new pending orders
-            if (
-              isPending &&
-              (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE')
-            ) {
               console.log(
-                'Animating bell and playing sound for new pending order',
+                'Realtime notification received:',
+                payload.eventType,
+                orderId,
+                'Status:',
+                typeof payload.new === 'object' &&
+                  payload.new &&
+                  'status' in payload.new
+                  ? String(payload.new.status)
+                  : 'unknown',
+                'Is Pending:',
+                isPending,
               );
-              setAnimateBell(true);
-              playNotificationSound();
-              setTimeout(() => setAnimateBell(false), 2000);
-            }
-          },
-        )
-        .subscribe(status => {
-          console.log(`Realtime subscription status: ${status}`);
-          setConnectionStatus(status);
-          if (status === 'SUBSCRIBED') {
-            console.log('Successfully subscribed to order notifications');
-            // Fetch initial data when subscription is established
-            handleFetchNotifications();
-          }
-        });
 
-      channelRef.current = channel;
+              // Always refresh notifications list to keep it up to date
+              handleFetchNotifications();
+
+              // Only animate and play sound for new pending orders
+              if (
+                isPending &&
+                (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE')
+              ) {
+                console.log(
+                  'Animating bell and playing sound for new pending order',
+                );
+                setAnimateBell(true);
+                playNotificationSound();
+                setTimeout(() => setAnimateBell(false), 2000);
+              }
+            },
+          )
+          .subscribe(status => {
+            console.log(`Realtime subscription status: ${status}`);
+            setConnectionStatus(status);
+            if (status === 'SUBSCRIBED') {
+              console.log('Successfully subscribed to order notifications');
+              // Fetch initial data when subscription is established
+              handleFetchNotifications();
+            }
+          });
+
+        channelRef.current = channel;
+      } catch (err) {
+        console.error('Error creating realtime channel:', err);
+        setError('Failed to create realtime channel');
+      }
     } catch (err) {
       console.error('Error setting up realtime subscription:', err);
       setError('Failed to set up realtime updates');
     }
-  }, [playNotificationSound, handleFetchNotifications, setError]);
+  }, [user, playNotificationSound, handleFetchNotifications, setError]);
 
   useEffect(() => {
     try {
