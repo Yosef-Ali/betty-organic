@@ -152,13 +152,25 @@ export function NotificationBell() {
       console.log('Raw orders data:', allOrders);
 
       // Filter for pending orders in JavaScript (case insensitive)
+      // Check for both 'pending' and exact match for the status shown in the table
       const pendingOrders =
-        allOrders?.filter(
-          (order: any) =>
-            order.status &&
-            typeof order.status === 'string' &&
-            order.status.toLowerCase().includes('pending'),
-        ) || [];
+        allOrders?.filter((order: any) => {
+          if (!order.status || typeof order.status !== 'string') return false;
+
+          const status = order.status.toLowerCase();
+          // Check for various forms of pending status
+          return (
+            status === 'pending' ||
+            status.includes('pending') ||
+            status === 'new' ||
+            status === 'processing'
+          );
+        }) || [];
+
+      // Log the statuses we found for debugging
+      const statusesArray = allOrders?.map((order: any) => order.status) || [];
+      const uniqueStatuses = Array.from(new Set(statusesArray));
+      console.log('Unique order statuses found:', uniqueStatuses);
 
       console.log(
         'Filtered pending orders:',
@@ -244,13 +256,25 @@ export function NotificationBell() {
                   : 'unknown';
 
               // Check if this is a pending order (case insensitive)
-              // Use includes() instead of exact match to catch variations
-              const isPending =
-                typeof payload.new === 'object' &&
-                payload.new &&
-                'status' in payload.new &&
-                typeof payload.new.status === 'string' &&
-                payload.new.status.toLowerCase().includes('pending');
+              // Use the same logic as in the filter function
+              const isPending = (() => {
+                if (
+                  typeof payload.new !== 'object' ||
+                  !payload.new ||
+                  !('status' in payload.new) ||
+                  typeof payload.new.status !== 'string'
+                ) {
+                  return false;
+                }
+
+                const status = payload.new.status.toLowerCase();
+                return (
+                  status === 'pending' ||
+                  status.includes('pending') ||
+                  status === 'new' ||
+                  status === 'processing'
+                );
+              })();
 
               console.log(
                 'Realtime notification received:',
