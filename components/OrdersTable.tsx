@@ -1,10 +1,9 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useEffect, useCallback } from "react";
 import { ExtendedOrder } from "@/types/order";
 import { OrdersDataTable } from "@/components/orders/orders-data-table";
 import { createClient } from "@/lib/supabase/client";
-import { Badge } from "@/components/ui/badge";
 
 interface OrdersTableProps {
   orders: ExtendedOrder[];
@@ -28,12 +27,9 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
   onOrdersUpdated,
   setConnectionStatus,
 }) => {
-  const [logs, setLogs] = useState<string[]>([]);
-
-  // Add a log function that's similar to the NotificationDebugger
+  // Keeping console logs for debugging but removing UI logs
   const addLog = useCallback((message: string) => {
     console.log(`[OrdersTable] ${message}`);
-    setLogs((prev) => [...prev, `${new Date().toISOString()} - ${message}`]);
   }, []);
 
   // Main fetch function with silent option and minimal visual disruption
@@ -228,39 +224,6 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
           <p className="text-muted-foreground">No orders found</p>
         </div>
       )}
-
-      {/* Debug logs with improved UI */}
-      <div className="mt-4 border rounded-md overflow-hidden">
-        <details>
-          <summary className="cursor-pointer p-2 bg-muted flex items-center justify-between hover:bg-muted/80 transition-colors">
-            <div className="flex items-center gap-2">
-              <span className="font-medium">Realtime Activity</span>
-              <Badge variant="outline" className="ml-2">
-                {logs.length} events
-              </Badge>
-            </div>
-            <span className="text-xs text-muted-foreground">
-              Click to {logs.length > 0 ? "view" : "hide"} activity log
-            </span>
-          </summary>
-          <div className="bg-muted/30 p-2 max-h-60 overflow-y-auto text-xs font-mono">
-            {logs.length > 0 ? (
-              logs.map((log, index) => (
-                <div
-                  key={index}
-                  className="py-1 border-b border-muted last:border-0"
-                >
-                  {log}
-                </div>
-              ))
-            ) : (
-              <div className="py-4 text-center text-muted-foreground">
-                No activity recorded yet
-              </div>
-            )}
-          </div>
-        </details>
-      </div>
     </div>
   );
 };

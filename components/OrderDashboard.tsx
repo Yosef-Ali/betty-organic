@@ -18,8 +18,8 @@ import { getCustomers } from "../app/actions/profile";
 import { useToast } from "../hooks/use-toast";
 import OrderTable from "./OrdersTable";
 import type { Order, OrderItem } from "@/types/order"; // Removed CustomerProfile import
-import { createClient } from "@/lib/supabase/client";
-import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
+// Supabase client import removed
+
 
 interface OrderPayload {
   id: string;
@@ -47,7 +47,6 @@ const OrderDashboard: React.FC = () => {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
-  const supabase = createClient();
 
 
   // Function to convert a single raw order from DB/payload to the Order type used in UI
@@ -358,12 +357,10 @@ const OrderDashboard: React.FC = () => {
         <Tabs defaultValue="week" className="px-4 sm:px-0">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2">
-              <TabsList>
+              <TabsList className="mr-2">
                 <TabsTrigger value="week">This Week</TabsTrigger>
                 <TabsTrigger value="month">This Month</TabsTrigger>
               </TabsList>
-
-              {/* Realtime status indicator removed */}
             </div>
 
             <div className="flex items-center gap-2">
@@ -414,9 +411,6 @@ const OrderDashboard: React.FC = () => {
               onSelectOrderAction={setSelectedOrderId}
               onDeleteOrder={handleDelete}
               isLoading={isLoading}
-            // connectionStatus removed
-            // onOrdersUpdated removed
-            // setConnectionStatus removed
             />
           </TabsContent>
           <TabsContent value="month">
