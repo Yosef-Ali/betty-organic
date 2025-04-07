@@ -103,7 +103,7 @@ export const CartSheet = ({ isOpen, onOpenChange }: CartSheetProps) => {
 
       <ConfirmPurchaseDialogNew
         isOpen={isPurchaseDialogOpen}
-        onClose={handlePurchaseDialogClose}
+        onCloseAction={handlePurchaseDialogClose}
         items={items}
         total={totalAmount}
       />
