@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { deleteOrder, getOrderDetails } from '@/app/actions/orderActions';
 import { Profile } from '@/lib/types/auth';
@@ -38,6 +38,11 @@ export function useOrderDetails(orderId: string) {
   const [retryCount, setRetryCount] = useState(0);
   const router = useRouter();
 
+  // Add a ref to track the last fetched order ID to avoid duplicate fetches
+  const lastFetchedOrderIdRef = useRef<string | null>(null);
+  // Add a ref to prevent multiple fetches in rapid succession
+  const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   // Function to retry loading order details
   const retryFetch = useCallback(() => {
     setRetryCount(prev => prev + 1);
@@ -48,11 +53,23 @@ export function useOrderDetails(orderId: string) {
   useEffect(() => {
     let isMounted = true;
 
-    async function fetchOrderDetails() {
+    // If we're already fetching this order ID or it's the same as the last one, don't fetch again
+    if (lastFetchedOrderIdRef.current === orderId && order !== null) {
+      return;
+    }
+
+    // Clear any existing timeout
+    if (fetchTimeoutRef.current) {
+      clearTimeout(fetchTimeoutRef.current);
+    }
+
+    // Set a small delay to prevent rapid refetching
+    fetchTimeoutRef.current = setTimeout(async () => {
       if (!isMounted) return;
 
       setIsLoading(true);
       setError(null);
+      lastFetchedOrderIdRef.current = orderId;
 
       try {
         console.log(`[OrderDetails] Fetching order details for ID: ${orderId}`);
@@ -123,21 +140,24 @@ export function useOrderDetails(orderId: string) {
       } finally {
         if (isMounted) {
           setIsLoading(false);
+          fetchTimeoutRef.current = null;
         }
       }
-    }
-
-    fetchOrderDetails();
+    }, 300); // Add a 300ms debounce to prevent rapid refetching
 
     // Cleanup function
     return () => {
       isMounted = false;
+      if (fetchTimeoutRef.current) {
+        clearTimeout(fetchTimeoutRef.current);
+      }
     };
-  }, [orderId, router, retryCount]); // Add retryCount to dependencies
+  }, [orderId, retryCount]); // Removed router dependency since it's not used in the effect
 
   // Function to handle manual retry
   const handleRetry = useCallback(() => {
     console.log(`[OrderDetails] Retrying fetch for order ID: ${orderId}`);
+    lastFetchedOrderIdRef.current = null; // Reset the last fetched ID to force a refresh
     retryFetch();
   }, [retryFetch, orderId]);
 

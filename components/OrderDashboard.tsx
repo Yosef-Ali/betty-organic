@@ -186,9 +186,12 @@ const OrderDashboard: React.FC = () => {
             new Date(a.created_at ?? 0).getTime()
         );
 
+        // Get current orders to compare without adding a dependency
+        const currentOrders = orders;
+
         // Check if orders have changed before updating state
         const ordersChanged =
-          JSON.stringify(sortedOrders) !== JSON.stringify(orders);
+          JSON.stringify(sortedOrders) !== JSON.stringify(currentOrders);
 
         if (ordersChanged) {
           addLog(`Orders updated: ${sortedOrders.length} orders loaded`);
@@ -236,8 +239,8 @@ const OrderDashboard: React.FC = () => {
         setIsUpdating(false);
       }
     },
-    [processMultipleOrders, toast, selectedOrderId, orders]
-  ); // Add orders as dependency
+    [processMultipleOrders, toast, selectedOrderId] // Removed orders dependency from here
+  );
 
   // Enhanced Supabase real-time subscriptions with minimal visual disruption
   useEffect(() => {
@@ -401,7 +404,7 @@ const OrderDashboard: React.FC = () => {
       supabaseClient.removeChannel(orderItemsChannel);
       clearInterval(pollingInterval);
     };
-  }, [loadData, toast, selectedOrderId, orders]);
+  }, [loadData, toast, selectedOrderId]); // Removed orders dependency from here
 
   const handleDelete = async (id: string) => {
     // No change needed here, Supabase Realtime will handle the state update via DELETE event
@@ -533,8 +536,8 @@ const OrderDashboard: React.FC = () => {
               <div className="flex items-center ml-2">
                 <div
                   className={`h-2 w-2 rounded-full mr-1 ${connectionStatus === "SUBSCRIBED"
-                      ? "bg-green-500" // No animation to avoid distraction
-                      : "bg-yellow-500" // Yellow instead of red for less alarm
+                    ? "bg-green-500" // No animation to avoid distraction
+                    : "bg-yellow-500" // Yellow instead of red for less alarm
                     }`}
                 ></div>
                 <span className="text-xs text-muted-foreground">
