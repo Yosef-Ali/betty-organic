@@ -34,7 +34,7 @@ import { NotificationBell } from './dashboard/NotificationBell';
 import { NotificationErrorBoundary } from './dashboard/NotificationErrorBoundary';
 
 interface HeaderProps {
-  onMobileMenuToggle: () => void;
+  onMobileMenuToggleAction: () => void;
   profile?: {
     role: 'admin' | 'sales' | 'customer';
     address: string | null;
@@ -89,7 +89,7 @@ const allNavItems = [
   },
 ];
 
-export default function Header({ onMobileMenuToggle, profile }: HeaderProps) {
+export default function Header({ onMobileMenuToggleAction, profile }: HeaderProps) {
   const { profile: authProfile, loading, authInitialized } = useAuth();
   // Prefer passed profile over auth context profile
   const activeProfile = profile || authProfile;
@@ -176,7 +176,7 @@ export default function Header({ onMobileMenuToggle, profile }: HeaderProps) {
         size="icon"
         variant="outline"
         className="sm:hidden"
-        onClick={onMobileMenuToggle}
+        onClick={onMobileMenuToggleAction}
       >
         <PanelLeft className="h-5 w-5" />
         <span className="sr-only">Toggle Menu</span>
@@ -195,7 +195,7 @@ export default function Header({ onMobileMenuToggle, profile }: HeaderProps) {
       {/* Notification bell with simplified error boundary */}
       <div className="mx-2">
         <NotificationErrorBoundary>
-          <NotificationBell />
+          <NotificationBell/>
         </NotificationErrorBoundary>
       </div>
 

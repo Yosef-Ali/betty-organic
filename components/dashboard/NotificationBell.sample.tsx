@@ -1,27 +1,26 @@
-"use client";
-
-import React, { useEffect, useState, useRef, useCallback } from "react";
-import { Bell, BellRing, Volume2, VolumeX } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
-import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
-import { useRouter } from "next/navigation";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { Bell, BellRing, Volume2, VolumeX } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
+import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
+import { useRouter } from 'next/navigation';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
-import { useAuth } from "@/hooks/useAuth";
-import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
-import type { Database } from "@/types/supabase";
-import {
-  NotificationOrder,
+} from '@/components/ui/dropdown-menu';
+import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/hooks/useAuth';
+import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
+import type { Database } from '@/types/supabase';
+// Import types and functions from the actions file
+import { 
+  NotificationOrder, 
   fetchPendingOrdersForNotification,
-} from "@/app/actions/notificationBellActions";
-import { isOrderPending } from "@/app/utils/notificationUtils";
+  isOrderPending 
+} from '@/app/actions/notificationBellActions';
 
 export function NotificationBell() {
   const [notifications, setNotifications] = useState<NotificationOrder[]>([]);
@@ -32,13 +31,13 @@ export function NotificationBell() {
   const [connectionStatus, setConnectionStatus] = useState<string | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(() => {
     try {
-      const saved = localStorage.getItem("notification_sound");
-      return saved !== null ? saved === "true" : true;
+      const saved = localStorage.getItem('notification_sound');
+      return saved !== null ? saved === 'true' : true;
     } catch (e) {
       return true;
     }
   });
-
+  
   const router = useRouter();
   const { user } = useAuth();
 
@@ -55,26 +54,26 @@ export function NotificationBell() {
     try {
       // Initialize audio element if it doesn't exist
       if (!audioRef.current) {
-        audioRef.current = new Audio("/sound/notification.mp3");
-        audioRef.current.preload = "auto";
+        audioRef.current = new Audio('/sound/notification.mp3');
+        audioRef.current.preload = 'auto';
       }
 
       // Reset to beginning and play
       audioRef.current.currentTime = 0;
       await audioRef.current.play();
     } catch (err) {
-      console.warn("Notification sound error:", err);
+      console.warn('Notification sound error:', err);
     }
   }, [soundEnabled]);
 
   // Toggle sound setting
   const toggleSound = useCallback(() => {
-    setSoundEnabled((prev) => {
+    setSoundEnabled(prev => {
       const newValue = !prev;
       try {
-        localStorage.setItem("notification_sound", newValue.toString());
+        localStorage.setItem('notification_sound', newValue.toString());
       } catch (e) {
-        console.warn("Failed to save sound preference:", e);
+        console.warn('Failed to save sound preference:', e);
       }
       return newValue;
     });
@@ -83,19 +82,19 @@ export function NotificationBell() {
   // Fetch pending orders
   const fetchPendingOrders = useCallback(async () => {
     if (!mountedRef.current) return;
-
+    
     setIsLoading(true);
     try {
       // Use the server action to fetch pending orders
       const response = await fetchPendingOrdersForNotification(user?.id);
-
+      
       if (!response.success) {
-        setError(response.error || "Failed to load orders");
+        setError(response.error || 'Failed to load orders');
         setNotifications([]);
         setUnreadCount(0);
         return;
       }
-
+      
       if (mountedRef.current) {
         setNotifications(response.orders);
         setUnreadCount(response.count);
@@ -103,8 +102,7 @@ export function NotificationBell() {
       }
     } catch (err) {
       if (mountedRef.current) {
-        const errorMessage =
-          err instanceof Error ? err.message : "Unknown error";
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error';
         setError(`Failed to load notifications: ${errorMessage}`);
         setNotifications([]);
         setUnreadCount(0);
@@ -129,50 +127,44 @@ export function NotificationBell() {
         try {
           supabaseRef.current.removeChannel(channelRef.current);
         } catch (err) {
-          console.warn("Error removing existing channel:", err);
+          console.warn('Error removing existing channel:', err);
         }
       }
 
       // Create a unique channel name
-      const channelName = "orders-notifications-" + Date.now();
+      const channelName = 'orders-notifications-' + Date.now();
 
       // Set up the channel
       const channel = supabaseRef.current
         .channel(channelName)
         .on(
-          "postgres_changes",
+          'postgres_changes',
           {
-            event: "*",
-            schema: "public",
-            table: "orders",
+            event: '*',
+            schema: 'public',
+            table: 'orders',
             // Filter by customer_profile_id if user is authenticated
-            ...(user?.id
-              ? { filter: `customer_profile_id=eq.${user.id}` }
-              : {}),
+            ...(user?.id ? { filter: `customer_profile_id=eq.${user.id}` } : {}),
           },
           (payload: RealtimePostgresChangesPayload<NotificationOrder>) => {
-            // Log the order ID for debugging if needed
-            // const orderId =
-            //   typeof payload.new === "object" &&
-            //   payload.new &&
-            //   "id" in payload.new
-            //     ? payload.new.id
-            //     : typeof payload.old === "object" &&
-            //       payload.old &&
-            //       "id" in payload.old
-            //     ? payload.old.id
-            //     : "unknown";
+            // Get the order ID from the payload
+            const orderId = 
+              typeof payload.new === 'object' && payload.new && 'id' in payload.new
+                ? payload.new.id
+                : typeof payload.old === 'object' && payload.old && 'id' in payload.old
+                ? payload.old.id
+                : 'unknown';
 
             // Check if this is a pending order
             const isPending = (() => {
               if (
-                typeof payload.new !== "object" ||
+                typeof payload.new !== 'object' ||
                 !payload.new ||
-                !("status" in payload.new)
+                !('status' in payload.new)
               ) {
                 return false;
               }
-
+              
               return isOrderPending(payload.new.status);
             })();
 
@@ -182,17 +174,17 @@ export function NotificationBell() {
             // Only animate and play sound for new pending orders
             if (
               isPending &&
-              (payload.eventType === "INSERT" || payload.eventType === "UPDATE")
+              (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE')
             ) {
               setAnimateBell(true);
               playNotificationSound();
               setTimeout(() => setAnimateBell(false), 2000);
             }
-          }
+          },
         )
-        .subscribe((status) => {
+        .subscribe(status => {
           setConnectionStatus(status);
-          if (status === "SUBSCRIBED") {
+          if (status === 'SUBSCRIBED') {
             // Fetch initial data when subscription is established
             fetchPendingOrders();
           }
@@ -200,8 +192,8 @@ export function NotificationBell() {
 
       channelRef.current = channel;
     } catch (err) {
-      console.error("Error setting up realtime subscription:", err);
-      setError("Failed to set up realtime updates");
+      console.error('Error setting up realtime subscription:', err);
+      setError('Failed to set up realtime updates');
     }
   }, [user, playNotificationSound, fetchPendingOrders]);
 
@@ -214,7 +206,7 @@ export function NotificationBell() {
       const client = createClient();
       supabaseRef.current = client;
     } catch (err) {
-      setError("Failed to initialize notification system");
+      setError('Failed to initialize notification system');
       return;
     }
 
@@ -229,7 +221,7 @@ export function NotificationBell() {
         try {
           supabaseRef.current.removeChannel(channelRef.current);
         } catch (err) {
-          console.warn("Error removing channel:", err);
+          console.warn('Error removing channel:', err);
         }
       }
     };
@@ -238,7 +230,7 @@ export function NotificationBell() {
   // Handle notification click
   const handleNotificationClick = (orderId: string) => {
     router.push(`/dashboard/orders/${orderId}`);
-    setUnreadCount((prev) => Math.max(0, prev - 1));
+    setUnreadCount(prev => Math.max(0, prev - 1));
   };
 
   return (
@@ -254,14 +246,14 @@ export function NotificationBell() {
             className="relative w-10 h-10 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-full shadow-sm transition-all duration-200 hover:shadow"
             disabled={isLoading}
           >
-            <div className={cn(animateBell && "animate-bell")}>
+            <div className={cn(animateBell && 'animate-bell')}>
               {animateBell ? (
                 <BellRing className="h-6 w-6 text-red-500 animate-bell" />
               ) : (
                 <Bell
                   className={cn(
-                    "h-6 w-6",
-                    unreadCount > 0 ? "text-red-500" : "text-amber-600"
+                    'h-6 w-6',
+                    unreadCount > 0 ? 'text-red-500' : 'text-amber-600',
                   )}
                 />
               )}
@@ -273,16 +265,16 @@ export function NotificationBell() {
             {/* Badge for unread count */}
             {unreadCount > 0 && (
               <Badge className="absolute -right-1 -top-1 h-5 w-5 rounded-full p-0 flex items-center justify-center bg-red-500 text-white border-2 border-background animate-pulse">
-                {unreadCount > 99 ? "99+" : unreadCount}
+                {unreadCount > 99 ? '99+' : unreadCount}
               </Badge>
             )}
 
             {/* Connection status indicator */}
             <span
               className={`absolute -bottom-1 -right-1 h-2 w-2 rounded-full ${
-                connectionStatus === "SUBSCRIBED"
-                  ? "bg-green-500"
-                  : "bg-yellow-500"
+                connectionStatus === 'SUBSCRIBED'
+                  ? 'bg-green-500'
+                  : 'bg-yellow-500'
               }`}
             />
           </Button>
@@ -303,8 +295,8 @@ export function NotificationBell() {
               className="h-6 w-6"
               title={
                 soundEnabled
-                  ? "Mute notifications"
-                  : "Enable notification sounds"
+                  ? 'Mute notifications'
+                  : 'Enable notification sounds'
               }
             >
               {soundEnabled ? (
@@ -335,7 +327,7 @@ export function NotificationBell() {
             </div>
           ) : (
             <div className="max-h-[300px] overflow-y-auto">
-              {notifications.map((notification) => (
+              {notifications.map(notification => (
                 <DropdownMenuItem
                   key={notification.id}
                   onClick={() => handleNotificationClick(notification.id)}
@@ -424,7 +416,7 @@ export function NotificationBell() {
                 variant="outline"
                 size="sm"
                 className="text-xs"
-                onClick={() => router.push("/dashboard/orders")}
+                onClick={() => router.push('/dashboard/orders')}
               >
                 View All Orders
               </Button>
