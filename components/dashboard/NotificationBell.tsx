@@ -98,7 +98,8 @@ export function NotificationBell() {
 
       if (mountedRef.current) {
         setNotifications(response.orders);
-        setUnreadCount(response.count);
+        // Always ensure unreadCount matches the actual number of notifications
+        setUnreadCount(response.orders.length);
         setError(null);
       }
     } catch (err) {
@@ -176,7 +177,71 @@ export function NotificationBell() {
               return isOrderPending(payload.new.status);
             })();
 
-            // Always refresh notifications list to keep it up to date
+            // Handle different event types to update the badge count in real-time
+            if (payload.eventType === "INSERT" && isPending) {
+              // For new pending orders, increment the count and add to notifications
+              if (payload.new && typeof payload.new === "object") {
+                setUnreadCount((prev) => prev + 1);
+                setNotifications((prev) => [
+                  payload.new as NotificationOrder,
+                  ...prev,
+                ]);
+              }
+            } else if (payload.eventType === "UPDATE") {
+              // For updates, check if status changed to/from pending
+              const oldIsPending =
+                payload.old &&
+                typeof payload.old === "object" &&
+                "status" in payload.old &&
+                isOrderPending(payload.old.status as string);
+
+              if (isPending && !oldIsPending) {
+                // Changed from non-pending to pending - increment count
+                setUnreadCount((prev) => prev + 1);
+                if (payload.new && typeof payload.new === "object") {
+                  setNotifications((prev) => [
+                    payload.new as NotificationOrder,
+                    ...prev,
+                  ]);
+                }
+              } else if (!isPending && oldIsPending) {
+                // Changed from pending to non-pending - decrement count
+                setUnreadCount((prev) => Math.max(0, prev - 1));
+                if (
+                  payload.old &&
+                  typeof payload.old === "object" &&
+                  "id" in payload.old
+                ) {
+                  setNotifications((prev) =>
+                    prev.filter(
+                      (item) =>
+                        item.id !== (payload.old as NotificationOrder).id
+                    )
+                  );
+                }
+              }
+            } else if (payload.eventType === "DELETE") {
+              // For deletions, check if it was a pending order
+              if (
+                payload.old &&
+                typeof payload.old === "object" &&
+                "status" in payload.old &&
+                isOrderPending(payload.old.status as string)
+              ) {
+                // It was a pending order that was deleted - decrement count
+                setUnreadCount((prev) => Math.max(0, prev - 1));
+                if ("id" in payload.old) {
+                  setNotifications((prev) =>
+                    prev.filter(
+                      (item) =>
+                        item.id !== (payload.old as NotificationOrder).id
+                    )
+                  );
+                }
+              }
+            }
+
+            // Also refresh notifications list to ensure consistency
             fetchPendingOrders();
 
             // Only animate and play sound for new pending orders
@@ -204,6 +269,17 @@ export function NotificationBell() {
       setError("Failed to set up realtime updates");
     }
   }, [user, playNotificationSound, fetchPendingOrders]);
+
+  // Force badge update when unreadCount changes
+  useEffect(() => {
+    // Force the badge to update by setting a timeout
+    const timer = setTimeout(() => {
+      // This will trigger a re-render
+      setUnreadCount((prev) => prev);
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [unreadCount]);
 
   // Initialize component
   useEffect(() => {
@@ -271,11 +347,19 @@ export function NotificationBell() {
             </div>
 
             {/* Badge for unread count */}
-            {unreadCount > 0 && (
-              <Badge className="absolute -right-1 -top-1 h-5 w-5 rounded-full p-0 flex items-center justify-center bg-red-500 text-white border-2 border-background animate-pulse">
-                {unreadCount > 99 ? "99+" : unreadCount}
-              </Badge>
-            )}
+            {(() => {
+              // Force evaluation of the current unreadCount value
+              const currentCount = unreadCount;
+              // Use the current count for the badge
+              return currentCount > 0 ? (
+                <Badge
+                  key={`badge-count-${currentCount}`} // Add key to force re-render
+                  className="absolute -right-1 -top-1 h-5 w-5 rounded-full p-0 flex items-center justify-center bg-red-500 text-white border-2 border-background animate-pulse"
+                >
+                  {currentCount > 99 ? "99+" : currentCount}
+                </Badge>
+              ) : null;
+            })()}
 
             {/* Connection status indicator */}
             <span
@@ -292,8 +376,16 @@ export function NotificationBell() {
           <div className="flex items-center justify-between mb-2">
             <h4 className="font-semibold text-sm">
               Pending Orders
-              <span className="text-xs font-normal text-gray-500 ml-1">
-                ({notifications.length})
+              <span
+                className="text-xs font-normal text-gray-500 ml-1"
+                key={`header-count-${unreadCount}`} // Add key to force re-render
+              >
+                {(() => {
+                  // Force evaluation of the current unreadCount value
+                  const currentCount = unreadCount;
+                  // Use the current count for the dropdown header
+                  return `(${currentCount})`;
+                })()}
               </span>
             </h4>
             <Button
