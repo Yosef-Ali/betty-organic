@@ -3,6 +3,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import type { Database } from '@/types/supabase';
+import { type CookieOptions } from '@supabase/ssr';
 
 // Get the Supabase URL and key from environment variables
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -28,27 +29,33 @@ export async function createClient() {
         get(name: string) {
           return cookieStore.get(name)?.value;
         },
-        set(name: string, value: string, options: any) {
+        set(name: string, value: string, options: CookieOptions) {
           try {
             // Only set cookies in server context
             cookieStore.set(name, value, {
               ...options,
-              sameSite: 'lax',
+              // Making sure sameSite is one of the expected string values
+              sameSite: options.sameSite === true ? 'strict' :
+                options.sameSite === false ? 'none' :
+                  options.sameSite || 'lax',
               secure: process.env.NODE_ENV === 'production',
-              maxAge: 60 * 60 * 24 * 7, // 7 days
-              httpOnly: true, // Make all auth cookies httpOnly for security
-              path: '/' // Ensure consistent path
+              path: options.path || '/' // Ensure consistent path
             });
           } catch (error) {
             // Log but don't throw - allow graceful degradation
             console.error('Error setting cookie:', error);
           }
         },
-        remove(name: string, options: any) {
+        remove(name: string, options: CookieOptions) {
           try {
             cookieStore.set(name, '', {
               ...options,
-              maxAge: -1
+              // Making sure sameSite is one of the expected string values
+              sameSite: options.sameSite === true ? 'strict' :
+                options.sameSite === false ? 'none' :
+                  options.sameSite || 'lax',
+              path: options.path || '/',
+              maxAge: 0
             });
           } catch (error) {
             console.error('Error removing cookie:', error);

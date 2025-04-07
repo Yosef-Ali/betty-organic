@@ -69,8 +69,8 @@ import { SortingState } from '@tanstack/react-table';
 
 interface OrdersDataTableProps {
   orders: ExtendedOrder[];
-  onSelectOrder: (id: string) => void;
-  onDeleteOrder: (id: string) => Promise<void>;
+  onSelectOrderAction: (id: string) => void;
+  onDeleteOrderAction: (id: string) => Promise<void>;
   isLoading: boolean;
   onOrdersUpdated?: (options?: { silent?: boolean }) => Promise<void>;
 }
@@ -105,8 +105,8 @@ function isOrderPayload(obj: any): obj is OrderPayload {
 
 export function OrdersDataTable({
   orders,
-  onSelectOrder,
-  onDeleteOrder,
+  onSelectOrderAction,
+  onDeleteOrderAction,
   isLoading,
   onOrdersUpdated,
 }: OrdersDataTableProps) {
@@ -288,7 +288,7 @@ export function OrdersDataTable({
           return (
             <div
               className="font-medium cursor-pointer"
-              onClick={() => onSelectOrder(orderId)}
+              onClick={() => onSelectOrderAction(orderId)}
             >
               #{displayId}
             </div>
@@ -396,7 +396,7 @@ export function OrdersDataTable({
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
                 <DropdownMenuItem
-                  onClick={() => onSelectOrder(row.original.id)}
+                  onClick={() => onSelectOrderAction(row.original.id)}
                 >
                   <Eye className="mr-2 h-4 w-4" />
                   View details
@@ -443,7 +443,7 @@ export function OrdersDataTable({
 
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  onClick={() => onDeleteOrder(row.original.id)}
+                  onClick={() => onDeleteOrderAction(row.original.id)}
                   className="text-red-600"
                 >
                   <Trash className="mr-2 h-4 w-4" />
@@ -455,7 +455,7 @@ export function OrdersDataTable({
         },
       },
     ],
-    [onSelectOrder, onDeleteOrder, toast],
+    [onSelectOrderAction, onDeleteOrderAction, toast],
   );
 
   return (

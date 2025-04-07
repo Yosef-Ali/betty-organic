@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { deleteOrder, getOrderDetails } from '@/app/actions/orderActions';
 import { Profile } from '@/lib/types/auth';
@@ -22,43 +22,9 @@ interface OrderDetails {
   total_amount: number;
 }
 
-// Define type for SelectQueryError
-interface SelectQueryError {
-  code: string;
-  message: string;
-}
-
-// Define OrderData interface to type the response from API
-interface OrderData {
-  id: string;
-  display_id?: string;
-  created_at: string;
-  updated_at?: string;
-  profile?: Profile;
-  customer?: Profile;
-  order_items?: Array<{
-    id: string;
-    product?: { name: string };
-    product_name?: string;
-    price: number;
-    quantity: number;
-  }>;
-  total_amount?: number;
-}
-
-// Helper function to check if an object is a SelectQueryError
-function isSelectQueryError(obj: any): obj is SelectQueryError {
-  return obj && typeof obj === 'object' && 'code' in obj && 'message' in obj;
-}
-
 // Helper function to check if object is an error with message
 function hasErrorMessage(obj: any): obj is { message: string } {
   return obj && typeof obj === 'object' && 'message' in obj && typeof obj.message === 'string';
-}
-
-// Helper function to check if object is OrderData
-function isOrderData(obj: any): obj is OrderData {
-  return obj && typeof obj === 'object' && 'id' in obj;
 }
 
 export function useOrderDetails(orderId: string) {
@@ -68,31 +34,46 @@ export function useOrderDetails(orderId: string) {
     isAuth?: boolean;
   } | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [retryCount, setRetryCount] = useState(0);
   const router = useRouter();
 
+  // Function to retry loading order details
+  const retryFetch = useCallback(() => {
+    setRetryCount(prev => prev + 1);
+    setError(null);
+    setIsLoading(true);
+  }, []);
+
   useEffect(() => {
+    let isMounted = true;
+
     async function fetchOrderDetails() {
+      if (!isMounted) return;
+
+      setIsLoading(true);
+      setError(null);
+
       try {
+        console.log(`[OrderDetails] Fetching order details for ID: ${orderId}`);
+        const startTime = Date.now();
         const { data, error } = await getOrderDetails(orderId);
+        const endTime = Date.now();
+        console.log(`[OrderDetails] Fetch completed in ${endTime - startTime}ms`);
 
         if (error) {
-          if (hasErrorMessage(error) && error.message.includes('permission denied')) {
-            throw new Error('You do not have permission to view this order');
-          }
-          if (hasErrorMessage(error) && error.message.includes('JWT expired')) {
-            router.push('/auth/signin');
-            return;
-          }
-          throw error;
+          console.error(`[OrderDetails] Error fetching order: ${error}`);
+          throw new Error(error);
         }
 
         if (!data) {
+          console.error(`[OrderDetails] No data returned for order ID: ${orderId}`);
           throw new Error('Order not found');
         }
 
-        // Create default profile if data.profile is missing
+        // Create a default profile if needed
         const defaultProfile: Profile = {
-          id: 'temp-id',
+          id: 'default-id',
           name: 'Unknown Customer',
           email: 'No Email',
           role: 'customer',
@@ -103,58 +84,62 @@ export function useOrderDetails(orderId: string) {
           auth_provider: 'none',
         };
 
-        // Check if data is a SelectQueryError and throw early
-        if (isSelectQueryError(data)) {
-          console.error('Query error in fetchOrderDetails:', data.message);
-          throw new Error(`Database error: ${data.message}`);
-        }
-
-        // Check if data is valid OrderData
-        if (!isOrderData(data)) {
-          throw new Error('Invalid order data structure received');
-        }
-
-        // At this point, TypeScript knows data is OrderData
-        const orderData = data;
-
         // Transform the data to match our interface
         const transformedOrder: OrderDetails = {
-          id: orderData.id,
-          display_id: orderData.display_id,
-          createdAt: orderData.created_at,
-          updatedAt: orderData.updated_at,
-          // Safely access profile or customer properties
-          profile: orderData.profile || orderData.customer || defaultProfile,
-          items: Array.isArray(orderData.order_items)
-            ? orderData.order_items.map(item => ({
-              id: item.id,
-              product: {
-                name: item.product?.name || item.product_name || 'Unknown Product',
-              },
-              price: item.price,
-              quantity: item.quantity,
-            }))
-            : [],
-          total_amount: orderData.total_amount || 0,
+          id: data.id,
+          display_id: data.display_id || '',
+          createdAt: data.created_at,
+          updatedAt: data.updated_at || '',
+          profile: data.customer || defaultProfile,
+          items: Array.isArray(data.items) ? data.items.map(item => ({
+            id: item.id || '',
+            product: {
+              name: item.product_name || 'Unknown Product',
+            },
+            price: item.price || 0,
+            quantity: item.quantity || 0,
+          })) : [],
+          total_amount: data.total_amount || 0,
         };
 
-        setOrder(transformedOrder);
+        if (isMounted) {
+          console.log(`[OrderDetails] Setting order data for ID: ${orderId}`);
+          setOrder(transformedOrder);
+        }
       } catch (err: any) {
-        const errorMessage = hasErrorMessage(err) ? err.message : 'Failed to load order details';
-        const isAuthError = hasErrorMessage(err) && (
-          err.message.includes('JWT expired') ||
-          err.message.includes('Authentication required')
-        );
+        if (isMounted) {
+          const errorMessage = hasErrorMessage(err) ? err.message : 'Failed to load order details';
+          const isAuthError = hasErrorMessage(err) && (
+            err.message.includes('JWT expired') ||
+            err.message.includes('Authentication required')
+          );
 
-        setError({
-          message: errorMessage,
-          isAuth: isAuthError,
-        });
+          console.error(`[OrderDetails] Error: ${errorMessage}`);
+          setError({
+            message: errorMessage,
+            isAuth: isAuthError,
+          });
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     }
 
     fetchOrderDetails();
-  }, [orderId, router]);
+
+    // Cleanup function
+    return () => {
+      isMounted = false;
+    };
+  }, [orderId, router, retryCount]); // Add retryCount to dependencies
+
+  // Function to handle manual retry
+  const handleRetry = useCallback(() => {
+    console.log(`[OrderDetails] Retrying fetch for order ID: ${orderId}`);
+    retryFetch();
+  }, [retryFetch, orderId]);
 
   const handleConfirmDelete = async () => {
     try {
@@ -173,8 +158,11 @@ export function useOrderDetails(orderId: string) {
   return {
     order,
     error,
+    isLoading,
     isDialogOpen,
     setIsDialogOpen,
     handleConfirmDelete,
+    handleRetry,
+    retryCount,
   };
 }

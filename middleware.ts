@@ -28,18 +28,36 @@ export async function middleware(request: NextRequest) {
             return request.cookies.get(name)?.value;
           },
           set(name: string, value: string, options: CookieOptions) {
+            // Handle sameSite properly to match expected string values
+            const sanitizedOptions = {
+              ...options,
+              // Convert boolean sameSite values to strings as required by NextResponse cookies
+              sameSite: options.sameSite === true ? 'strict' :
+                options.sameSite === false ? 'none' :
+                  options.sameSite || 'lax',
+            };
+
             response.cookies.set({
               name,
               value,
-              ...options,
+              ...sanitizedOptions,
             });
           },
           remove(name: string, options: CookieOptions) {
+            // Handle sameSite properly to match expected string values
+            const sanitizedOptions = {
+              ...options,
+              // Convert boolean sameSite values to strings as required by NextResponse cookies
+              sameSite: options.sameSite === true ? 'strict' :
+                options.sameSite === false ? 'none' :
+                  options.sameSite || 'lax',
+              maxAge: 0,
+            };
+
             response.cookies.set({
               name,
               value: '',
-              ...options,
-              maxAge: 0,
+              ...sanitizedOptions,
             });
           },
         },
@@ -87,8 +105,8 @@ export async function middleware(request: NextRequest) {
 
     // If we have an authenticated user, get the user's profile for role-based access
     if (user) {
-      // Get the session for additional data if needed
-      const { data: { session } } = await supabase.auth.getSession();
+      // We already have the authenticated user from getUser() above
+      // No need to call getSession() again
 
       const { data: profile } = await supabase
         .from('profiles')

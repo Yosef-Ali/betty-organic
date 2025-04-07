@@ -18,9 +18,6 @@ export async function GET() {
       return NextResponse.json({ status: 'not_authenticated' }, { status: 200 });
     }
 
-    // Get session for additional data if needed
-    const { data: { session } } = await supabase.auth.getSession();
-
     // Fetch user profile
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
@@ -37,7 +34,7 @@ export async function GET() {
     return NextResponse.json({
       status: 'ok',
       initialized: true,
-      session,
+      user,
       profile
     }, { status: 200 });
 

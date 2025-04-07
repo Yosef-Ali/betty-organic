@@ -1,25 +1,25 @@
 // OrderDashboard.tsx
-'use client';
+"use client";
 
-import React, { useEffect, useMemo, useCallback, useState } from 'react';
-import { Button } from './ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { File } from 'lucide-react';
-import { OrdersOverviewCard } from './OrdersOverviewCard';
-import { StatCard } from './StatCard';
-import OrderDetails from './OrderDetailsCard';
+import React, { useEffect, useMemo, useCallback, useState } from "react";
+import { Button } from "./ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import { File } from "lucide-react";
+import { OrdersOverviewCard } from "./OrdersOverviewCard";
+import { StatCard } from "./StatCard";
+import OrderDetails from "./OrderDetailsCard";
 // Assume getOrderById exists, will be created later
 import {
   getOrders,
   deleteOrder,
   getOrderById,
-} from '../app/actions/orderActions';
-import { getCustomers } from '../app/actions/profile';
-import { useToast } from '../hooks/use-toast';
-import OrderTable from './OrdersTable';
-import type { Order, OrderItem } from '@/types/order'; // Removed CustomerProfile import
-import { createClient } from '@/lib/supabase/client';
-import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
+} from "../app/actions/orderActions";
+import { getCustomers } from "../app/actions/profile";
+import { useToast } from "../hooks/use-toast";
+import OrderTable from "./OrdersTable";
+import type { Order, OrderItem } from "@/types/order"; // Removed CustomerProfile import
+import { createClient } from "@/lib/supabase/client";
+import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 
 interface OrderPayload {
   id: string;
@@ -29,14 +29,14 @@ interface OrderPayload {
 // Type guard to check if an object is an OrderPayload
 function isOrderPayload(obj: any): obj is OrderPayload {
   return (
-    obj && typeof obj === 'object' && 'id' in obj && typeof obj.id === 'string'
+    obj && typeof obj === "object" && "id" in obj && typeof obj.id === "string"
   );
 }
 
 export const OrderType = {
-  SALE: 'sale',
-  REFUND: 'refund',
-  CREDIT: 'credit',
+  SALE: "sale",
+  REFUND: "refund",
+  CREDIT: "credit",
 } as const;
 
 export type OrderType = (typeof OrderType)[keyof typeof OrderType];
@@ -47,7 +47,7 @@ const OrderDashboard: React.FC = () => {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [connectionStatus, setConnectionStatus] =
-    useState<string>('Not connected');
+    useState<string>("Not connected");
   const [logs, setLogs] = useState<string[]>([]);
   const [lastUpdateTime, setLastUpdateTime] = useState<Date | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -57,7 +57,7 @@ const OrderDashboard: React.FC = () => {
   // Add debug logging function
   const addLog = (message: string) => {
     console.log(`[OrderDashboard] ${message}`);
-    setLogs(prev => [...prev, `${new Date().toISOString()} - ${message}`]);
+    setLogs((prev) => [...prev, `${new Date().toISOString()} - ${message}`]);
   };
 
   // Function to convert a single raw order from DB/payload to the Order type used in UI
@@ -65,16 +65,16 @@ const OrderDashboard: React.FC = () => {
     (orderData: any, customerList: any[]): Order => {
       const orderAny = orderData as any;
       const customerFromList = orderAny.customer_profile_id
-        ? customerList.find(c => c.id === orderAny.customer_profile_id)
+        ? customerList.find((c) => c.id === orderAny.customer_profile_id)
         : null;
 
       // Fallback customer structure
       const fallbackCustomer = {
-        id: 'unknown',
-        name: 'Unknown Customer',
-        email: 'N/A',
+        id: "unknown",
+        name: "Unknown Customer",
+        email: "N/A",
         phone: null,
-        role: 'customer',
+        role: "customer",
       };
 
       // Determine customer details
@@ -85,16 +85,16 @@ const OrderDashboard: React.FC = () => {
           name: customerFromList.fullName || customerFromList.name || null, // Check multiple possible name fields
           email: customerFromList.email,
           phone: customerFromList.phone || null,
-          role: 'customer', // Assuming role is always customer here
+          role: "customer", // Assuming role is always customer here
         };
       } else if (orderAny.customer) {
         // If customer data is directly embedded (e.g., from getOrderById)
         customerDetails = {
-          id: orderAny.customer.id || 'unknown',
+          id: orderAny.customer.id || "unknown",
           name: orderAny.customer.fullName || orderAny.customer.name || null,
-          email: orderAny.customer.email || 'N/A',
+          email: orderAny.customer.email || "N/A",
           phone: orderAny.customer.phone || null,
-          role: 'customer',
+          role: "customer",
         };
       }
 
@@ -116,24 +116,24 @@ const OrderDashboard: React.FC = () => {
             id: item.id,
             product_id: item.product_id,
             product_name:
-              item.product_name || item.product?.name || 'Unknown Product', // Get name from item or nested product
+              item.product_name || item.product?.name || "Unknown Product", // Get name from item or nested product
             quantity: item.quantity,
             price: item.price,
             // Corrected: Only include properties expected by the type (assuming just 'name')
             product: item.product ? { name: item.product.name } : undefined,
-          }),
+          })
         ),
       };
     },
-    [],
+    []
   );
 
   // Function to convert multiple database orders
   const processMultipleOrders = useCallback(
     (ordersData: any[], customerList: any[]): Order[] => {
-      return ordersData.map(order => processSingleOrder(order, customerList));
+      return ordersData.map((order) => processSingleOrder(order, customerList));
     },
-    [processSingleOrder],
+    [processSingleOrder]
   );
 
   // Enhanced function to load data with minimal visual disruption
@@ -170,20 +170,20 @@ const OrderDashboard: React.FC = () => {
         // Fetch orders
         const ordersResponse = await getOrders();
         if (!ordersResponse) {
-          throw new Error('Failed to fetch orders');
+          throw new Error("Failed to fetch orders");
         }
         const ordersData = Array.isArray(ordersResponse) ? ordersResponse : [];
 
         // Process orders using the stored customer list
         const processedOrders = processMultipleOrders(
           ordersData,
-          customersData,
+          customersData
         );
 
         const sortedOrders = processedOrders.sort(
           (a, b) =>
             new Date(b.created_at ?? 0).getTime() -
-            new Date(a.created_at ?? 0).getTime(),
+            new Date(a.created_at ?? 0).getTime()
         );
 
         // Check if orders have changed before updating state
@@ -198,13 +198,13 @@ const OrderDashboard: React.FC = () => {
           // Only show toast for explicit manual refresh button clicks
           if (!silent && !isInitial && showToast) {
             toast({
-              title: 'Orders Updated',
+              title: "Orders Updated",
               description: `${sortedOrders.length} orders loaded`,
               duration: 3000,
             });
           }
         } else {
-          addLog('No changes detected in orders data');
+          addLog("No changes detected in orders data");
         }
 
         // Set initial selection only if no order is currently selected
@@ -214,15 +214,15 @@ const OrderDashboard: React.FC = () => {
           setSelectedOrderId(null); // Clear selection if no orders
         }
       } catch (error) {
-        console.error('Error fetching data:', error);
+        console.error("Error fetching data:", error);
         const errorMessage =
-          error instanceof Error ? error.message : 'Failed to fetch data';
+          error instanceof Error ? error.message : "Failed to fetch data";
 
         // Always show errors, even in silent mode
         toast({
-          title: 'Error',
+          title: "Error",
           description: `${errorMessage}. Please try again.`,
-          variant: 'destructive',
+          variant: "destructive",
           // Mark error toasts as important so they require manual dismissal
           important: true,
         });
@@ -236,19 +236,19 @@ const OrderDashboard: React.FC = () => {
         setIsUpdating(false);
       }
     },
-    [processMultipleOrders, toast, selectedOrderId, orders],
+    [processMultipleOrders, toast, selectedOrderId, orders]
   ); // Add orders as dependency
 
   // Enhanced Supabase real-time subscriptions with minimal visual disruption
   useEffect(() => {
     // Load initial data with initial flag set to true
     loadData({ isInitial: true });
-    addLog('Setting up realtime listeners...');
+    addLog("Setting up realtime listeners...");
 
     // Clear any existing listeners to prevent duplicates
-    if (typeof localStorage !== 'undefined') {
-      Object.keys(localStorage).forEach(key => {
-        if (key.startsWith('supabase.realtime')) {
+    if (typeof localStorage !== "undefined") {
+      Object.keys(localStorage).forEach((key) => {
+        if (key.startsWith("supabase.realtime")) {
           localStorage.removeItem(key);
         }
       });
@@ -258,48 +258,48 @@ const OrderDashboard: React.FC = () => {
 
     // Subscribe to changes on the orders table with enhanced handling
     const ordersChannel = supabaseClient
-      .channel('orders-dashboard')
+      .channel("orders-dashboard")
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: '*',
-          schema: 'public',
-          table: 'orders',
+          event: "*",
+          schema: "public",
+          table: "orders",
         },
         async (payload: RealtimePostgresChangesPayload<OrderPayload>) => {
           const eventType = payload.eventType;
           const orderId = isOrderPayload(payload.new)
             ? payload.new.id
             : isOrderPayload(payload.old)
-            ? payload.old.id
-            : undefined;
+              ? payload.old.id
+              : undefined;
           const displayId =
             (payload.new &&
-            typeof payload.new === 'object' &&
-            'display_id' in payload.new
+              typeof payload.new === "object" &&
+              "display_id" in payload.new
               ? payload.new.display_id
               : undefined) ||
             (payload.old &&
-            typeof payload.old === 'object' &&
-            'display_id' in payload.old
+              typeof payload.old === "object" &&
+              "display_id" in payload.old
               ? payload.old.display_id
               : undefined) ||
-            (orderId ? orderId.slice(0, 8) : 'unknown');
+            (orderId ? orderId.slice(0, 8) : "unknown");
 
           addLog(
-            `Orders change received: ${eventType} for order #${displayId}`,
+            `Orders change received: ${eventType} for order #${displayId}`
           );
 
           // Handle different event types with minimal disruption
           switch (eventType) {
-            case 'INSERT':
+            case "INSERT":
               // For new orders, update the table silently and show a subtle indicator
               // in the UI instead of a toast notification
               break;
-            case 'UPDATE':
+            case "UPDATE":
               // For updates, only log the change - no toast needed
               break;
-            case 'DELETE':
+            case "DELETE":
               // For deletions, only log the change - no toast needed
               // If the currently selected order was deleted, select a different one
               if (
@@ -307,7 +307,7 @@ const OrderDashboard: React.FC = () => {
                 selectedOrderId === payload.old.id
               ) {
                 const firstAvailableOrder = orders.find(
-                  o => o.id !== payload.old.id,
+                  (o) => o.id !== payload.old.id
                 );
                 if (firstAvailableOrder) {
                   setSelectedOrderId(firstAvailableOrder.id);
@@ -320,27 +320,27 @@ const OrderDashboard: React.FC = () => {
 
           // Refresh the data silently without any visual indicators
           await loadData({ silent: true });
-        },
+        }
       )
       .subscribe((status: string) => {
         addLog(`Orders subscription status: ${status}`);
         setConnectionStatus(status);
 
-        if (status === 'SUBSCRIBED') {
+        if (status === "SUBSCRIBED") {
           // Just update the connection status indicator - no toast needed
-          console.log('Realtime connected successfully');
-        } else if (status === 'CHANNEL_ERROR') {
+          console.log("Realtime connected successfully");
+        } else if (status === "CHANNEL_ERROR") {
           // Only show toast for connection errors since they require attention
           toast({
-            title: 'Connection Error',
-            description: 'Failed to connect to real-time updates. Retrying...',
-            variant: 'destructive',
+            title: "Connection Error",
+            description: "Failed to connect to real-time updates. Retrying...",
+            variant: "destructive",
             important: true, // Mark as important so user must dismiss it
           });
 
           // Try to reconnect after a delay
           setTimeout(() => {
-            addLog('Attempting to reconnect...');
+            addLog("Attempting to reconnect...");
             supabaseClient.removeChannel(ordersChannel);
             // The channel will be recreated on the next render
           }, 5000);
@@ -349,40 +349,40 @@ const OrderDashboard: React.FC = () => {
 
     // Subscribe to changes on order_items with enhanced handling
     const orderItemsChannel = supabaseClient
-      .channel('order-items-dashboard')
+      .channel("order-items-dashboard")
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: '*',
-          schema: 'public',
-          table: 'order_items',
+          event: "*",
+          schema: "public",
+          table: "order_items",
         },
         async (payload: RealtimePostgresChangesPayload<OrderPayload>) => {
           const eventType = payload.eventType;
           const itemId = isOrderPayload(payload.new)
             ? payload.new.id
             : isOrderPayload(payload.old)
-            ? payload.old.id
-            : 'unknown';
+              ? payload.old.id
+              : "unknown";
           const orderId =
             payload.new &&
-            typeof payload.new === 'object' &&
-            'order_id' in payload.new
+              typeof payload.new === "object" &&
+              "order_id" in payload.new
               ? payload.new.order_id
               : payload.old &&
-                typeof payload.old === 'object' &&
-                'order_id' in payload.old
-              ? payload.old.order_id
-              : 'unknown';
+                typeof payload.old === "object" &&
+                "order_id" in payload.old
+                ? payload.old.order_id
+                : "unknown";
 
           addLog(
-            `Order items change detected: ${eventType} for item ${itemId} in order ${orderId}`,
+            `Order items change detected: ${eventType} for item ${itemId} in order ${orderId}`
           );
 
           // No toasts for order item changes - just update the data silently
           // Refresh the data silently without any visual indicators
           await loadData({ silent: true });
-        },
+        }
       )
       .subscribe((status: string) => {
         addLog(`Order items subscription status: ${status}`);
@@ -391,12 +391,12 @@ const OrderDashboard: React.FC = () => {
     // Add a very infrequent backup polling mechanism for reliability
     // This is just a safety net in case realtime updates fail
     const pollingInterval = setInterval(() => {
-      addLog('Backup polling for order updates');
+      addLog("Backup polling for order updates");
       loadData({ silent: true }); // Completely silent update for polling
     }, 300000); // Poll every 5 minutes as a backup - reduced frequency
 
     return () => {
-      addLog('Cleaning up realtime subscriptions');
+      addLog("Cleaning up realtime subscriptions");
       supabaseClient.removeChannel(ordersChannel);
       supabaseClient.removeChannel(orderItemsChannel);
       clearInterval(pollingInterval);
@@ -411,21 +411,20 @@ const OrderDashboard: React.FC = () => {
         // Error is already handled by the action potentially, but add toast here for UI feedback
         // Corrected: Pass error message string to new Error()
         const errorMessage =
-          typeof result.error === 'string'
+          typeof result.error === "string"
             ? result.error
-            : 'Failed to delete order server-side';
+            : "Failed to delete order server-side";
         throw new Error(errorMessage);
       }
       // Toast is now handled by the Realtime DELETE event handler
       // Selection logic is now handled by the Realtime DELETE event handler
     } catch (error) {
-      console.error('Error initiating order deletion:', error);
+      console.error("Error initiating order deletion:", error);
       toast({
-        title: 'Error',
-        description: `Failed to initiate order deletion: ${
-          error instanceof Error ? error.message : 'Unknown error'
-        }`,
-        variant: 'destructive',
+        title: "Error",
+        description: `Failed to initiate order deletion: ${error instanceof Error ? error.message : "Unknown error"
+          }`,
+        variant: "destructive",
         important: true, // Mark error as important
       });
     }
@@ -467,7 +466,7 @@ const OrderDashboard: React.FC = () => {
 
     const computeTotal = (startDate: Date, endDate: Date) => {
       return orders
-        .filter(order => {
+        .filter((order) => {
           const orderDate = new Date(order.created_at ?? 0);
           return orderDate >= startDate && orderDate < endDate;
         })
@@ -510,17 +509,15 @@ const OrderDashboard: React.FC = () => {
           <StatCard
             title="This Week"
             value={`Br ${currentWeekTotal.toFixed(2)}`}
-            change={`${
-              currentWeekChangePercentage >= 0 ? '+' : ''
-            }${currentWeekChangePercentage.toFixed(2)}% from last week`}
+            change={`${currentWeekChangePercentage >= 0 ? "+" : ""
+              }${currentWeekChangePercentage.toFixed(2)}% from last week`}
             changePercentage={currentWeekChangePercentage}
           />
           <StatCard
             title="This Month"
             value={`Br ${currentMonthTotal.toFixed(2)}`}
-            change={`${
-              currentMonthChangePercentage >= 0 ? '+' : ''
-            }${currentMonthChangePercentage.toFixed(2)}% from last month`}
+            change={`${currentMonthChangePercentage >= 0 ? "+" : ""
+              }${currentMonthChangePercentage.toFixed(2)}% from last month`}
             changePercentage={currentMonthChangePercentage}
           />
         </div>
@@ -535,14 +532,13 @@ const OrderDashboard: React.FC = () => {
               {/* Realtime status indicator - more subtle */}
               <div className="flex items-center ml-2">
                 <div
-                  className={`h-2 w-2 rounded-full mr-1 ${
-                    connectionStatus === 'SUBSCRIBED'
-                      ? 'bg-green-500' // No animation to avoid distraction
-                      : 'bg-yellow-500' // Yellow instead of red for less alarm
-                  }`}
+                  className={`h-2 w-2 rounded-full mr-1 ${connectionStatus === "SUBSCRIBED"
+                      ? "bg-green-500" // No animation to avoid distraction
+                      : "bg-yellow-500" // Yellow instead of red for less alarm
+                    }`}
                 ></div>
                 <span className="text-xs text-muted-foreground">
-                  {connectionStatus === 'SUBSCRIBED' ? 'Live' : 'Connecting...'}
+                  {connectionStatus === "SUBSCRIBED" ? "Live" : "Connecting..."}
                 </span>
 
                 {lastUpdateTime && (
@@ -562,7 +558,7 @@ const OrderDashboard: React.FC = () => {
                 disabled={isLoading}
               >
                 <svg
-                  className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`}
+                  className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`}
                   xmlns="http://www.w3.org/2000/svg"
                   fill="none"
                   viewBox="0 0 24 24"
@@ -598,11 +594,11 @@ const OrderDashboard: React.FC = () => {
             <OrderTable
               key="week-orders"
               orders={orders}
-              onSelectOrder={setSelectedOrderId}
+              onSelectOrderAction={setSelectedOrderId}
               onDeleteOrder={handleDelete}
               isLoading={isLoading || isUpdating}
               connectionStatus={connectionStatus}
-              onOrdersUpdated={options => loadData(options)}
+              onOrdersUpdated={(options) => loadData(options)}
               setConnectionStatus={setConnectionStatus}
             />
           </TabsContent>
@@ -610,11 +606,11 @@ const OrderDashboard: React.FC = () => {
             <OrderTable
               key="month-orders"
               orders={orders}
-              onSelectOrder={setSelectedOrderId}
+              onSelectOrderAction={setSelectedOrderId}
               onDeleteOrder={handleDelete}
               isLoading={isLoading || isUpdating}
               connectionStatus={connectionStatus}
-              onOrdersUpdated={options => loadData(options)}
+              onOrdersUpdated={(options) => loadData(options)}
               setConnectionStatus={setConnectionStatus}
             />
           </TabsContent>

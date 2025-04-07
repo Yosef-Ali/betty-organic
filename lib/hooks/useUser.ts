@@ -6,16 +6,43 @@ export function useUser() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState<string | null>(null);
+
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get(name: string) {
-          return document.cookie.match(new RegExp(`(^| )${name}=([^;]+)`))?.[2];
+        get: (name) => {
+          const match = document.cookie.match(new RegExp(`(^| )${name}=([^;]+)`));
+          return match?.[2];
+        },
+        set: (name, value, options) => {
+          let cookie = `${name}=${value}`;
+          if (options) {
+            if (options.path) cookie += `; path=${options.path}`;
+            if (options.domain) cookie += `; domain=${options.domain}`;
+            if (options.maxAge) cookie += `; max-age=${options.maxAge}`;
+            if (options.sameSite) {
+              if (typeof options.sameSite === 'string') {
+                cookie += `; samesite=${options.sameSite}`;
+              } else if (options.sameSite === true) {
+                cookie += `; samesite=strict`;
+              }
+            }
+            if (options.secure) cookie += `; secure`;
+          }
+          document.cookie = cookie;
+        },
+        remove: (name, options) => {
+          let cookie = `${name}=; max-age=0`;
+          if (options) {
+            if (options.path) cookie += `; path=${options.path}`;
+            if (options.domain) cookie += `; domain=${options.domain}`;
+          }
+          document.cookie = cookie;
         },
       },
-    },
+    }
   );
 
   useEffect(() => {
@@ -23,8 +50,6 @@ export function useUser() {
 
     const loadUserData = async () => {
       try {
-        // Use getUser instead of getSession for better security
-        // getUser verifies with the Supabase Auth server
         const {
           data: { user },
           error: userError,
@@ -40,7 +65,6 @@ export function useUser() {
           return;
         }
 
-        // Get profile data
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('role, avatar_url')
@@ -48,9 +72,6 @@ export function useUser() {
           .single();
 
         if (profileError) throw profileError;
-
-        // Get session for additional data if needed
-        const { data: { session } } = await supabase.auth.getSession();
 
         if (mounted) {
           setUser({

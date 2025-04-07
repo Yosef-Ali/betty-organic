@@ -1,4 +1,7 @@
 {
   "python.defaultInterpreterPath": "/opt/homebrew/bin/python3",
-  "python.pythonPath": "/opt/homebrew/bin/python3"
+  "python.pythonPath": "/opt/homebrew/bin/python3",
+  "cSpell.words": [
+    "supabase"
+  ]
 }
