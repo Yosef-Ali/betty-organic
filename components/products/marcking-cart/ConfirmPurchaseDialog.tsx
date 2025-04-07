@@ -56,6 +56,42 @@ export const ConfirmPurchaseDialog = ({
   const router = useRouter();
   const { user, profile, isLoading } = useAuth();
 
+  // Track if this is a signed-in user with a separate state to ensure UI consistency
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+
+  // Set the authentication state when user data changes
+  useEffect(() => {
+    if (!isLoading) {
+      setIsAuthenticated(!!user);
+      console.log("SETTING AUTH STATE:", !!user, user?.id);
+    }
+  }, [user, isLoading]);
+
+  // Debug logging for authentication state
+  useEffect(() => {
+    console.log("Authentication state in ConfirmPurchaseDialog:", {
+      isAuthenticated,
+      authFromHook: !!user,
+      userId: user?.id,
+      userEmail: user?.email,
+      hasProfile: !!profile,
+      isLoading,
+      currentStep
+    });
+
+    // Reset the dialog to review step whenever it opens
+    // This ensures the correct flow for the current authentication state
+    if (isOpen) {
+      setCurrentStep('review');
+      setOrderPlaced(false);
+    }
+  }, [user, profile, isLoading, isOpen, currentStep, isAuthenticated]);
+
+  // Debug logging for step changes
+  useEffect(() => {
+    console.log("Current step changed to:", currentStep);
+  }, [currentStep]);
+
   // Debug logging for the total amount
   useEffect(() => {
     console.log("Current total in ConfirmPurchaseDialog:", total);
@@ -63,6 +99,19 @@ export const ConfirmPurchaseDialog = ({
       console.log("Order details total:", orderDetails.total);
     }
   }, [total, orderDetails]);
+
+  // Initialize customer info from profile when available
+  useEffect(() => {
+    if (user && profile && !isLoading) {
+      setCustomerInfo(prevInfo => ({
+        ...prevInfo,
+        name: profile.name || user.email?.split('@')[0] || '',
+        phone: profile.phone || '',
+        // Only update address if it's not already set by user
+        ...(prevInfo.address === '' ? { address: profile.address || '' } : {})
+      }));
+    }
+  }, [user, profile, isLoading]);
 
   const handleInfoChange = (field: keyof CustomerInfo) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -122,12 +171,12 @@ export const ConfirmPurchaseDialog = ({
       }
 
       // For signed-in users, only address is required
-      if (user && !customerInfo.address.trim()) {
+      if (isAuthenticated === true && !customerInfo.address.trim()) {
         throw new Error("Please provide a delivery address");
       }
 
       // For non-signed-in users, phone and address are required
-      if (!user && !isCustomerInfoValid()) {
+      if (isAuthenticated === false && !isCustomerInfoValid()) {
         throw new Error("Please provide valid contact information");
       }
 
@@ -150,7 +199,7 @@ export const ConfirmPurchaseDialog = ({
 
       // For signed-in users, proceed with order placement
       // For non-signed-in users, just prepare order details for WhatsApp sharing
-      if (user) {
+      if (isAuthenticated === true) {
         // Call handlePurchaseOrder only for signed-in users
         const result = await handlePurchaseOrder(items, total);
 
@@ -273,7 +322,9 @@ export const ConfirmPurchaseDialog = ({
         <Button variant="outline" onClick={onClose}>
           Cancel
         </Button>
-        <Button onClick={() => setCurrentStep('details')}>
+        <Button
+          onClick={handleContinueToDetails}
+        >
           Continue to Details
         </Button>
       </DialogFooter>
@@ -285,7 +336,7 @@ export const ConfirmPurchaseDialog = ({
       <DialogHeader>
         <DialogTitle>Delivery Details</DialogTitle>
         <DialogDescription className="text-wrap">
-          {!user ?
+          {isAuthenticated === false ?
             "Provide your contact details to continue with WhatsApp order" :
             "Please confirm your delivery address."
           }
@@ -294,7 +345,7 @@ export const ConfirmPurchaseDialog = ({
 
       <div className="space-y-4 py-4 overflow-hidden">
         {/* For non-signed-in users, show complete form */}
-        {!user && (
+        {isAuthenticated === false && (
           <>
             <div className="space-y-2">
               <Label htmlFor="name" className="flex items-center gap-2">
@@ -363,7 +414,7 @@ export const ConfirmPurchaseDialog = ({
         </div>
       </div>
 
-      {!user && (
+      {isAuthenticated === false && (
         <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
           <p className="text-sm text-green-700 flex items-center gap-2 flex-wrap">
             <Share2 className="w-4 h-4 flex-shrink-0" />
@@ -386,7 +437,7 @@ export const ConfirmPurchaseDialog = ({
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
         </Button>
 
-        {!user ? (
+        {isAuthenticated === false ? (
           <div className="flex flex-row gap-2 flex-1 justify-end">
             <Button
               variant="outline"
@@ -425,7 +476,7 @@ export const ConfirmPurchaseDialog = ({
 
   const renderOrderPlaced = () => (
     <>
-      {!user ? (
+      {isAuthenticated === false ? (
         <>
           <DialogHeader>
             <DialogTitle className="text-green-600 flex items-center gap-2">
@@ -539,15 +590,39 @@ export const ConfirmPurchaseDialog = ({
     </>
   );
 
+  // Force render on step change
+  const dialogContent = () => {
+    console.log("Rendering dialog content with currentStep:", currentStep);
+    if (orderPlaced) {
+      return renderOrderPlaced();
+    } else if (currentStep === 'review') {
+      return renderReviewStep();
+    } else {
+      return renderDetailsStep();
+    }
+  };
+
+  // Force manual rendering of content based on step
+  const [forceRender, setForceRender] = useState(0);
+
+  // Use direct function to handle step change that ensures re-render
+  const handleContinueToDetails = () => {
+    console.log("DIRECT FUNCTION: Switching from review to details");
+    // Update state with callback to ensure it gets the latest value
+    setCurrentStep('details');
+    // Force a re-render by updating an unrelated counter
+    setForceRender(prev => prev + 1);
+    // Log again after state should be updated
+    setTimeout(() => console.log("AFTER TIMEOUT: Current step is now:", currentStep), 10);
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
-        {orderPlaced
-          ? renderOrderPlaced()
-          : currentStep === 'review'
-            ? renderReviewStep()
-            : renderDetailsStep()
-        }
+        {/* Key forces re-render when steps change */}
+        <div key={`${currentStep}-${forceRender}`}>
+          {dialogContent()}
+        </div>
       </DialogContent>
     </Dialog>
   );
