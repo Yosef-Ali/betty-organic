@@ -33,14 +33,14 @@ export default function OrderError({
 
         {isPermissionError && (
           <div className="mt-2 text-center text-sm text-muted-foreground mb-4">
-            You don't have permission to view this order. Please contact support
+            You don&apos;t have permission to view this order. Please contact support
             if you believe this is an error.
           </div>
         )}
 
         {isNotFoundError && (
           <div className="mt-2 text-center text-sm text-muted-foreground mb-4">
-            The order you're looking for could not be found. It may have been
+            The order you&apos;re looking for could not be found. It may have been
             deleted or the ID is incorrect.
           </div>
         )}

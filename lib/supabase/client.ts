@@ -23,10 +23,32 @@ export const supabase = createSupabaseClient<Database>(SUPABASE_URL, SUPABASE_AN
   },
   realtime: {
     params: {
-      eventsPerSecond: 10
+      eventsPerSecond: 5 // Reduced from 10 to prevent rate limiting
     }
-  }
+  },
+  global: {
+    fetch: fetch.bind(globalThis), // Explicitly bind fetch
+    headers: { 'x-application-name': 'betty-organic-app' }
+  },
+  db: {
+    schema: 'public'
+  },
 });
 
 // Export a function to get the client for backward compatibility
 export const createClient = () => supabase;
+
+// Add a health check function to test connection
+export const checkSupabaseConnection = async () => {
+  try {
+    const { data, error } = await supabase.from('profiles').select('count', { count: 'exact', head: true });
+    if (error) {
+      console.error('Supabase connection error:', error);
+      return { connected: false, error: error.message };
+    }
+    return { connected: true };
+  } catch (err) {
+    console.error('Supabase connection check failed:', err);
+    return { connected: false, error: err instanceof Error ? err.message : 'Unknown connection error' };
+  }
+};

@@ -46,19 +46,9 @@ const OrderDashboard: React.FC = () => {
   const [customers, setCustomers] = useState<any[]>([]);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [connectionStatus, setConnectionStatus] =
-    useState<string>("Not connected");
-  const [logs, setLogs] = useState<string[]>([]);
-  const [lastUpdateTime, setLastUpdateTime] = useState<Date | null>(null);
-  const [isUpdating, setIsUpdating] = useState(false);
   const { toast } = useToast();
   const supabase = createClient();
 
-  // Add debug logging function
-  const addLog = (message: string) => {
-    console.log(`[OrderDashboard] ${message}`);
-    setLogs((prev) => [...prev, `${new Date().toISOString()} - ${message}`]);
-  };
 
   // Function to convert a single raw order from DB/payload to the Order type used in UI
   const processSingleOrder = useCallback(
@@ -155,7 +145,7 @@ const OrderDashboard: React.FC = () => {
         setIsLoading(true);
       } else if (!silent) {
         // For manual refresh, show a subtle updating indicator
-        setIsUpdating(true);
+        // setIsUpdating(true); // Removed
       }
       // For real-time updates (silent=true), don't show any loading indicators
 
@@ -194,9 +184,9 @@ const OrderDashboard: React.FC = () => {
           JSON.stringify(sortedOrders) !== JSON.stringify(currentOrders);
 
         if (ordersChanged) {
-          addLog(`Orders updated: ${sortedOrders.length} orders loaded`);
+          console.log(`Orders updated: ${sortedOrders.length} orders loaded`); // Replaced addLog
           setOrders(sortedOrders);
-          setLastUpdateTime(new Date()); // Record the update time
+          // setLastUpdateTime(new Date()); // Removed
 
           // Only show toast for explicit manual refresh button clicks
           if (!silent && !isInitial && showToast) {
@@ -207,7 +197,7 @@ const OrderDashboard: React.FC = () => {
             });
           }
         } else {
-          addLog("No changes detected in orders data");
+          console.log("No changes detected in orders data"); // Replaced addLog
         }
 
         // Set initial selection only if no order is currently selected
@@ -236,175 +226,16 @@ const OrderDashboard: React.FC = () => {
       } finally {
         // Always turn off loading states
         setIsLoading(false);
-        setIsUpdating(false);
+        // setIsUpdating(false); // Removed
       }
     },
     [processMultipleOrders, toast, selectedOrderId] // Removed orders dependency from here
   );
 
-  // Enhanced Supabase real-time subscriptions with minimal visual disruption
+  // Load initial data on component mount
   useEffect(() => {
-    // Load initial data with initial flag set to true
-    loadData({ isInitial: true });
-    addLog("Setting up realtime listeners...");
-
-    // Clear any existing listeners to prevent duplicates
-    if (typeof localStorage !== "undefined") {
-      Object.keys(localStorage).forEach((key) => {
-        if (key.startsWith("supabase.realtime")) {
-          localStorage.removeItem(key);
-        }
-      });
-    }
-
-    const supabaseClient = createClient();
-
-    // Subscribe to changes on the orders table with enhanced handling
-    const ordersChannel = supabaseClient
-      .channel("orders-dashboard")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "orders",
-        },
-        async (payload: RealtimePostgresChangesPayload<OrderPayload>) => {
-          const eventType = payload.eventType;
-          const orderId = isOrderPayload(payload.new)
-            ? payload.new.id
-            : isOrderPayload(payload.old)
-              ? payload.old.id
-              : undefined;
-          const displayId =
-            (payload.new &&
-              typeof payload.new === "object" &&
-              "display_id" in payload.new
-              ? payload.new.display_id
-              : undefined) ||
-            (payload.old &&
-              typeof payload.old === "object" &&
-              "display_id" in payload.old
-              ? payload.old.display_id
-              : undefined) ||
-            (orderId ? orderId.slice(0, 8) : "unknown");
-
-          addLog(
-            `Orders change received: ${eventType} for order #${displayId}`
-          );
-
-          // Handle different event types with minimal disruption
-          switch (eventType) {
-            case "INSERT":
-              // For new orders, update the table silently and show a subtle indicator
-              // in the UI instead of a toast notification
-              break;
-            case "UPDATE":
-              // For updates, only log the change - no toast needed
-              break;
-            case "DELETE":
-              // For deletions, only log the change - no toast needed
-              // If the currently selected order was deleted, select a different one
-              if (
-                isOrderPayload(payload.old) &&
-                selectedOrderId === payload.old.id
-              ) {
-                const firstAvailableOrder = orders.find(
-                  (o) => o.id !== payload.old.id
-                );
-                if (firstAvailableOrder) {
-                  setSelectedOrderId(firstAvailableOrder.id);
-                } else {
-                  setSelectedOrderId(null);
-                }
-              }
-              break;
-          }
-
-          // Refresh the data silently without any visual indicators
-          await loadData({ silent: true });
-        }
-      )
-      .subscribe((status: string) => {
-        addLog(`Orders subscription status: ${status}`);
-        setConnectionStatus(status);
-
-        if (status === "SUBSCRIBED") {
-          // Just update the connection status indicator - no toast needed
-          console.log("Realtime connected successfully");
-        } else if (status === "CHANNEL_ERROR") {
-          // Only show toast for connection errors since they require attention
-          toast({
-            title: "Connection Error",
-            description: "Failed to connect to real-time updates. Retrying...",
-            variant: "destructive",
-            important: true, // Mark as important so user must dismiss it
-          });
-
-          // Try to reconnect after a delay
-          setTimeout(() => {
-            addLog("Attempting to reconnect...");
-            supabaseClient.removeChannel(ordersChannel);
-            // The channel will be recreated on the next render
-          }, 5000);
-        }
-      });
-
-    // Subscribe to changes on order_items with enhanced handling
-    const orderItemsChannel = supabaseClient
-      .channel("order-items-dashboard")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "order_items",
-        },
-        async (payload: RealtimePostgresChangesPayload<OrderPayload>) => {
-          const eventType = payload.eventType;
-          const itemId = isOrderPayload(payload.new)
-            ? payload.new.id
-            : isOrderPayload(payload.old)
-              ? payload.old.id
-              : "unknown";
-          const orderId =
-            payload.new &&
-              typeof payload.new === "object" &&
-              "order_id" in payload.new
-              ? payload.new.order_id
-              : payload.old &&
-                typeof payload.old === "object" &&
-                "order_id" in payload.old
-                ? payload.old.order_id
-                : "unknown";
-
-          addLog(
-            `Order items change detected: ${eventType} for item ${itemId} in order ${orderId}`
-          );
-
-          // No toasts for order item changes - just update the data silently
-          // Refresh the data silently without any visual indicators
-          await loadData({ silent: true });
-        }
-      )
-      .subscribe((status: string) => {
-        addLog(`Order items subscription status: ${status}`);
-      });
-
-    // Add a very infrequent backup polling mechanism for reliability
-    // This is just a safety net in case realtime updates fail
-    const pollingInterval = setInterval(() => {
-      addLog("Backup polling for order updates");
-      loadData({ silent: true }); // Completely silent update for polling
-    }, 300000); // Poll every 5 minutes as a backup - reduced frequency
-
-    return () => {
-      addLog("Cleaning up realtime subscriptions");
-      supabaseClient.removeChannel(ordersChannel);
-      supabaseClient.removeChannel(orderItemsChannel);
-      clearInterval(pollingInterval);
-    };
-  }, [loadData, toast, selectedOrderId]); // Removed orders dependency from here
+    loadData();
+  }, [loadData]); // Depend on loadData
 
   const handleDelete = async (id: string) => {
     // No change needed here, Supabase Realtime will handle the state update via DELETE event
@@ -532,24 +363,7 @@ const OrderDashboard: React.FC = () => {
                 <TabsTrigger value="month">This Month</TabsTrigger>
               </TabsList>
 
-              {/* Realtime status indicator - more subtle */}
-              <div className="flex items-center ml-2">
-                <div
-                  className={`h-2 w-2 rounded-full mr-1 ${connectionStatus === "SUBSCRIBED"
-                    ? "bg-green-500" // No animation to avoid distraction
-                    : "bg-yellow-500" // Yellow instead of red for less alarm
-                    }`}
-                ></div>
-                <span className="text-xs text-muted-foreground">
-                  {connectionStatus === "SUBSCRIBED" ? "Live" : "Connecting..."}
-                </span>
-
-                {lastUpdateTime && (
-                  <span className="text-xs text-muted-foreground ml-2">
-                    Updated: {lastUpdateTime.toLocaleTimeString()}
-                  </span>
-                )}
-              </div>
+              {/* Realtime status indicator removed */}
             </div>
 
             <div className="flex items-center gap-2">
@@ -599,10 +413,10 @@ const OrderDashboard: React.FC = () => {
               orders={orders}
               onSelectOrderAction={setSelectedOrderId}
               onDeleteOrder={handleDelete}
-              isLoading={isLoading || isUpdating}
-              connectionStatus={connectionStatus}
-              onOrdersUpdated={(options) => loadData(options)}
-              setConnectionStatus={setConnectionStatus}
+              isLoading={isLoading}
+            // connectionStatus removed
+            // onOrdersUpdated removed
+            // setConnectionStatus removed
             />
           </TabsContent>
           <TabsContent value="month">
@@ -611,10 +425,10 @@ const OrderDashboard: React.FC = () => {
               orders={orders}
               onSelectOrderAction={setSelectedOrderId}
               onDeleteOrder={handleDelete}
-              isLoading={isLoading || isUpdating}
-              connectionStatus={connectionStatus}
-              onOrdersUpdated={(options) => loadData(options)}
-              setConnectionStatus={setConnectionStatus}
+              isLoading={isLoading}
+            // connectionStatus removed
+            // onOrdersUpdated removed
+            // setConnectionStatus removed
             />
           </TabsContent>
         </Tabs>

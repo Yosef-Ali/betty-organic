@@ -53,9 +53,10 @@ export function useOrderDetails(orderId: string) {
   useEffect(() => {
     let isMounted = true;
 
-    // If we're already fetching this order ID or it's the same as the last one, don't fetch again
-    if (lastFetchedOrderIdRef.current === orderId && order !== null) {
-      return;
+    // If the order data for the current orderId is already loaded, don't fetch again
+    if (order?.id === orderId) {
+      setIsLoading(false); // Ensure loading is false if data is already correct
+      return; // Don't fetch again
     }
 
     // Clear any existing timeout
@@ -80,7 +81,7 @@ export function useOrderDetails(orderId: string) {
 
         if (error) {
           console.error(`[OrderDetails] Error fetching order: ${error}`);
-          throw new Error(error);
+          throw error; // Throw the original error message string
         }
 
         if (!data) {
@@ -99,15 +100,18 @@ export function useOrderDetails(orderId: string) {
           updated_at: new Date().toISOString(),
           avatar_url: null,
           auth_provider: 'none',
+          address: null, // Added missing field
+          phone: null,   // Added missing field
         };
 
         // Transform the data to match our interface
         const transformedOrder: OrderDetails = {
           id: data.id,
           display_id: data.display_id || '',
-          createdAt: data.created_at,
+          createdAt: data.created_at || new Date().toISOString(), // Provide fallback for null
           updatedAt: data.updated_at || '',
-          profile: data.customer || defaultProfile,
+          // Assign defaultProfile since data.customer from getOrderDetails is incomplete
+          profile: defaultProfile,
           items: Array.isArray(data.items) ? data.items.map(item => ({
             id: item.id || '',
             product: {
@@ -152,7 +156,7 @@ export function useOrderDetails(orderId: string) {
         clearTimeout(fetchTimeoutRef.current);
       }
     };
-  }, [orderId, retryCount]); // Removed router dependency since it's not used in the effect
+  }, [orderId, retryCount, order]); // Add order dependency for the check order?.id === orderId
 
   // Function to handle manual retry
   const handleRetry = useCallback(() => {
@@ -166,7 +170,7 @@ export function useOrderDetails(orderId: string) {
       const result = await deleteOrder(orderId);
       if (result.success) {
         setIsDialogOpen(false);
-        window.location.href = '/dashboard/orders';
+        router.push('/dashboard/orders'); // Use router.push for Next.js navigation
       } else {
         console.error('Error deleting order:', result.error);
       }

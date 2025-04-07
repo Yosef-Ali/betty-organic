@@ -368,7 +368,7 @@ export async function getOrders(customerId?: string): Promise<Array<OrderWithRel
 
     let query = supabase
       .from('orders')
-      .select(`*, order_items!order_items_order_id_fkey (*, products!inner (*)), customer:profiles!orders_customer_profile_id_fkey (id, name, email, role), seller:profiles!orders_profile_id_fkey (id, name, email, role)`)
+      .select(`id, display_id, created_at, updated_at, status, total_amount, type, profile_id, customer_profile_id, order_items!order_items_order_id_fkey (*, products!inner (*)), customer:profiles!orders_customer_profile_id_fkey (id, name, email, role), seller:profiles!orders_profile_id_fkey (id, name, email, role)`)
       .order('created_at', { ascending: false });
 
     // Apply role-based filtering with type assertions to fix TypeScript errors
