@@ -205,8 +205,17 @@ export const ConfirmPurchaseDialog = ({
                 // Signed-in user flow: Create database order
                 const result = await handlePurchaseOrder(items, total);
 
+                if (result.error) {
+                    // More specific error handling
+                    if (result.error.includes("profile")) {
+                        throw new Error("Unable to create order: Your profile information is incomplete. Please update your profile and try again.");
+                    } else {
+                        throw new Error(result.error || 'Failed to create order');
+                    }
+                }
+
                 if (!result.data) {
-                    throw new Error(result.error || 'Failed to create order');
+                    throw new Error('Order data is missing');
                 }
 
                 const orderId = result.data.id;
@@ -237,15 +246,17 @@ export const ConfirmPurchaseDialog = ({
                 try {
                     await sendWhatsAppOrderNotification(orderDetailsObj);
                 } catch (err) {
+                    // This is a non-critical error, so just log it
                     const formattedError = typeof err === 'object' ? JSON.stringify(err, null, 2) : String(err);
                     console.error('Failed to send WhatsApp notification:', formattedError);
+                    // No toast here to avoid confusing the user about the order status
                 }
 
                 toast.success(`Order ${displayId} created successfully!`, {
                     description: 'Admin has been notified of your order.',
                 });
             } else {
-                // Guest user flow: WhatsApp sharing
+                // Guest user flow remains unchanged
                 const tempOrderId = `TEMP-${Date.now()}`;
                 const displayId = `BO-GUEST-${Date.now().toString().slice(-6)}`;
                 const formattedPhone = formatPhoneNumber(customerInfo.phone);
@@ -275,34 +286,31 @@ export const ConfirmPurchaseDialog = ({
             setIsOrderPlaced(true);
             clearCart();
         } catch (error) {
-            // Handle different error types and empty objects
-            const getErrorMessage = (err: unknown): string => {
-                if (err instanceof Error) return err.message;
-                if (typeof err === 'object' && err !== null && 'message' in err) {
-                    return String(err.message);
-                }
-                if (typeof err === 'string') return err;
-                return 'Failed to process order';
-            };
+            // More targeted error handling
+            let userFriendlyMessage: string;
 
-            // Get detailed error info for logging
-            const getFormattedError = (err: unknown): string => {
-                if (err instanceof Error) {
-                    return `${err.message}\n${err.stack || 'No stack trace available'}`;
-                }
-                if (typeof err === 'object' && err !== null) {
-                    return Object.keys(err).length > 0 ?
-                        JSON.stringify(err, null, 2) :
-                        'Empty error object received';
-                }
-                return String(err);
-            };
+            if (error instanceof Error) {
+                // For known errors with specific messages
+                userFriendlyMessage = error.message;
 
-            const errorMessage = getErrorMessage(error);
-            const formattedError = getFormattedError(error);
+                // Log detailed error for debugging
+                console.error(`Error processing order: ${error.message}`, error.stack);
+            } else {
+                // For unknown error types
+                const formattedError = typeof error === 'object' && error !== null
+                    ? JSON.stringify(error, null, 2)
+                    : String(error);
 
-            console.error('Error processing order:', formattedError);
-            toast.error(errorMessage);
+                console.error('Unknown error processing order:', formattedError);
+                userFriendlyMessage = 'An unexpected error occurred. Please try again.';
+            }
+
+            // Show toast with user-friendly message
+            toast.error(userFriendlyMessage, {
+                description: isAuthenticated
+                    ? "If this persists, please try updating your profile information."
+                    : "Please check your information and try again."
+            });
         } finally {
             setIsSubmitting(false);
         }
