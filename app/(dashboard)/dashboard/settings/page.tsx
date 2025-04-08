@@ -1,4 +1,5 @@
-import { getCurrentUser } from '@/app/actions/auth';
+import { getUser } from '@/app/actions/auth';
+import { getProfile } from '@/app/actions/profile';
 import { redirect } from 'next/navigation';
 import { SettingsTestimonials } from '@/components/settings/SettingsTestimonials';
 import { SettingsKnowledgeBase } from '@/components/settings/SettingsKnowledgeBase';
@@ -14,15 +15,15 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default async function SettingsPage() {
-  const authData = await getCurrentUser();
+  const user = await getUser();
 
-  if (!authData) {
+  if (!user) {
     redirect('/auth/login');
   }
 
-  const { isAdmin, profile } = authData;
+  const profile = user ? await getProfile(user.id) : null;
 
-  if (!isAdmin) {
+  if (profile?.role !== 'admin') {
     redirect('/dashboard');
   }
 

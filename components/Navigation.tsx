@@ -1,17 +1,21 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { getCurrentUser } from '@/app/actions/auth';
+import { getUser } from '@/app/actions/auth'; // Corrected import
+import { getProfile } from '@/app/actions/profile'; // Added profile import
 import { NavbarUserSection } from './NavbarUserSection';
 import { MobileMenu } from './MobileMenu';
 
 export async function Navigation() {
-  const authData = await getCurrentUser();
+  const user = await getUser(); // Use getUser
+  // Fetch profile separately if user exists
+  const profile = user ? await getProfile(user.id) : null;
 
   return (
     <nav className="fixed top-0 z-50 w-full bg-[#ffc600]/80 backdrop-blur-md border-b">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         <div className="flex items-center gap-4">
-          <MobileMenu user={authData?.user} profile={authData?.profile} />
+          {/* Pass fetched user and profile */}
+          <MobileMenu user={user} profile={profile} />
           <Link
             href="/"
             className="text-2xl md:text-2xl font-bold relative group flex items-center gap-2"
@@ -60,9 +64,10 @@ export async function Navigation() {
               <div className="absolute -bottom-1 left-0 w-full h-0.5 bg-black opacity-0 group-hover:opacity-100 transition-opacity" />
             </Link>
           </div>
+          {/* Pass fetched user and profile */}
           <NavbarUserSection
-            user={authData?.user ?? null}
-            profile={authData?.profile}
+            user={user}
+            profile={profile}
           />
         </div>
       </div>

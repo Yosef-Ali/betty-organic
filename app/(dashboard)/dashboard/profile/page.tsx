@@ -1,4 +1,5 @@
-import { getCurrentUser } from '@/app/actions/auth';
+import { getUser } from '@/app/actions/auth';
+import { getProfile } from '@/app/actions/profile';
 import { redirect } from 'next/navigation';
 import { ProfileForm } from '@/components/ProfileForm';
 import { OrderHistory } from '@/components/OrderHistory';
@@ -12,13 +13,12 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default async function ProfilePage() {
-  const authData = await getCurrentUser();
-
-  if (!authData) {
+  const user = await getUser();
+  if (!user) {
     redirect('/auth/login');
   }
 
-  const { user, profile } = authData;
+  const profile = user ? await getProfile(user.id) : null;
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-64px)]">
@@ -48,7 +48,7 @@ export default async function ProfilePage() {
               <CardContent>
                 <ProfileForm
                   initialName={profile?.name || ''}
-                  initialEmail={profile?.email || ''}
+                  initialEmail={user.email || ''}
                   initialImage={profile?.avatar_url || ''}
                   userId={user.id}
                 />

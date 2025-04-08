@@ -14,6 +14,7 @@ import { CartItem } from './CartItem';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { ConfirmPurchaseDialogNew } from './ConfirmPurchaseDialogNew';
+import { ConfirmPurchaseDialog } from './dialog';
 
 interface CartSheetProps {
   isOpen: boolean;
@@ -101,7 +102,7 @@ export const CartSheet = ({ isOpen, onOpenChange }: CartSheetProps) => {
         </SheetContent>
       </Sheet>
 
-      <ConfirmPurchaseDialogNew
+      <ConfirmPurchaseDialog
         isOpen={isPurchaseDialogOpen}
         onCloseAction={handlePurchaseDialogClose}
         items={items}

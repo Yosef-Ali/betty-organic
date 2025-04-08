@@ -1,27 +1,31 @@
 import { Suspense } from 'react';
-import { getCurrentUser } from '@/app/actions/auth';
+import { getUser } from '@/app/actions/auth';
+import { getProfile } from '@/app/actions/profile';
 import { redirect } from 'next/navigation';
 import SalesPage from '@/components/SalesPage';
 import { SalesPageSkeleton } from '@/components/sales/SalesPageSkeleton';
 
 export default async function SalesDashboardPage() {
-  const userData = await getCurrentUser();
+  const user = await getUser();
 
-  if (!userData) {
+  if (!user) {
     redirect('/auth/login');
   }
 
+  // Remove duplicate user fetch
+  const profile = user ? await getProfile(user.id) : null; // Fetch profile using the user variable from line 8
+
   const formattedUser = {
-    id: userData.user.id,
+    id: user.id, // Use the user variable from line 8
     user_metadata: {
-      full_name: userData.user.user_metadata?.full_name,
+      full_name: user.user_metadata?.full_name,
     },
-    email: userData.user.email,
+    email: user.email,
     profile: {
-      id: userData.profile.id,
-      role: userData.profile.role,
+      id: profile?.id,
+      role: profile?.role,
     },
-    isAdmin: userData.isAdmin,
+    isAdmin: profile?.role === 'admin',
   };
 
   return (

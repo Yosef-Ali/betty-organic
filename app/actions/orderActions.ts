@@ -1,8 +1,8 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
-import type { Order as FrontendOrder, OrderItem as FrontendOrderItem } from '@/types/order'; // Rename imported Order
-import { getCurrentUser } from './auth';
+import type { Order as FrontendOrder, OrderItem as FrontendOrderItem, ExtendedOrder } from '@/types/order';
+import { getUser } from './auth';
 import { orderIdService } from '@/app/services/orderIdService';
 import { revalidatePath } from 'next/cache';
 import { Database } from '@/types/supabase'; // Import Database type
@@ -170,11 +170,11 @@ export async function createOrder(
   try {
     console.log('[DASHBOARD DEBUG] Starting order creation...');
     const supabase = await createClient();
-    const authData = await getCurrentUser();
-    if (!authData?.user) throw new Error('User not authenticated');
+    const authData = await getUser();
+    if (!authData) throw new Error('User not authenticated');
     if (!authData.profile?.role) return { success: false, error: 'Unauthorized: User role not found' };
     const role = authData.profile.role;
-    const userId = authData.user.id;
+    const userId = authData.id;
     if (!items?.length) return { success: false, error: 'Invalid order data: Missing order items' };
     let profile_id: string;
     let customer_profile_id: string | null = null;
@@ -360,11 +360,11 @@ type OrderWithRelationsResult = OrderRow & {
 };
 
 // Using a specific type for return value from getOrders
-export async function getOrders(customerId?: string): Promise<Array<OrderWithRelationsResult & { customer_id?: string }>> {
+export async function getOrders(customerId?: string): Promise<ExtendedOrder[]> {
   const supabase = await createClient();
   try {
-    const authData = await getCurrentUser();
-    if (!authData?.user) throw new Error('Not authenticated');
+    const authData = await getUser();
+    if (!authData) throw new Error('Not authenticated');
 
     let query = supabase
       .from('orders')
@@ -374,10 +374,10 @@ export async function getOrders(customerId?: string): Promise<Array<OrderWithRel
     // Apply role-based filtering with type assertions to fix TypeScript errors
     if (authData.profile?.role === 'admin') { /* No filter */ }
     else if (authData.profile?.role === 'sales') {
-      query = query.eq('profile_id', authData.user.id) as any; // Type assertion after the method call
+      query = query.eq('profile_id', authData.id) as any; // Type assertion after the method call
     }
     else if (authData.profile?.role === 'customer') {
-      query = query.eq('customer_profile_id', authData.user.id) as any; // Type assertion after the method call
+      query = query.eq('customer_profile_id', authData.id) as any; // Type assertion after the method call
     }
     else { throw new Error('Unauthorized: Invalid role'); }
 
@@ -394,10 +394,52 @@ export async function getOrders(customerId?: string): Promise<Array<OrderWithRel
 
     // Cast the result to our known type and add customer_id for backwards compatibility
     const orders = (data || []) as OrderWithRelationsResult[];
-    return orders.map(order => ({
-      ...order,
-      customer_id: order.customer_profile_id || undefined, // Convert null to undefined to match the expected type
-    }));
+    // Cast the result to our known type and map to ExtendedOrder
+    return orders.map(order => {
+      // Map order items first
+      const orderItems: FrontendOrderItem[] = (order.order_items ?? []).map(item => ({
+        id: item.id,
+        product_id: item.product_id,
+        product_name: item.product_name || item.products?.name || 'Unknown Product',
+        quantity: item.quantity,
+        price: item.price,
+        order_id: order.id,
+        product: item.products ? { name: item.products.name } : undefined
+      }));
+
+      // Map to ExtendedOrder
+      const mappedOrder: ExtendedOrder = {
+        id: order.id,
+        profile_id: order.profile_id,
+        customer_profile_id: order.customer_profile_id ?? '',
+        total_amount: order.total_amount,
+        status: order.status,
+        type: order.type,
+        display_id: order.display_id ?? undefined,
+        created_at: order.created_at,
+        updated_at: order.updated_at ?? null,
+        customer_id: order.customer_profile_id ?? '',
+        customer: order.customer ? {
+          id: order.customer.id,
+          name: order.customer.name,
+          email: order.customer.email,
+          role: order.customer.role,
+          phone: order.customer.phone || null
+        } : undefined,
+        profiles: order.seller ? {
+          id: order.seller.id,
+          name: order.seller.name,
+          email: order.seller.email,
+          role: order.seller.role,
+          phone: order.seller.phone ?? null,
+          avatar_url: order.seller.avatar_url ?? null
+        } : undefined,
+        order_items: orderItems,
+        items: orderItems,
+      };
+
+      return mappedOrder;
+    });
   } catch (error) {
     console.error('[DASHBOARD DEBUG] Error fetching orders:', error);
     return [];

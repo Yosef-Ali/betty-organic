@@ -184,7 +184,8 @@ export function LoginForm() {
           onClick={async () => {
             try {
               setIsPending(true);
-              const result = await signInWithGoogle();
+              const origin = window.location.origin; // Get origin on client
+              const result = await signInWithGoogle(origin); // Pass origin
               if (result.error) {
                 console.error('Google sign in error:', result.error);
                 toast.error(`Sign in failed: ${result.error}`);

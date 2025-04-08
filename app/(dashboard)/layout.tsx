@@ -1,6 +1,8 @@
-import { getCurrentUser } from '@/app/actions/auth';
+import { getUser } from '@/app/actions/auth'; // Corrected import
+import { getProfile } from '@/app/actions/profile'; // Import getProfile
 import { redirect } from 'next/navigation';
 import { DashboardShell } from '@/components/DashboardShell';
+import { AuthProvider } from '@/components/providers/AuthProvider'; // Import AuthProvider
 
 export const dynamic = 'force-dynamic';
 
@@ -11,13 +13,16 @@ interface DashboardLayoutProps {
 export default async function DashboardLayout({
   children,
 }: DashboardLayoutProps) {
-  const authData = await getCurrentUser();
+  const user = await getUser(); // Use getUser
+  const profile = user ? await getProfile(user.id) : null; // Fetch profile
 
-  if (!authData) {
+  if (!user) {
     redirect('/auth/login');
   }
 
   return (
-    <DashboardShell role={authData.profile.role}>{children}</DashboardShell>
+    <AuthProvider user={user} profile={profile}>
+      <DashboardShell role={profile?.role}>{children}</DashboardShell>
+    </AuthProvider>
   );
 }

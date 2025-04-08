@@ -1,10 +1,10 @@
 import { Suspense } from 'react';
 import OrderDashboard from '@/components/OrderDashboard';
-import { getCurrentUser } from '@/app/actions/auth';
+import { getUser } from '@/app/actions/auth';
 import { redirect } from 'next/navigation';
 
 export default async function OrdersDashboardPage() {
-  const user = await getCurrentUser();
+  const user = await getUser();
 
   if (!user) {
     redirect('/auth/login');
