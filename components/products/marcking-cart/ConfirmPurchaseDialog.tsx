@@ -32,14 +32,14 @@ interface CustomerInfo {
 
 interface ConfirmPurchaseDialogProps {
   isOpen: boolean;
-  onClose: () => void;
+  onCloseAction: () => void;
   items: CartItemType[];
   total: number;
 }
 
 export const ConfirmPurchaseDialog = ({
   isOpen,
-  onClose,
+  onCloseAction,
   items,
   total,
 }: ConfirmPurchaseDialogProps) => {
@@ -294,7 +294,7 @@ export const ConfirmPurchaseDialog = ({
       </ScrollArea>
 
       <DialogFooter className="flex sm:justify-between gap-4 sm:gap-0">
-        <Button variant="outline" onClick={onClose}>
+        <Button variant="outline" onClick={onCloseAction}>
           Cancel
         </Button>
         <Button onClick={() => setCurrentStep('details')}>
@@ -508,7 +508,7 @@ export const ConfirmPurchaseDialog = ({
               Your order will only be processed after sharing via WhatsApp
             </div>
             <div className="flex justify-center gap-2">
-              <Button variant="ghost" size="sm" onClick={onClose} className="text-red-500 hover:text-red-700">
+              <Button variant="ghost" size="sm" onClick={onCloseAction} className="text-red-500 hover:text-red-700">
                 Cancel Order
               </Button>
               <Button
@@ -556,7 +556,7 @@ export const ConfirmPurchaseDialog = ({
           </div>
 
           <DialogFooter>
-            <Button onClick={onClose}>Close</Button>
+            <Button onClick={onCloseAction}>Close</Button>
           </DialogFooter>
         </>
       )}
@@ -564,7 +564,7 @@ export const ConfirmPurchaseDialog = ({
   );
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={onCloseAction}>
       <DialogContent className="sm:max-w-md">
         {orderPlaced
           ? renderOrderPlaced()

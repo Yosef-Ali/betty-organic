@@ -17,7 +17,7 @@ import {
 import { getCustomers } from "../app/actions/profile";
 import { useToast } from "../hooks/use-toast";
 import OrderTable from "./OrdersTable";
-import type { Order, OrderItem } from "@/types/order"; // Removed CustomerProfile import
+import type { Order, OrderItem, ExtendedOrder } from "@/types/order";
 // Supabase client import removed
 
 
@@ -42,7 +42,7 @@ export const OrderType = {
 export type OrderType = (typeof OrderType)[keyof typeof OrderType];
 
 const OrderDashboard: React.FC = () => {
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [orders, setOrders] = useState<ExtendedOrder[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -51,7 +51,7 @@ const OrderDashboard: React.FC = () => {
 
   // Function to convert a single raw order from DB/payload to the Order type used in UI
   const processSingleOrder = useCallback(
-    (orderData: any, customerList: any[]): Order => {
+    (orderData: any, customerList: any[]): ExtendedOrder => {
       const orderAny = orderData as any;
       const customerFromList = orderAny.customer_profile_id
         ? customerList.find((c) => c.id === orderAny.customer_profile_id)
@@ -87,31 +87,37 @@ const OrderDashboard: React.FC = () => {
         };
       }
 
+      const orderItems = (orderAny.order_items || []).map((item: any): OrderItem => ({
+        id: item.id || '',
+        product_id: item.product_id,
+        product_name: item.product_name || item.products?.name || "Unknown Product",
+        quantity: item.quantity || 0,
+        price: item.price || 0,
+        order_id: item.order_id || orderAny.id,
+        product: item.products ? { name: item.products.name || "Unknown Product" } : undefined
+      }));
+
       return {
-        id: orderAny.id,
-        display_id: orderAny.display_id || undefined,
-        status: orderAny.status,
-        type: orderAny.type as OrderType,
-        total_amount: orderAny.total_amount || 0,
-        created_at: orderAny.created_at,
-        updated_at: orderAny.updated_at || undefined,
-        profile_id: orderAny.profile_id || null,
-        customer_profile_id: orderAny.customer_profile_id || null,
-        order_items: orderAny.order_items || [], // Ensure order_items are included if available
+        id: orderAny.id ?? '',
+        display_id: orderAny.display_id,
+        status: orderAny.status ?? 'pending',
+        type: (orderAny.type as OrderType) ?? 'SALE',
+        total_amount: orderAny.total_amount ?? 0,
+        created_at: orderAny.created_at ?? new Date().toISOString(),
+        updated_at: orderAny.updated_at,
+        profile_id: orderAny.profile_id ?? '',
+        customer_profile_id: orderAny.customer_profile_id ?? '',
+        order_items: orderItems,
+        items: orderItems,
         customer: customerDetails,
-        // Map items if available, ensure structure matches OrderItem
-        items: (orderAny.order_items || []).map(
-          (item: any): OrderItem => ({
-            id: item.id,
-            product_id: item.product_id,
-            product_name:
-              item.product_name || item.product?.name || "Unknown Product", // Get name from item or nested product
-            quantity: item.quantity,
-            price: item.price,
-            // Corrected: Only include properties expected by the type (assuming just 'name')
-            product: item.product ? { name: item.product.name } : undefined,
-          })
-        ),
+        profiles: orderAny.seller ? {
+          id: orderAny.seller.id,
+          name: orderAny.seller.name || '',
+          email: orderAny.seller.email,
+          role: orderAny.seller.role,
+          phone: orderAny.seller.phone ?? null,
+          avatar_url: orderAny.seller.avatar_url ?? null,
+        } : undefined
       };
     },
     []
@@ -119,7 +125,7 @@ const OrderDashboard: React.FC = () => {
 
   // Function to convert multiple database orders
   const processMultipleOrders = useCallback(
-    (ordersData: any[], customerList: any[]): Order[] => {
+    (ordersData: any[], customerList: any[]): ExtendedOrder[] => {
       return ordersData.map((order) => processSingleOrder(order, customerList));
     },
     [processSingleOrder]

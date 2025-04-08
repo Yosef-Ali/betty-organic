@@ -147,8 +147,9 @@ export const ConfirmPurchaseDialog = ({
         if (!orderDetails) return;
         sendWhatsAppOrderNotification(orderDetails)
             .then(() => toast.success('WhatsApp notification ready!'))
-            .catch((err: Error) => {
-                console.error('Failed to prepare WhatsApp notification:', err.message);
+            .catch((err) => {
+                const formattedError = typeof err === 'object' ? JSON.stringify(err, null, 2) : String(err);
+                console.error('Failed to prepare WhatsApp notification:', formattedError);
                 toast.error('Failed to prepare WhatsApp message.');
             });
     };
@@ -236,7 +237,8 @@ export const ConfirmPurchaseDialog = ({
                 try {
                     await sendWhatsAppOrderNotification(orderDetailsObj);
                 } catch (err) {
-                    console.error('Failed to send WhatsApp notification:', err);
+                    const formattedError = typeof err === 'object' ? JSON.stringify(err, null, 2) : String(err);
+                    console.error('Failed to send WhatsApp notification:', formattedError);
                 }
 
                 toast.success(`Order ${displayId} created successfully!`, {
@@ -273,10 +275,34 @@ export const ConfirmPurchaseDialog = ({
             setIsOrderPlaced(true);
             clearCart();
         } catch (error) {
-            console.error('Error processing order:', error);
-            toast.error(
-                error instanceof Error ? error.message : 'Failed to process order'
-            );
+            // Handle different error types and empty objects
+            const getErrorMessage = (err: unknown): string => {
+                if (err instanceof Error) return err.message;
+                if (typeof err === 'object' && err !== null && 'message' in err) {
+                    return String(err.message);
+                }
+                if (typeof err === 'string') return err;
+                return 'Failed to process order';
+            };
+
+            // Get detailed error info for logging
+            const getFormattedError = (err: unknown): string => {
+                if (err instanceof Error) {
+                    return `${err.message}\n${err.stack || 'No stack trace available'}`;
+                }
+                if (typeof err === 'object' && err !== null) {
+                    return Object.keys(err).length > 0 ?
+                        JSON.stringify(err, null, 2) :
+                        'Empty error object received';
+                }
+                return String(err);
+            };
+
+            const errorMessage = getErrorMessage(error);
+            const formattedError = getFormattedError(error);
+
+            console.error('Error processing order:', formattedError);
+            toast.error(errorMessage);
         } finally {
             setIsSubmitting(false);
         }

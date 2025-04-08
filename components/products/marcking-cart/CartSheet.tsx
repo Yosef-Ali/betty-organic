@@ -18,10 +18,10 @@ import { ConfirmPurchaseDialog } from './dialog';
 
 interface CartSheetProps {
   isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
+  onOpenChangeAction: (open: boolean) => void;
 }
 
-export const CartSheet = ({ isOpen, onOpenChange }: CartSheetProps) => {
+export const CartSheet = ({ isOpen, onOpenChangeAction }: CartSheetProps) => {
   const { items } = useMarketingCartStore();
   const { clearCart } = useMarketingCartStore();
   const { setCartOpen } = useUIStore();
@@ -35,14 +35,14 @@ export const CartSheet = ({ isOpen, onOpenChange }: CartSheetProps) => {
   // Handle purchase dialog closing
   const handlePurchaseDialogClose = () => {
     setIsPurchaseDialogOpen(false);
-    onOpenChange(false);
+    onOpenChangeAction(false);
     setCartOpen(false);
   };
 
   return (
     <>
       <Sheet open={isOpen} onOpenChange={(open) => {
-        onOpenChange(open);
+        onOpenChangeAction(open);
         setCartOpen(open);
       }}>
         <SheetContent className="flex w-full flex-col pr-0 sm:max-w-lg z-50">
@@ -90,7 +90,7 @@ export const CartSheet = ({ isOpen, onOpenChange }: CartSheetProps) => {
                   size="sm"
                   onClick={() => {
                     clearCart();
-                    onOpenChange(false);
+                    onOpenChangeAction(false);
                     setCartOpen(false);
                   }}
                 >
