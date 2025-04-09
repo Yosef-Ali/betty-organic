@@ -1,32 +1,36 @@
 "use client";
 
+import React from "react";
 import { useState, useEffect, useCallback } from "react"; // Added useCallback
 // Removed: import { createClient } from '@/lib/supabase/client';
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { getSession, getUser } from "@/app/actions/auth"; // Import server actions
 import { getProfile } from "@/app/actions/profile"; // Import server action
-import type { Session, User } from '@supabase/supabase-js'; // Import types
+import type { Session, User } from '@supabase/supabase-js'; // Import types;
 import { CartItemType } from "@/types/cart";
 import { useMarketingCartStore } from "@/store/cartStore";
 import { sendWhatsAppOrderNotification } from "@/app/(marketing)/actions/notificationActions";
 import { handlePurchaseOrder } from "@/app/actions/purchaseActions";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
+import { updateUserProfile } from "@/app/actions/profile"; // Import profile update action
 
 import { LoadingSpinner } from "./LoadingSpinner";
 import { AuthenticatedForm } from "./AuthenticatedForm";
 import { GuestForm } from "./GuestForm";
 import { OrderPlaced } from "./OrderPlaced";
-import { CustomerInfo, ConfirmPurchaseDialogProps, OrderDetails } from "./types";
-import { formatPhoneNumber, saveCartToLocalStorage, validateCustomerInfo } from "./utils";
 
-export const ConfirmPurchaseDialog = ({
+import { CustomerInfo, ConfirmPurchaseDialogProps, OrderDetails, AuthenticatedFormProps } from "./types";
+import { formatPhoneNumber, saveCartToLocalStorage, validateCustomerInfo } from "./utils";
+import { ProfileUpdateForm } from "./ProfileUpdateForm";
+
+export const ConfirmPurchaseDialog: React.FC<ConfirmPurchaseDialogProps> = ({
     isOpen,
     onCloseAction,
     items,
     total,
-}: ConfirmPurchaseDialogProps) => {
+}: ConfirmPurchaseDialogProps): React.ReactElement => {
     // Auth states
     const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
     const [userId, setUserId] = useState<string | null>(null);
@@ -38,6 +42,7 @@ export const ConfirmPurchaseDialog = ({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isOrderPlaced, setIsOrderPlaced] = useState(false);
     const [orderDetails, setOrderDetails] = useState<OrderDetails | null>(null);
+    const [needsProfileUpdate, setNeedsProfileUpdate] = useState(false); // Add state for profile update needed
 
     // Customer info
     const [customerInfo, setCustomerInfo] = useState<CustomerInfo>({
@@ -154,6 +159,49 @@ export const ConfirmPurchaseDialog = ({
             });
     };
 
+    // Add new function to handle profile updates
+    const handleProfileUpdate = async (updatedProfile: { name?: string; phone?: string; address?: string }) => {
+        if (!userId) return;
+
+        try {
+            setIsSubmitting(true);
+            console.log("📝 [PROFILE_UPDATE] Updating profile with data:", updatedProfile);
+
+            // Call the server action to update the profile
+            const result = await updateUserProfile({
+                name: updatedProfile.name || "",
+                phone: updatedProfile.phone || "",
+                address: updatedProfile.address || "",
+            });
+
+            if (result.error) {
+                throw new Error(result.error);
+            }
+
+            // Update local state with the new profile data
+            setProfileData({
+                ...profileData,
+                ...updatedProfile
+            });
+
+            // Update customer info
+            setCustomerInfo(prev => ({
+                ...prev,
+                ...updatedProfile
+            }));
+
+            // Return to normal order flow
+            setNeedsProfileUpdate(false);
+            toast.success("Profile updated successfully");
+
+        } catch (error) {
+            console.error("Failed to update profile:", error);
+            toast.error("Failed to update profile. Please try again.");
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
     const isCustomerInfoValid = () =>
         validateCustomerInfo(!!isAuthenticated, customerInfo);
 
@@ -206,9 +254,11 @@ export const ConfirmPurchaseDialog = ({
                 const result = await handlePurchaseOrder(items, total);
 
                 if (result.error) {
-                    // More specific error handling
+                    // Check if the error is about incomplete profile
                     if (result.error.includes("profile")) {
-                        throw new Error("Unable to create order: Your profile information is incomplete. Please update your profile and try again.");
+                        console.log("🚨 [ORDER_FLOW] Profile information is incomplete, showing update form");
+                        setNeedsProfileUpdate(true);
+                        return; // Exit early to show the profile update form
                     } else {
                         throw new Error(result.error || 'Failed to create order');
                     }
@@ -324,7 +374,8 @@ export const ConfirmPurchaseDialog = ({
         console.log("🖥️ Rendering content:", {
             isLoading,
             isAuthenticated: isAuthenticated, // Explicitly show state
-            isOrderPlaced
+            isOrderPlaced,
+            needsProfileUpdate
         });
 
         if (isLoading) {
@@ -344,17 +395,29 @@ export const ConfirmPurchaseDialog = ({
             );
         }
 
+        if (needsProfileUpdate) {
+            return (
+                <ProfileUpdateForm
+                    existingData={customerInfo}
+                    onSubmit={handleProfileUpdate}
+                    onCancel={() => setNeedsProfileUpdate(false)}
+                    isSubmitting={isSubmitting}
+                    userEmail={userEmail}
+                />
+            );
+        }
+
         if (isAuthenticated) {
             return (
                 <AuthenticatedForm
                     items={items}
                     total={total}
                     customerInfo={customerInfo}
-                    setCustomerInfo={setCustomerInfo}
+                    setCustomerInfoAction={setCustomerInfo}
                     isSubmitting={isSubmitting}
-                    handleConfirm={handleConfirm}
-                    onCancel={onCloseAction}
-                    isCustomerInfoValid={isCustomerInfoValid}
+                    handleConfirmAction={handleConfirm}
+                    onCancelAction={onCloseAction}
+                    isCustomerInfoValidAction={isCustomerInfoValid}
                     profileData={profileData}
                     userEmail={userEmail}
                 />

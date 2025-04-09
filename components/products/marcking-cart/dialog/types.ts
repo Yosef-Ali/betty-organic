@@ -1,3 +1,4 @@
+import React from "react";
 import { CartItemType } from "@/types/cart";
 
 export interface CustomerInfo {
@@ -6,24 +7,15 @@ export interface CustomerInfo {
     address: string;
 }
 
-export interface ConfirmPurchaseDialogProps {
-    isOpen: boolean;
-    onCloseAction: () => void;
-    items: CartItemType[];
-    total: number;
-}
-
-export interface OrderDetailsItem {
-    name: string;
-    grams: number;
-    price: number;
-    unit_price: number;
-}
-
 export interface OrderDetails {
     id: string;
     display_id: string;
-    items: OrderDetailsItem[];
+    items: Array<{
+        name: string;
+        grams: number;
+        price: number;
+        unit_price: number;
+    }>;
     total: number;
     customer_name: string;
     customer_phone: string;
@@ -33,16 +25,35 @@ export interface OrderDetails {
     created_at: string;
 }
 
-export interface FormProps {
+export interface ConfirmPurchaseDialogProps {
+    isOpen: boolean;
+    onCloseAction: () => void;
+    items: CartItemType[];
+    total: number;
+}
+
+// Common form props shared by all forms
+interface CommonFormProps {
     items: CartItemType[];
     total: number;
     customerInfo: CustomerInfo;
-    setCustomerInfo: React.Dispatch<React.SetStateAction<CustomerInfo>>;
+    setCustomerInfoAction: React.Dispatch<React.SetStateAction<CustomerInfo>>;
     isSubmitting: boolean;
-    handleConfirm: () => void;
-    handleSignIn?: () => void;
-    onCancel: () => void;
-    isCustomerInfoValid: () => boolean;
+    handleConfirmAction: () => void;
+    onCancelAction: () => void;
+    isCustomerInfoValidAction: () => boolean;
+}
+
+
+// GuestForm props
+export interface GuestFormProps extends CommonFormProps {
+    handleSignIn: () => void;
+}
+
+// AuthenticatedForm props
+export interface AuthenticatedFormProps extends CommonFormProps {
+    profileData: any;
+    userEmail: string | null;
 }
 
 export interface OrderPlacedProps {

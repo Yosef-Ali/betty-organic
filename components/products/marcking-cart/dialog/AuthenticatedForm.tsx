@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { CartItemType } from "@/types/cart";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,26 +14,21 @@ import {
 } from "@/components/ui/dialog";
 import { MessageCircle, MapPin, User, Phone } from "lucide-react";
 import { createInfoChangeHandler } from "./utils";
-import { CustomerInfo, FormProps } from "./types";
+import { AuthenticatedFormProps } from "./types";
 
-interface AuthenticatedFormProps extends Omit<FormProps, 'handleSignIn'> {
-    profileData: any;
-    userEmail: string | null;
-}
-
-export const AuthenticatedForm = ({
+export const AuthenticatedForm: React.FC<AuthenticatedFormProps> = ({
     items,
     total,
     customerInfo,
-    setCustomerInfo,
+    setCustomerInfoAction,
     isSubmitting,
-    handleConfirm,
-    onCancel,
-    isCustomerInfoValid,
+    handleConfirmAction,
+    onCancelAction,
+    isCustomerInfoValidAction,
     profileData,
     userEmail,
 }: AuthenticatedFormProps) => {
-    const handleInfoChange = createInfoChangeHandler('address', setCustomerInfo);
+    const handleInfoChange = createInfoChangeHandler('address', setCustomerInfoAction);
 
     return (
         <>
@@ -110,12 +106,12 @@ export const AuthenticatedForm = ({
             </div>
 
             <DialogFooter className="flex items-center justify-between mt-4">
-                <Button variant="outline" onClick={onCancel}>
+                <Button variant="outline" onClick={onCancelAction}>
                     Cancel
                 </Button>
                 <Button
-                    onClick={handleConfirm}
-                    disabled={isSubmitting || !isCustomerInfoValid()}
+                    onClick={handleConfirmAction}
+                    disabled={isSubmitting || !isCustomerInfoValidAction()}
                     className="gap-1"
                 >
                     <MessageCircle className="w-4 h-4" />
