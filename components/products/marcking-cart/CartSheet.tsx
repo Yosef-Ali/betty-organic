@@ -9,7 +9,9 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
+  SheetClose,
 } from '@/components/ui/sheet';
+import { X } from 'lucide-react';
 import { CartItem } from './CartItem';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
@@ -21,7 +23,7 @@ interface CartSheetProps {
   onOpenChangeAction: (open: boolean) => void;
 }
 
-export const CartSheet = ({ isOpen, onOpenChangeAction }: CartSheetProps) => {
+export const CartSheet = ({ isOpen, onOpenChangeAction = () => { } }: CartSheetProps) => {
   const { items } = useMarketingCartStore();
   const { clearCart } = useMarketingCartStore();
   const { setCartOpen } = useUIStore();
@@ -49,7 +51,13 @@ export const CartSheet = ({ isOpen, onOpenChangeAction }: CartSheetProps) => {
   return (
     <>
       <Sheet open={isOpen} onOpenChange={(open) => {
-        onOpenChangeAction(open);
+        // When Sheet is being closed (open is false), ensure both state handlers are called
+        if (typeof onOpenChangeAction === 'function') {
+          onOpenChangeAction(open);
+        } else {
+          // If onOpenChangeAction is not provided, just use setCartOpen
+          console.log('Warning: onOpenChangeAction is not a function in CartSheet');
+        }
         setCartOpen(open);
       }}>
         <SheetContent className="flex w-full flex-col pr-0 sm:max-w-lg z-50">
@@ -97,7 +105,10 @@ export const CartSheet = ({ isOpen, onOpenChangeAction }: CartSheetProps) => {
                   size="sm"
                   onClick={() => {
                     clearCart();
-                    onOpenChangeAction(false);
+                    // Safely call onOpenChangeAction to avoid the "not a function" error
+                    if (typeof onOpenChangeAction === 'function') {
+                      onOpenChangeAction(false);
+                    }
                     setCartOpen(false);
                   }}
                 >
