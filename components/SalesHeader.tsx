@@ -5,9 +5,12 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { File, PlusCircle, ShoppingCart, Search, X } from "lucide-react";
 import Link from "next/link";
-import { ProductCategory } from "@/types/supabase";
+import type { Database } from '@/types/supabase';
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
+
+// Define ProductCategory from Database enum
+type ProductCategory = Database['public']['Enums']['product_category'];
 
 const PRODUCT_CATEGORIES: ProductCategory[] = [
   "All",
@@ -22,20 +25,22 @@ const PRODUCT_CATEGORIES: ProductCategory[] = [
 
 interface SalesHeaderProps {
   cartItemCount: number;
-  onCartClick: () => void;
+  onCartClickAction: () => void;
   selectedCategory: ProductCategory;
-  onCategoryChange: (category: ProductCategory) => void;
+  onCategoryChangeAction: (category: ProductCategory) => void;
   searchQuery: string;
-  onSearchChange: (query: string) => void;
+  onSearchChangeAction: (query: string) => void;
+  showCategoryTabs?: boolean;
 }
 
 export const SalesHeader: FC<SalesHeaderProps> = ({
   cartItemCount,
-  onCartClick,
+  onCartClickAction,
   selectedCategory,
-  onCategoryChange,
+  onCategoryChangeAction,
   searchQuery,
-  onSearchChange,
+  onSearchChangeAction,
+  showCategoryTabs = true, // Default to showing category tabs
 }) => {
   return (
     <div className="flex flex-col gap-4 pb-4">
@@ -45,13 +50,13 @@ export const SalesHeader: FC<SalesHeaderProps> = ({
             type="text"
             placeholder="Search products..."
             value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
+            onChange={(e) => onSearchChangeAction(e.target.value)}
             className="pl-10 pr-10"
           />
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           {searchQuery && (
             <button
-              onClick={() => onSearchChange("")}
+              onClick={() => onSearchChangeAction("")}
               className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
             >
               <X className="h-4 w-4" />
@@ -77,7 +82,7 @@ export const SalesHeader: FC<SalesHeaderProps> = ({
             variant="outline"
             size="icon"
             className="relative"
-            onClick={onCartClick}
+            onClick={onCartClickAction}
           >
             <ShoppingCart className="h-5 w-5" />
             {cartItemCount > 0 && (
@@ -90,25 +95,27 @@ export const SalesHeader: FC<SalesHeaderProps> = ({
         </div>
       </div>
 
-      <div className="flex items-center justify-between">
-        <Tabs defaultValue={selectedCategory} className="w-full">
-          <ScrollArea className="w-full whitespace-nowrap">
-            <TabsList className="inline-flex w-full justify-start">
-              {PRODUCT_CATEGORIES.map((category) => (
-                <TabsTrigger
-                  key={category}
-                  value={category}
-                  onClick={() => onCategoryChange(category)}
-                  className="px-3"
-                >
-                  {category.replace(/_/g, ' ')}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-            <ScrollBar orientation="horizontal" className="invisible" />
-          </ScrollArea>
-        </Tabs>
-      </div>
+      {showCategoryTabs && (
+        <div className="flex items-center justify-between">
+          <Tabs defaultValue={selectedCategory} className="w-full">
+            <ScrollArea className="w-full whitespace-nowrap">
+              <TabsList className="inline-flex w-full justify-start">
+                {PRODUCT_CATEGORIES.map((category) => (
+                  <TabsTrigger
+                    key={category}
+                    value={category}
+                    onClick={() => onCategoryChangeAction(category)}
+                    className="px-3"
+                  >
+                    {category.replace(/_/g, ' ')}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+              <ScrollBar orientation="horizontal" className="invisible" />
+            </ScrollArea>
+          </Tabs>
+        </div>
+      )}
     </div>
   );
 };
