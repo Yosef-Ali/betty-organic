@@ -1,14 +1,13 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { AlertCircle } from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import { ShoppingBag } from 'lucide-react';
 import { CustomerInfo } from './types';
 
 interface ProfileUpdateFormProps {
     existingData: CustomerInfo;
-    onSubmit: (profileData: { name: string; phone: string; address: string }) => Promise<void>;
+    onSubmit: (profileData: { address: string }) => Promise<void>;
     onCancel: () => void;
     isSubmitting: boolean;
     userEmail: string | null;
@@ -21,113 +20,67 @@ export const ProfileUpdateForm = ({
     isSubmitting,
     userEmail
 }: ProfileUpdateFormProps) => {
-    const [name, setName] = React.useState(existingData.name || '');
-    const [phone, setPhone] = React.useState(existingData.phone || '');
     const [address, setAddress] = React.useState(existingData.address || '');
-    const [errors, setErrors] = React.useState<Record<string, string>>({});
+    const [error, setError] = React.useState('');
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        // Validate
-        const newErrors: Record<string, string> = {};
-
-        if (!name.trim()) {
-            newErrors.name = 'Name is required';
-        }
-
-        if (!phone.trim()) {
-            newErrors.phone = 'Phone number is required';
-        } else if (!/^\+?[0-9\s-]{6,}$/.test(phone.trim())) {
-            newErrors.phone = 'Please enter a valid phone number';
-        }
-
         if (!address.trim()) {
-            newErrors.address = 'Delivery address is required';
+            setError('Please provide a delivery address');
+            return;
         }
 
-        setErrors(newErrors);
-
-        // Submit if no errors
-        if (Object.keys(newErrors).length === 0) {
-            await onSubmit({
-                name: name.trim(),
-                phone: phone.trim(),
-                address: address.trim()
-            });
-        }
+        await onSubmit({
+            address: address.trim()
+        });
     };
 
     return (
         <div className="flex flex-col space-y-4">
-            <div className="space-y-2">
-                <div className="flex items-center space-x-2 text-amber-600">
-                    <AlertCircle size={18} />
-                    <h3 className="text-lg font-medium">Profile Update Required</h3>
+            <div className="text-center mb-2">
+                <div className="flex justify-center mb-2">
+                    <ShoppingBag size={24} className="text-green-600" />
                 </div>
+                <h3 className="text-lg font-medium">Almost done!</h3>
                 <p className="text-sm text-gray-500">
-                    Please complete your profile information to proceed with your order.
+                    Just need your delivery address to complete the order
                 </p>
-                {userEmail && (
-                    <p className="text-xs text-gray-500">
-                        Account: {userEmail}
-                    </p>
-                )}
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-1">
-                    <Label htmlFor="name">Full Name</Label>
-                    <Input
-                        id="name"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        placeholder="Enter your full name"
-                        className={errors.name ? 'border-red-500' : ''}
-                    />
-                    {errors.name && <p className="text-xs text-red-500">{errors.name}</p>}
-                </div>
-
-                <div className="space-y-1">
-                    <Label htmlFor="phone">Phone Number</Label>
-                    <Input
-                        id="phone"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        placeholder="Enter your phone number"
-                        className={errors.phone ? 'border-red-500' : ''}
-                    />
-                    {errors.phone && <p className="text-xs text-red-500">{errors.phone}</p>}
-                </div>
-
-                <div className="space-y-1">
-                    <Label htmlFor="address">Delivery Address</Label>
+            <form onSubmit={handleSubmit} className="space-y-3">
+                <div>
+                    <Label htmlFor="address" className="text-sm">Delivery Address</Label>
                     <Textarea
                         id="address"
                         value={address}
                         onChange={(e) => setAddress(e.target.value)}
-                        placeholder="Enter your delivery address"
-                        className={errors.address ? 'border-red-500' : ''}
-                        rows={3}
+                        placeholder="Where should we deliver your order?"
+                        rows={2}
+                        className="mt-1"
                     />
-                    {errors.address && <p className="text-xs text-red-500">{errors.address}</p>}
+                    {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
                 </div>
 
-                <div className="flex justify-end space-x-2 pt-4">
-                    <Button
-                        type="button"
-                        variant="outline"
-                        onClick={onCancel}
-                        disabled={isSubmitting}
-                    >
-                        Cancel
-                    </Button>
+                <div className="flex justify-center pt-2">
                     <Button
                         type="submit"
                         disabled={isSubmitting}
+                        className="w-full"
                     >
-                        {isSubmitting ? 'Updating...' : 'Update Profile'}
+                        {isSubmitting ? 'Processing...' : 'Complete Order'}
                     </Button>
+                </div>
+
+                <div className="text-center">
+                    <button
+                        type="button"
+                        onClick={onCancel}
+                        disabled={isSubmitting}
+                        className="text-sm text-gray-500 hover:text-gray-700"
+                    >
+                        Back to Cart
+                    </button>
                 </div>
             </form>
         </div>

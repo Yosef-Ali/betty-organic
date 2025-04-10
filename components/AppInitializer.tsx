@@ -32,6 +32,13 @@ export function AppInitializer() {
           return;
         }
 
+        // Check the content type before trying to parse as JSON
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          console.warn('App initialization received non-JSON response:', contentType);
+          return;
+        }
+
         const data = await response.json();
 
         if (data.session?.user) {
@@ -45,7 +52,11 @@ export function AppInitializer() {
         if (error instanceof Error && error.name === 'AbortError') {
           console.warn('App initialization timed out');
         } else {
-          console.error('App initialization error:', error);
+          // Safely handle errors that may not be serializable
+          const errorMessage = error instanceof Error
+            ? error.message
+            : 'Unknown initialization error';
+          console.error('App initialization error:', errorMessage);
         }
       } finally {
         setIsLoading(false);

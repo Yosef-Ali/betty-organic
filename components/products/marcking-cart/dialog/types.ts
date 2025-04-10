@@ -37,21 +37,29 @@ interface CommonFormProps {
     items: CartItemType[];
     total: number;
     customerInfo: CustomerInfo;
-    setCustomerInfoAction: React.Dispatch<React.SetStateAction<CustomerInfo>>;
+    setCustomerInfo: React.Dispatch<React.SetStateAction<CustomerInfo>>;
     isSubmitting: boolean;
-    handleConfirmAction: () => void;
-    onCancelAction: () => void;
-    isCustomerInfoValidAction: () => boolean;
+    handleConfirm: () => void;
+    onCancel: () => void;
+    isCustomerInfoValid: () => boolean;
 }
 
 
 // GuestForm props
 export interface GuestFormProps extends CommonFormProps {
-    handleSignIn: () => void;
+    handleSignIn: () => void; // Name matches how it's called in the dialog
 }
 
 // AuthenticatedForm props
-export interface AuthenticatedFormProps extends CommonFormProps {
+export interface AuthenticatedFormProps {
+    items: CartItemType[];
+    total: number;
+    customerInfo: CustomerInfo;
+    setCustomerInfoAction: React.Dispatch<React.SetStateAction<CustomerInfo>>;
+    isSubmitting: boolean;
+    handleConfirmAction: () => void;
+    onCancelAction: () => void;
+    isCustomerInfoValidAction: () => boolean;
     profileData: any;
     userEmail: string | null;
 }

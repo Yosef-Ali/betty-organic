@@ -19,7 +19,7 @@ import { updateUserProfile } from "@/app/actions/profile"; // Import profile upd
 import { LoadingSpinner } from "./LoadingSpinner";
 import { AuthenticatedForm } from "./AuthenticatedForm";
 import { GuestForm } from "./GuestForm";
-import { OrderPlaced } from "./OrderPlaced";
+import OrderPlaced from "./OrderPlaced";
 
 import { CustomerInfo, ConfirmPurchaseDialogProps, OrderDetails, AuthenticatedFormProps } from "./types";
 import { formatPhoneNumber, saveCartToLocalStorage, validateCustomerInfo } from "./utils";
@@ -157,42 +157,23 @@ export const ConfirmPurchaseDialog: React.FC<ConfirmPurchaseDialogProps> = ({
                 console.error('Failed to prepare WhatsApp notification:', formattedError);
                 toast.error('Failed to prepare WhatsApp message.');
             });
-    };
-
-    // Add new function to handle profile updates
-    const handleProfileUpdate = async (updatedProfile: { name?: string; phone?: string; address?: string }) => {
-        if (!userId) return;
-
+    };    // Simplified function to handle just the delivery address input
+    const handleProfileUpdate = async (updatedInfo: { address: string }) => {
         try {
             setIsSubmitting(true);
-            console.log("📝 [PROFILE_UPDATE] Updating profile with data:", updatedProfile);
+            console.log("📝 [ORDER_ADDRESS] Using delivery address:", updatedInfo.address);
 
-            // Call the server action to update the profile
-            const result = await updateUserProfile({
-                name: updatedProfile.name || "",
-                phone: updatedProfile.phone || "",
-                address: updatedProfile.address || "",
-            });
-
-            if (result.error) {
-                throw new Error(result.error);
-            }
-
-            // Update local state with the new profile data
-            setProfileData({
-                ...profileData,
-                ...updatedProfile
-            });
-
-            // Update customer info
+            // Update customer info with the address
             setCustomerInfo(prev => ({
                 ...prev,
-                ...updatedProfile
+                address: updatedInfo.address
             }));
 
-            // Return to normal order flow
+            // Return to normal order flow and proceed with order
             setNeedsProfileUpdate(false);
-            toast.success("Profile updated successfully");
+
+            // Continue with order placement automatically
+            await handleConfirmWithAddress(updatedInfo.address);
 
         } catch (error) {
             console.error("Failed to update profile:", error);
@@ -204,6 +185,136 @@ export const ConfirmPurchaseDialog: React.FC<ConfirmPurchaseDialogProps> = ({
 
     const isCustomerInfoValid = () =>
         validateCustomerInfo(!!isAuthenticated, customerInfo);
+
+    // New function to handle order confirmation with just the address
+    const handleConfirmWithAddress = async (deliveryAddress: string) => {
+        try {
+            console.log("💾 Creating order with delivery address:", deliveryAddress);
+
+            if (!items.length) {
+                throw new Error('No items in cart');
+            }
+
+            // Prepare customer data
+            const customerName =
+                isAuthenticated
+                    ? profileData?.name || userEmail?.split('@')[0] || 'Customer'
+                    : customerInfo.name || 'Guest';
+
+            const customerPhone =
+                isAuthenticated && profileData?.phone
+                    ? profileData.phone
+                    : formatPhoneNumber(customerInfo.phone);
+
+            if (isAuthenticated) {
+                // Signed-in user flow: Create database order directly without profile update
+                const orderItems = items.map(item => ({
+                    id: item.id,
+                    name: item.name,
+                    pricePerKg: item.pricePerKg,
+                    grams: item.grams,
+                }));
+
+                const result = await handlePurchaseOrder(orderItems, total);
+
+                if (result.error && !result.error.includes("profile")) {
+                    throw new Error(result.error || 'Failed to create order');
+                }
+
+                if (!result.data) {
+                    throw new Error('Order data is missing');
+                }
+
+                const orderId = result.data.id;
+                const displayId =
+                    (result.data as any).display_id ||
+                    `BO${String(orderId).padStart(6, '0')}`;
+
+                const orderDetailsObj: OrderDetails = {
+                    id: orderId,
+                    display_id: displayId,
+                    items: items.map((item) => ({
+                        name: item.name,
+                        grams: item.grams,
+                        price: (item.pricePerKg * item.grams) / 1000,
+                        unit_price: item.pricePerKg,
+                    })),
+                    total: total,
+                    customer_name: customerName,
+                    customer_phone: customerPhone,
+                    delivery_address: deliveryAddress,
+                    customer_email: userEmail,
+                    user_id: userId,
+                    created_at: new Date().toISOString(),
+                };
+
+                setOrderDetails(orderDetailsObj);
+
+                try {
+                    await sendWhatsAppOrderNotification(orderDetailsObj);
+                } catch (err) {
+                    // This is a non-critical error, so just log it
+                    const formattedError = typeof err === 'object' ? JSON.stringify(err, null, 2) : String(err);
+                    console.error('Failed to send WhatsApp notification:', formattedError);
+                }
+
+                toast.success(`Order ${displayId} created successfully!`, {
+                    description: 'Admin has been notified of your order.',
+                });
+            } else {
+                // Guest user flow
+                const tempOrderId = `TEMP-${Date.now()}`;
+                const displayId = `BO-GUEST-${Date.now().toString().slice(-6)}`;
+                const formattedPhone = formatPhoneNumber(customerInfo.phone);
+
+                const orderDetailsObj: OrderDetails = {
+                    id: tempOrderId,
+                    display_id: displayId,
+                    items: items.map((item) => ({
+                        name: item.name,
+                        grams: item.grams,
+                        price: (item.pricePerKg * item.grams) / 1000,
+                        unit_price: item.pricePerKg,
+                    })),
+                    total: total,
+                    customer_name: customerInfo.name || 'Guest',
+                    customer_phone: formattedPhone,
+                    delivery_address: deliveryAddress,
+                    created_at: new Date().toISOString(),
+                };
+
+                setOrderDetails(orderDetailsObj);
+                toast.success('Order details prepared!', {
+                    description: 'Please share via WhatsApp to complete your order',
+                });
+            }
+
+            setIsOrderPlaced(true);
+            clearCart();
+
+            // Auto-close the dialog after a delay to return to the marketing page
+            setTimeout(() => {
+                onCloseAction(); // Close the dialog automatically after showing confirmation
+            }, 15000); // 15 seconds delay to allow user to see confirmation and take action
+        } catch (error) {
+            let userFriendlyMessage: string;
+
+            if (error instanceof Error) {
+                userFriendlyMessage = error.message;
+                console.error(`Error processing order: ${error.message}`, error.stack);
+            } else {
+                const formattedError = typeof error === 'object' && error !== null
+                    ? JSON.stringify(error, null, 2)
+                    : String(error);
+                console.error('Unknown error processing order:', formattedError);
+                userFriendlyMessage = 'An unexpected error occurred. Please try again.';
+            }
+
+            toast.error(userFriendlyMessage);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     const handleConfirm = async () => {
         try {
@@ -380,17 +491,16 @@ export const ConfirmPurchaseDialog: React.FC<ConfirmPurchaseDialogProps> = ({
 
         if (isLoading) {
             return <LoadingSpinner />;
-        }
-
-        if (isOrderPlaced && orderDetails) {
+        } if (isOrderPlaced && orderDetails) {
+            // Use JSX directly instead of React.createElement with updated Action suffix props
             return (
                 <OrderPlaced
                     isAuthenticated={!!isAuthenticated}
                     orderDetails={orderDetails}
                     customerInfo={customerInfo}
-                    handleShareWhatsApp={handleShareWhatsApp}
-                    handleSignIn={handleSignIn}
-                    onClose={onCloseAction}
+                    handleShareWhatsAppAction={handleShareWhatsApp}
+                    handleSignInAction={handleSignIn}
+                    onCloseAction={onCloseAction}
                 />
             );
         }

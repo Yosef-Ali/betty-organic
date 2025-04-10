@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Share2, MapPin, User, Phone, LogIn } from "lucide-react";
 import { createInfoChangeHandler } from "./utils";
-import { FormProps } from "./types";
+import { GuestFormProps } from "./types";
 
 export const GuestForm = ({
     items,
@@ -25,7 +25,7 @@ export const GuestForm = ({
     handleSignIn,
     onCancel,
     isCustomerInfoValid,
-}: FormProps) => {
+}: GuestFormProps) => {
     const handleNameChange = createInfoChangeHandler('name', setCustomerInfo);
     const handlePhoneChange = createInfoChangeHandler('phone', setCustomerInfo);
     const handleAddressChange = createInfoChangeHandler('address', setCustomerInfo);

@@ -38,9 +38,18 @@ export interface UserWithProfile extends User {
 export async function getUser(): Promise<UserWithProfile | null> {
   const supabase = await getSupabaseClient();
   try {
+    // First check if we have a session to avoid unnecessary errors
+    const { data: sessionData } = await supabase.auth.getSession();
+
+    if (!sessionData.session) {
+      // No session exists, return null instead of throwing an error
+      return null;
+    }
+
     const { data: { user }, error } = await supabase.auth.getUser();
     if (error || !user) {
-      console.error('Error getting user:', error?.message);
+      // Log the error but don't throw - just return null
+      console.error('Error getting user:', error?.message || 'User not found');
       return null;
     }
 

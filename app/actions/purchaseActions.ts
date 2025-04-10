@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import type { Order } from '@/types/order';
-import { getCurrentUser } from './auth';
+import { getUser } from './auth';
 import { v4 as uuidv4 } from 'uuid';
 import { orderIdService } from '@/app/services/orderIdService';
 import { revalidatePath } from 'next/cache';
@@ -42,12 +42,12 @@ export async function handlePurchaseOrder(
     let userRole = 'customer';
     let userEmail: string;
     try {
-      const authData = await getCurrentUser();
+      const authData = await getUser();
       console.log('[ORDER DEBUG] Auth data:', JSON.stringify(authData));
-      if (authData?.user?.id) {
-        userId = authData.user.id;
+      if (authData) {
+        userId = authData.id;
         userRole = authData.profile?.role || 'customer';
-        userEmail = authData.user.email || `${userId}@guest.bettyorganic.com`;
+        userEmail = authData.email || `${userId}@guest.bettyorganic.com`;
       } else {
         userId = uuidv4(); // Generate a unique ID for guest users
         userEmail = `guest-${userId}@guest.bettyorganic.com`;

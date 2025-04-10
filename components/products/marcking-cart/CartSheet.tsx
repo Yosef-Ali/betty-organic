@@ -34,8 +34,15 @@ export const CartSheet = ({ isOpen, onOpenChangeAction }: CartSheetProps) => {
 
   // Handle purchase dialog closing
   const handlePurchaseDialogClose = () => {
+    // Close the purchase dialog
     setIsPurchaseDialogOpen(false);
-    onOpenChangeAction(false);
+
+    // Make sure onOpenChangeAction is called safely
+    if (typeof onOpenChangeAction === 'function') {
+      onOpenChangeAction(false);
+    }
+
+    // Always close the cart regardless
     setCartOpen(false);
   };
 
