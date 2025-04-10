@@ -44,7 +44,7 @@ export function DashboardShell({ children, role }: DashboardShellProps) {
             }`}
         >
           <Header
-            onMobileMenuToggle={() => setMobileMenuOpen(!mobileMenuOpen)}
+            onMobileMenuToggleAction={() => setMobileMenuOpen(!mobileMenuOpen)}
             profile={fullProfile}
           />
           <div className="container mx-auto">

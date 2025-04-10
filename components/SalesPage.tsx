@@ -233,21 +233,23 @@ const SalesPage: FC<SalesPageProps> = ({ user }) => {
           </TabsList>
         </Tabs>
         <div className="ml-auto">
-          <ScrollArea className="whitespace-nowrap">
-            <TabsList className="inline-flex justify-end">
-              {["All", "Spices_Oil_Tuna", "Flowers", "Vegetables", "Fruits", "Herbs_Lettuce", "Dry_Stocks_Bakery", "Eggs_Dairy_products"].map((category) => (
-                <TabsTrigger
-                  key={category}
-                  value={category}
-                  onClick={() => handleCategoryChange(category as ProductCategory)}
-                  className={`px-3 ${selectedCategory === category ? 'bg-primary text-primary-foreground' : ''}`}
-                >
-                  {category.replace(/_/g, ' ')}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-            <ScrollBar orientation="horizontal" className="invisible" />
-          </ScrollArea>
+          <Tabs defaultValue={selectedCategory}>
+            <ScrollArea className="whitespace-nowrap">
+              <TabsList className="inline-flex justify-end">
+                {["All", "Spices_Oil_Tuna", "Flowers", "Vegetables", "Fruits", "Herbs_Lettuce", "Dry_Stocks_Bakery", "Eggs_Dairy_products"].map((category) => (
+                  <TabsTrigger
+                    key={category}
+                    value={category}
+                    onClick={() => handleCategoryChange(category as ProductCategory)}
+                    className={`px-3`}
+                  >
+                    {category.replace(/_/g, ' ')}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+              <ScrollBar orientation="horizontal" className="invisible" />
+            </ScrollArea>
+          </Tabs>
         </div>
       </div>
       <Tabs defaultValue="products" className="flex-grow">

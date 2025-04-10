@@ -21,13 +21,19 @@ export default function DashboardError({
     })
   }, [error])
 
+  // Convert the error to a readable format
+  const errorMessage =
+    typeof error === 'object' && error !== null
+      ? error.message || JSON.stringify(error, null, 2)
+      : 'An unexpected error occurred';
+
   return (
     <div className="container mx-auto p-6">
       <Alert variant="destructive" className="mb-4">
         <AlertCircle className="h-4 w-4" />
         <AlertTitle>Something went wrong</AlertTitle>
         <AlertDescription>
-          {error.message || 'An unexpected error occurred'}
+          {errorMessage}
         </AlertDescription>
       </Alert>
 
