@@ -221,8 +221,8 @@ const OrderDashboard: React.FC = () => {
           title: "Error",
           description: `${errorMessage}. Please try again.`,
           variant: "destructive",
-          // Mark error toasts as important so they require manual dismissal
-          important: true,
+          // Show error toasts for longer duration
+          duration: 7000,
         });
 
         setOrders([]);

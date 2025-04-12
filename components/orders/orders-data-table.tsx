@@ -147,11 +147,18 @@ export function OrdersDataTable({
           }
         }
 
-        const channelName = 'orders-table-updates';
+        // Use a more unique channel name with a timestamp to avoid conflicts
+        const channelName = `orders-table-updates-${Date.now()}`;
         console.log('Setting up orders table realtime channel:', channelName);
 
+        // Add error handling for channel setup
         const channel = client
-          .channel(channelName)
+          .channel(channelName, {
+            config: {
+              broadcast: { ack: true },
+              presence: { key: '' }
+            }
+          })
           .on(
             'postgres_changes',
             {
@@ -167,8 +174,8 @@ export function OrdersDataTable({
                 orderId: isOrderPayload(payload.new)
                   ? payload.new.id
                   : isOrderPayload(payload.old)
-                  ? payload.old.id
-                  : 'unknown',
+                    ? payload.old.id
+                    : 'unknown',
               });
 
               const eventType = payload.eventType;
@@ -368,7 +375,7 @@ export function OrdersDataTable({
                   title: 'Update Failed',
                   description: result.error || 'Failed to update status',
                   variant: 'destructive',
-                  important: true,
+                  duration: 5000, // Longer duration instead of using important
                 });
               }
             } catch (error) {
@@ -377,7 +384,7 @@ export function OrdersDataTable({
                 description:
                   error instanceof Error ? error.message : 'Unknown error',
                 variant: 'destructive',
-                important: true,
+                duration: 5000, // Longer duration instead of using important flag
               });
             }
           };
@@ -472,11 +479,10 @@ export function OrdersDataTable({
       {/* Real-time status indicator */}
       <div className="absolute top-2 right-2 flex items-center gap-2 bg-background/80 p-2 rounded-md text-xs text-muted-foreground">
         <div
-          className={`h-2 w-2 rounded-full ${
-            realTimeStatus === 'SUBSCRIBED'
+          className={`h-2 w-2 rounded-full ${realTimeStatus === 'SUBSCRIBED'
               ? 'bg-green-500'
               : 'bg-yellow-500 animate-pulse'
-          }`}
+            }`}
         />
         <span>
           {realTimeStatus === 'SUBSCRIBED' ? 'Live updates' : 'Connecting...'}
