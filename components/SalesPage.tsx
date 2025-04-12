@@ -170,11 +170,11 @@ const SalesPage: FC<SalesPageProps> = ({ user }) => {
       title: 'Category Updated',
       description: `Showing ${category.replace(/_/g, ' ')} products`,
     });
-  }, [toast]);
-
-  const handleCreateOrder = useCallback(
+  }, [toast]); const handleCreateOrder = useCallback(
     async (orderData: any): Promise<boolean> => {
       try {
+        console.log('[SALES-PAGE] Received order data:', JSON.stringify(orderData, null, 2));
+
         if (!user) {
           toast({
             title: 'Authentication required',
@@ -184,20 +184,89 @@ const SalesPage: FC<SalesPageProps> = ({ user }) => {
           return false;
         }
 
-        const response = await createOrder(
-          orderData.items,
-          user.id,
-          orderData.totalAmount,
-          orderData.status || 'pending'
-        );
-        toast({
-          title: 'Order created successfully',
-          description: `Order #${response.order?.id || 'unknown'} has been created`,
+        // Extract items from the order data, with multiple fallbacks
+        let orderItems = [];
+
+        // First check for items array (from CartFooter)
+        if (Array.isArray(orderData.items) && orderData.items.length > 0) {
+          console.log('[SALES-PAGE] Using items array from order data');
+          orderItems = orderData.items.map((item: { product_id?: string; id?: string; product_name?: string; name?: string; quantity?: number; price?: number }) => ({
+            product_id: item.product_id || item.id || '',
+            product_name: item.product_name || item.name || '',
+            quantity: item.quantity || 1000, // Default to 1kg if not specified
+            price: item.price || 0
+          }));
+        }
+        // Then try order_items array (alternative format)
+        else if (Array.isArray(orderData.order_items) && orderData.order_items.length > 0) {
+          console.log('[SALES-PAGE] Using order_items array from order data');
+          orderItems = orderData.order_items.map((item: { product_id: string; product_name: string; quantity: number; price: number }) => ({
+            product_id: item.product_id,
+            product_name: item.product_name,
+            quantity: item.quantity,
+            price: item.price
+          }));
+        }
+        // Finally, if no valid items, return error
+        else {
+          console.error('[SALES-PAGE] No valid items found in order data');
+          toast({
+            title: 'Invalid order',
+            description: 'No items found in order',
+            variant: 'destructive',
+          });
+          return false;
+        }
+
+        // Extract customer ID with fallbacks
+        const customerId = orderData.customer_profile_id ||
+          (orderData.customer && orderData.customer.id) ||
+          user.id;
+
+        // Extract total amount with fallbacks
+        const totalAmount = orderData.total_amount ||
+          orderData.totalAmount ||
+          orderItems.reduce((sum: number, item: { price?: number }) => sum + (item.price || 0), 0);
+
+        // Extract status with fallback
+        const status = orderData.status || 'completed';
+
+        console.log('[SALES-PAGE] Formatted order data:', {
+          orderItems,
+          customerId,
+          totalAmount,
+          status
         });
 
-        useSalesCartStore.getState().clearCart();
-        setIsCartOpen(false);
-        return true;
+        // Call the server-side action to create the order
+        const response = await createOrder(
+          orderItems,
+          customerId,
+          totalAmount,
+          status
+        );
+
+        console.log('[SALES-PAGE] Order creation response:', response);
+
+        if (response.success) {
+          toast({
+            title: 'Order created successfully',
+            description: `Order #${response.order?.display_id || response.order?.id || 'unknown'} has been created`,
+          });
+
+          useSalesCartStore.getState().clearCart();
+          setIsCartOpen(false);
+          return true;
+        } else {
+          // Handle the case where response indicates failure
+          console.error('[SALES-PAGE] Order creation failed:', response.error);
+          toast({
+            title: 'Failed to create order',
+            description: response.error || 'Unknown error occurred',
+            variant: 'destructive',
+          });
+          return false;
+        }
       } catch (err) {
         console.error('Unexpected error during order creation:', err);
         toast({

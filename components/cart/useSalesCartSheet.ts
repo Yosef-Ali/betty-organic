@@ -119,7 +119,30 @@ function cartReducer(state: CartState, action: CartAction): CartState {
 
 interface UseSalesCartSheetProps {
   onOpenChange: (open: boolean) => void;
-  onOrderCreate?: (orderData: Order) => Promise<boolean>;
+  onOrderCreate?: (orderData: {
+    id?: string;
+    profile_id?: string;
+    customer_profile_id?: string;
+    type?: string;
+    items: Array<{
+      id: string;
+      name: string;
+      price: number;
+      quantity: number;
+      imageUrl: string;
+      product_id?: string;
+      product_name?: string;
+    }>;
+    order_items?: OrderItem[];
+    customer: Customer | Partial<Customer>;
+    total_amount: number;
+    delivery_cost: number;
+    coupon_code: string | null;
+    status: string;
+    created_at: string;
+    updated_at: string;
+    payment_status: string;
+  }) => Promise<boolean>;
   user?: {
     id: string;
     user_metadata: {
@@ -255,7 +278,7 @@ export function useSalesCartSheet({
   }, [items, getTotalAmount, toast]);
 
   const handleSaveOrder = useCallback(
-    async (customerData: Partial<Customer>) => {
+    async (customerData: Partial<Customer>, forceComplete = false) => {
       try {
         if (!customerData?.id || !customerData?.name) {
           toast({
@@ -290,39 +313,106 @@ export function useSalesCartSheet({
 
         const totalAmount = getTotalAmount();
 
-        // Prepare order items
-        const orderItems: OrderItem[] = items.map(item => ({
-          product_id: item.id,
-          quantity: Math.round(item.grams),
-          price: (item.pricePerKg * item.grams) / 1000,
-          product_name: item.name
-        }));
+        // Prepare order data
+        const orderData = {
+          profile_id: state.profile?.id || '',
+          customer_profile_id: customerData.id,
+          type: 'standard',
+          items: items.map(item => ({
+            id: item.id,
+            name: item.name,
+            price: (item.pricePerKg * item.grams) / 1000,
+            quantity: item.grams / 1000,
+            imageUrl: '',
+            product_id: item.id,
+            product_name: item.name
+          })),
+          order_items: items.map(item => ({
+            product_id: item.id,
+            quantity: Math.round(item.grams),
+            price: (item.pricePerKg * item.grams) / 1000,
+            product_name: item.name
+          })),
+          customer: {
+            id: customerData.id,
+            name: customerData.name || '',
+            email: customerData.email || '',
+            role: 'customer' as const,
+            ...customerData
+          },
+          total_amount: totalAmount,
+          delivery_cost: 0,
+          coupon_code: null,
+          // If forceComplete is true, set status to 'completed', otherwise use the current orderStatus
+          status: forceComplete ? 'completed' : state.orderStatus,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          payment_status: forceComplete ? 'paid' : 'unpaid'
+        };
 
-        // Create order
-        const orderResult = await createOrder(
-          orderItems,
-          customerData.id,
-          totalAmount,
-          state.orderStatus
-        );
+        // Create order and handle both response types
+        let orderSuccess = false;
+        let orderId = '';
 
-        if (orderResult.success && orderResult.order) {
-          dispatch({ type: 'SET_ORDER_NUMBER', payload: orderResult.order.id });
+        // Use a more reliable approach with retries
+        const maxRetries = 2;
+        let retries = 0;
+
+        while (retries <= maxRetries && !orderSuccess) {
+          try {
+            if (onOrderCreate) {
+              orderSuccess = await onOrderCreate(orderData);
+              if (orderSuccess) {
+                orderId = 'new-order'; // Placeholder since we don't get ID from boolean response
+                break;
+              }
+            } else {
+              const orderResponse = await createOrder(
+                orderData.order_items || [],
+                customerData.id,
+                totalAmount,
+                orderData.status  // Use the status from orderData which accounts for forceComplete
+              );
+              orderSuccess = orderResponse.success;
+              if (orderResponse.success && orderResponse.order) {
+                orderId = orderResponse.order.id;
+                break;
+              }
+            }
+          } catch (retryError) {
+            console.error(`Order save attempt ${retries + 1} failed:`, retryError);
+          }
+
+          retries++;
+
+          if (retries <= maxRetries && !orderSuccess) {
+            // Short delay before retry
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        }
+
+        if (orderSuccess) {
+          dispatch({ type: 'SET_ORDER_NUMBER', payload: orderId });
           dispatch({ type: 'SET_ORDER_SAVED', payload: true });
+
+          // Always clear the cart and close the sheet on success
           clearCart();
           onOpenChange(false);
 
           toast({
             title: 'Success',
-            description: `Order saved successfully for customer ${customerData.name}!`,
+            description: `Order ${forceComplete ? 'completed' : 'saved'} successfully for customer ${customerData.name}!`,
           });
+
+          return true;
         } else {
-          const errorMessage = orderResult.error?.message || 'Order creation failed. Please try again.';
+          const errorMessage = 'Order creation failed after multiple attempts. Please try again.';
           toast({
             variant: 'destructive',
             title: 'Error',
             description: errorMessage,
           });
+          return false;
         }
       } catch (error) {
         const e = error as Error;
@@ -331,6 +421,7 @@ export function useSalesCartSheet({
           title: 'Error',
           description: e.message || 'Failed to save order. Please try again.',
         });
+        return false;
       } finally {
         dispatch({ type: 'SET_SAVING', payload: false });
       }

@@ -18,9 +18,17 @@ export interface CartFooterProps {
   onPrintPreview: () => void;
   onPrint: () => void;
   onCancel: () => void;
-  onThermalPrintPreview: () => void;
+  onThermalPrintPreview?: () => void;
+  onShare?: () => Promise<void>;
   onConfirmOrder: () => Promise<void>;
   isOrderConfirmed: boolean;
+  disabled?: boolean;
+  // Additional props used in SalesCartSheet
+  onOrderCreate?: (orderData: any) => Promise<boolean>;
+  items?: any[];
+  customer?: any;
+  clearCart?: () => void;
+  onOpenChange?: (open: boolean) => void;
 }
 
 export const CartFooter: FC<CartFooterProps> = ({
@@ -29,6 +37,11 @@ export const CartFooter: FC<CartFooterProps> = ({
   onThermalPrintPreview,
   onConfirmOrder,
   isOrderConfirmed,
+  onOrderCreate,
+  items,
+  customer,
+  clearCart,
+  onOpenChange,
 }) => {
   const [coupon, setCoupon] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState("");
@@ -51,6 +64,33 @@ export const CartFooter: FC<CartFooterProps> = ({
     setIsLoading(true);
     try {
       await onConfirmOrder();
+
+      // If onOrderCreate is provided, call it with the order data
+      if (onOrderCreate && items && items.length > 0) {
+        const orderData = {
+          items,
+          customer,
+          totalAmount: totalAmountWithDelivery,
+          deliveryCost,
+          coupon: appliedCoupon || null,
+          status: "completed", // Set the status as completed
+          date: new Date().toISOString(),
+        };
+
+        const success = await onOrderCreate(orderData);
+
+        if (success) {
+          // Clear the cart if the function is available
+          if (clearCart) {
+            clearCart();
+          }
+
+          // Close the sheet if the function is available
+          if (onOpenChange) {
+            onOpenChange(false);
+          }
+        }
+      }
     } catch (error) {
       console.error("Failed to confirm order:", error);
       // Handle error (e.g., show error message to user)
@@ -163,15 +203,67 @@ export const CartFooter: FC<CartFooterProps> = ({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.3 }}
-            className="grid grid-cols-2 gap-2"
+            className="space-y-4"
           >
-            <Button variant="outline" onClick={onPrintPreview}>
-              <Printer className="mr-2 h-4 w-4" />
-              Print
+            <Button
+              className="w-full bg-green-600 hover:bg-green-700 text-white"
+              onClick={async () => {
+                setIsLoading(true);
+                try {
+                  // If onOrderCreate is provided, call it with the order data
+                  if (onOrderCreate && items && items.length > 0) {
+                    const orderData = {
+                      items,
+                      customer,
+                      totalAmount: totalAmountWithDelivery,
+                      deliveryCost,
+                      coupon: appliedCoupon || null,
+                      status: "completed", // Set the status as completed
+                      date: new Date().toISOString(),
+                      paymentStatus: "paid"
+                    };
+
+                    const success = await onOrderCreate(orderData);
+
+                    if (success) {
+                      // Clear the cart if the function is available
+                      if (clearCart) {
+                        clearCart();
+                      }
+
+                      // Close the sheet if the function is available
+                      if (onOpenChange) {
+                        onOpenChange(false);
+                      }
+                    }
+                  }
+                } catch (error) {
+                  console.error("Failed to process payment:", error);
+                } finally {
+                  setIsLoading(false);
+                }
+              }}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing Payment...
+                </>
+              ) : (
+                "Pay Now"
+              )}
             </Button>
-            <Button variant="outline" onClick={onThermalPrintPreview}>
-              Thermal Print
-            </Button>
+
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="outline" onClick={onPrintPreview}>
+                <Printer className="mr-2 h-4 w-4" />
+                Print
+              </Button>
+              <Button variant="outline" onClick={onThermalPrintPreview}>
+                Thermal Print
+              </Button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

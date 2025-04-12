@@ -12,17 +12,56 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useToast } from '@/hooks/use-toast';
+import { Order, OrderItem } from '@/types/order';
+import { Customer } from '@/types/customer';
+import { SalesCartItem } from '@/store/salesCartStore';
 
 export interface CartFooterProps {
   getTotalAmount: () => number;
   isPrintPreview: boolean;
   onPrintPreview: () => void;
   onPrint: () => void;
-  onCancel?: () => void; // Make onCancel optional
+  onCancel?: () => void;
   onShare: () => void;
   onConfirmOrder: () => Promise<void>;
   isOrderConfirmed: boolean;
-  disabled?: boolean; // Add disabled prop
+  disabled?: boolean;
+  onOrderCreate?: (orderData: {
+    id?: string;
+    profile_id?: string;
+    customer_profile_id?: string;
+    type?: string;
+    items: Array<{
+      id: string;
+      name: string;
+      price: number;
+      quantity: number;
+      imageUrl: string;
+      product_id?: string;
+      product_name?: string;
+    }>;
+    order_items?: OrderItem[];
+    customer: Customer | Partial<Customer>;
+    total_amount: number;
+    delivery_cost: number;
+    coupon_code: string | null;
+    status: string;
+    created_at: string;
+    updated_at: string;
+    payment_status: string;
+  }) => Promise<boolean>;
+  items?: Array<{
+    id: string;
+    name: string;
+    pricePerKg: number;
+    grams: number;
+    unit: string | null;
+    imageUrl: string;
+  }>;
+  customer?: Partial<Customer>;
+  clearCart?: () => void;
+  onOpenChange?: (open: boolean) => void;
 }
 
 export const CartFooter: FC<CartFooterProps> = ({
@@ -31,12 +70,18 @@ export const CartFooter: FC<CartFooterProps> = ({
   onShare,
   onConfirmOrder,
   isOrderConfirmed,
-  onCancel, // Add to destructuring
+  onCancel,
+  onOrderCreate,
+  items,
+  customer,
+  clearCart,
+  onOpenChange
 }) => {
   const [coupon, setCoupon] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [deliveryCost, setDeliveryCost] = useState(0);
+  const { toast } = useToast();
 
   const handleApplyCoupon = () => {
     if (coupon.trim()) {
@@ -53,10 +98,104 @@ export const CartFooter: FC<CartFooterProps> = ({
   const handleConfirmOrder = async () => {
     setIsLoading(true);
     try {
+      console.log('[ORDER] Starting order confirmation process...');
+
+      // First confirm the order to update UI state
       await onConfirmOrder();
+      console.log('[ORDER] UI state updated - order confirmed');
+
+      // Only proceed with order creation if valid dependencies exist
+      if (!onOrderCreate) {
+        console.error('[ORDER] Error: onOrderCreate function is not provided');
+        return;
+      }
+
+      if (!items || items.length === 0) {
+        console.error('[ORDER] Error: No items in cart');
+        toast({
+          title: "Error",
+          description: "Cannot create order with an empty cart",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Always use anonymous customer by default
+      const orderCustomer = {
+        id: 'anonymous',
+        name: 'Unknown Customer',
+        email: '',
+        role: 'customer' as const
+      };
+
+      console.log('[ORDER] Using customer:', orderCustomer);      // Convert cart items to order items in the format expected by onOrderCreate
+      const orderItems = items.map(item => ({
+        id: item.id,
+        name: item.name,
+        price: (item.pricePerKg * item.grams) / 1000, // Total price for this item
+        quantity: item.grams / 1000, // Convert grams to kg
+        imageUrl: item.imageUrl || '',
+        product_id: item.id,
+        product_name: item.name
+      }));
+
+      console.log('[ORDER] Prepared order items:', orderItems);
+
+      console.log('[ORDER] Using customer:', orderCustomer);
+
+      // Create order data with required structure for backend
+      const orderData = {
+        items: orderItems,
+        customer: orderCustomer, // Use the orderCustomer variable instead of customer directly
+        total_amount: totalAmountWithDelivery,
+        delivery_cost: deliveryCost,
+        coupon_code: appliedCoupon || null,
+        status: "completed", // Set as completed immediately
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        payment_status: "paid"
+      };
+
+      console.log('[ORDER] Submitting order with data:', JSON.stringify(orderData));
+
+      try {
+        const success = await onOrderCreate(orderData);
+        console.log('[ORDER] Order creation result:', success);
+
+        if (success) {
+          console.log('[ORDER] Order created successfully, clearing cart and closing sheet');
+          toast({
+            title: "Order Complete",
+            description: "Your order has been processed successfully",
+          });
+
+          if (clearCart) clearCart();
+          if (onOpenChange) onOpenChange(false);
+        } else {
+          console.error('[ORDER] Order creation failed');
+          toast({
+            title: "Error",
+            description: "Failed to create order. Please try again.",
+            variant: "destructive",
+          });
+        }
+      } catch (orderError) {
+        console.error('[ORDER] Error during order creation:', orderError);
+        toast({
+          title: "Error",
+          description: orderError instanceof Error
+            ? `Order creation failed: ${orderError.message}`
+            : "Unknown error during order creation",
+          variant: "destructive",
+        });
+      }
     } catch (error) {
-      console.error('Failed to confirm order:', error);
-      // Handle error (e.g., show error message to user)
+      console.error('[ORDER] General error in handleConfirmOrder:', error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -161,20 +300,32 @@ export const CartFooter: FC<CartFooterProps> = ({
                 </div>
               </div>
             )}
-            <Button
-              onClick={handleConfirmOrder}
-              disabled={isLoading}
-              className="w-full"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Confirming Order...
-                </>
-              ) : (
-                'Confirm Order'
-              )}
-            </Button>
+            <div className="grid grid-cols-2 gap-4">
+              <Button
+                onClick={onCancel}
+                disabled={isLoading}
+                variant="outline"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  handleConfirmOrder();
+                  if (onOpenChange) onOpenChange(false);
+                }}
+                disabled={isLoading || !items || items.length === 0}
+                className="bg-primary"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  'Pay'
+                )}
+              </Button>
+            </div>
           </motion.div>
         )}
         {isOrderConfirmed && (
@@ -184,16 +335,21 @@ export const CartFooter: FC<CartFooterProps> = ({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.3 }}
-            className="grid grid-cols-2 gap-2"
+            className="space-y-4"
           >
-            <Button variant="outline" onClick={onPrintPreview}>
-              <Printer className="mr-2 h-4 w-4" />
-              Print
-            </Button>
-            <Button variant="outline" onClick={onShare}>
-              <Share2 className="mr-2 h-4 w-4" />
-              Share
-            </Button>
+            <div className="grid grid-cols-3 gap-2">
+              <Button variant="outline" onClick={onCancel}>
+                Cancel
+              </Button>
+              <Button variant="outline" onClick={onPrintPreview}>
+                <Printer className="mr-2 h-4 w-4" />
+                Print
+              </Button>
+              <Button variant="outline" onClick={onShare}>
+                <Share2 className="mr-2 h-4 w-4" />
+                Share
+              </Button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

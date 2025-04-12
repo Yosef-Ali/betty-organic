@@ -16,13 +16,19 @@ import {
 } from '@/components/ui/command';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Search } from 'lucide-react';
-import { searchCustomers } from '@/app/actions/profile';
+import { getCustomers } from '@/app/actions/customersActions';
 
 interface Customer {
   id: string;
   fullName: string;
-  phone: string | null;
   email: string;
+  address?: string;
+  imageUrl?: string;
+  status?: string;
+  orders?: any[];
+  created_at?: string;
+  updated_at?: string;
+  phone?: string | null;
 }
 
 interface CustomerSearchProps {
@@ -39,22 +45,45 @@ export const CustomerSearch: React.FC<CustomerSearchProps> = ({
   const [customerSearch, setCustomerSearch] = useState('');
   const [customers, setCustomers] = useState<Customer[]>([]);
 
+  // Fetch initial customer list once on component mount
   useEffect(() => {
-    const searchCustomersDebounced = setTimeout(async () => {
-      if (customerSearch) {
-        try {
-          const results = await searchCustomers(customerSearch);
-          setCustomers(Array.isArray(results) ? results : []);
-        } catch (error) {
-          console.error('Error searching customers:', error);
-          setCustomers([]);
-        }
-      } else {
+    const fetchCustomers = async () => {
+      try {
+        const results = await getCustomers();
+        setCustomers(results.slice(0, 10)); // Show first 10 customers by default
+      } catch (error) {
+        console.error('Error fetching customers:', error);
         setCustomers([]);
       }
-    }, 300);
+    };
+    fetchCustomers();
+  }, []);
 
-    return () => clearTimeout(searchCustomersDebounced);
+  // Filter customers when search text changes
+  useEffect(() => {
+    const filterCustomers = async () => {
+      try {
+        if (customerSearch.trim() === '') {
+          // If search is empty, get top 10 customers
+          const results = await getCustomers();
+          setCustomers(results.slice(0, 10));
+        } else {
+          // Otherwise fetch all and filter client-side
+          const results = await getCustomers();
+          const filtered: Customer[] = results.filter((customer: Customer) =>
+            customer.fullName?.toLowerCase().includes(customerSearch.toLowerCase()) ||
+            customer.email?.toLowerCase().includes(customerSearch.toLowerCase())
+          );
+          setCustomers(filtered);
+        }
+      } catch (error) {
+        console.error('Error searching customers:', error);
+        setCustomers([]);
+      }
+    };
+
+    const debounceTimer = setTimeout(filterCustomers, 300);
+    return () => clearTimeout(debounceTimer);
   }, [customerSearch]);
 
   const handleSelectCustomer = (customer: Customer) => {

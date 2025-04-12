@@ -17,13 +17,37 @@ import ConfirmDialog from './ConfirmDialog';
 import { CartItems } from './CartItems';
 import { OrderSummary } from './OrderSummary';
 import { useSalesCartSheet } from './useSalesCartSheet';
-import { Order } from '@/types/order';
+import { Order, OrderItem } from '@/types/order';
+import { Customer } from '@/types/customer';
 import { useSalesCartStore } from '@/store/salesCartStore';
 
 interface SalesCartSheetProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  onOrderCreate: (orderData: Order) => Promise<boolean>;
+  onOrderCreate: (orderData: {
+    id?: string;
+    profile_id?: string;
+    customer_profile_id?: string;
+    type?: string;
+    items: Array<{
+      id: string;
+      name: string;
+      price: number;
+      quantity: number;
+      imageUrl: string;
+      product_id?: string;
+      product_name?: string;
+    }>;
+    order_items?: OrderItem[];
+    customer: Customer | Partial<Customer>;
+    total_amount: number;
+    delivery_cost: number;
+    coupon_code: string | null;
+    status: string;
+    created_at: string;
+    updated_at: string;
+    payment_status: string;
+  }) => Promise<boolean>;
   user?: {
     id: string;
     user_metadata: {
@@ -220,7 +244,6 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
                     setCustomerId={handleCustomerUpdate}
                     orderStatus={orderStatus || 'pending'}
                     setOrderStatus={setOrderStatus}
-                    isStatusVerified={isStatusVerified}
                     handleToggleLock={handleToggleLockStatus}
                     handleConfirmDialog={handleConfirmDialogChange}
                     isSaving={isSaving}
@@ -248,10 +271,16 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
             onPrintPreview={handleThermalPrintPreview}
             onPrint={handlePrint}
             onShare={handleShare}
-            onConfirmOrder={handleConfirmOrder}
+            onConfirmOrder={handleConfirmOrder} // This seems to just set the state, not create the order
             isOrderConfirmed={isOrderConfirmed}
             onCancel={handleBackToCart}
             disabled={isPending}
+            // Pass down necessary props for Pay button logic
+            onOrderCreate={onOrderCreate}
+            items={items}
+            customer={customer}
+            clearCart={clearCart}
+            onOpenChange={onOpenChange}
           />
         </SheetContent>
       </Sheet>
@@ -304,4 +333,3 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
     </>
   );
 };
-
