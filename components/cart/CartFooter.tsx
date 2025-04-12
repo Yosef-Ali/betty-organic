@@ -120,9 +120,12 @@ export const CartFooter: FC<CartFooterProps> = ({
         return;
       }
 
-      // Always use anonymous customer by default
+      // Create a proper customer object with valid UUIDs
+      const anonymousUuid = crypto.randomUUID();
       const orderCustomer = {
-        id: 'anonymous',
+        id: anonymousUuid,
+        profile_id: anonymousUuid, // Ensure profile_id is also a valid UUID
+        customer_profile_id: anonymousUuid, // Ensure customer_profile_id is also a valid UUID
         name: 'Unknown Customer',
         email: '',
         role: 'customer' as const
