@@ -414,8 +414,19 @@ ${storeInfo}`;
               if (!profile) { toast.error("You must be logged in to create an order"); return; }
               if (!profile.role) { toast.error("Your profile is missing required permissions"); return; }
               if (profile.role !== 'admin' && profile.role !== 'sales') { toast.error("Access Denied - Only admin or sales users can create orders"); return; }
-              if (!selectedCustomer) { toast.error("Please select a customer before saving the order"); return; }
-              handleConfirmDialog('save', { id: selectedCustomer.id, name: selectedCustomer.name, role: 'customer' });
+
+              // Create customer data with valid UUID
+              const customerUuid = selectedCustomer ? selectedCustomer.id : crypto.randomUUID();
+              const orderCustomer = {
+                id: customerUuid,
+                name: selectedCustomer ? selectedCustomer.name : "Unknown Customer",
+                role: 'customer' as const,
+                // Ensure these match the expected structure for an order
+                profile_id: profile.id, // The seller/staff member's ID
+                customer_profile_id: customerUuid // The customer's ID (same as id)
+              };
+
+              handleConfirmDialog('save', orderCustomer);
             }
           }}
           disabled={isGuestFlow ? isSaving || !guestName?.trim() || !guestLocation?.trim() || validatePhone(guestPhone || '') !== null || isOrderSaved : isSaving || !selectedCustomer || isOrderSaved}
