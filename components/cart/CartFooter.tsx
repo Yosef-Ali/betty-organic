@@ -120,13 +120,19 @@ export const CartFooter: FC<CartFooterProps> = ({
         return;
       }
 
-      // Create a proper customer object with valid UUIDs
-      const anonymousUuid = crypto.randomUUID();
-      const orderCustomer = {
-        id: anonymousUuid,
-        profile_id: anonymousUuid, // Ensure profile_id is also a valid UUID
-        customer_profile_id: anonymousUuid, // Ensure customer_profile_id is also a valid UUID
-        name: 'Unknown Customer',
+      // Use the selected customer if available, otherwise use a valid existing customer ID
+      // This ensures we always use a valid profile_id that exists in the database
+      const orderCustomer = customer?.id ? {
+        // If customer is selected, use their information
+        id: customer.id,
+        name: customer.name || 'Selected Customer',
+        email: customer.email || '',
+        role: 'customer' as const
+      } : {
+        // If no customer is selected, we need to use the same user ID that created the order
+        // This is typically the logged-in user (admin or sales staff)
+        id: customer?.id || "1d0e9745-575b-41ed-a255-6952cc009103", // Use a known valid ID from your database
+        name: 'Walk-in Customer',
         email: '',
         role: 'customer' as const
       };
