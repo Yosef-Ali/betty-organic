@@ -64,13 +64,13 @@ export default function OrderDetails({ orderId }: OrderDetailsProps) {
     );
   }
 
-  // Process items with safe type checking
+  // Use the order data directly without recalculation
   const itemsWithTotal = order.items.map(item => ({
     ...item,
-    total: Number(item.price) * Number(item.quantity),
+    total: Number(item.price) * Number(item.quantity), // Calculate item total
   }));
 
-  // Use the order's total_amount directly
+  // Use the order's total_amount directly without calculation
   const totalAmount = order.total_amount || 0;
 
   // Safely access profile information with fallbacks
@@ -81,6 +81,8 @@ export default function OrderDetails({ orderId }: OrderDetailsProps) {
   const profileCreatedAt = order.profile?.created_at || new Date().toISOString();
   const profileUpdatedAt = order.profile?.updated_at || new Date().toISOString();
   const profileAvatarUrl = order.profile?.avatar_url || undefined;
+  const profileAddress = order.profile?.address || null; // Add address fallback
+  const profilePhone = order.profile?.phone || null; // Add phone fallback
 
   return (
     <Card className="overflow-hidden">
@@ -95,15 +97,15 @@ export default function OrderDetails({ orderId }: OrderDetailsProps) {
 
       <CardContent className="p-6 text-sm">
         <div className="grid gap-3">
-          <div className="font-semibold">Order Detailsnnnnnnnn</div>
+          <div className="font-semibold">Order Details</div>
           <ul className="grid gap-3">
             {itemsWithTotal.map(item => (
               <li key={item.id} className="flex items-center justify-between">
                 <span className="text-muted-foreground">
                   {item.product?.name || 'Unknown Product'} x{' '}
-                  <span>{Number(item.quantity).toFixed(0)} g</span>
+                  <span>{Number(item.quantity)}</span>
                 </span>
-                <span>Br {item.total.toFixed(2)}</span>
+                <span>Br {Number(item.total).toLocaleString('et-ET', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </li>
             ))}
           </ul>
@@ -114,7 +116,7 @@ export default function OrderDetails({ orderId }: OrderDetailsProps) {
             <li className="flex items-center justify-between">
               <span className="text-muted-foreground">Delivery Cost</span>
               <span className="text-muted-foreground">
-                Br {order.delivery_cost ? order.delivery_cost.toFixed(2) : (0).toFixed(2)}
+                Br {order.delivery_cost ? Number(order.delivery_cost).toLocaleString('et-ET', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
               </span>
             </li>
             {((order.coupon_code && order.coupon_code.length > 0) || order.coupon?.code) && (
@@ -129,17 +131,17 @@ export default function OrderDetails({ orderId }: OrderDetailsProps) {
               <li className="flex items-center justify-between">
                 <span className="text-muted-foreground">Discount</span>
                 <span className="text-green-600">
-                  -Br {order.discount_amount.toFixed(2)}
+                  -Br {Number(order.discount_amount).toLocaleString('et-ET', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
               </li>
             )}
             <li className="flex items-center justify-between">
               <span className="text-muted-foreground">Tax</span>
-              <span className="text-muted-foreground">Br {(0).toFixed(2)}</span>
+              <span className="text-muted-foreground">Br {'0.00'}</span>
             </li>
             <li className="flex items-center justify-between font-semibold">
               <span className="text-muted-foreground">Total</span>
-              <span>Br {totalAmount.toFixed(2)}</span>
+              <span>Br {Number(totalAmount).toLocaleString('et-ET', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             </li>
           </ul>
         </div>
@@ -168,7 +170,9 @@ export default function OrderDetails({ orderId }: OrderDetailsProps) {
               auth_provider: 'email',
               created_at: profileCreatedAt,
               updated_at: profileUpdatedAt,
-              avatar_url: profileAvatarUrl,
+              avatar_url: profileAvatarUrl || null,
+              address: profileAddress, // Add address property
+              phone: profilePhone, // Add phone property
             }}
           />
         </>
