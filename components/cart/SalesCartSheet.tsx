@@ -1,25 +1,25 @@
-import { useEffect, useState, useCallback } from 'react';
-import { toast } from 'sonner';
+import { useEffect, useState, useCallback } from "react";
+import { toast } from "sonner";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
-} from '@/components/ui/sheet';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { CartFooter } from './CartFooter';
-import { PrintPreviewModal } from '../PrintPreviewModal';
-import { AnimatePresence } from 'framer-motion';
-import { Button } from '@/components/ui/button';
-import { ChevronLeftIcon } from 'lucide-react';
-import { OtpDialog } from './OtpDialog';
-import ConfirmDialog from './ConfirmDialog';
-import { CartItems } from './CartItems';
-import { OrderSummary } from './OrderSummary';
-import { useSalesCartSheet } from './useSalesCartSheet';
-import { Order, OrderItem } from '@/types/order';
-import { Customer } from '@/types/customer';
-import { useSalesCartStore } from '@/store/salesCartStore';
+} from "@/components/ui/sheet";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { CartFooter } from "./CartFooter";
+import { PrintPreviewModal } from "../PrintPreviewModal";
+import { AnimatePresence } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import { ChevronLeftIcon } from "lucide-react";
+import { OtpDialog } from "./OtpDialog";
+import ConfirmDialog from "./ConfirmDialog";
+import { CartItems } from "./CartItems";
+import { OrderSummary } from "./OrderSummary";
+import { useSalesCartSheet } from "./useSalesCartSheet";
+import { Order, OrderItem } from "@/types/order";
+import { Customer } from "@/types/customer";
+import { useSalesCartStore } from "@/store/salesCartStore";
 
 interface SalesCartSheetProps {
   isOpen: boolean;
@@ -70,12 +70,14 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
   const { clearCart } = useSalesCartStore();
 
   const {
-    profile = user?.profile ? {
-      id: user.profile.id || user.id,
-      role: user.profile.role,
-      name: user.user_metadata?.full_name || '',
-      email: user.email
-    } : null,
+    profile = user?.profile
+      ? {
+          id: user.profile.id || user.id,
+          role: user.profile.role,
+          name: user.user_metadata?.full_name || "",
+          email: user.email,
+        }
+      : null,
     error,
     items,
     customer,
@@ -91,6 +93,8 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
     isOrderSaved,
     orderNumber,
     getTotalAmount,
+    deliveryCost,
+    setDeliveryCost,
     onOtpChange,
     handleOtpSubmit,
     handleThermalPrintPreview,
@@ -111,7 +115,9 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
   });
 
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
-  const [confirmAction, setConfirmAction] = useState<'save' | 'cancel' | null>(null);
+  const [confirmAction, setConfirmAction] = useState<"save" | "cancel" | null>(
+    null
+  );
   const [isPending, setIsPending] = useState(false);
 
   useEffect(() => {
@@ -122,20 +128,23 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
     };
   }, []);
 
-  const handleCustomerUpdate = useCallback((id: string) => {
-    try {
-      if (!id) return;
-      setCustomer({ ...customer, id });
-    } catch (error) {
-      console.error('Error updating customer:', error);
-      toast.error('Failed to update customer information');
-    }
-  }, [customer, setCustomer]);
+  const handleCustomerUpdate = useCallback(
+    (id: string) => {
+      try {
+        if (!id) return;
+        setCustomer({ ...customer, id });
+      } catch (error) {
+        console.error("Error updating customer:", error);
+        toast.error("Failed to update customer information");
+      }
+    },
+    [customer, setCustomer]
+  );
 
   const handleToggleLockStatus = useCallback(() => {
-    if (profile?.role === 'admin' && !isPending) {
+    if (profile?.role === "admin" && !isPending) {
       setIsPending(true);
-      const newStatus = orderStatus === 'processing' ? 'pending' : 'processing';
+      const newStatus = orderStatus === "processing" ? "pending" : "processing";
       setOrderStatus(newStatus);
     }
   }, [profile?.role, isPending, orderStatus, setOrderStatus]);
@@ -150,27 +159,27 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
   }, [isPending]);
 
   const handleConfirmDialogChange = useCallback(
-    async (action: 'save' | 'cancel', selectedCustomer?: any) => {
+    async (action: "save" | "cancel", selectedCustomer?: any) => {
       if (isPending) return;
 
       try {
-        if (action === 'save') {
+        if (action === "save") {
           if (!selectedCustomer?.id) {
-            toast.error('Please select a customer before saving the order');
+            toast.error("Please select a customer before saving the order");
             return;
           }
-          setConfirmAction('save');
-          await handleConfirmDialog('save', selectedCustomer);
+          setConfirmAction("save");
+          await handleConfirmDialog("save", selectedCustomer);
         } else {
-          setConfirmAction('cancel');
+          setConfirmAction("cancel");
           setIsConfirmDialogOpen(true);
         }
       } catch (error) {
-        console.error('Error in handleConfirmDialogChange:', error);
-        toast.error('Failed to process the action. Please try again.');
+        console.error("Error in handleConfirmDialogChange:", error);
+        toast.error("Failed to process the action. Please try again.");
       }
     },
-    [handleConfirmDialog, isPending],
+    [handleConfirmDialog, isPending]
   );
 
   const handleDeleteClick = useCallback(() => {
@@ -179,7 +188,7 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
   }, [clearCart, onOpenChange]);
 
   const handleCancelClick = useCallback(() => {
-    if (!customer || !isPending || orderStatus === 'completed') {
+    if (!customer || !isPending || orderStatus === "completed") {
       clearCart();
       onOpenChange(false);
     }
@@ -193,9 +202,13 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
             <div className="h-6 w-6 text-destructive" />
           </div>
           <div className="flex flex-col gap-2">
-            <h3 className="font-semibold tracking-tight">Error Loading Profile</h3>
+            <h3 className="font-semibold tracking-tight">
+              Error Loading Profile
+            </h3>
             <p className="text-sm text-muted-foreground">
-              {error instanceof Error ? error.message : 'Failed to load profile. Please try again.'}
+              {error instanceof Error
+                ? error.message
+                : "Failed to load profile. Please try again."}
             </p>
           </div>
           <Button
@@ -213,7 +226,10 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
   return (
     <>
       <Sheet open={isOpen} onOpenChange={onOpenChange}>
-        <SheetContent side="right" className="w-full sm:max-w-lg flex flex-col h-full">
+        <SheetContent
+          side="right"
+          className="w-full sm:max-w-lg flex flex-col h-full"
+        >
           <SheetHeader className="space-y-0 pb-4">
             <div className="flex items-center justify-between">
               <Button
@@ -236,13 +252,17 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
                 <CartItems items={items} />
               ) : (
                 <>
-                  {console.log('Profile being passed to OrderSummary:', profile)}
+                  {console.log("Data being passed to OrderSummary:", {
+                    profile,
+                    deliveryCost,
+                    totalAmount: getTotalAmount() + deliveryCost,
+                  })}
                   <OrderSummary
                     items={items}
-                    totalAmount={getTotalAmount()}
-                    customerId={customer?.id || ''}
+                    totalAmount={getTotalAmount() + deliveryCost}
+                    customerId={customer?.id || ""}
                     setCustomerId={handleCustomerUpdate}
-                    orderStatus={orderStatus || 'pending'}
+                    orderStatus={orderStatus || "pending"}
                     setOrderStatus={setOrderStatus}
                     handleToggleLock={handleToggleLockStatus}
                     handleConfirmDialog={handleConfirmDialogChange}
@@ -250,15 +270,21 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
                     onPrintPreview={handleThermalPrintPreview}
                     isOrderSaved={isOrderSaved}
                     orderNumber={orderNumber}
-                    isAdmin={profile?.role === 'admin'}
+                    isAdmin={profile?.role === "admin"}
                     customerInfo={customer}
                     setCustomerInfo={setCustomer}
-                    profile={profile ? {
-                      id: profile.id,
-                      role: profile.role,
-                      name: profile.name,
-                      email: profile.email
-                    } : undefined}
+                    deliveryCost={deliveryCost}
+                    setDeliveryCost={setDeliveryCost}
+                    profile={
+                      profile
+                        ? {
+                            id: profile.id,
+                            role: profile.role,
+                            name: profile.name,
+                            email: profile.email,
+                          }
+                        : undefined
+                    }
                   />
                 </>
               )}
@@ -294,13 +320,13 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
                 setIsThermalPrintPreviewOpen(false);
               }
             }}
-            items={items.map(item => ({
+            items={items.map((item) => ({
               name: item.name,
               quantity: item.grams / 1000,
               price: (item.pricePerKg * item.grams) / 1000,
             }))}
             total={getTotalAmount()}
-            customerId={customer?.id || ''}
+            customerId={customer?.id || ""}
           />
         )}
       </AnimatePresence>
@@ -309,8 +335,8 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
         <ConfirmDialog
           isConfirmDialogOpen={isConfirmDialogOpen}
           setIsConfirmDialogOpen={setIsConfirmDialogOpen}
-          confirmAction={confirmAction || 'cancel'}
-          handleConfirmAction={action => {
+          confirmAction={confirmAction || "cancel"}
+          handleConfirmAction={(action) => {
             if (!isPending) {
               handleConfirmAction(action);
               setIsConfirmDialogOpen(false);
@@ -321,7 +347,7 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
 
       <OtpDialog
         isOpen={isOtpDialogOpen}
-        onOpenChange={value => {
+        onOpenChange={(value) => {
           if (!isPending) {
             setIsOtpDialogOpen(value);
           }

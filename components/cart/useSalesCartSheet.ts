@@ -173,6 +173,27 @@ export function useSalesCartSheet({
 
   const { toast } = useToast();
   const { items, clearCart, getTotalAmount } = useSalesCartStore();
+  const [deliveryCost, setDeliveryCost] = useState<number>(500); // Default delivery cost of 500
+
+  // Listen for delivery cost updates from the OrderSummary component
+  useEffect(() => {
+    const handleDeliveryCostUpdate = (event: any) => {
+      const newCost = event.detail.cost;
+      console.log('[SALES-CART] Received delivery cost update event:', newCost);
+      setDeliveryCost(newCost);
+    };
+
+    window.addEventListener('deliveryCostUpdated', handleDeliveryCostUpdate);
+
+    return () => {
+      window.removeEventListener('deliveryCostUpdated', handleDeliveryCostUpdate);
+    };
+  }, []);
+
+  // Log when delivery cost changes
+  useEffect(() => {
+    console.log('[SALES-CART] Delivery cost updated:', deliveryCost);
+  }, [deliveryCost]);
 
   useEffect(() => {
     if (items.length === 0) {
@@ -311,9 +332,22 @@ export function useSalesCartSheet({
         dispatch({ type: 'SET_CUSTOMER', payload: customerData });
         dispatch({ type: 'SET_SAVING', payload: true });
 
-        const totalAmount = getTotalAmount();
+        const itemsTotal = getTotalAmount();
+        // Calculate total amount including delivery cost
+        const totalAmount = itemsTotal + deliveryCost;
+
+        console.log('[SALES-CART] Preparing order with:', {
+          itemsTotal,
+          deliveryCost,
+          totalAmount
+        });
 
         // Prepare order data
+        // Make sure delivery cost is a number
+        const finalDeliveryCost = typeof deliveryCost === 'number' ? deliveryCost : 0;
+
+        console.log('[SALES-CART] Final delivery cost for order:', finalDeliveryCost);
+
         const orderData = {
           profile_id: state.profile?.id || '',
           customer_profile_id: customerData.id,
@@ -341,7 +375,7 @@ export function useSalesCartSheet({
             ...customerData
           },
           total_amount: totalAmount,
-          delivery_cost: 0,
+          delivery_cost: finalDeliveryCost, // Use the validated delivery cost
           coupon_code: null,
           // If forceComplete is true, set status to 'completed', otherwise use the current orderStatus
           status: forceComplete ? 'completed' : state.orderStatus,
@@ -367,12 +401,17 @@ export function useSalesCartSheet({
                 break;
               }
             } else {
+              // IMPORTANT: Make sure we're passing the delivery cost correctly
+              // This is a direct fix to ensure the delivery cost is saved to the database
+              console.log('[SALES-CART] Calling createOrder with delivery cost:', deliveryCost);
               const orderResponse = await createOrder(
                 orderData.order_items || [],
                 customerData.id,
                 totalAmount,
-                orderData.status  // Use the status from orderData which accounts for forceComplete
+                orderData.status,  // Use the status from orderData which accounts for forceComplete
+                deliveryCost  // Pass the delivery cost directly
               );
+              console.log('[SALES-CART] createOrder response:', orderResponse);
               orderSuccess = orderResponse.success;
               if (orderResponse.success && orderResponse.order) {
                 orderId = orderResponse.order.id;
@@ -512,6 +551,8 @@ export function useSalesCartSheet({
     hasToggledLock: state.hasToggledLock,
     isOrderSaved: state.isOrderSaved,
     orderNumber: state.orderNumber,
+    deliveryCost,
+    setDeliveryCost,
     getTotalAmount,
     onOtpChange,
     handleOtpSubmit,

@@ -92,11 +92,11 @@ export async function getOrderDetails(orderId: string): Promise<{ data: Frontend
     const { data: orderData, error: orderError } = await supabase
       .from('orders')
       .select(`
-        id, display_id, created_at, updated_at, status, total_amount, type,
+        id, display_id, created_at, updated_at, status, total_amount, type, profile_id, customer_profile_id,
         order_items(id, product_id, quantity, price, product_name)
       `)
       .eq('id', orderId)
-      .single();
+      .maybeSingle(); // Use maybeSingle() instead of single() to avoid errors for missing orders
 
     if (orderError) {
       console.error('[DASHBOARD DEBUG] Error fetching order details:', orderError);
@@ -165,8 +165,20 @@ export async function createOrder(
   items: InputOrderItem[],
   customerId: string,
   totalAmount: number,
-  status: string = 'pending'
+  status: string = 'pending',
+  deliveryCost: number = 0,
+  couponCode: string | null = null,
+  discountAmount: number = 0
 ): Promise<OrderResponse> {
+  console.log('[DASHBOARD DEBUG] createOrder called with:', {
+    itemsCount: items.length,
+    customerId,
+    totalAmount,
+    status,
+    deliveryCost,
+    couponCode,
+    discountAmount
+  });
   try {
     console.log('[DASHBOARD DEBUG] Starting order creation...');
     const supabase = await createClient();
@@ -191,6 +203,12 @@ export async function createOrder(
     const display_id = await orderIdService.generateOrderID();
     console.log('[DASHBOARD DEBUG] Generated order ID:', display_id);
 
+    // IMPORTANT: Force the delivery cost to be the value passed in
+    // This is a direct fix to ensure the delivery cost is saved to the database
+    const finalDeliveryCost = deliveryCost;
+
+    console.log('[DASHBOARD DEBUG] Using delivery cost:', finalDeliveryCost, 'Original value:', deliveryCost);
+
     // Prepare the exact OrderInsert object based on types/supabase.ts
     const orderToInsert: OrderInsert = {
       profile_id,
@@ -199,10 +217,19 @@ export async function createOrder(
       status: status,
       type: role === 'customer' ? 'self_service' : 'store',
       display_id: display_id || null,
+      delivery_cost: finalDeliveryCost, // Use the delivery cost passed in
+      coupon_code: couponCode || null,
+      discount_amount: discountAmount || 0,
       // id, created_at, updated_at are excluded
     };
 
-    console.log('[DASHBOARD DEBUG] Creating order in database...');
+    console.log('[DASHBOARD DEBUG] Object being inserted into orders table:', JSON.stringify(orderToInsert, null, 2));
+    console.log('[DASHBOARD DEBUG] Creating order in database with data:', {
+      total_amount: totalAmount,
+      delivery_cost: finalDeliveryCost, // Use the validated delivery cost
+      items_count: items.length,
+      status: status
+    });
     // Use explicit type for insert data to satisfy overload
     const { data: insertedOrderData, error: orderError } = await supabase
       .from('orders')
@@ -217,7 +244,11 @@ export async function createOrder(
     }
     // Now insertedOrderData is OrderRow
     const orderId = insertedOrderData.id; // Safe access
-    console.log('[DASHBOARD DEBUG] Order created successfully:', orderId);
+    console.log('[DASHBOARD DEBUG] Order created successfully:', orderId, {
+      saved_total: insertedOrderData.total_amount,
+      saved_delivery_cost: insertedOrderData.delivery_cost,
+      saved_status: insertedOrderData.status
+    });
 
     // Prepare OrderItemInsert objects strictly
     const orderItemsToInsert: OrderItemInsert[] = items.map(item => ({
@@ -243,7 +274,15 @@ export async function createOrder(
     }
 
     console.log('[DASHBOARD DEBUG] Order items created successfully');
-    revalidatePath('/dashboard/orders');
+
+    // Only revalidate for certain roles to prevent revalidation loops
+    if (['admin', 'sales'].includes(role)) {
+      console.log('[DASHBOARD DEBUG] Revalidating dashboard paths for admin/sales role');
+      revalidatePath('/dashboard/orders');
+    } else {
+      console.log('[DASHBOARD DEBUG] Skipping revalidation for non-admin/sales role:', role);
+    }
+
     console.log('[DASHBOARD DEBUG] Order creation completed successfully');
 
     // Construct the response object matching the frontend 'Order' type

@@ -72,7 +72,7 @@ interface OrdersDataTableProps {
   onSelectOrderAction: (id: string) => void;
   onDeleteOrderAction: (id: string) => Promise<void>;
   isLoading: boolean;
-  onOrdersUpdated?: (options?: { silent?: boolean }) => Promise<void>;
+  onOrdersUpdated?: (options?: { silent?: boolean; urgent?: boolean }) => Promise<void>;
 }
 
 const formatDate = (dateString: string | null | undefined): string => {
@@ -90,6 +90,9 @@ const formatDate = (dateString: string | null | undefined): string => {
 type ExtendedOrderRow = ExtendedOrder & {
   formattedDate?: string;
   formattedAmount?: string;
+  formattedDeliveryCost?: string;
+  formattedDiscount?: string;
+  couponInfo?: string;
 };
 
 // Add type for the realtime payload
@@ -118,6 +121,7 @@ export function OrdersDataTable({
   const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
   const mountedRef = useRef<boolean>(true);
+  const lastUpdateRef = useRef<number>(0); // Track timestamp of last update for debouncing
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
 
   // Initialize Supabase realtime subscription
@@ -166,7 +170,7 @@ export function OrdersDataTable({
               schema: 'public',
               table: 'orders',
             },
-            (payload: RealtimePostgresChangesPayload<OrderPayload>) => {
+            async (payload: RealtimePostgresChangesPayload<OrderPayload>) => {
               if (!mountedRef.current) return;
 
               console.log('Order table change received:', {
@@ -178,42 +182,112 @@ export function OrdersDataTable({
                     : 'unknown',
               });
 
-              const eventType = payload.eventType;
-
-              // Handle different event types with minimal disruption
-              switch (eventType) {
-                case 'INSERT':
-                  // For new orders, update the table silently and show a subtle indicator
-                  // in the UI instead of a toast notification
-                  break;
+              // Enhanced handling for different event types
+              switch (payload.eventType) {
                 case 'UPDATE':
-                  // For updates, only log the change - no toast needed
-                  break;
-                case 'DELETE':
-                  // For deletions, only log the change - no toast needed
-                  // If the currently selected order was deleted, select a different one
-                  if (isOrderPayload(payload.old)) {
-                    const firstAvailableOrder = orders.find(
-                      o => o.id !== payload.old.id,
-                    );
-                    if (firstAvailableOrder) {
-                      setSelectedOrderId(firstAvailableOrder.id);
-                    } else {
-                      setSelectedOrderId(null);
+                  if (isOrderPayload(payload.new) && isOrderPayload(payload.old)) {
+                    console.log('Order updated:', {
+                      id: payload.new.id,
+                      oldStatus: payload.old.status,
+                      newStatus: payload.new.status
+                    });
+
+                    // Show toast notification for status changes
+                    if (payload.old.status !== payload.new.status) {
+                      toast({
+                        title: 'Order Status Updated',
+                        description: `Order #${payload.new.display_id || payload.new.id.slice(0, 8)} status changed to ${payload.new.status}`,
+                        duration: 3000,
+                      });
                     }
                   }
                   break;
+
+                case 'DELETE':
+                  if (isOrderPayload(payload.old)) {
+                    console.log('Order deleted:', payload.old.id);
+                    toast({
+                      title: 'Order Deleted',
+                      description: `Order #${payload.old.display_id || payload.old.id.slice(0, 8)} has been removed`,
+                      duration: 3000,
+                    });
+
+                    // Immediately update the local UI to remove the deleted order
+                    // This provides immediate feedback while the server refresh happens
+                    const deletedOrderId = payload.old.id;
+
+                    // Force a full refresh with special flag to indicate deletion
+                    if (onOrdersUpdated) {
+                      try {
+                        console.log('[DEBUG] Forcing immediate refresh after deletion');
+                        // Add a short timeout to ensure UI state is updated
+                        setTimeout(async () => {
+                          if (mountedRef.current) {
+                            // Call with custom urgent parameter to prioritize this refresh
+                            await onOrdersUpdated({ urgent: true });
+                            console.log('[DEBUG] Deletion refresh completed');
+                          }
+                        }, 100);
+
+                        // Still return to prevent the silent update
+                        return;
+                      } catch (err) {
+                        console.error('Error refreshing after deletion:', err);
+                      }
+                    }
+                  }
+                  break;
+
+                case 'INSERT':
+                  if (isOrderPayload(payload.new)) {
+                    console.log('New order created:', payload.new.id);
+                    toast({
+                      title: 'New Order',
+                      description: `Order #${payload.new.display_id || payload.new.id.slice(0, 8)} has been created`,
+                      duration: 3000,
+                    });
+                  }
+                  break;
+              }
+
+              // Log the change event details
+              console.log('Order table change details:', {
+                eventType: payload.eventType,
+                new: payload.new,
+                old: payload.old,
+              });
+
+              // If a deletion occurs, update the selected order
+              if (payload.eventType === 'DELETE' && isOrderPayload(payload.old)) {
+                const firstAvailableOrder = orders.find(
+                  o => o.id !== payload.old.id,
+                );
+                setSelectedOrderId(firstAvailableOrder?.id || null);
               }
 
               // Handle the update by refreshing data through the parent component
               // This approach ensures all order data is consistent
               if (onOrdersUpdated) {
-                onOrdersUpdated({ silent: true }).catch(err => {
-                  console.error(
-                    'Error updating orders after realtime event:',
-                    err,
-                  );
-                });
+                console.log('[DEBUG] Received realtime event, debouncing update');
+                // Use a debounce mechanism with a ref to track last update time
+                const now = Date.now();
+                const lastUpdateTime = lastUpdateRef.current || 0;
+
+                // Only update if it's been more than 2 seconds since the last update
+                if (now - lastUpdateTime > 2000) {
+                  console.log('[DEBUG] Debounce passed, calling onOrdersUpdated');
+                  lastUpdateRef.current = now;
+                  try {
+                    await onOrdersUpdated({ silent: true });
+                  } catch (err) {
+                    console.error(
+                      'Error updating orders after realtime event:',
+                      err,
+                    );
+                  }
+                } else {
+                  console.log('[DEBUG] Skipping update due to debounce');
+                }
               }
             },
           )
@@ -270,7 +344,7 @@ export function OrdersDataTable({
         }
       }
     };
-  }, [onOrdersUpdated, orders]);
+  }, [onOrdersUpdated]);
 
   // Memoize the data transformation to prevent unnecessary re-renders
   const data = useMemo(() => {
@@ -280,6 +354,17 @@ export function OrdersDataTable({
         ? format(new Date(order.created_at), 'MMM dd, yyyy HH:mm')
         : 'Unknown',
       formattedAmount: formatCurrency(order.total_amount || 0),
+      formattedDeliveryCost: order.delivery_cost
+        ? formatCurrency(order.delivery_cost)
+        : 'N/A',
+      formattedDiscount: order.discount_amount
+        ? formatCurrency(order.discount_amount)
+        : 'N/A',
+      couponInfo: order.coupon_code
+        ? `${order.coupon_code}`
+        : order.coupon?.code
+          ? `${order.coupon.code}`
+          : 'N/A',
     }));
   }, [orders]);
 
@@ -346,6 +431,18 @@ export function OrdersDataTable({
         ),
       },
       {
+        accessorKey: 'delivery_cost',
+        header: 'Delivery',
+        cell: ({ row }: { row: Row<ExtendedOrderRow> }) =>
+          row.original.formattedDeliveryCost,
+      },
+      {
+        accessorKey: 'coupon_code',
+        header: 'Coupon',
+        cell: ({ row }: { row: Row<ExtendedOrderRow> }) =>
+          row.original.couponInfo,
+      },
+      {
         accessorKey: 'total_amount',
         header: 'Amount',
         cell: ({ row }: { row: Row<ExtendedOrderRow> }) =>
@@ -370,6 +467,11 @@ export function OrdersDataTable({
                   description: `Order status changed to ${status}`,
                   duration: 3000,
                 });
+                // Explicitly trigger refresh after successful status update
+                if (onOrdersUpdated) {
+                  console.log('[DEBUG] Calling onOrdersUpdated after successful status update');
+                  onOrdersUpdated(); // Refresh without silent flag to show loading indicator if needed
+                }
               } else {
                 toast({
                   title: 'Update Failed',
@@ -450,7 +552,14 @@ export function OrdersDataTable({
 
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  onClick={() => onDeleteOrderAction(row.original.id)}
+                  onClick={async () => {
+                    await onDeleteOrderAction(row.original.id);
+                    // Explicitly trigger refresh after successful deletion
+                    if (onOrdersUpdated) {
+                      console.log('[DEBUG] Calling onOrdersUpdated after successful deletion');
+                      onOrdersUpdated(); // Refresh without silent flag
+                    }
+                  }}
                   className="text-red-600"
                 >
                   <Trash className="mr-2 h-4 w-4" />
@@ -480,8 +589,8 @@ export function OrdersDataTable({
       <div className="absolute top-2 right-2 flex items-center gap-2 bg-background/80 p-2 rounded-md text-xs text-muted-foreground">
         <div
           className={`h-2 w-2 rounded-full ${realTimeStatus === 'SUBSCRIBED'
-              ? 'bg-green-500'
-              : 'bg-yellow-500 animate-pulse'
+            ? 'bg-green-500'
+            : 'bg-yellow-500 animate-pulse'
             }`}
         />
         <span>

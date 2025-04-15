@@ -20,7 +20,6 @@ import OrderTable from "./OrdersTable";
 import type { Order, OrderItem, ExtendedOrder } from "@/types/order";
 // Supabase client import removed
 
-
 interface OrderPayload {
   id: string;
   [key: string]: any;
@@ -46,8 +45,9 @@ const OrderDashboard: React.FC = () => {
   const [customers, setCustomers] = useState<any[]>([]);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [connectionStatus, setConnectionStatus] =
+    useState<string>("CONNECTING");
   const { toast } = useToast();
-
 
   // Function to convert a single raw order from DB/payload to the Order type used in UI
   const processSingleOrder = useCallback(
@@ -87,37 +87,44 @@ const OrderDashboard: React.FC = () => {
         };
       }
 
-      const orderItems = (orderAny.order_items || []).map((item: any): OrderItem => ({
-        id: item.id || '',
-        product_id: item.product_id,
-        product_name: item.product_name || item.products?.name || "Unknown Product",
-        quantity: item.quantity || 0,
-        price: item.price || 0,
-        order_id: item.order_id || orderAny.id,
-        product: item.products ? { name: item.products.name || "Unknown Product" } : undefined
-      }));
+      const orderItems = (orderAny.order_items || []).map(
+        (item: any): OrderItem => ({
+          id: item.id || "",
+          product_id: item.product_id,
+          product_name:
+            item.product_name || item.products?.name || "Unknown Product",
+          quantity: item.quantity || 0,
+          price: item.price || 0,
+          order_id: item.order_id || orderAny.id,
+          product: item.products
+            ? { name: item.products.name || "Unknown Product" }
+            : undefined,
+        })
+      );
 
       return {
-        id: orderAny.id ?? '',
+        id: orderAny.id ?? "",
         display_id: orderAny.display_id,
-        status: orderAny.status ?? 'pending',
-        type: (orderAny.type as OrderType) ?? 'SALE',
+        status: orderAny.status ?? "pending",
+        type: (orderAny.type as OrderType) ?? "SALE",
         total_amount: orderAny.total_amount ?? 0,
         created_at: orderAny.created_at ?? new Date().toISOString(),
         updated_at: orderAny.updated_at,
-        profile_id: orderAny.profile_id ?? '',
-        customer_profile_id: orderAny.customer_profile_id ?? '',
+        profile_id: orderAny.profile_id ?? "",
+        customer_profile_id: orderAny.customer_profile_id ?? "",
         order_items: orderItems,
         items: orderItems,
         customer: customerDetails,
-        profiles: orderAny.seller ? {
-          id: orderAny.seller.id,
-          name: orderAny.seller.name || '',
-          email: orderAny.seller.email,
-          role: orderAny.seller.role,
-          phone: orderAny.seller.phone ?? null,
-          avatar_url: orderAny.seller.avatar_url ?? null,
-        } : undefined
+        profiles: orderAny.seller
+          ? {
+              id: orderAny.seller.id,
+              name: orderAny.seller.name || "",
+              email: orderAny.seller.email,
+              role: orderAny.seller.role,
+              phone: orderAny.seller.phone ?? null,
+              avatar_url: orderAny.seller.avatar_url ?? null,
+            }
+          : undefined,
       };
     },
     []
@@ -234,7 +241,7 @@ const OrderDashboard: React.FC = () => {
         // setIsUpdating(false); // Removed
       }
     },
-    [processMultipleOrders, toast, selectedOrderId] // Removed orders dependency from here
+    [processMultipleOrders, toast, selectedOrderId, orders] // Added orders dependency
   );
 
   // Load initial data on component mount
@@ -261,8 +268,9 @@ const OrderDashboard: React.FC = () => {
       console.error("Error initiating order deletion:", error);
       toast({
         title: "Error",
-        description: `Failed to initiate order deletion: ${error instanceof Error ? error.message : "Unknown error"
-          }`,
+        description: `Failed to initiate order deletion: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`,
         variant: "destructive",
         important: true, // Mark error as important
       });
@@ -348,15 +356,17 @@ const OrderDashboard: React.FC = () => {
           <StatCard
             title="This Week"
             value={`Br ${currentWeekTotal.toFixed(2)}`}
-            change={`${currentWeekChangePercentage >= 0 ? "+" : ""
-              }${currentWeekChangePercentage.toFixed(2)}% from last week`}
+            change={`${
+              currentWeekChangePercentage >= 0 ? "+" : ""
+            }${currentWeekChangePercentage.toFixed(2)}% from last week`}
             changePercentage={currentWeekChangePercentage}
           />
           <StatCard
             title="This Month"
             value={`Br ${currentMonthTotal.toFixed(2)}`}
-            change={`${currentMonthChangePercentage >= 0 ? "+" : ""
-              }${currentMonthChangePercentage.toFixed(2)}% from last month`}
+            change={`${
+              currentMonthChangePercentage >= 0 ? "+" : ""
+            }${currentMonthChangePercentage.toFixed(2)}% from last month`}
             changePercentage={currentMonthChangePercentage}
           />
         </div>
@@ -417,6 +427,9 @@ const OrderDashboard: React.FC = () => {
               onSelectOrderAction={setSelectedOrderId}
               onDeleteOrder={handleDelete}
               isLoading={isLoading}
+              connectionStatus={connectionStatus}
+              onOrdersUpdated={loadData}
+              setConnectionStatus={setConnectionStatus}
             />
           </TabsContent>
           <TabsContent value="month">
@@ -426,9 +439,9 @@ const OrderDashboard: React.FC = () => {
               onSelectOrderAction={setSelectedOrderId}
               onDeleteOrder={handleDelete}
               isLoading={isLoading}
-            // connectionStatus removed
-            // onOrdersUpdated removed
-            // setConnectionStatus removed
+              connectionStatus={connectionStatus}
+              onOrdersUpdated={loadData}
+              setConnectionStatus={setConnectionStatus}
             />
           </TabsContent>
         </Tabs>

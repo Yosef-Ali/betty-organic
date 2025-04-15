@@ -35,6 +35,14 @@ interface OrderWithProfile {
   updatedAt?: string;
   createdAt: string;
   total_amount: number;
+  delivery_cost?: number;
+  coupon_code?: string;
+  discount_amount?: number;
+  coupon?: {
+    code: string;
+    discount_amount: number;
+    discount_type: 'percentage' | 'fixed';
+  };
 }
 
 export default function OrderDetails({ orderId }: OrderDetailsProps) {
@@ -142,8 +150,18 @@ export default function OrderDetails({ orderId }: OrderDetailsProps) {
     total: Number(item.price) * Number(item.quantity),
   }));
 
-  // Use the order's total_amount directly
-  const totalAmount = order.total_amount || 0;
+  // Calculate subtotal from items
+  const subtotal = itemsWithTotal.reduce((sum, item) => sum + (item.total / 1000), 0);
+
+  // Get delivery cost and discount with fallbacks
+  const deliveryCost = order.delivery_cost || 0;
+  const discountAmount = order.discount_amount || 0;
+
+  // Calculate the correct total amount including delivery and discount
+  const calculatedTotal = subtotal + deliveryCost - discountAmount;
+
+  // Use the calculated total or fall back to order's total_amount
+  const totalAmount = calculatedTotal || order.total_amount || 0;
 
   // Safely access profile information with fallbacks
   const profileName = order.profile?.name || "Unknown Customer";
@@ -154,7 +172,7 @@ export default function OrderDetails({ orderId }: OrderDetailsProps) {
     order.profile?.created_at || new Date().toISOString();
   const profileUpdatedAt =
     order.profile?.updated_at || new Date().toISOString();
-  const profileAvatarUrl = order.profile?.avatar_url || undefined;
+  const profileAvatarUrl = order.profile?.avatar_url || null;
 
   return (
     <Card className="overflow-hidden">
@@ -185,14 +203,54 @@ export default function OrderDetails({ orderId }: OrderDetailsProps) {
           <Separator className="my-2" />
 
           <ul className="grid gap-3">
+            {/* Calculate subtotal from items */}
             <li className="flex items-center justify-between">
-              <span className="text-muted-foreground">Shipping</span>
-              <span className="text-muted-foreground">Br {(0).toFixed(2)}</span>
+              <span className="text-muted-foreground">Subtotal</span>
+              <span className="text-muted-foreground">
+                Br {itemsWithTotal.reduce((sum, item) => sum + (item.total / 1000), 0).toFixed(2)}
+              </span>
             </li>
+
+            {/* Show delivery cost if it exists */}
+            <li className="flex items-center justify-between">
+              <span className="text-muted-foreground">Delivery</span>
+              <span className="text-muted-foreground">
+                Br {(order.delivery_cost || 0).toFixed(2)}
+              </span>
+            </li>
+
+            {/* Show coupon details if a coupon was applied */}
+            {((order.coupon_code && order.coupon_code.length > 0) || (order.discount_amount && order.discount_amount > 0)) && (
+              <li className="flex items-center justify-between">
+                <span className="text-muted-foreground flex items-center">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-4 w-4 mr-1"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
+                    />
+                  </svg>
+                  Discount {order.coupon_code && `(${order.coupon_code})`}
+                </span>
+                <span className="text-green-600">
+                  -Br {(order.discount_amount || 0).toFixed(2)}
+                </span>
+              </li>
+            )}
+
+            {/* Still show tax for consistency, but at 0 */}
             <li className="flex items-center justify-between">
               <span className="text-muted-foreground">Tax</span>
               <span className="text-muted-foreground">Br {(0).toFixed(2)}</span>
             </li>
+
             <li className="flex items-center justify-between font-semibold">
               <span className="text-muted-foreground">Total</span>
               <span>Br {totalAmount.toFixed(2)}</span>
@@ -225,6 +283,8 @@ export default function OrderDetails({ orderId }: OrderDetailsProps) {
               created_at: profileCreatedAt,
               updated_at: profileUpdatedAt,
               avatar_url: profileAvatarUrl,
+              address: null,
+              phone: null,
             }}
           />
         </>
@@ -242,7 +302,7 @@ export default function OrderDetails({ orderId }: OrderDetailsProps) {
               : "Just now"}
           </time>
         </div>
-        <OrderPagination onPrevious={() => {}} onNext={() => {}} />
+        <OrderPagination onPrevious={() => { }} onNext={() => { }} />
       </CardFooter>
 
       <ConfirmOrderDeleteDialog

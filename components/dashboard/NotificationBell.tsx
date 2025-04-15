@@ -80,11 +80,28 @@ export function NotificationBell() {
     });
   }, []);
 
-  // Fetch pending orders
+  // Track the last time we fetched data to prevent excessive calls
+  const lastFetchTimeRef = useRef<number>(0);
+
+  // Fetch pending orders with cooldown protection
   const fetchPendingOrders = useCallback(async () => {
     if (!mountedRef.current) return;
 
+    // Add cooldown of 5 seconds to prevent excessive API calls
+    const now = Date.now();
+    const cooldownPeriod = 5000; // 5 seconds
+
+    if (now - lastFetchTimeRef.current < cooldownPeriod) {
+      console.log("[NotificationBell] Skipping fetch - cooldown period active");
+      return;
+    }
+
+    // Update last fetch time
+    lastFetchTimeRef.current = now;
+
+    console.log("[NotificationBell] Fetching pending orders");
     setIsLoading(true);
+
     try {
       // Use the server action to fetch pending orders
       const response = await fetchPendingOrdersForNotification(user?.id);
@@ -125,17 +142,17 @@ export function NotificationBell() {
         supabaseRef.current = createClient();
       }
 
-      // Remove existing channel if it exists
+      // Don't create a new channel if one already exists
       if (channelRef.current) {
-        try {
-          supabaseRef.current.removeChannel(channelRef.current);
-        } catch (err) {
-          console.warn("Error removing existing channel:", err);
-        }
+        console.log("Reusing existing notification channel");
+        return;
       }
 
-      // Create a unique channel name
-      const channelName = "orders-notifications-" + Date.now();
+      // Create a stable channel name based on user ID
+      // This prevents creating multiple channels for the same user
+      const channelName = user?.id
+        ? `orders-notifications-${user.id}`
+        : "orders-notifications-anonymous";
 
       // Set up the channel
       const channel = supabaseRef.current
@@ -241,8 +258,8 @@ export function NotificationBell() {
               }
             }
 
-            // Also refresh notifications list to ensure consistency
-            fetchPendingOrders();
+            // Only fetch pending orders if needed (removing this frequent fetch that's causing loops)
+            // Instead of fetching on every change, rely on the real-time updates
 
             // Only animate and play sound for new pending orders
             if (
@@ -281,35 +298,55 @@ export function NotificationBell() {
     return () => clearTimeout(timer);
   }, [unreadCount]);
 
-  // Initialize component
+  // Initialize component with better cleanup and connection handling
   useEffect(() => {
+    console.log("[NotificationBell] Component mounted");
     mountedRef.current = true;
 
-    // Create Supabase client
+    // Track if we've already set up the subscription to prevent duplicates
+    let hasSetupSubscription = false;
+
+    // Create Supabase client only once
     try {
-      const client = createClient();
-      supabaseRef.current = client;
+      if (!supabaseRef.current) {
+        const client = createClient();
+        supabaseRef.current = client;
+        console.log("[NotificationBell] Supabase client initialized");
+      }
     } catch (err) {
       setError("Failed to initialize notification system");
+      console.error("[NotificationBell] Failed to initialize Supabase client:", err);
       return;
     }
 
-    // Setup realtime subscription
-    setupRealtimeSubscription();
+    // Only setup the subscription if we haven't already
+    if (!hasSetupSubscription && !channelRef.current) {
+      setupRealtimeSubscription();
+      hasSetupSubscription = true;
+    }
 
-    // Cleanup on unmount
+    // Initial data fetch with cooldown protection
+    if (Date.now() - lastFetchTimeRef.current > 5000) {
+      fetchPendingOrders();
+    }
+
+    // Comprehensive cleanup on unmount
     return () => {
+      console.log("[NotificationBell] Component unmounting, cleaning up resources");
       mountedRef.current = false;
 
+      // Properly remove the channel
       if (supabaseRef.current && channelRef.current) {
         try {
           supabaseRef.current.removeChannel(channelRef.current);
+          console.log("[NotificationBell] Channel removed successfully");
         } catch (err) {
-          console.warn("Error removing channel:", err);
+          console.warn("[NotificationBell] Error removing channel during cleanup:", err);
         }
+        channelRef.current = null;
       }
     };
-  }, [setupRealtimeSubscription]);
+  }, [setupRealtimeSubscription, fetchPendingOrders]);
 
   // Handle notification click
   const handleNotificationClick = (orderId: string) => {
@@ -363,11 +400,10 @@ export function NotificationBell() {
 
             {/* Connection status indicator */}
             <span
-              className={`absolute -bottom-1 -right-1 h-2 w-2 rounded-full ${
-                connectionStatus === "SUBSCRIBED"
-                  ? "bg-green-500"
-                  : "bg-yellow-500"
-              }`}
+              className={`absolute -bottom-1 -right-1 h-2 w-2 rounded-full ${connectionStatus === "SUBSCRIBED"
+                ? "bg-green-500"
+                : "bg-yellow-500"
+                }`}
             />
           </Button>
         </DropdownMenuTrigger>

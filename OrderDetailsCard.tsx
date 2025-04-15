@@ -112,9 +112,27 @@ export default function OrderDetails({ orderId }: OrderDetailsProps) {
 
           <ul className="grid gap-3">
             <li className="flex items-center justify-between">
-              <span className="text-muted-foreground">Shipping</span>
-              <span className="text-muted-foreground">Br {(0).toFixed(2)}</span>
+              <span className="text-muted-foreground">Delivery Cost</span>
+              <span className="text-muted-foreground">
+                Br {order.delivery_cost ? order.delivery_cost.toFixed(2) : (0).toFixed(2)}
+              </span>
             </li>
+            {((order.coupon_code && order.coupon_code.length > 0) || order.coupon?.code) && (
+              <li className="flex items-center justify-between">
+                <span className="text-muted-foreground">Coupon</span>
+                <span className="font-medium text-green-600">
+                  {order.coupon_code || order.coupon?.code}
+                </span>
+              </li>
+            )}
+            {(order.discount_amount !== undefined && order.discount_amount > 0) && (
+              <li className="flex items-center justify-between">
+                <span className="text-muted-foreground">Discount</span>
+                <span className="text-green-600">
+                  -Br {order.discount_amount.toFixed(2)}
+                </span>
+              </li>
+            )}
             <li className="flex items-center justify-between">
               <span className="text-muted-foreground">Tax</span>
               <span className="text-muted-foreground">Br {(0).toFixed(2)}</span>

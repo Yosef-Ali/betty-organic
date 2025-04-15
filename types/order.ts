@@ -22,6 +22,14 @@ export type Order = {
   updated_at?: string | null;
   order_items: OrderItem[];
   items?: OrderItem[];
+  delivery_cost?: number;
+  coupon?: {
+    code: string;
+    discount_amount: number;
+    discount_type: 'percentage' | 'fixed';
+  };
+  coupon_code?: string;
+  discount_amount?: number;
   customer?: {
     id: string;
     name: string | null;

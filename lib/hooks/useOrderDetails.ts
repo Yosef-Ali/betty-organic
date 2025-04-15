@@ -20,6 +20,14 @@ interface OrderDetails {
     quantity: number;
   }>;
   total_amount: number;
+  delivery_cost?: number;
+  coupon_code?: string;
+  discount_amount?: number;
+  coupon?: {
+    code: string;
+    discount_amount: number;
+    discount_type: 'percentage' | 'fixed';
+  };
 }
 
 // Helper function to check if object is an error with message
@@ -59,18 +67,34 @@ export function useOrderDetails(orderId: string) {
       return; // Don't fetch again
     }
 
+    // Skip fetching if we've already fetched this order ID recently (within 5 seconds)
+    if (lastFetchedOrderIdRef.current === orderId) {
+      const currentTime = Date.now();
+      const lastFetchTime = Number(localStorage.getItem(`last_fetch_${orderId}`)) || 0;
+
+      // If last fetch was within 5 seconds, skip this fetch
+      if (currentTime - lastFetchTime < 5000) {
+        console.log(`[OrderDetails] Skipping duplicate fetch for order ${orderId} - too soon`);
+        setIsLoading(false);
+        return;
+      }
+    }
+
     // Clear any existing timeout
     if (fetchTimeoutRef.current) {
       clearTimeout(fetchTimeoutRef.current);
     }
 
-    // Set a small delay to prevent rapid refetching
+    // Set a delay to prevent rapid refetching - 300ms debounce
     fetchTimeoutRef.current = setTimeout(async () => {
       if (!isMounted) return;
 
       setIsLoading(true);
       setError(null);
       lastFetchedOrderIdRef.current = orderId;
+
+      // Record fetch time in localStorage to prevent duplicate fetches across re-renders
+      localStorage.setItem(`last_fetch_${orderId}`, Date.now().toString());
 
       try {
         console.log(`[OrderDetails] Fetching order details for ID: ${orderId}`);

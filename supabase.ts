@@ -71,6 +71,10 @@ export type Database = {
           display_id: string | null
           created_at: string
           updated_at: string
+          delivery_cost: number | null
+          coupon_code: string | null
+          discount_amount: number | null
+          coupon: Json | null
         }
         Insert: {
           id?: string
@@ -82,6 +86,10 @@ export type Database = {
           display_id?: string | null
           created_at?: string
           updated_at?: string
+          delivery_cost?: number | null
+          coupon_code?: string | null
+          discount_amount?: number | null
+          coupon?: Json | null
         }
         Update: {
           id?: string
@@ -93,6 +101,10 @@ export type Database = {
           display_id?: string | null
           created_at?: string
           updated_at?: string
+          delivery_cost?: number | null
+          coupon_code?: string | null
+          discount_amount?: number | null
+          coupon?: Json | null
         }
         Relationships: [
           {

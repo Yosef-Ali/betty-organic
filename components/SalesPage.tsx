@@ -224,9 +224,23 @@ const SalesPage: FC<SalesPageProps> = ({ user }) => {
           user.id;
 
         // Extract total amount with fallbacks
-        const totalAmount = orderData.total_amount ||
-          orderData.totalAmount ||
-          orderItems.reduce((sum: number, item: { price?: number }) => sum + (item.price || 0), 0);
+        const calculatedItemsTotal = orderItems.reduce((sum: number, item: { price?: number }) => sum + (item.price || 0), 0);
+
+        // Extract delivery cost and discount
+        const deliveryCost = orderData.delivery_cost || 0;
+        const couponCode = orderData.coupon_code || null;
+        const discountAmount = orderData.discount_amount || 0;
+
+        // Calculate the final total amount including delivery and discount
+        const finalTotalAmount = calculatedItemsTotal + deliveryCost - discountAmount;
+
+        console.log('[SALES-PAGE] Calculated totals:', {
+          itemsTotal: calculatedItemsTotal,
+          deliveryCost,
+          discountAmount,
+          finalTotal: finalTotalAmount,
+          providedTotal: orderData.total_amount || orderData.totalAmount
+        });
 
         // Extract status with fallback
         const status = orderData.status || 'completed';
@@ -234,16 +248,50 @@ const SalesPage: FC<SalesPageProps> = ({ user }) => {
         console.log('[SALES-PAGE] Formatted order data:', {
           orderItems,
           customerId,
-          totalAmount,
+          totalAmount: finalTotalAmount,
+          deliveryCost,
+          couponCode,
+          discountAmount,
+          originalTotal: calculatedItemsTotal, // Use calculatedItemsTotal instead of the removed totalAmount
           status
         });
 
         // Call the server-side action to create the order
+        // Add request throttling/batching to reduce database operations
+        const cachedOrders = localStorage.getItem('pendingOrders');
+        const pendingOrders = cachedOrders ? JSON.parse(cachedOrders) : [];
+
+        // If in offline mode or we're batching orders, store locally first
+        if (pendingOrders.length > 0 || (window.navigator && !navigator.onLine)) {
+          // Store order locally
+          pendingOrders.push({
+            items: orderItems,
+            customerId,
+            totalAmount: finalTotalAmount,
+            status,
+            createdAt: new Date().toISOString()
+          });
+          localStorage.setItem('pendingOrders', JSON.stringify(pendingOrders));
+
+          // Return simulated success response when offline
+          if (window.navigator && !navigator.onLine) {
+            console.log('[SALES-PAGE] Offline mode - order saved locally');
+            toast({
+              title: 'Order saved locally',
+              description: `Order will be synced when you're back online`,
+            });
+            return true; // Return boolean as required by the function signature
+          }
+        }
+
         const response = await createOrder(
           orderItems,
           customerId,
-          totalAmount,
-          status
+          finalTotalAmount,
+          status,
+          deliveryCost, // Pass deliveryCost
+          couponCode,   // Pass couponCode
+          discountAmount // Pass discountAmount
         );
 
         console.log('[SALES-PAGE] Order creation response:', response);
