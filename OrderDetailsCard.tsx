@@ -70,8 +70,14 @@ export default function OrderDetails({ orderId }: OrderDetailsProps) {
     total: Number(item.price) * Number(item.quantity), // Calculate item total
   }));
 
-  // Use the order's total_amount directly without calculation
-  const totalAmount = order.total_amount || 0;
+  // Calculate subtotal from items
+  const subtotal = itemsWithTotal.reduce((acc, item) => acc + item.total, 0);
+
+  // Calculate total amount manually
+  const deliveryCost = Number(order.delivery_cost) || 0;
+  const discountAmount = Number(order.discount_amount) || 0;
+  // Assuming tax is 0 as it's displayed as '0.00'
+  const calculatedTotalAmount = subtotal + deliveryCost - discountAmount;
 
   // Safely access profile information with fallbacks
   const profileName = order.profile?.name || 'Unknown Customer';
@@ -113,6 +119,11 @@ export default function OrderDetails({ orderId }: OrderDetailsProps) {
           <Separator className="my-2" />
 
           <ul className="grid gap-3">
+            {/* Add Subtotal line */}
+            <li className="flex items-center justify-between">
+              <span className="text-muted-foreground">Subtotal</span>
+              <span>Br {Number(subtotal).toLocaleString('et-ET', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            </li>
             <li className="flex items-center justify-between">
               <span className="text-muted-foreground">Delivery Cost</span>
               <span className="text-muted-foreground">
@@ -141,7 +152,8 @@ export default function OrderDetails({ orderId }: OrderDetailsProps) {
             </li>
             <li className="flex items-center justify-between font-semibold">
               <span className="text-muted-foreground">Total</span>
-              <span>Br {Number(totalAmount).toLocaleString('et-ET', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              {/* Use calculatedTotalAmount for display */}
+              <span>Br {Number(calculatedTotalAmount).toLocaleString('et-ET', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             </li>
           </ul>
         </div>

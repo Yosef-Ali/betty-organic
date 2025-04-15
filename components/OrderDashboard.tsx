@@ -7,8 +7,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { File } from "lucide-react";
 import { OrdersOverviewCard } from "./OrdersOverviewCard";
 import { StatCard } from "./StatCard";
-import OrderDetails from "./OrderDetailsCard";
-// Assume getOrderById exists, will be created later
 import {
   getOrders,
   deleteOrder,
@@ -18,7 +16,7 @@ import { getCustomers } from "../app/actions/profile";
 import { useToast } from "../hooks/use-toast";
 import OrderTable from "./OrdersTable";
 import type { Order, OrderItem, ExtendedOrder } from "@/types/order";
-// Supabase client import removed
+import OrderDetailsCard from "./OrderDetailsCard";
 
 interface OrderPayload {
   id: string;
@@ -117,13 +115,13 @@ const OrderDashboard: React.FC = () => {
         customer: customerDetails,
         profiles: orderAny.seller
           ? {
-              id: orderAny.seller.id,
-              name: orderAny.seller.name || "",
-              email: orderAny.seller.email,
-              role: orderAny.seller.role,
-              phone: orderAny.seller.phone ?? null,
-              avatar_url: orderAny.seller.avatar_url ?? null,
-            }
+            id: orderAny.seller.id,
+            name: orderAny.seller.name || "",
+            email: orderAny.seller.email,
+            role: orderAny.seller.role,
+            phone: orderAny.seller.phone ?? null,
+            avatar_url: orderAny.seller.avatar_url ?? null,
+          }
           : undefined,
       };
     },
@@ -268,9 +266,8 @@ const OrderDashboard: React.FC = () => {
       console.error("Error initiating order deletion:", error);
       toast({
         title: "Error",
-        description: `Failed to initiate order deletion: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`,
+        description: `Failed to initiate order deletion: ${error instanceof Error ? error.message : "Unknown error"
+          }`,
         variant: "destructive",
         important: true, // Mark error as important
       });
@@ -356,17 +353,15 @@ const OrderDashboard: React.FC = () => {
           <StatCard
             title="This Week"
             value={`Br ${currentWeekTotal.toFixed(2)}`}
-            change={`${
-              currentWeekChangePercentage >= 0 ? "+" : ""
-            }${currentWeekChangePercentage.toFixed(2)}% from last week`}
+            change={`${currentWeekChangePercentage >= 0 ? "+" : ""
+              }${currentWeekChangePercentage.toFixed(2)}% from last week`}
             changePercentage={currentWeekChangePercentage}
           />
           <StatCard
             title="This Month"
             value={`Br ${currentMonthTotal.toFixed(2)}`}
-            change={`${
-              currentMonthChangePercentage >= 0 ? "+" : ""
-            }${currentMonthChangePercentage.toFixed(2)}% from last month`}
+            change={`${currentMonthChangePercentage >= 0 ? "+" : ""
+              }${currentMonthChangePercentage.toFixed(2)}% from last month`}
             changePercentage={currentMonthChangePercentage}
           />
         </div>
@@ -446,7 +441,7 @@ const OrderDashboard: React.FC = () => {
           </TabsContent>
         </Tabs>
       </div>
-      {selectedOrderId && <OrderDetails orderId={selectedOrderId} />}
+      {selectedOrderId && <OrderDetailsCard orderId={selectedOrderId} />}
     </main>
   );
 };

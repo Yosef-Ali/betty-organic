@@ -45,7 +45,7 @@ interface OrderWithProfile {
   };
 }
 
-export default function OrderDetails({ orderId }: OrderDetailsProps) {
+export default function OrderDetailsCard({ orderId }: OrderDetailsProps) {
   const router = useRouter();
   const {
     order,
@@ -144,24 +144,36 @@ export default function OrderDetails({ orderId }: OrderDetailsProps) {
     );
   }
 
+  // --- Start Calculation ---
   // Process items with safe type checking
   const itemsWithTotal = order.items.map((item) => ({
     ...item,
-    total: Number(item.price) * Number(item.quantity),
+    total: Number(item.price || 0) * Number(item.quantity || 0),
   }));
 
   // Calculate subtotal from items
-  const subtotal = itemsWithTotal.reduce((sum, item) => sum + (item.total / 1000), 0);
+  const subtotal = itemsWithTotal.reduce((sum, item) => sum + item.total, 0);
 
-  // Get delivery cost and discount with fallbacks
-  const deliveryCost = order.delivery_cost || 0;
+  // Get discount with fallback
   const discountAmount = order.discount_amount || 0;
 
+  // --- Adjusted Delivery Cost Calculation ---
+  // Prioritize explicitly provided delivery_cost if > 0
+  // Otherwise, infer it from the difference between db total and subtotal (minus discount)
+  let inferredDeliveryCost = 0;
+  if (order.total_amount && order.total_amount > (subtotal - discountAmount)) {
+    inferredDeliveryCost = order.total_amount - subtotal + discountAmount;
+  }
+  const deliveryCost = (order.delivery_cost && order.delivery_cost > 0) ? order.delivery_cost : inferredDeliveryCost;
+  // --- End Adjusted Delivery Cost Calculation ---
+
   // Calculate the correct total amount including delivery and discount
+  // Recalculate based on potentially inferred deliveryCost
   const calculatedTotal = subtotal + deliveryCost - discountAmount;
 
-  // Use the calculated total or fall back to order's total_amount
-  const totalAmount = calculatedTotal || order.total_amount || 0;
+  // Use the database total_amount as the primary source of truth if available, otherwise use calculated
+  // This ensures the displayed total matches the database record when possible.
+  const totalAmount = order.total_amount || calculatedTotal;
 
   // Safely access profile information with fallbacks
   const profileName = order.profile?.name || "Unknown Customer";
@@ -195,7 +207,7 @@ export default function OrderDetails({ orderId }: OrderDetailsProps) {
                   {item.product?.name || "Unknown Product"} x{" "}
                   <span>{item.price} /kg</span>
                 </span>
-                <span>Br {(item.total / 1000).toFixed(2)}</span>
+                <span>Br {item.total.toFixed(2)}</span>
               </li>
             ))}
           </ul>
@@ -203,24 +215,25 @@ export default function OrderDetails({ orderId }: OrderDetailsProps) {
           <Separator className="my-2" />
 
           <ul className="grid gap-3">
-            {/* Calculate subtotal from items */}
+            {/* Subtotal */}
             <li className="flex items-center justify-between">
               <span className="text-muted-foreground">Subtotal</span>
               <span className="text-muted-foreground">
-                Br {itemsWithTotal.reduce((sum, item) => sum + (item.total / 1000), 0).toFixed(2)}
+                Br {subtotal.toFixed(2)}
               </span>
             </li>
 
-            {/* Show delivery cost if it exists */}
+            {/* Delivery Cost */}
             <li className="flex items-center justify-between">
               <span className="text-muted-foreground">Delivery</span>
               <span className="text-muted-foreground">
-                Br {(order.delivery_cost || 0).toFixed(2)}
+                {/* Display the potentially inferred deliveryCost */}
+                Br {deliveryCost.toFixed(2)}
               </span>
             </li>
 
-            {/* Show coupon details if a coupon was applied */}
-            {((order.coupon_code && order.coupon_code.length > 0) || (order.discount_amount && order.discount_amount > 0)) && (
+            {/* Discount */}
+            {((order.coupon_code && order.coupon_code.length > 0) || discountAmount > 0) && (
               <li className="flex items-center justify-between">
                 <span className="text-muted-foreground flex items-center">
                   <svg
@@ -240,19 +253,21 @@ export default function OrderDetails({ orderId }: OrderDetailsProps) {
                   Discount {order.coupon_code && `(${order.coupon_code})`}
                 </span>
                 <span className="text-green-600">
-                  -Br {(order.discount_amount || 0).toFixed(2)}
+                  -Br {discountAmount.toFixed(2)}
                 </span>
               </li>
             )}
 
-            {/* Still show tax for consistency, but at 0 */}
+            {/* Tax */}
             <li className="flex items-center justify-between">
               <span className="text-muted-foreground">Tax</span>
               <span className="text-muted-foreground">Br {(0).toFixed(2)}</span>
             </li>
 
+            {/* Total Amount */}
             <li className="flex items-center justify-between font-semibold">
               <span className="text-muted-foreground">Total</span>
+              {/* Display the final totalAmount (prioritizing dbTotalAmount) */}
               <span>Br {totalAmount.toFixed(2)}</span>
             </li>
           </ul>
