@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { deleteOrder, getOrderDetails } from '@/app/actions/orderActions';
 import { Profile } from '@/lib/types/auth';
+import { createClient } from '@/lib/supabase/client';
 
 interface OrderDetails {
   id: string;
@@ -50,16 +51,100 @@ export function useOrderDetails(orderId: string) {
   const lastFetchedOrderIdRef = useRef<string | null>(null);
   // Add a ref to prevent multiple fetches in rapid succession
   const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Function to retry loading order details
+  // Store retryFetch in a ref to avoid dependency issues
+  const retryFetchRef = useRef<() => void>(() => { });  // Function to retry loading order details
   const retryFetch = useCallback(() => {
     setRetryCount(prev => prev + 1);
     setError(null);
     setIsLoading(true);
   }, []);
 
+  // Store the retryFetch function in a ref to keep it stable across renders
+  useEffect(() => {
+    retryFetchRef.current = retryFetch;
+  }, [retryFetch]);
+
   useEffect(() => {
     let isMounted = true;
+    let realtimeSubscription: any = null;
+
+    // Set up Supabase realtime subscription for this specific order
+    const setupRealtimeListener = async () => {
+      if (!orderId) return;
+
+      console.log(`[OrderDetails] Setting up realtime listener for order ID: ${orderId}`);
+      const supabase = createClient();
+
+      // Create a unique channel name to avoid conflicts
+      const channelName = `order-details-${orderId}-${Date.now()}`;
+
+      try {
+        // Subscribe to changes for this specific order
+        const channel = supabase
+          .channel(channelName)
+          .on(
+            'postgres_changes',
+            {
+              event: '*', // Listen for all events (INSERT, UPDATE, DELETE)
+              schema: 'public',
+              table: 'orders',
+              filter: `id=eq.${orderId}`, // Only listen for changes to this specific order
+            },
+            (payload) => {
+              console.log(`[OrderDetails] Received order update for ID: ${orderId}`, payload);
+
+              // Force a refresh of the order data
+              if (isMounted) {
+                console.log(`[OrderDetails] Refreshing order details after realtime update`);
+                lastFetchedOrderIdRef.current = null; // Reset to force refresh
+                retryFetchRef.current(); // Use the ref version for stability
+              }
+            }
+          )
+          .subscribe((status) => {
+            console.log(`[OrderDetails] Realtime subscription status for order ${orderId}: ${status}`);
+          });
+
+        // Also listen for changes to order_items related to this order
+        const itemsChannel = supabase
+          .channel(`order-items-${orderId}-${Date.now()}`)
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'order_items',
+              filter: `order_id=eq.${orderId}`, // Only for items in this order
+            },
+            (payload) => {
+              console.log(`[OrderDetails] Received order items update for order ID: ${orderId}`, payload);
+
+              // Force a refresh of the order data
+              if (isMounted) {
+                console.log(`[OrderDetails] Refreshing order details after items update`);
+                lastFetchedOrderIdRef.current = null; // Reset to force refresh
+                retryFetchRef.current(); // Use the ref version for stability
+              }
+            }
+          )
+          .subscribe();
+
+        realtimeSubscription = {
+          orderChannel: channel,
+          itemsChannel: itemsChannel,
+          cleanup: () => {
+            console.log(`[OrderDetails] Cleaning up realtime subscriptions for order ${orderId}`);
+            supabase.removeChannel(channel);
+            supabase.removeChannel(itemsChannel);
+          }
+        };
+      } catch (err) {
+        console.error(`[OrderDetails] Error setting up realtime subscription:`, err);
+      }
+    };
+
+    // Initial setup
+    setupRealtimeListener();
 
     // If the order data for the current orderId is already loaded, don't fetch again
     if (order?.id === orderId) {
@@ -179,8 +264,13 @@ export function useOrderDetails(orderId: string) {
       if (fetchTimeoutRef.current) {
         clearTimeout(fetchTimeoutRef.current);
       }
+
+      // Clean up real-time subscriptions
+      if (realtimeSubscription && realtimeSubscription.cleanup) {
+        realtimeSubscription.cleanup();
+      }
     };
-  }, [orderId, retryCount, order]); // Add order dependency for the check order?.id === orderId
+  }, [orderId, retryCount, order, retryFetch]); // Added retryFetch dependency
 
   // Function to handle manual retry
   const handleRetry = useCallback(() => {

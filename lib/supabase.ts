@@ -16,6 +16,63 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   realtime: {
     params: {
       eventsPerSecond: 10
+    },
+    // Add retry options for more resilient connections
+    timeout: 60000, // Longer timeout (60 seconds)
+    headers: {
+      'X-Client-Info': 'betty-organic-app' // Custom client identifier
     }
+  },
+  // Global error handler for all Supabase operations
+  global: {
+    fetch: (...args) => {
+      // @ts-ignore
+      return fetch(...args).catch(err => {
+        console.error('Supabase fetch error:', err);
+        throw err;
+      });
+    },
+    // Add debug info in headers instead
+    headers: process.env.NODE_ENV === 'development'
+      ? { 'X-Debug-Mode': 'true' }
+      : undefined
   }
 });
+
+// Add a utility function to check if Realtime is enabled for the project
+export async function checkRealtimeEnabled() {
+  try {
+    // Create a temporary channel to test if Realtime is working
+    const testChannel = supabase.channel('realtime-test');
+
+    return new Promise<boolean>((resolve) => {
+      let timeout: NodeJS.Timeout;
+
+      // Set timeout for 5 seconds - if we don't get a response by then, 
+      // assume Realtime is not working
+      timeout = setTimeout(() => {
+        supabase.removeChannel(testChannel).catch(console.error);
+        console.log('Realtime connection timed out - might be disabled');
+        resolve(false);
+      }, 5000);
+
+      // Try to subscribe
+      testChannel.subscribe((status) => {
+        clearTimeout(timeout);
+
+        if (status === 'SUBSCRIBED') {
+          console.log('Realtime is enabled and working');
+          // Clean up the test channel
+          supabase.removeChannel(testChannel).catch(console.error);
+          resolve(true);
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          console.log(`Realtime subscription test failed with status: ${status}`);
+          resolve(false);
+        }
+      });
+    });
+  } catch (err) {
+    console.error('Exception checking realtime status:', err);
+    return false;
+  }
+}

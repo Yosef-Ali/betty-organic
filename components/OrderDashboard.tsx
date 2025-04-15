@@ -1,7 +1,7 @@
 // OrderDashboard.tsx
 "use client";
 
-import React, { useEffect, useMemo, useCallback, useState } from "react";
+import React, { useEffect, useMemo, useCallback, useState, useRef } from "react";
 import { Button } from "./ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { File } from "lucide-react";
@@ -17,6 +17,8 @@ import { useToast } from "../hooks/use-toast";
 import OrderTable from "./OrdersTable";
 import type { Order, OrderItem, ExtendedOrder } from "@/types/order";
 import OrderDetailsCard from "./OrderDetailsCard";
+import { supabase, checkRealtimeEnabled } from "@/lib/supabase"; // Import checkRealtimeEnabled
+import { RealtimeChannel, RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 
 interface OrderPayload {
   id: string;
@@ -45,6 +47,10 @@ const OrderDashboard: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [connectionStatus, setConnectionStatus] =
     useState<string>("CONNECTING");
+  const [isSubscribed, setIsSubscribed] = useState(false); // Track subscription state
+  const subscriptionRetryTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Ref for retry timeout
+  const [realtimeEnabled, setRealtimeEnabled] = useState<boolean>(true);
+  const [retryCount, setRetryCount] = useState(0);
   const { toast } = useToast();
 
   // Function to convert a single raw order from DB/payload to the Order type used in UI
@@ -138,16 +144,25 @@ const OrderDashboard: React.FC = () => {
 
   // Enhanced function to load data with minimal visual disruption
   const loadData = useCallback(
-    async (options?: {
-      silent?: boolean;
-      isInitial?: boolean;
-      showToast?: boolean;
-    }) => {
+    async (
+      options?: {
+        silent?: boolean;
+        isInitial?: boolean;
+        showToast?: boolean;
+      },
+      payload?: RealtimePostgresChangesPayload<Order> // Use specific Order type
+    ) => {
       const {
         silent = false,
         isInitial = false,
         showToast = false,
       } = options || {};
+
+      // Log if triggered by Realtime
+      if (payload) {
+        // Use type assertions to access potentially existing id
+        console.log("[OrderDashboard RT] loadData triggered by Realtime event:", payload.eventType, (payload.new as Order)?.id || (payload.old as Order)?.id);
+      }
 
       // Only show loading state for initial loads or explicit manual refreshes
       if (isInitial) {
@@ -156,8 +171,33 @@ const OrderDashboard: React.FC = () => {
       } else if (!silent) {
         // For manual refresh, show a subtle updating indicator
         // setIsUpdating(true); // Removed
+        console.log("[OrderDashboard Manual] loadData triggered manually.");
       }
       // For real-time updates (silent=true), don't show any loading indicators
+
+      let newOrderId: string | null = null;
+      // Check if the payload indicates a new order insertion
+      if (
+        payload &&
+        payload.eventType === "INSERT" &&
+        ((payload.table === "orders") || (payload.schema === "public" && payload.table === "orders")) &&
+        (payload.new as Order)?.id // Use type assertion
+      ) {
+        newOrderId = (payload.new as Order).id; // Use type assertion
+        console.log(`[OrderDashboard RT] New order detected via payload: ${newOrderId}`);
+      } else if (payload && payload.eventType === "DELETE") {
+        const oldId = (payload.old as Order)?.id; // Use type assertion
+        console.log(`[OrderDashboard RT] Order deletion detected via payload: ${oldId}`);
+        // Handle selection logic if the deleted order was selected
+        if (selectedOrderId && oldId === selectedOrderId) {
+          console.log(`[OrderDashboard RT] Currently selected order ${selectedOrderId} was deleted. Clearing selection.`);
+          setSelectedOrderId(null); // Clear selection immediately
+        }
+      } else if (payload && payload.eventType === "UPDATE") {
+        // For UPDATE, 'new' might be Partial<Order>
+        const updatedId = (payload.new as Partial<Order>)?.id;
+        console.log(`[OrderDashboard RT] Order update detected via payload: ${updatedId}`);
+      }
 
       try {
         // Fetch customers first or in parallel
@@ -168,11 +208,22 @@ const OrderDashboard: React.FC = () => {
         setCustomers(customersData); // Store customers in state
 
         // Fetch orders
+        console.log("[OrderDashboard Fetch] Fetching orders...");
         const ordersResponse = await getOrders();
         if (!ordersResponse) {
           throw new Error("Failed to fetch orders");
         }
         const ordersData = Array.isArray(ordersResponse) ? ordersResponse : [];
+        console.log(`[OrderDashboard Fetch] Fetched ${ordersData.length} orders.`);
+        if (payload) {
+          const newOrderInFetch = ordersData.find(o => o.id === newOrderId);
+          if (newOrderId && newOrderInFetch) {
+            console.log(`[OrderDashboard RT] Newly inserted order ${newOrderId} IS present in fetched data.`);
+          } else if (newOrderId && !newOrderInFetch) {
+            console.warn(`[OrderDashboard RT] Newly inserted order ${newOrderId} was NOT found in fetched data immediately after event.`);
+          }
+        }
+
 
         // Process orders using the stored customer list
         const processedOrders = processMultipleOrders(
@@ -187,16 +238,69 @@ const OrderDashboard: React.FC = () => {
         );
 
         // Get current orders to compare without adding a dependency
-        const currentOrders = orders;
+        const currentOrders = orders; // Get the state *before* potential update
 
         // Check if orders have changed before updating state
         const ordersChanged =
           JSON.stringify(sortedOrders) !== JSON.stringify(currentOrders);
 
-        if (ordersChanged) {
-          console.log(`Orders updated: ${sortedOrders.length} orders loaded`); // Replaced addLog
+        console.log(`[OrderDashboard Compare] Orders changed: ${ordersChanged}. New count: ${sortedOrders.length}, Old count: ${currentOrders.length}`);
+        if (!ordersChanged && payload) {
+          console.log("[OrderDashboard Compare] Data fetched but string comparison shows no change. Current state:", currentOrders);
+          console.log("[OrderDashboard Compare] Data fetched but string comparison shows no change. Fetched/Sorted state:", sortedOrders);
+        }
+
+        // --- MODIFIED LOGIC --- 
+        // Force update if a new order was detected via payload, even if stringify comparison fails
+        // This handles potential race conditions or comparison issues for inserts.
+        const forceUpdateDueToInsert = payload?.eventType === 'INSERT' && newOrderId;
+
+        if (ordersChanged || forceUpdateDueToInsert) {
+          if (forceUpdateDueToInsert && !ordersChanged) {
+            console.warn("[OrderDashboard Update] Forcing state update due to INSERT event, despite string comparison showing no change.");
+          }
+          console.log(`[OrderDashboard Update] Orders state WILL be updated. New count: ${sortedOrders.length}`);
           setOrders(sortedOrders);
           // setLastUpdateTime(new Date()); // Removed
+
+          // If a new order was inserted, select it automatically
+          if (newOrderId) {
+            console.log(`[OrderDashboard Select] Selecting newly inserted order: ${newOrderId}`);
+            setSelectedOrderId(newOrderId);
+          } else if (payload?.eventType === 'DELETE') {
+            const oldId = (payload.old as Order)?.id;
+            // Selection logic for delete
+            if (selectedOrderId && oldId === selectedOrderId) {
+              console.log(`[OrderDashboard Select] Clearing selection for deleted order ${selectedOrderId}`);
+              setSelectedOrderId(null); // Clear selection
+              // Select the next available order if any exist
+              if (sortedOrders.length > 0) {
+                console.log(`[OrderDashboard Select] Selecting first available order after deletion: ${sortedOrders[0].id}`);
+                setSelectedOrderId(sortedOrders[0].id);
+              }
+            } else if (!selectedOrderId && sortedOrders.length > 0) {
+              // If nothing was selected before delete, select the first now
+              console.log(`[OrderDashboard Select] Selecting first available order after deletion (nothing was selected before): ${sortedOrders[0].id}`);
+              setSelectedOrderId(sortedOrders[0].id);
+            }
+          } else if (sortedOrders.length > 0 && !selectedOrderId) {
+            // If nothing is selected (e.g., initial load or after deletion cleared selection), select the first one.
+            console.log(`[OrderDashboard Select] Nothing selected, selecting first order: ${sortedOrders[0].id}`);
+            setSelectedOrderId(sortedOrders[0].id);
+          } else if (selectedOrderId) {
+            // Check if the previously selected order still exists after potential updates/deletes
+            const currentSelectedOrderExists = sortedOrders.some(o => o.id === selectedOrderId);
+            if (!currentSelectedOrderExists) {
+              console.log(`[OrderDashboard Select] Previously selected order ${selectedOrderId} no longer exists. Selecting first available.`);
+              setSelectedOrderId(sortedOrders.length > 0 ? sortedOrders[0].id : null); // Select first or clear
+            } else {
+              console.log(`[OrderDashboard Select] Previously selected order ${selectedOrderId} still exists. Keeping selection.`);
+            }
+          } else if (sortedOrders.length === 0) {
+            // Clear selection if no orders
+            console.log("[OrderDashboard Select] No orders left. Clearing selection.");
+            setSelectedOrderId(null);
+          }
 
           // Only show toast for explicit manual refresh button clicks
           if (!silent && !isInitial && showToast) {
@@ -207,15 +311,14 @@ const OrderDashboard: React.FC = () => {
             });
           }
         } else {
-          console.log("No changes detected in orders data"); // Replaced addLog
+          console.log("[OrderDashboard Update] No changes detected based on comparison and not a forced insert. State will NOT be updated.");
+          // Edge case: If comparison failed but new order *was* detected and exists in sortedOrders, select it.
+          if (newOrderId && sortedOrders.find(o => o.id === newOrderId) && selectedOrderId !== newOrderId) {
+            console.log(`[OrderDashboard Select Edge Case] Selecting new order ${newOrderId} even though comparison showed no change.`);
+            setSelectedOrderId(newOrderId);
+          }
         }
 
-        // Set initial selection only if no order is currently selected
-        if (sortedOrders.length > 0 && !selectedOrderId) {
-          setSelectedOrderId(sortedOrders[0].id);
-        } else if (sortedOrders.length === 0) {
-          setSelectedOrderId(null); // Clear selection if no orders
-        }
       } catch (error) {
         console.error("Error fetching data:", error);
         const errorMessage =
@@ -237,15 +340,157 @@ const OrderDashboard: React.FC = () => {
         // Always turn off loading states
         setIsLoading(false);
         // setIsUpdating(false); // Removed
+        if (payload) {
+          console.log("[OrderDashboard RT] loadData finished processing Realtime event.");
+        }
       }
     },
-    [processMultipleOrders, toast, selectedOrderId, orders] // Added orders dependency
+    // Ensure all dependencies are correct. Crucially, 'orders' is needed for comparison.
+    // 'selectedOrderId' is needed for selection logic.
+    [processMultipleOrders, toast, selectedOrderId, orders]
   );
 
-  // Load initial data on component mount
+  // Store the loadData function in a ref to avoid effect dependencies
+  const loadDataRef = useRef<typeof loadData | null>(null);
+
+  // Update the ref whenever loadData changes
   useEffect(() => {
-    loadData();
-  }, [loadData]); // Depend on loadData
+    loadDataRef.current = loadData;
+  }, [loadData]);
+
+  // Check if Realtime is enabled on this Supabase project
+  useEffect(() => {
+    const checkRealtime = async () => {
+      try {
+        const isEnabled = await checkRealtimeEnabled();
+        console.log(`[OrderDashboard] Realtime enabled check: ${isEnabled}`);
+
+        // Regardless of the Realtime status, set up a polling mechanism
+        // This ensures updates even if Realtime fails or is disabled
+        const pollTimer = setInterval(() => {
+          console.log("[OrderDashboard] Performing fallback poll check");
+          if (loadDataRef.current) {
+            loadDataRef.current({ silent: true });
+          }
+        }, 15000); // Poll every 15 seconds to avoid hitting limits
+
+        // We'll still try to use Realtime if it's enabled
+        setRealtimeEnabled(isEnabled);
+
+        return () => clearInterval(pollTimer);
+      } catch (err) {
+        console.error("[OrderDashboard] Error checking realtime status:", err);
+
+        // Set up polling as fallback
+        const pollTimer = setInterval(() => {
+          console.log("[OrderDashboard] Performing fallback poll check (after error)");
+          if (loadDataRef.current) {
+            loadDataRef.current({ silent: true });
+          }
+        }, 15000); // Poll every 15 seconds
+
+        return () => clearInterval(pollTimer);
+      }
+    };
+
+    checkRealtime();
+  }, []);
+
+  // Load initial data on component mount AND set up Realtime listener (only if enabled)
+  useEffect(() => {
+    // Initial data load
+    if (loadDataRef.current) {
+      loadDataRef.current({ isInitial: true });
+    }
+
+    // Skip realtime setup if explicitly checked and found disabled
+    if (realtimeEnabled === false) {
+      console.log("[OrderDashboard] Skipping Realtime setup as it's not enabled");
+      return;
+    }
+
+    // --- Supabase Realtime Subscription ---
+    let ordersChannel: RealtimeChannel | null = null;
+
+    const setupSubscription = () => {
+      try {
+        // Skip if we've tried too many times already
+        if (retryCount >= 3) {
+          console.log("[OrderDashboard] Giving up on Realtime after 3 retries, using polling instead");
+          return;
+        }
+
+        // Clear any existing retry timeout
+        if (subscriptionRetryTimeoutRef.current) {
+          clearTimeout(subscriptionRetryTimeoutRef.current);
+          subscriptionRetryTimeoutRef.current = null;
+        }
+
+        console.log("[OrderDashboard] Setting up Supabase Realtime subscription for orders...");
+        setConnectionStatus("CONNECTING");
+
+        // Create a unique channel name with timestamp to avoid potential conflicts
+        const channelName = `public:orders:${Date.now()}`;
+        console.log(`[OrderDashboard] Creating channel: ${channelName}`);
+
+        // Try to subscribe with a simple config
+        ordersChannel = supabase
+          .channel(channelName)
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'orders' },
+            (payload: RealtimePostgresChangesPayload<Order>) => {
+              console.log('[OrderDashboard] Realtime change received:', payload);
+              if (loadDataRef.current) {
+                loadDataRef.current({ silent: true }, payload);
+              }
+            }
+          )
+          .subscribe((status: string, err?: Error) => {
+            console.log(`[OrderDashboard] Supabase Realtime status: ${status}`, err ? `| Error: ${err.message}` : '');
+
+            if (status === 'SUBSCRIBED') {
+              setConnectionStatus('CONNECTED');
+              setIsSubscribed(true);
+              setRetryCount(0);
+            } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+              setConnectionStatus('DISCONNECTED');
+              setIsSubscribed(false);
+
+              console.log("[OrderDashboard] Realtime connection closed or errored, relying on polling instead");
+              // Increment retry count but don't try to reconnect immediately - let polling handle it
+              setRetryCount(prev => prev + 1);
+            }
+          });
+      } catch (setupError) {
+        console.error("[OrderDashboard] Error during subscription setup:", setupError);
+        setConnectionStatus('ERROR');
+      }
+    };
+
+    // Only try to set up Realtime if enabled
+    if (realtimeEnabled) {
+      setupSubscription();
+    }
+
+    // Cleanup function
+    return () => {
+      if (ordersChannel) {
+        try {
+          console.log("[OrderDashboard] Cleaning up Realtime subscription on unmount");
+          // Use a try-catch because this often causes the error we're seeing
+          supabase.removeChannel(ordersChannel)
+            .catch(err => {
+              // Just log the error but don't throw - this is cleanup code
+              console.log("[OrderDashboard] Non-critical error removing channel:", err);
+            });
+        } catch (e) {
+          console.log("[OrderDashboard] Exception during channel cleanup (non-critical):", e);
+        }
+        ordersChannel = null;
+      }
+    };
+  }, [realtimeEnabled, retryCount]); // Only re-run if these values change
 
   const handleDelete = async (id: string) => {
     // No change needed here, Supabase Realtime will handle the state update via DELETE event
@@ -423,7 +668,7 @@ const OrderDashboard: React.FC = () => {
               onDeleteOrder={handleDelete}
               isLoading={isLoading}
               connectionStatus={connectionStatus}
-              onOrdersUpdated={loadData}
+              onOrdersUpdated={loadData} // Pass the updated loadData function
               setConnectionStatus={setConnectionStatus}
             />
           </TabsContent>
@@ -435,7 +680,7 @@ const OrderDashboard: React.FC = () => {
               onDeleteOrder={handleDelete}
               isLoading={isLoading}
               connectionStatus={connectionStatus}
-              onOrdersUpdated={loadData}
+              onOrdersUpdated={loadData} // Pass the updated loadData function
               setConnectionStatus={setConnectionStatus}
             />
           </TabsContent>

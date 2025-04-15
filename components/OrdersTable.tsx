@@ -11,10 +11,13 @@ interface OrdersTableProps {
   onDeleteOrder: (id: string) => Promise<void>;
   isLoading: boolean;
   connectionStatus?: string;
-  onOrdersUpdated?: (options?: {
-    silent?: boolean;
-    showToast?: boolean;
-  }) => Promise<void>; // Explicitly mark as Promise<void>
+  onOrdersUpdated?: (
+    options?: {
+      silent?: boolean;
+      showToast?: boolean;
+    },
+    payload?: any // Add optional payload parameter
+  ) => Promise<void>;
   setConnectionStatus?: (status: string) => void;
 }
 
@@ -34,15 +37,18 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
 
   // Main fetch function with silent option and minimal visual disruption
   const fetchOrders = useCallback(
-    async (options: { silent?: boolean; showToast?: boolean } = {}) => {
+    async (
+      options: { silent?: boolean; showToast?: boolean } = {},
+      payload?: any // Accept optional payload
+    ) => {
       if (!onOrdersUpdated) return;
 
       const { silent = false, showToast = false } = options;
 
       addLog(`Fetching orders... ${silent ? "(silent)" : "(with UI update)"}`);
       try {
-        // Call the parent component's update function with options
-        await onOrdersUpdated({ silent, showToast });
+        // Call the parent component's update function with options and payload
+        await onOrdersUpdated({ silent, showToast }, payload); // Pass payload
         addLog(`Fetched ${orders.length} orders`);
       } catch (err) {
         const errorMessage =
@@ -73,14 +79,13 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
             schema: "public",
             table: "orders",
           },
-          (payload: {
-            eventType: string;
-            new: Record<string, any> | null;
-            old: Record<string, any> | null;
-          }) => {
+          (payload: any) => {
             const eventType = payload.eventType;
             const orderId = payload.new?.id || payload.old?.id;
             addLog(`Received orders change: ${eventType} for order ${orderId}`);
+
+            // Log the full payload for debugging
+            console.log('[OrdersTable] Full payload received:', JSON.stringify(payload, null, 2));
 
             // Different handling based on event type
             switch (eventType) {
@@ -95,8 +100,8 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
                 break;
             }
 
-            // Refresh orders data silently without visual indicators
-            fetchOrders({ silent: true });
+            // Refresh orders data, passing the payload
+            fetchOrders({ silent: true }, payload); // Pass payload here
           }
         )
         .subscribe((status) => {
@@ -121,27 +126,24 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
             schema: "public",
             table: "order_items",
           },
-          (payload: {
-            eventType: string;
-            new: Record<string, any> | null;
-            old: Record<string, any> | null;
-          }) => {
+          (payload: any) => {
             const eventType = payload.eventType;
             const itemId = payload.new
               ? payload.new.id
               : payload.old
-              ? payload.old.id
-              : "unknown";
+                ? payload.old.id
+                : "unknown";
             const orderId = payload.new
               ? payload.new.order_id
               : payload.old
-              ? payload.old.order_id
-              : "unknown";
+                ? payload.old.order_id
+                : "unknown";
 
             addLog(
               `Received order_items change: ${eventType} for item ${itemId} in order ${orderId}`
             );
-            fetchOrders({ silent: true });
+            // Refresh orders data, passing the payload for potential handling
+            fetchOrders({ silent: true }, payload); // Pass payload here
           }
         )
         .subscribe((status) => {
@@ -167,13 +169,12 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
     } catch (err) {
       console.error("Error setting up realtime subscription:", err);
       addLog(
-        `Error setting up realtime: ${
-          err instanceof Error ? err.message : String(err)
+        `Error setting up realtime: ${err instanceof Error ? err.message : String(err)
         }`
       );
 
       // Return empty cleanup function in case of error
-      return () => {};
+      return () => { };
     }
   }, [addLog, fetchOrders, setConnectionStatus]);
 
@@ -199,11 +200,10 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
       <div className="flex items-center mb-4 justify-end">
         <div className="flex items-center gap-1 text-xs text-muted-foreground">
           <div
-            className={`h-2 w-2 rounded-full ${
-              connectionStatus === "SUBSCRIBED"
-                ? "bg-green-500"
-                : "bg-yellow-500"
-            }`}
+            className={`h-2 w-2 rounded-full ${connectionStatus === "SUBSCRIBED"
+              ? "bg-green-500"
+              : "bg-yellow-500"
+              }`}
           />
           <span>
             {connectionStatus === "SUBSCRIBED" ? "Live" : "Connecting..."}
