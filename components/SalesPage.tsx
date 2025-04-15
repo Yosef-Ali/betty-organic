@@ -227,7 +227,7 @@ const SalesPage: FC<SalesPageProps> = ({ user }) => {
         const calculatedItemsTotal = orderItems.reduce((sum: number, item: { price?: number }) => sum + (item.price || 0), 0);
 
         // Extract delivery cost and discount
-        const deliveryCost = orderData.delivery_cost || 0;
+        const deliveryCost = Number(orderData.delivery_cost || orderData.deliveryCost || 0);
         const couponCode = orderData.coupon_code || null;
         const discountAmount = orderData.discount_amount || 0;
 
@@ -269,6 +269,9 @@ const SalesPage: FC<SalesPageProps> = ({ user }) => {
             customerId,
             totalAmount: finalTotalAmount,
             status,
+            deliveryCost, // Add deliveryCost to pending orders
+            couponCode,   // Add couponCode to pending orders
+            discountAmount, // Add discountAmount to pending orders
             createdAt: new Date().toISOString()
           });
           localStorage.setItem('pendingOrders', JSON.stringify(pendingOrders));
@@ -283,6 +286,12 @@ const SalesPage: FC<SalesPageProps> = ({ user }) => {
             return true; // Return boolean as required by the function signature
           }
         }
+
+        // Log the parameters being sent to createOrder for debugging
+        console.log('[SALES-PAGE] Creating order with params:', {
+          orderItems, customerId, finalTotalAmount, status,
+          deliveryCost, couponCode, discountAmount
+        });
 
         const response = await createOrder(
           orderItems,
