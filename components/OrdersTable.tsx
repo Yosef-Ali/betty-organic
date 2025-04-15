@@ -49,14 +49,15 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
       try {
         // Call the parent component's update function with options and payload
         await onOrdersUpdated({ silent, showToast }, payload); // Pass payload
-        addLog(`Fetched ${orders.length} orders`);
+        // Don't reference orders.length here as it creates a dependency cycle
+        addLog(`Orders fetch completed`);
       } catch (err) {
         const errorMessage =
           err instanceof Error ? err.message : "Unknown error";
         addLog(`Error: ${errorMessage}`);
       }
     },
-    [onOrdersUpdated, orders.length, addLog]
+    [onOrdersUpdated, addLog] // Removed orders.length dependency
   );
 
   // Enhanced realtime listener with better error handling and multiple table subscriptions

@@ -51,7 +51,11 @@ export async function checkRealtimeEnabled() {
       // Set timeout for 5 seconds - if we don't get a response by then, 
       // assume Realtime is not working
       timeout = setTimeout(() => {
-        supabase.removeChannel(testChannel).catch(console.error);
+        try {
+          supabase.removeChannel(testChannel).catch(e => {
+            console.log('Non-critical error removing test channel:', e);
+          });
+        } catch (e) { }
         console.log('Realtime connection timed out - might be disabled');
         resolve(false);
       }, 5000);
@@ -63,7 +67,11 @@ export async function checkRealtimeEnabled() {
         if (status === 'SUBSCRIBED') {
           console.log('Realtime is enabled and working');
           // Clean up the test channel
-          supabase.removeChannel(testChannel).catch(console.error);
+          try {
+            supabase.removeChannel(testChannel).catch(e => {
+              console.log('Non-critical error removing test channel:', e);
+            });
+          } catch (e) { }
           resolve(true);
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
           console.log(`Realtime subscription test failed with status: ${status}`);
@@ -75,4 +83,27 @@ export async function checkRealtimeEnabled() {
     console.error('Exception checking realtime status:', err);
     return false;
   }
+}
+
+// Cache check result to avoid repeated checks
+let realtimeEnabledCache: { value: boolean | null; timestamp: number } = {
+  value: null,
+  timestamp: 0
+};
+
+// Add function to get realtime status with caching (reduces API calls)
+export async function getRealtimeStatus() {
+  // If we have a cached result that's less than 1 hour old, use it
+  const now = Date.now();
+  const ONE_HOUR = 60 * 60 * 1000;
+
+  if (realtimeEnabledCache.value !== null &&
+    (now - realtimeEnabledCache.timestamp) < ONE_HOUR) {
+    return realtimeEnabledCache.value;
+  }
+
+  // Otherwise check and update cache
+  const result = await checkRealtimeEnabled();
+  realtimeEnabledCache = { value: result, timestamp: now };
+  return result;
 }
