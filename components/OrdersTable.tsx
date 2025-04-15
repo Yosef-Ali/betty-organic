@@ -151,18 +151,14 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
           addLog(`Order items subscription status: ${status}`);
         });
 
-      // Poll very infrequently as a backup (significantly reduced frequency)
-      const pollingInterval = setInterval(() => {
-        addLog("Backup polling for orders updates");
-        fetchOrders({ silent: true }); // Completely silent update for polling
-      }, 300000); // Every 5 minutes instead of 30 seconds
+      // Removed backup polling for orders updates
 
       return () => {
         addLog("Cleaning up realtime subscriptions");
         try {
           supabase.removeChannel(ordersChannel);
           supabase.removeChannel(orderItemsChannel);
-          clearInterval(pollingInterval);
+          // Removed clearInterval for pollingInterval
         } catch (err) {
           console.warn("Error cleaning up channels:", err);
         }
@@ -217,7 +213,6 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
         onSelectOrderAction={onSelectOrderAction}
         onDeleteOrderAction={onDeleteOrder}
         isLoading={isLoading}
-        onOrdersUpdated={onOrdersUpdated}
       />
 
       {orders.length === 0 && !isLoading && (

@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,6 +19,10 @@ interface OrderPlacedProps {
     handleShareWhatsAppAction: () => void;
     handleSignInAction: () => void;
     onCloseAction: () => void;
+    processOrder?: () => void;
+    shouldProcessOrder?: boolean;
+    resetCart?: () => void;
+    clearOrderData?: () => void; // New prop to clear order data in parent component
 }
 
 export default function OrderPlaced({
@@ -27,8 +31,96 @@ export default function OrderPlaced({
     customerInfo,
     handleShareWhatsAppAction,
     handleSignInAction,
-    onCloseAction
+    onCloseAction,
+    processOrder,
+    shouldProcessOrder = true,
+    resetCart,
+    clearOrderData
 }: OrderPlacedProps): React.ReactElement {
+    const [orderProcessed, setOrderProcessed] = useState(false);
+
+    // Process order when component mounts if shouldProcessOrder is true
+    useEffect(() => {
+        // Always clear local storage when component mounts to ensure fresh data
+        if (typeof window !== 'undefined') {
+            localStorage.removeItem('orderDetails');
+            localStorage.removeItem('cartItems');
+            localStorage.removeItem('checkoutData');
+        }
+
+        // Reset the orderProcessed state when the component mounts
+        setOrderProcessed(false);
+
+        if (isAuthenticated && processOrder && shouldProcessOrder && !orderProcessed) {
+            console.log("Processing order from OrderPlaced component...");
+            processOrder();
+            setOrderProcessed(true);
+
+            // Reset cart data after successful order processing
+            if (resetCart) {
+                resetCart();
+            }
+        }
+
+        // Cleanup function that runs when component unmounts
+        return () => {
+            // We need to clean up any state before the component is used again
+            if (clearOrderData) {
+                clearOrderData();
+            }
+            setOrderProcessed(false);
+        };
+    }, [isAuthenticated, processOrder, shouldProcessOrder, resetCart, clearOrderData, orderDetails.display_id]);
+
+    // Custom close handler that refreshes the page
+    const handleClose = () => {
+        // Reset processed state on close
+        setOrderProcessed(false);
+
+        // Clear order data before closing - this is essential to reset for next order
+        if (clearOrderData) {
+            clearOrderData();
+        }
+
+        // Reset cart to ensure fresh state for next order
+        if (resetCart) {
+            resetCart();
+        }
+
+        // Dispatch an event to notify other components before refresh
+        if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('orderCompleted', {
+                detail: { timestamp: Date.now(), shouldRefresh: true }
+            }));
+        }
+
+        // Call original close handler
+        onCloseAction();
+
+        // Refresh the page when dialog is closed
+        if (typeof window !== 'undefined') {
+            // Use a small timeout to ensure the dialog is fully closed first
+            setTimeout(() => {
+                window.location.reload();
+            }, 300);
+        }
+    };
+
+    // Force a manual refresh on window object after processing order
+    useEffect(() => {
+        if (orderProcessed) {
+            const timer = setTimeout(() => {
+                if (typeof window !== 'undefined' && window.location) {
+                    // Force the cart state to refresh in parent components
+                    const event = new CustomEvent('orderCompleted', { detail: { timestamp: Date.now() } });
+                    window.dispatchEvent(event);
+                }
+            }, 100);
+
+            return () => clearTimeout(timer);
+        }
+    }, [orderProcessed]);
+
     if (!isAuthenticated) {
         // Guest order complete view
         return (
@@ -108,7 +200,7 @@ export default function OrderPlaced({
                     <Button
                         variant="outline"
                         className="w-full gap-2"
-                        onClick={onCloseAction}
+                        onClick={handleClose}
                     >
                         <ShoppingBag className="w-4 h-4" />
                         Continue Shopping
@@ -134,7 +226,19 @@ export default function OrderPlaced({
     return (
         <>
             <DialogHeader>
-                <DialogTitle className="text-green-600">Order Placed!</DialogTitle>
+                <DialogTitle className="text-green-600 flex items-center gap-2">
+                    <svg
+                        width="24"
+                        height="24"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="w-5 h-5"
+                    >
+                        <path d="M20 6L9 17L4 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    Order Placed!
+                </DialogTitle>
                 <DialogDescription>
                     Your order #{orderDetails.display_id} has been successfully placed.
                 </DialogDescription>
@@ -183,11 +287,10 @@ export default function OrderPlaced({
                         Share via WhatsApp
                     </Button>
 
-                    {/* Button to continue shopping */}
                     <Button
                         variant="default"
                         className="w-full gap-2 bg-green-600 hover:bg-green-700"
-                        onClick={onCloseAction}
+                        onClick={handleClose}
                     >
                         <ShoppingBag className="w-4 h-4" />
                         Continue Shopping

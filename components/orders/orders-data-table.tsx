@@ -56,12 +56,6 @@ import {
 import { format } from 'date-fns';
 import { ExtendedOrder, OrderItem } from '@/types/order';
 import { formatOrderId } from '@/lib/utils';
-import { createClient } from '@/lib/supabase/client';
-import type {
-  RealtimeChannel,
-  RealtimePostgresChangesPayload,
-} from '@supabase/supabase-js';
-import { DataTable } from '@/components/ui/data-table';
 import { formatCurrency } from '@/lib/utils';
 import { updateOrderStatus } from '@/app/actions/orderActions';
 import { useToast } from '@/hooks/use-toast';
@@ -72,7 +66,6 @@ interface OrdersDataTableProps {
   onSelectOrderAction: (id: string) => void;
   onDeleteOrderAction: (id: string) => Promise<void>;
   isLoading: boolean;
-  onOrdersUpdated?: (options?: { silent?: boolean; urgent?: boolean }) => Promise<void>;
 }
 
 const formatDate = (dateString: string | null | undefined): string => {
@@ -95,256 +88,17 @@ type ExtendedOrderRow = ExtendedOrder & {
   couponInfo?: string;
 };
 
-// Add type for the realtime payload
-interface OrderPayload {
-  id: string;
-  [key: string]: any;
-}
-
-// Type guard to check if an object is an OrderPayload
-function isOrderPayload(obj: any): obj is OrderPayload {
-  return obj && typeof obj.id === 'string';
-}
-
 export function OrdersDataTable({
   orders,
   onSelectOrderAction,
   onDeleteOrderAction,
   isLoading,
-  onOrdersUpdated,
 }: OrdersDataTableProps) {
   const { toast } = useToast();
   const [sorting, setSorting] = useState<SortingState>([
     { id: 'created_at', desc: true },
   ]);
-  const [realTimeStatus, setRealTimeStatus] = useState<string>('Not connected');
-  const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null);
-  const channelRef = useRef<RealtimeChannel | null>(null);
-  const mountedRef = useRef<boolean>(true);
-  const lastUpdateRef = useRef<number>(0); // Track timestamp of last update for debouncing
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
-
-  // Initialize Supabase realtime subscription
-  useEffect(() => {
-    mountedRef.current = true;
-
-    // Create Supabase client if not already created
-    if (!supabaseRef.current) {
-      supabaseRef.current = createClient();
-    }
-
-    // Setup realtime channel for order updates
-    const setupRealtimeSubscription = () => {
-      try {
-        const client = supabaseRef.current;
-        if (!client) {
-          console.error('Supabase client not initialized');
-          return;
-        }
-
-        // Remove existing channel if it exists
-        if (channelRef.current) {
-          try {
-            client.removeChannel(channelRef.current);
-          } catch (err) {
-            console.warn('Error removing existing channel:', err);
-          }
-        }
-
-        // Use a more unique channel name with a timestamp to avoid conflicts
-        const channelName = `orders-table-updates-${Date.now()}`;
-        console.log('Setting up orders table realtime channel:', channelName);
-
-        // Add error handling for channel setup
-        const channel = client
-          .channel(channelName, {
-            config: {
-              broadcast: { ack: true },
-              presence: { key: '' }
-            }
-          })
-          .on(
-            'postgres_changes',
-            {
-              event: '*', // Listen for all events (INSERT, UPDATE, DELETE)
-              schema: 'public',
-              table: 'orders',
-            },
-            async (payload: RealtimePostgresChangesPayload<OrderPayload>) => {
-              if (!mountedRef.current) return;
-
-              console.log('Order table change received:', {
-                eventType: payload.eventType,
-                orderId: isOrderPayload(payload.new)
-                  ? payload.new.id
-                  : isOrderPayload(payload.old)
-                    ? payload.old.id
-                    : 'unknown',
-              });
-
-              // Enhanced handling for different event types
-              switch (payload.eventType) {
-                case 'UPDATE':
-                  if (isOrderPayload(payload.new) && isOrderPayload(payload.old)) {
-                    console.log('Order updated:', {
-                      id: payload.new.id,
-                      oldStatus: payload.old.status,
-                      newStatus: payload.new.status
-                    });
-
-                    // Show toast notification for status changes
-                    if (payload.old.status !== payload.new.status) {
-                      toast({
-                        title: 'Order Status Updated',
-                        description: `Order #${payload.new.display_id || payload.new.id.slice(0, 8)} status changed to ${payload.new.status}`,
-                        duration: 3000,
-                      });
-                    }
-                  }
-                  break;
-
-                case 'DELETE':
-                  if (isOrderPayload(payload.old)) {
-                    console.log('Order deleted:', payload.old.id);
-                    toast({
-                      title: 'Order Deleted',
-                      description: `Order #${payload.old.display_id || payload.old.id.slice(0, 8)} has been removed`,
-                      duration: 3000,
-                    });
-
-                    // Immediately update the local UI to remove the deleted order
-                    // This provides immediate feedback while the server refresh happens
-                    const deletedOrderId = payload.old.id;
-
-                    // Force a full refresh with special flag to indicate deletion
-                    if (onOrdersUpdated) {
-                      try {
-                        console.log('[DEBUG] Forcing immediate refresh after deletion');
-                        // Add a short timeout to ensure UI state is updated
-                        setTimeout(async () => {
-                          if (mountedRef.current) {
-                            // Call with custom urgent parameter to prioritize this refresh
-                            await onOrdersUpdated({ urgent: true });
-                            console.log('[DEBUG] Deletion refresh completed');
-                          }
-                        }, 100);
-
-                        // Still return to prevent the silent update
-                        return;
-                      } catch (err) {
-                        console.error('Error refreshing after deletion:', err);
-                      }
-                    }
-                  }
-                  break;
-
-                case 'INSERT':
-                  if (isOrderPayload(payload.new)) {
-                    console.log('New order created:', payload.new.id);
-                    toast({
-                      title: 'New Order',
-                      description: `Order #${payload.new.display_id || payload.new.id.slice(0, 8)} has been created`,
-                      duration: 3000,
-                    });
-                  }
-                  break;
-              }
-
-              // Log the change event details
-              console.log('Order table change details:', {
-                eventType: payload.eventType,
-                new: payload.new,
-                old: payload.old,
-              });
-
-              // If a deletion occurs, update the selected order
-              if (payload.eventType === 'DELETE' && isOrderPayload(payload.old)) {
-                const firstAvailableOrder = orders.find(
-                  o => o.id !== payload.old.id,
-                );
-                setSelectedOrderId(firstAvailableOrder?.id || null);
-              }
-
-              // Handle the update by refreshing data through the parent component
-              // This approach ensures all order data is consistent
-              if (onOrdersUpdated) {
-                console.log('[DEBUG] Received realtime event, debouncing update');
-                // Use a debounce mechanism with a ref to track last update time
-                const now = Date.now();
-                const lastUpdateTime = lastUpdateRef.current || 0;
-
-                // Only update if it's been more than 2 seconds since the last update
-                if (now - lastUpdateTime > 2000) {
-                  console.log('[DEBUG] Debounce passed, calling onOrdersUpdated');
-                  lastUpdateRef.current = now;
-                  try {
-                    await onOrdersUpdated({ silent: true });
-                  } catch (err) {
-                    console.error(
-                      'Error updating orders after realtime event:',
-                      err,
-                    );
-                  }
-                } else {
-                  console.log('[DEBUG] Skipping update due to debounce');
-                }
-              }
-            },
-          )
-          .subscribe((status: string) => {
-            if (!mountedRef.current) return;
-
-            console.log(`Orders table - Realtime status: ${status}`);
-            setRealTimeStatus(status);
-
-            if (status === 'SUBSCRIBED') {
-              console.log(
-                'Orders table - Successfully subscribed to real-time updates',
-              );
-            } else if (status === 'CHANNEL_ERROR') {
-              console.error(
-                'Orders table - Channel error, will retry connection',
-              );
-              // Retry connection after a delay
-              setTimeout(() => {
-                if (mountedRef.current) {
-                  setupRealtimeSubscription();
-                }
-              }, 5000);
-            }
-          });
-
-        channelRef.current = channel;
-      } catch (error) {
-        console.error('Error setting up realtime subscription:', error);
-      }
-    };
-
-    // Clear existing localStorage keys for realtime to prevent stale connections
-    if (typeof localStorage !== 'undefined') {
-      Object.keys(localStorage).forEach(key => {
-        if (key.startsWith('supabase.realtime')) {
-          localStorage.removeItem(key);
-        }
-      });
-    }
-
-    // Set up the subscription
-    setupRealtimeSubscription();
-
-    // Cleanup function
-    return () => {
-      mountedRef.current = false;
-
-      if (supabaseRef.current && channelRef.current) {
-        try {
-          supabaseRef.current.removeChannel(channelRef.current);
-        } catch (err) {
-          console.warn('Error removing channel during cleanup:', err);
-        }
-      }
-    };
-  }, [onOrdersUpdated]);
 
   // Memoize the data transformation to prevent unnecessary re-renders
   const data = useMemo(() => {
@@ -467,17 +221,12 @@ export function OrdersDataTable({
                   description: `Order status changed to ${status}`,
                   duration: 3000,
                 });
-                // Explicitly trigger refresh after successful status update
-                if (onOrdersUpdated) {
-                  console.log('[DEBUG] Calling onOrdersUpdated after successful status update');
-                  onOrdersUpdated(); // Refresh without silent flag to show loading indicator if needed
-                }
               } else {
                 toast({
                   title: 'Update Failed',
                   description: result.error || 'Failed to update status',
                   variant: 'destructive',
-                  duration: 5000, // Longer duration instead of using important
+                  duration: 5000,
                 });
               }
             } catch (error) {
@@ -486,7 +235,7 @@ export function OrdersDataTable({
                 description:
                   error instanceof Error ? error.message : 'Unknown error',
                 variant: 'destructive',
-                duration: 5000, // Longer duration instead of using important flag
+                duration: 5000,
               });
             }
           };
@@ -554,11 +303,6 @@ export function OrdersDataTable({
                 <DropdownMenuItem
                   onClick={async () => {
                     await onDeleteOrderAction(row.original.id);
-                    // Explicitly trigger refresh after successful deletion
-                    if (onOrdersUpdated) {
-                      console.log('[DEBUG] Calling onOrdersUpdated after successful deletion');
-                      onOrdersUpdated(); // Refresh without silent flag
-                    }
                   }}
                   className="text-red-600"
                 >
@@ -585,19 +329,6 @@ export function OrdersDataTable({
         onSortingChange={setSorting}
       />
 
-      {/* Real-time status indicator */}
-      <div className="absolute top-2 right-2 flex items-center gap-2 bg-background/80 p-2 rounded-md text-xs text-muted-foreground">
-        <div
-          className={`h-2 w-2 rounded-full ${realTimeStatus === 'SUBSCRIBED'
-            ? 'bg-green-500'
-            : 'bg-yellow-500 animate-pulse'
-            }`}
-        />
-        <span>
-          {realTimeStatus === 'SUBSCRIBED' ? 'Live updates' : 'Connecting...'}
-        </span>
-      </div>
-
       {/* More subtle loading indicator that doesn't block the entire table */}
       {isLoading && (
         <div className="absolute top-2 right-28 flex items-center gap-2 bg-background/80 p-2 rounded-md shadow-sm border text-xs text-muted-foreground">
@@ -605,6 +336,141 @@ export function OrdersDataTable({
           <span>Updating...</span>
         </div>
       )}
+    </div>
+  );
+}
+
+interface DataTableProps<TData, TValue> {
+  columns: ColumnDef<TData, TValue>[];
+  data: TData[];
+  searchKey?: string;
+  searchPlaceholder?: string;
+  sorting?: SortingState;
+  onSortingChange?: (sorting: SortingState) => void;
+}
+
+function DataTable<TData, TValue>({
+  columns,
+  data,
+  searchKey,
+  searchPlaceholder = "Search...",
+  sorting = [],
+  onSortingChange,
+}: DataTableProps<TData, TValue>) {
+  const [globalFilter, setGlobalFilter] = useState('');
+
+  const table = useReactTable({
+    data,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    onGlobalFilterChange: setGlobalFilter,
+    onSortingChange: updaterOrValue => {
+      if (onSortingChange) {
+        // Handle both direct values and updater functions
+        if (typeof updaterOrValue === 'function') {
+          const newSorting = updaterOrValue(sorting);
+          onSortingChange(newSorting);
+        } else {
+          onSortingChange(updaterOrValue);
+        }
+      }
+    },
+    state: {
+      sorting,
+      globalFilter,
+    },
+  });
+
+  return (
+    <div>
+      {searchKey && (
+        <div className="flex items-center py-4">
+          <Input
+            placeholder={searchPlaceholder}
+            value={globalFilter}
+            onChange={(e) => setGlobalFilter(e.target.value)}
+            className="max-w-sm"
+          />
+        </div>
+      )}
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <TableHead key={header.id}>
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(
+                        header.column.columnDef.header,
+                        header.getContext()
+                      )}
+                  </TableHead>
+                ))}
+              </TableRow>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {table.getRowModel().rows?.length ? (
+              table.getRowModel().rows.map((row) => (
+                <TableRow
+                  key={row.id}
+                  data-state={row.getIsSelected() && "selected"}
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={columns.length} className="h-24 text-center">
+                  No results.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+      <div className="flex items-center justify-end space-x-2 py-4">
+        <Pagination>
+          <PaginationContent>
+            <PaginationItem>
+              <PaginationPrevious
+                onClick={() => table.previousPage()}
+                isActive={false}
+                aria-disabled={!table.getCanPreviousPage()}
+                tabIndex={!table.getCanPreviousPage() ? -1 : 0}
+              />
+            </PaginationItem>
+            {Array.from({ length: table.getPageCount() }, (_, i) => i + 1).map((page) => (
+              <PaginationItem key={page}>
+                <PaginationLink
+                  onClick={() => table.setPageIndex(page - 1)}
+                  isActive={table.getState().pagination.pageIndex === page - 1}
+                  aria-current={table.getState().pagination.pageIndex === page - 1 ? "page" : undefined}
+                >
+                  {page}
+                </PaginationLink>
+              </PaginationItem>
+            ))}
+            <PaginationItem>
+              <PaginationNext
+                onClick={() => table.nextPage()}
+                isActive={false}
+                aria-disabled={!table.getCanNextPage()}
+                tabIndex={!table.getCanNextPage() ? -1 : 0}
+              />
+            </PaginationItem>
+          </PaginationContent>
+        </Pagination>
+      </div>
     </div>
   );
 }

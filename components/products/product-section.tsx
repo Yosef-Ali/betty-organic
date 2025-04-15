@@ -278,7 +278,7 @@ export function ProductSection({
             })}
         </div>
       </div>
-      <CartSheet isOpen={isCartOpen} onOpenChange={setCartOpen} />
+      <CartSheet isOpen={isCartOpen} onOpenChangeAction={setCartOpen} />
     </div>
   );
 }
