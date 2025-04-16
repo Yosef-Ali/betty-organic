@@ -367,6 +367,20 @@ export function ProductMediaForm({
             </FormItem>
           )}
         />
+
+        {/* AI Image Generation Link at the bottom */}
+        <div className="flex justify-center mt-4 pt-3 border-t">
+          <Button variant="ghost" size="sm" className="text-sm flex items-center gap-2 text-muted-foreground hover:text-foreground" asChild>
+            <a href="/dashboard/product-image" target="_blank" rel="noopener noreferrer">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
+                <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18" />
+                <path d="M7 7h.01" />
+                <path d="M20.4 14.5 16 10 4 20" />
+              </svg>
+              Generate product image with AI
+            </a>
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
