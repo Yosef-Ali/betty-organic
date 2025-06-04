@@ -8,16 +8,18 @@ import { useAuth } from '@/components/providers/AuthProvider'; // Import useAuth
 import { toast } from '@/components/ui/use-toast'; // Import toast
 
 // Helper function to format order details for WhatsApp
+import { formatOrderCurrency } from "@/lib/utils";
+
 const formatOrderDetailsForWhatsApp = (items: any[], totalAmount: number): string => {
   const orderDetails = items
     .map(
       item =>
         `🛍️ *${item.name}*\n` +
         `   • Quantity: ${(item.grams / 1000).toFixed(3)} kg\n` +
-        `   • Price: Br ${((item.pricePerKg * item.grams) / 1000).toFixed(2)}`
+        `   • Price: ${formatOrderCurrency((item.pricePerKg * item.grams) / 1000)}`
     )
     .join('\n\n');
-  return `📝 *Order Details:*\n${orderDetails}\n\n💰 *Total Amount:* Br ${totalAmount.toFixed(2)}`;
+  return `📝 *Order Details:*\n${orderDetails}\n\n💰 *Total Amount:* ${formatOrderCurrency(totalAmount)}`;
 };
 
 // Helper function to send WhatsApp message
@@ -92,9 +94,7 @@ export const useCartSheet = (onOpenChange: (open: boolean) => void) => {
         )
         .join('\n');
 
-      const shareText = `*Betty Organic Order*\n\n${orderDetails}\n\n*Total: Br ${getTotalAmount().toFixed(
-        2,
-      )}*`;
+      const shareText = `*Betty Organic Order*\n\n${orderDetails}\n\n*Total: ${formatOrderCurrency(getTotalAmount())}*`;
 
       if (navigator.share) {
         await navigator.share({
@@ -173,7 +173,9 @@ export const useCartSheet = (onOpenChange: (open: boolean) => void) => {
         console.error('Order creation failed:', createdOrderResponse.error);
         toast({
           title: 'Order Failed',
-          description: createdOrderResponse.error?.message || 'Could not place the order. Please try again.',
+          description: typeof createdOrderResponse.error === 'object' && createdOrderResponse.error !== null && 'message' in createdOrderResponse.error
+            ? (createdOrderResponse.error as { message: string }).message
+            : (createdOrderResponse.error || 'Could not place the order. Please try again.'),
           variant: 'destructive',
         });
       }

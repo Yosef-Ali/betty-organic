@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { Separator } from '@/components/ui/separator';
-import { formatCurrency } from '@/lib/utils';
+import { Separator } from "@/components/ui/separator";
+import { formatCurrency, formatOrderCurrency } from "@/lib/utils";
 
 interface OrderItem {
   id: string;
@@ -23,13 +23,13 @@ export default function OrderItemsList({
     <div className="grid gap-3">
       <div className="font-semibold">Order Details</div>
       <ul className="grid gap-3">
-        {items.map(item => (
+        {items.map((item) => (
           <li key={item.id} className="flex items-center justify-between">
             <span className="text-muted-foreground">
-              {item.product?.name || 'Unknown Product'} x{' '}
+              {item.product?.name || "Unknown Product"} x{" "}
               <span>{(item.quantity / 1000).toFixed(3)} kg</span>
             </span>
-            <span>{formatCurrency(item.total)}</span>
+            <span>{formatOrderCurrency(item.total)}</span>
           </li>
         ))}
       </ul>
@@ -39,19 +39,23 @@ export default function OrderItemsList({
       <ul className="grid gap-3">
         <li className="flex items-center justify-between">
           <span className="text-muted-foreground">Subtotal</span>
-          <span>{formatCurrency(subtotal)}</span>
+          <span>{formatOrderCurrency(subtotal)}</span>
         </li>
         <li className="flex items-center justify-between">
           <span className="text-muted-foreground">Shipping</span>
-          <span className="text-muted-foreground">{formatCurrency(0)}</span>
+          <span className="text-muted-foreground">
+            {formatOrderCurrency(0)}
+          </span>
         </li>
         <li className="flex items-center justify-between">
           <span className="text-muted-foreground">Tax</span>
-          <span className="text-muted-foreground">{formatCurrency(0)}</span>
+          <span className="text-muted-foreground">
+            {formatOrderCurrency(0)}
+          </span>
         </li>
         <li className="flex items-center justify-between font-semibold">
           <span className="text-muted-foreground">Total</span>
-          <span>{formatCurrency(subtotal)}</span>
+          <span>{formatOrderCurrency(subtotal)}</span>
         </li>
       </ul>
     </div>

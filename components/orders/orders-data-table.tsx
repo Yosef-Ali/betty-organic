@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import {
   ColumnDef,
@@ -9,7 +9,7 @@ import {
   getSortedRowModel,
   getFilteredRowModel,
   Row,
-} from '@tanstack/react-table';
+} from "@tanstack/react-table";
 
 import {
   Table,
@@ -18,7 +18,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
+} from "@/components/ui/table";
 
 import {
   Pagination,
@@ -27,14 +27,14 @@ import {
   PaginationLink,
   PaginationNext,
   PaginationPrevious,
-} from '@/components/ui/pagination';
+} from "@/components/ui/pagination";
 
-import { Input } from '@/components/ui/input';
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import Image from 'next/image';
-import { Button } from '@/components/ui/button';
+import { Input } from "@/components/ui/input";
+import React, { useState, useEffect, useMemo, useRef } from "react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import Image from "next/image";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,7 +42,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+} from "@/components/ui/dropdown-menu";
 import {
   MoreHorizontal,
   Eye,
@@ -52,14 +52,14 @@ import {
   Clock,
   XCircle,
   AlertCircle,
-} from 'lucide-react';
-import { format } from 'date-fns';
-import { ExtendedOrder, OrderItem } from '@/types/order';
-import { formatOrderId } from '@/lib/utils';
-import { formatCurrency } from '@/lib/utils';
-import { updateOrderStatus } from '@/app/actions/orderActions';
-import { useToast } from '@/hooks/use-toast';
-import { SortingState } from '@tanstack/react-table';
+} from "lucide-react";
+import { format } from "date-fns";
+import { ExtendedOrder, OrderItem } from "@/types/order";
+import { formatOrderId } from "@/lib/utils";
+import { formatCurrency, formatOrderCurrency } from "@/lib/utils";
+import { updateOrderStatus } from "@/app/actions/orderActions";
+import { useToast } from "@/hooks/use-toast";
+import { SortingState } from "@tanstack/react-table";
 
 interface OrdersDataTableProps {
   orders: ExtendedOrder[];
@@ -69,13 +69,13 @@ interface OrdersDataTableProps {
 }
 
 const formatDate = (dateString: string | null | undefined): string => {
-  if (!dateString) return 'No date available';
+  if (!dateString) return "No date available";
   try {
     const date = new Date(dateString);
-    if (isNaN(date.getTime())) return 'Invalid date';
-    return format(date, 'PPp');
+    if (isNaN(date.getTime())) return "Invalid date";
+    return format(date, "PPp");
   } catch {
-    return 'Invalid date';
+    return "Invalid date";
   }
 };
 
@@ -96,37 +96,37 @@ export function OrdersDataTable({
 }: OrdersDataTableProps) {
   const { toast } = useToast();
   const [sorting, setSorting] = useState<SortingState>([
-    { id: 'created_at', desc: true },
+    { id: "created_at", desc: true },
   ]);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
 
   // Memoize the data transformation to prevent unnecessary re-renders
   const data = useMemo(() => {
-    return orders.map(order => ({
+    return orders.map((order) => ({
       ...order,
       formattedDate: order.created_at
-        ? format(new Date(order.created_at), 'MMM dd, yyyy HH:mm')
-        : 'Unknown',
-      formattedAmount: formatCurrency(order.total_amount || 0),
+        ? format(new Date(order.created_at), "MMM dd, yyyy HH:mm")
+        : "Unknown",
+      formattedAmount: formatOrderCurrency(order.total_amount || 0),
       formattedDeliveryCost: order.delivery_cost
-        ? formatCurrency(order.delivery_cost)
-        : 'N/A',
+        ? formatOrderCurrency(order.delivery_cost)
+        : "N/A",
       formattedDiscount: order.discount_amount
-        ? formatCurrency(order.discount_amount)
-        : 'N/A',
+        ? formatOrderCurrency(order.discount_amount)
+        : "N/A",
       couponInfo: order.coupon_code
         ? `${order.coupon_code}`
         : order.coupon?.code
-          ? `${order.coupon.code}`
-          : 'N/A',
+        ? `${order.coupon.code}`
+        : "N/A",
     }));
   }, [orders]);
 
   const columns = useMemo<ColumnDef<ExtendedOrderRow>[]>(
     () => [
       {
-        accessorKey: 'display_id',
-        header: 'Order ID',
+        accessorKey: "display_id",
+        header: "Order ID",
         cell: ({ row }: { row: Row<ExtendedOrderRow> }) => {
           const orderId = row.original.id;
           const displayId =
@@ -142,28 +142,28 @@ export function OrdersDataTable({
         },
       },
       {
-        accessorKey: 'status',
-        header: 'Status',
+        accessorKey: "status",
+        header: "Status",
         cell: ({ row }: { row: Row<ExtendedOrderRow> }) => {
           const status = row.original.status;
           const getStatusStyles = (status: string) => {
             switch (status) {
-              case 'completed':
-                return 'bg-green-100 text-green-800';
-              case 'processing':
-                return 'bg-blue-100 text-blue-800';
-              case 'cancelled':
-                return 'bg-red-100 text-red-800';
-              case 'pending':
-                return 'bg-yellow-100 text-yellow-800';
+              case "completed":
+                return "bg-green-100 text-green-800";
+              case "processing":
+                return "bg-blue-100 text-blue-800";
+              case "cancelled":
+                return "bg-red-100 text-red-800";
+              case "pending":
+                return "bg-yellow-100 text-yellow-800";
               default:
-                return 'bg-gray-100 text-gray-800';
+                return "bg-gray-100 text-gray-800";
             }
           };
           return (
             <span
               className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusStyles(
-                status,
+                status
               )}`}
             >
               {status}
@@ -172,44 +172,44 @@ export function OrdersDataTable({
         },
       },
       {
-        accessorKey: 'customer.name',
-        header: 'Customer',
+        accessorKey: "customer.name",
+        header: "Customer",
         cell: ({ row }: { row: Row<ExtendedOrderRow> }) =>
-          row.original.customer?.name || 'Anonymous',
+          row.original.customer?.name || "Anonymous",
       },
       {
-        accessorKey: 'type',
-        header: 'Type',
+        accessorKey: "type",
+        header: "Type",
         cell: ({ row }: { row: Row<ExtendedOrderRow> }) => (
           <span className="capitalize">{row.original.type}</span>
         ),
       },
       {
-        accessorKey: 'delivery_cost',
-        header: 'Delivery',
+        accessorKey: "delivery_cost",
+        header: "Delivery",
         cell: ({ row }: { row: Row<ExtendedOrderRow> }) =>
           row.original.formattedDeliveryCost,
       },
       {
-        accessorKey: 'coupon_code',
-        header: 'Coupon',
+        accessorKey: "coupon_code",
+        header: "Coupon",
         cell: ({ row }: { row: Row<ExtendedOrderRow> }) =>
           row.original.couponInfo,
       },
       {
-        accessorKey: 'total_amount',
-        header: 'Amount',
+        accessorKey: "total_amount",
+        header: "Amount",
         cell: ({ row }: { row: Row<ExtendedOrderRow> }) =>
           row.original.formattedAmount,
       },
       {
-        accessorKey: 'created_at',
-        header: 'Date',
+        accessorKey: "created_at",
+        header: "Date",
         cell: ({ row }: { row: Row<ExtendedOrderRow> }) =>
           row.original.formattedDate,
       },
       {
-        id: 'actions',
+        id: "actions",
         cell: ({ row }: { row: Row<ExtendedOrderRow> }) => {
           // Function to handle status updates
           const handleStatusUpdate = async (status: string) => {
@@ -217,24 +217,24 @@ export function OrdersDataTable({
               const result = await updateOrderStatus(row.original.id, status);
               if (result.success) {
                 toast({
-                  title: 'Status Updated',
+                  title: "Status Updated",
                   description: `Order status changed to ${status}`,
                   duration: 3000,
                 });
               } else {
                 toast({
-                  title: 'Update Failed',
-                  description: result.error || 'Failed to update status',
-                  variant: 'destructive',
+                  title: "Update Failed",
+                  description: result.error || "Failed to update status",
+                  variant: "destructive",
                   duration: 5000,
                 });
               }
             } catch (error) {
               toast({
-                title: 'Error',
+                title: "Error",
                 description:
-                  error instanceof Error ? error.message : 'Unknown error',
-                variant: 'destructive',
+                  error instanceof Error ? error.message : "Unknown error",
+                variant: "destructive",
                 duration: 5000,
               });
             }
@@ -263,36 +263,36 @@ export function OrdersDataTable({
                 <DropdownMenuSeparator />
                 <DropdownMenuLabel>Update Status</DropdownMenuLabel>
 
-                {currentStatus !== 'pending' && (
+                {currentStatus !== "pending" && (
                   <DropdownMenuItem
-                    onClick={() => handleStatusUpdate('pending')}
+                    onClick={() => handleStatusUpdate("pending")}
                   >
                     <Clock className="mr-2 h-4 w-4 text-yellow-500" />
                     Mark as Pending
                   </DropdownMenuItem>
                 )}
 
-                {currentStatus !== 'processing' && (
+                {currentStatus !== "processing" && (
                   <DropdownMenuItem
-                    onClick={() => handleStatusUpdate('processing')}
+                    onClick={() => handleStatusUpdate("processing")}
                   >
                     <RefreshCw className="mr-2 h-4 w-4 text-blue-500" />
                     Mark as Processing
                   </DropdownMenuItem>
                 )}
 
-                {currentStatus !== 'completed' && (
+                {currentStatus !== "completed" && (
                   <DropdownMenuItem
-                    onClick={() => handleStatusUpdate('completed')}
+                    onClick={() => handleStatusUpdate("completed")}
                   >
                     <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
                     Mark as Completed
                   </DropdownMenuItem>
                 )}
 
-                {currentStatus !== 'cancelled' && (
+                {currentStatus !== "cancelled" && (
                   <DropdownMenuItem
-                    onClick={() => handleStatusUpdate('cancelled')}
+                    onClick={() => handleStatusUpdate("cancelled")}
                   >
                     <XCircle className="mr-2 h-4 w-4 text-red-500" />
                     Mark as Cancelled
@@ -315,7 +315,7 @@ export function OrdersDataTable({
         },
       },
     ],
-    [onSelectOrderAction, onDeleteOrderAction, toast],
+    [onSelectOrderAction, onDeleteOrderAction, toast]
   );
 
   return (
@@ -357,7 +357,7 @@ function DataTable<TData, TValue>({
   sorting = [],
   onSortingChange,
 }: DataTableProps<TData, TValue>) {
-  const [globalFilter, setGlobalFilter] = useState('');
+  const [globalFilter, setGlobalFilter] = useState("");
 
   const table = useReactTable({
     data,
@@ -367,10 +367,10 @@ function DataTable<TData, TValue>({
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     onGlobalFilterChange: setGlobalFilter,
-    onSortingChange: updaterOrValue => {
+    onSortingChange: (updaterOrValue) => {
       if (onSortingChange) {
         // Handle both direct values and updater functions
-        if (typeof updaterOrValue === 'function') {
+        if (typeof updaterOrValue === "function") {
           const newSorting = updaterOrValue(sorting);
           onSortingChange(newSorting);
         } else {
@@ -406,9 +406,9 @@ function DataTable<TData, TValue>({
                     {header.isPlaceholder
                       ? null
                       : flexRender(
-                        header.column.columnDef.header,
-                        header.getContext()
-                      )}
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
                   </TableHead>
                 ))}
               </TableRow>
@@ -423,14 +423,20 @@ function DataTable<TData, TValue>({
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
                     </TableCell>
                   ))}
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-24 text-center"
+                >
                   No results.
                 </TableCell>
               </TableRow>
@@ -449,17 +455,25 @@ function DataTable<TData, TValue>({
                 tabIndex={!table.getCanPreviousPage() ? -1 : 0}
               />
             </PaginationItem>
-            {Array.from({ length: table.getPageCount() }, (_, i) => i + 1).map((page) => (
-              <PaginationItem key={page}>
-                <PaginationLink
-                  onClick={() => table.setPageIndex(page - 1)}
-                  isActive={table.getState().pagination.pageIndex === page - 1}
-                  aria-current={table.getState().pagination.pageIndex === page - 1 ? "page" : undefined}
-                >
-                  {page}
-                </PaginationLink>
-              </PaginationItem>
-            ))}
+            {Array.from({ length: table.getPageCount() }, (_, i) => i + 1).map(
+              (page) => (
+                <PaginationItem key={page}>
+                  <PaginationLink
+                    onClick={() => table.setPageIndex(page - 1)}
+                    isActive={
+                      table.getState().pagination.pageIndex === page - 1
+                    }
+                    aria-current={
+                      table.getState().pagination.pageIndex === page - 1
+                        ? "page"
+                        : undefined
+                    }
+                  >
+                    {page}
+                  </PaginationLink>
+                </PaginationItem>
+              )
+            )}
             <PaginationItem>
               <PaginationNext
                 onClick={() => table.nextPage()}

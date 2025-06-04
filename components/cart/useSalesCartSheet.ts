@@ -5,6 +5,7 @@ import { createOrder } from '@/app/actions/orderActions';
 import { Order, OrderItem } from '@/types/order';
 import { Customer } from '@/types/customer';
 import { useToast } from '@/hooks/use-toast';
+import { formatOrderCurrency } from '@/lib/utils';
 
 interface Profile {
   id: string;
@@ -240,20 +241,14 @@ export function useSalesCartSheet({
         return;
       }
 
+      // Fix for orderDetails and shareText mapping
       const orderDetails = items
-        .map(
-          item =>
-            `• ${item.name}\n  Quantity: ${(item.grams / 1000).toFixed(
-              2,
-            )}kg\n  Price: Br ${((item.pricePerKg * item.grams) / 1000).toFixed(
-              2,
-            )}`,
+        .map((item) =>
+          `• ${item.name}\n  Quantity: ${(item.grams / 1000).toFixed(2)}kg\n  Price: ${formatOrderCurrency((item.pricePerKg * item.grams) / 1000)}`
         )
         .join('\n\n');
 
-      const shareText = `🌿 *Betty Organic Order*\n\n${orderDetails}\n\n💰 *Total: Br ${getTotalAmount().toFixed(
-        2,
-      )}*`;
+      const shareText = `🌿 *Betty Organic Order*\n\n${orderDetails}\n\n💰 *Total: ${formatOrderCurrency(getTotalAmount())}*`;
 
       if (typeof navigator !== 'undefined' && navigator.share) {
         try {

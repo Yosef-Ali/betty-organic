@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { formatOrderCurrency } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -296,9 +297,8 @@ export const OrderSummary: FC<OrderSummaryProps> = ({
           .map(
             (item) =>
               `🛍️ *${item.name}*\n` +
-              `   • Quantity: ${(item.grams / 1000).toFixed(3)} kg\n` +
-              `   • Price: Br ${((item.pricePerKg * item.grams) / 1000).toFixed(
-                2
+              `   • Price: ${formatOrderCurrency(
+                (item.pricePerKg * item.grams) / 1000
               )}`
           )
           .join("\n\n");
@@ -351,6 +351,12 @@ ${
             hour: "2-digit",
           });
 
+        const priceSummary = `💰 Price Summary:\n   • Items Total: ${formatOrderCurrency(
+          totalAmount
+        )}\n   • Delivery Fee: To be confirmed\n   • Total: ${formatOrderCurrency(
+          totalAmount
+        )} + Delivery`;
+
         const shareText = `
 🌿 *Betty's Organic Store* 🌿
 
@@ -373,10 +379,7 @@ ${orderDetails}
 
 ${customerInfoText}
 
-💰 *Price Summary:*
-   • Items Total: Br ${totalAmount.toFixed(2)}
-   • Delivery Fee: To be confirmed
-   • Total: Br ${totalAmount.toFixed(2)} + Delivery
+${priceSummary}
 
 💳 *Payment:* Cash on Delivery / Bank Transfer
 🚚 *Delivery Area:* ${guestLocation}

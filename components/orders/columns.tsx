@@ -1,6 +1,6 @@
-import { ColumnDef } from '@tanstack/react-table';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { ColumnDef } from "@tanstack/react-table";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,33 +8,31 @@ import {
   DropdownMenuTrigger,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-} from '@/components/ui/dropdown-menu';
-import { MoreHorizontal } from 'lucide-react';
-import { ExtendedOrder } from '@/types/order';
-import { formatOrderId } from '@/lib/utils';
-import { updateOrderStatus } from '@/app/actions/orderActions';
-import { toast } from 'sonner';
+} from "@/components/ui/dropdown-menu";
+import { MoreHorizontal } from "lucide-react";
+import { ExtendedOrder } from "@/types/order";
+import { formatOrderId, formatOrderCurrency } from "@/lib/utils";
+import { updateOrderStatus } from "@/app/actions/orderActions";
+import { toast } from "sonner";
 
 export const columns: ColumnDef<ExtendedOrder>[] = [
   {
-    accessorKey: 'id',
-    header: 'Order ID',
+    accessorKey: "id",
+    header: "Order ID",
     cell: ({ row }) => (
-      <div>
-        {row.original.display_id || formatOrderId(row.original.id)}
-      </div>
+      <div>{row.original.display_id || formatOrderId(row.original.id)}</div>
     ),
     enableGlobalFilter: true,
   },
   {
-    id: 'profile_name',
-    header: 'Profile',
-    accessorFn: row => {
+    id: "profile_name",
+    header: "Profile",
+    accessorFn: (row) => {
       // Check for available customer identification in order of preference
       if (row.profiles?.name) return row.profiles.name;
       if (row.profiles?.email) return row.profiles.email;
       if (row.profiles?.phone) return row.profiles.phone;
-      return 'Unknown Customer';
+      return "Unknown Customer";
     },
     cell: ({ row }) => {
       // Check for available customer identification in order of preference
@@ -42,12 +40,12 @@ export const columns: ColumnDef<ExtendedOrder>[] = [
       if (profile?.name) return profile.name;
       if (profile?.email) return profile.email;
       if (profile?.phone) return profile.phone;
-      return 'Unknown Customer';
+      return "Unknown Customer";
     },
     enableGlobalFilter: true,
   },
   {
-    accessorKey: 'status',
+    accessorKey: "status",
     header: () => <div className="text-right">Status</div>,
     cell: ({ row }) => {
       const status = row.original.status;
@@ -55,11 +53,11 @@ export const columns: ColumnDef<ExtendedOrder>[] = [
         <div className="text-right">
           <Badge
             variant={
-              status === 'completed'
-                ? 'default'
-                : status === 'pending'
-                  ? 'secondary'
-                  : 'destructive'
+              status === "completed"
+                ? "default"
+                : status === "pending"
+                ? "secondary"
+                : "destructive"
             }
           >
             {status}
@@ -70,45 +68,52 @@ export const columns: ColumnDef<ExtendedOrder>[] = [
     enableGlobalFilter: true,
   },
   {
-    accessorKey: 'total_amount',
+    accessorKey: "total_amount",
     header: () => <div className="text-right">Amount</div>,
     cell: ({ row }) => (
       <div className="text-right font-medium">
-        Br {row.original.total_amount?.toFixed(2) || '0.00'}
+        {formatOrderCurrency(row.original.total_amount || 0)}
       </div>
     ),
     enableGlobalFilter: true,
   },
   {
-    accessorKey: 'created_at',
+    accessorKey: "created_at",
     header: () => <div className="text-right">Date</div>,
     cell: ({ row }) => (
       <div className="text-right">
-        {new Date(row.original.created_at || '').toLocaleDateString()}
+        {new Date(row.original.created_at || "").toLocaleDateString()}
       </div>
     ),
     enableGlobalFilter: true,
   },
   {
-    id: 'actions',
+    id: "actions",
     cell: ({ row, table }) => {
       const meta = table.options.meta as {
         onDelete: (id: string) => Promise<void>;
         onSelect: (id: string) => void;
-        handleActionClick?: (e: React.MouseEvent, id: string, action: string) => void;
+        handleActionClick?: (
+          e: React.MouseEvent,
+          id: string,
+          action: string
+        ) => void;
       };
 
-      const handleStatusUpdate = async (e: React.MouseEvent, status: string) => {
+      const handleStatusUpdate = async (
+        e: React.MouseEvent,
+        status: string
+      ) => {
         e.stopPropagation(); // Prevent row click
         try {
           const result = await updateOrderStatus(row.original.id, status);
           if (result.success) {
-            toast.success('Order status updated successfully');
+            toast.success("Order status updated successfully");
           } else {
-            toast.error('Failed to update order status');
+            toast.error("Failed to update order status");
           }
         } catch (error) {
-          toast.error('Error updating order status');
+          toast.error("Error updating order status");
         }
       };
 
@@ -119,9 +124,9 @@ export const columns: ColumnDef<ExtendedOrder>[] = [
           meta.handleActionClick(e, row.original.id, action);
         } else {
           // Fallback to old behavior if handleActionClick is not provided
-          if (action === 'view') {
+          if (action === "view") {
             meta.onSelect(row.original.id);
-          } else if (action === 'delete') {
+          } else if (action === "delete") {
             meta.onDelete(row.original.id);
           }
         }
@@ -139,27 +144,38 @@ export const columns: ColumnDef<ExtendedOrder>[] = [
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+            <DropdownMenuContent
+              align="end"
+              onClick={(e) => e.stopPropagation()}
+            >
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuItem onClick={(e) => handleClick(e, 'view')}>
+              <DropdownMenuItem onClick={(e) => handleClick(e, "view")}>
                 View
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuLabel>Update Status</DropdownMenuLabel>
-              <DropdownMenuItem onClick={(e) => handleStatusUpdate(e, 'pending')}>
+              <DropdownMenuItem
+                onClick={(e) => handleStatusUpdate(e, "pending")}
+              >
                 Pending
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={(e) => handleStatusUpdate(e, 'processing')}>
+              <DropdownMenuItem
+                onClick={(e) => handleStatusUpdate(e, "processing")}
+              >
                 Processing
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={(e) => handleStatusUpdate(e, 'completed')}>
+              <DropdownMenuItem
+                onClick={(e) => handleStatusUpdate(e, "completed")}
+              >
                 Completed
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={(e) => handleStatusUpdate(e, 'cancelled')}>
+              <DropdownMenuItem
+                onClick={(e) => handleStatusUpdate(e, "cancelled")}
+              >
                 Cancelled
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={(e) => handleClick(e, 'delete')}>
+              <DropdownMenuItem onClick={(e) => handleClick(e, "delete")}>
                 Delete
               </DropdownMenuItem>
             </DropdownMenuContent>

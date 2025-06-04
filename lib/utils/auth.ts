@@ -1,8 +1,9 @@
-import { cookies } from 'next/headers';
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/lib/supabase/server';
 
+// DEPRECATED: Use getUser() directly from @/app/actions/auth instead
 export async function getSession() {
-  const supabase = createServerComponentClient({ cookies });
+  console.warn('⚠️  SECURITY WARNING: This getSession() function is deprecated. Use getUser() from @/app/actions/auth instead.');
+  const supabase = await createClient();
   try {
     // Use getUser instead of getSession for better security
     // getUser verifies with the Supabase Auth server
@@ -12,7 +13,7 @@ export async function getSession() {
 
     if (!user) return null;
 
-    // If we need the session as well, we can still get it
+    // Only get session if user is verified
     const {
       data: { session },
     } = await supabase.auth.getSession();
@@ -25,7 +26,7 @@ export async function getSession() {
 }
 
 export async function getUser() {
-  const supabase = createServerComponentClient({ cookies });
+  const supabase = await createClient();
   try {
     const {
       data: { user },

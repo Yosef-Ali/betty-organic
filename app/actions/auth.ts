@@ -10,8 +10,11 @@ async function getSupabaseClient() {
   return createClient();
 }
 
+// DEPRECATED: Use getUser() instead for better security
+// getSession() relies on potentially tampered cookies
 export async function getSession() {
-  const supabase = await getSupabaseClient(); // Use helper
+  console.warn('⚠️  SECURITY WARNING: getSession() is deprecated. Use getUser() instead.');
+  const supabase = await getSupabaseClient();
   try {
     const { data: { session }, error } = await supabase.auth.getSession();
     if (error) {
@@ -38,14 +41,8 @@ export interface UserWithProfile extends User {
 export async function getUser(): Promise<UserWithProfile | null> {
   const supabase = await getSupabaseClient();
   try {
-    // First check if we have a session to avoid unnecessary errors
-    const { data: sessionData } = await supabase.auth.getSession();
-
-    if (!sessionData.session) {
-      // No session exists, return null instead of throwing an error
-      return null;
-    }
-
+    // Use getUser() directly - it's more secure than getSession()
+    // getUser() verifies with Supabase Auth server, while getSession() relies on cookies
     const { data: { user }, error } = await supabase.auth.getUser();
     if (error || !user) {
       // Log the error but don't throw - just return null
@@ -76,6 +73,20 @@ export async function getUser(): Promise<UserWithProfile | null> {
   }
 }
 
+// Legacy function for backwards compatibility
+export async function getCurrentUser() {
+  const user = await getUser();
+  
+  if (!user) {
+    return { user: null, profile: null, isAdmin: false };
+  }
+
+  return {
+    user: user,
+    profile: user.profile,
+    isAdmin: user.isAdmin || false
+  };
+}
 
 export async function signOut() {
   const supabase = await getSupabaseClient(); // Use helper
@@ -135,10 +146,18 @@ export async function signInWithGoogle(origin: string) {
     return { error: 'Could not determine origin URL.', url: null };
   }
 
+  // Determine the correct redirect URL based on environment
+  const isLocal = origin.includes('localhost') || origin.includes('127.0.0.1');
+  const redirectTo = isLocal 
+    ? `${origin}/auth/callback` 
+    : `${process.env.NEXT_PUBLIC_SITE_URL || origin}/auth/callback`;
+
+  console.log('Google OAuth redirect URL:', redirectTo); // Debug log
+
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: `${origin}/auth/callback`, // Your callback route
+      redirectTo: redirectTo,
     },
   });
 

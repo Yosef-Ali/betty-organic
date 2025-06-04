@@ -5,7 +5,7 @@ import { Bell, BellRing, Volume2, VolumeX } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
-import { cn } from "@/lib/utils";
+import { cn, formatOrderCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -315,7 +315,10 @@ export function NotificationBell() {
       }
     } catch (err) {
       setError("Failed to initialize notification system");
-      console.error("[NotificationBell] Failed to initialize Supabase client:", err);
+      console.error(
+        "[NotificationBell] Failed to initialize Supabase client:",
+        err
+      );
       return;
     }
 
@@ -332,7 +335,9 @@ export function NotificationBell() {
 
     // Comprehensive cleanup on unmount
     return () => {
-      console.log("[NotificationBell] Component unmounting, cleaning up resources");
+      console.log(
+        "[NotificationBell] Component unmounting, cleaning up resources"
+      );
       mountedRef.current = false;
 
       // Properly remove the channel
@@ -341,7 +346,10 @@ export function NotificationBell() {
           supabaseRef.current.removeChannel(channelRef.current);
           console.log("[NotificationBell] Channel removed successfully");
         } catch (err) {
-          console.warn("[NotificationBell] Error removing channel during cleanup:", err);
+          console.warn(
+            "[NotificationBell] Error removing channel during cleanup:",
+            err
+          );
         }
         channelRef.current = null;
       }
@@ -400,10 +408,11 @@ export function NotificationBell() {
 
             {/* Connection status indicator */}
             <span
-              className={`absolute -bottom-1 -right-1 h-2 w-2 rounded-full ${connectionStatus === "SUBSCRIBED"
-                ? "bg-green-500"
-                : "bg-yellow-500"
-                }`}
+              className={`absolute -bottom-1 -right-1 h-2 w-2 rounded-full ${
+                connectionStatus === "SUBSCRIBED"
+                  ? "bg-green-500"
+                  : "bg-yellow-500"
+              }`}
             />
           </Button>
         </DropdownMenuTrigger>
@@ -488,7 +497,7 @@ export function NotificationBell() {
                       </div>
                       {notification.total_amount && (
                         <div className="text-xs text-muted-foreground">
-                          ETB {notification.total_amount.toFixed(2)}
+                          {formatOrderCurrency(notification.total_amount)}
                         </div>
                       )}
                       <span className="text-xs text-muted-foreground">

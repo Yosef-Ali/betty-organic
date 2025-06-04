@@ -1,17 +1,18 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Bell, BellRing, Volume2, VolumeX } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { Bell, BellRing, Volume2, VolumeX } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { createClient } from '@/lib/supabase/client';
-import { useRouter } from 'next/navigation';
+} from "@/components/ui/dropdown-menu";
+import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
+import { formatOrderCurrency } from "@/lib/utils";
 
 // Define the notification type based on order data
 type OrderNotification = {
@@ -29,7 +30,7 @@ export function SimpleNotificationBell() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [showAnimation, setShowAnimation] = useState(false);
   const [connectionStatus, setConnectionStatus] =
-    useState<string>('CONNECTING');
+    useState<string>("CONNECTING");
 
   // Audio reference
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -41,14 +42,14 @@ export function SimpleNotificationBell() {
 
     try {
       // Create a new Audio instance each time
-      const audio = new Audio('/sound/notification.mp3');
+      const audio = new Audio("/sound/notification.mp3");
 
       // Play the sound
-      audio.play().catch(err => {
-        console.warn('Failed to play sound:', err);
+      audio.play().catch((err) => {
+        console.warn("Failed to play sound:", err);
       });
     } catch (err) {
-      console.warn('Error playing sound:', err);
+      console.warn("Error playing sound:", err);
     }
   }, [soundEnabled]);
 
@@ -59,9 +60,9 @@ export function SimpleNotificationBell() {
 
     // Save to localStorage
     try {
-      localStorage.setItem('notification_sound', newSoundEnabled.toString());
+      localStorage.setItem("notification_sound", newSoundEnabled.toString());
     } catch (err) {
-      console.warn('Failed to save sound setting:', err);
+      console.warn("Failed to save sound setting:", err);
     }
 
     // Play test sound if enabling
@@ -84,36 +85,36 @@ export function SimpleNotificationBell() {
   useEffect(() => {
     // Load sound setting from localStorage
     try {
-      const savedSetting = localStorage.getItem('notification_sound');
+      const savedSetting = localStorage.getItem("notification_sound");
       if (savedSetting !== null) {
-        setSoundEnabled(savedSetting === 'true');
+        setSoundEnabled(savedSetting === "true");
       }
     } catch (err) {
-      console.warn('Failed to load sound setting:', err);
+      console.warn("Failed to load sound setting:", err);
     }
 
     // Fetch pending orders from database
     const fetchPendingOrders = async () => {
       try {
-        console.log('Creating Supabase client for fetch...');
+        console.log("Creating Supabase client for fetch...");
         const supabase = createClient();
 
         if (!supabase) {
-          console.error('Failed to create Supabase client');
+          console.error("Failed to create Supabase client");
           setNotifications([]);
           setCount(0);
           return;
         }
 
         const { data, error } = await supabase
-          .from('orders')
-          .select('id, display_id, status, created_at, total_amount')
-          .eq('status', 'pending')
-          .order('created_at', { ascending: false })
+          .from("orders")
+          .select("id, display_id, status, created_at, total_amount")
+          .eq("status", "pending")
+          .order("created_at", { ascending: false })
           .limit(10);
 
         if (error) {
-          console.error('Error fetching pending orders:', error);
+          console.error("Error fetching pending orders:", error);
           setNotifications([]);
           setCount(0);
           return;
@@ -127,7 +128,7 @@ export function SimpleNotificationBell() {
           setCount(0);
         }
       } catch (err) {
-        console.error('Failed to fetch pending orders:', err);
+        console.error("Failed to fetch pending orders:", err);
         setNotifications([]);
         setCount(0);
       }
@@ -139,71 +140,71 @@ export function SimpleNotificationBell() {
     // Set up real-time subscription
     const supabase = createClient();
     const channel = supabase
-      .channel('orders-notifications')
+      .channel("orders-notifications")
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: '*',
-          schema: 'public',
-          table: 'orders',
+          event: "*",
+          schema: "public",
+          table: "orders",
         },
-        payload => {
+        (payload) => {
           // For INSERT events
-          if (payload.eventType === 'INSERT') {
+          if (payload.eventType === "INSERT") {
             const newOrder = payload.new as OrderNotification;
 
             // Only add to notifications if it's pending
-            if (newOrder.status === 'pending') {
+            if (newOrder.status === "pending") {
               // Add the new order to notifications, keeping up to 10
-              setNotifications(prev => [newOrder, ...prev.slice(0, 9)]);
-              setCount(prev => prev + 1);
+              setNotifications((prev) => [newOrder, ...prev.slice(0, 9)]);
+              setCount((prev) => prev + 1);
 
               // Show animation and play sound
               setShowAnimation(true);
               playSound();
               setTimeout(() => setShowAnimation(false), 2000);
             }
-          } else if (payload.eventType === 'UPDATE') {
+          } else if (payload.eventType === "UPDATE") {
             // If status changed from pending to something else, remove it
             if (
-              payload.old?.status === 'pending' &&
-              payload.new?.status !== 'pending'
+              payload.old?.status === "pending" &&
+              payload.new?.status !== "pending"
             ) {
-              setNotifications(prev =>
-                prev.filter(n => n.id !== payload.new.id),
+              setNotifications((prev) =>
+                prev.filter((n) => n.id !== payload.new.id)
               );
-              setCount(prev => Math.max(0, prev - 1));
+              setCount((prev) => Math.max(0, prev - 1));
             }
             // If status changed TO pending, add it
             else if (
-              payload.old?.status !== 'pending' &&
-              payload.new?.status === 'pending'
+              payload.old?.status !== "pending" &&
+              payload.new?.status === "pending"
             ) {
               const updatedOrder = payload.new as OrderNotification;
-              setNotifications(prev => [updatedOrder, ...prev.slice(0, 9)]);
-              setCount(prev => prev + 1);
+              setNotifications((prev) => [updatedOrder, ...prev.slice(0, 9)]);
+              setCount((prev) => prev + 1);
 
               // Show animation and play sound for new pending orders
               setShowAnimation(true);
               playSound();
               setTimeout(() => setShowAnimation(false), 2000);
             }
-          } else if (payload.eventType === 'DELETE') {
+          } else if (payload.eventType === "DELETE") {
             // Remove deleted order
-            if (payload.old?.status === 'pending') {
-              setNotifications(prev =>
-                prev.filter(n => n.id !== payload.old.id),
+            if (payload.old?.status === "pending") {
+              setNotifications((prev) =>
+                prev.filter((n) => n.id !== payload.old.id)
               );
-              setCount(prev => Math.max(0, prev - 1));
+              setCount((prev) => Math.max(0, prev - 1));
             }
           }
-        },
+        }
       )
-      .subscribe(status => {
+      .subscribe((status) => {
         setConnectionStatus(status);
 
         // When connected, fetch orders again to ensure we have the latest
-        if (status === 'SUBSCRIBED') {
+        if (status === "SUBSCRIBED") {
           fetchPendingOrders();
         }
       });
@@ -222,13 +223,13 @@ export function SimpleNotificationBell() {
           size="icon"
           className="relative w-10 h-10 bg-yellow-50 hover:bg-yellow-100 border border-yellow-200 rounded-full"
         >
-          <div className={showAnimation ? 'animate-bell' : ''}>
+          <div className={showAnimation ? "animate-bell" : ""}>
             {showAnimation ? (
               <BellRing className="h-6 w-6 text-red-500" />
             ) : (
               <Bell
                 className={`h-6 w-6 ${
-                  count > 0 ? 'text-red-500' : 'text-yellow-600'
+                  count > 0 ? "text-red-500" : "text-yellow-600"
                 }`}
               />
             )}
@@ -242,9 +243,9 @@ export function SimpleNotificationBell() {
 
           <span
             className={`absolute -bottom-1 -right-1 h-2 w-2 rounded-full ${
-              connectionStatus === 'SUBSCRIBED'
-                ? 'bg-green-500'
-                : 'bg-yellow-500'
+              connectionStatus === "SUBSCRIBED"
+                ? "bg-green-500"
+                : "bg-yellow-500"
             }`}
           />
         </Button>
@@ -266,7 +267,7 @@ export function SimpleNotificationBell() {
           </div>
         ) : (
           <div className="max-h-[300px] overflow-y-auto space-y-2 mb-2">
-            {notifications.map(notification => (
+            {notifications.map((notification) => (
               <DropdownMenuItem
                 key={notification.id}
                 className="cursor-pointer"

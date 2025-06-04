@@ -2,11 +2,12 @@
 
 import { supabase } from '@/lib/supabase/client';
 import { Database } from '@/types/supabase';
+import { formatOrderCurrency } from '@/lib/utils';
 
 // Define a type for the transaction
 
 type Transaction = Database['public']['Tables']['orders']['Row'] & {
-  customer: Database['public']['Tables']['customers']['Row'];
+  customer: Database['public']['Tables']['profiles']['Row'];
 };
 
 // **Export the MappedTransaction interface**
@@ -25,7 +26,7 @@ export async function getRecentTransactions(): Promise<MappedTransaction[]> {
     .from('orders')
     .select(`
       *,
-      customer:customers(
+      customer:profiles(
         full_name,
         email
       )
@@ -44,19 +45,19 @@ export async function getRecentTransactions(): Promise<MappedTransaction[]> {
 
   // Map the transactions to the desired format
   return transactions.map((transaction: Transaction): MappedTransaction => ({
-    customer: transaction.customer.full_name,
+    customer: transaction.customer.name || '',
     email: transaction.customer.email || '',
     type: transaction.type,
     status: transaction.status,
     date: transaction.created_at ? new Date(transaction.created_at).toISOString().split('T')[0] : '',
-    amount: `Br ${transaction.total_amount.toFixed(2)}`,
+    amount: formatOrderCurrency(transaction.total_amount),
   }));
 }
 
 // Update the mapTransactions function
 export async function mapTransactions(
   transactions: (Database['public']['Tables']['orders']['Row'] & {
-    customer: Database['public']['Tables']['customers']['Row'];
+    customer: Database['public']['Tables']['profiles']['Row'];
   })[]
 ): Promise<Pick<MappedTransaction, 'customer' | 'email'>[]> {
   if (!transactions) {
@@ -64,7 +65,7 @@ export async function mapTransactions(
   }
 
   return transactions.map((transaction: Transaction) => ({
-    customer: transaction.customer.full_name,
+    customer: transaction.customer.name || '',
     email: transaction.customer.email || '',
   }));
 }

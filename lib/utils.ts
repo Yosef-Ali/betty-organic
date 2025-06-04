@@ -29,6 +29,28 @@ export function formatCurrency(amount: number): string {
 }
 
 /**
+ * Formats currency amounts that may be stored in cents in the database
+ * This function handles the conversion from cents to main currency unit
+ * @param amount The amount (possibly in cents)
+ * @returns Formatted currency string in Birr
+ */
+export function formatOrderCurrency(amount: number): string {
+  // Convert from cents to main currency unit if the amount seems to be in cents
+  // We use a threshold to detect if the amount is likely in cents vs main currency unit
+  // If the amount is > 10000 (100.00 ETB in cents), it's likely stored in cents
+  // This avoids converting legitimate amounts like 1000 ETB (which should stay as 1000 ETB)
+  const displayAmount = amount > 10000 ? amount / 100 : amount;
+  
+  return new Intl.NumberFormat('en-ET', {
+    style: 'currency',
+    currency: 'ETB',
+    currencyDisplay: 'narrowSymbol',
+  })
+    .format(displayAmount)
+    .replace('ETB', 'Br.');
+}
+
+/**
  * Formats an order ID for display
  * If it's a display_id (BO-YYYYMMDD-XXXX format), returns it as is
  * If it's a UUID, returns a shortened version
