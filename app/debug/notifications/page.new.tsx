@@ -104,7 +104,7 @@ function MockNotificationDebugger() {
     }, 10000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchPendingOrders]);
 
   return (
     <Card className="w-full">
@@ -267,7 +267,7 @@ function MockNotificationTester() {
   // Initialize on mount
   useEffect(() => {
     fetchPendingOrders();
-  }, []);
+  }, [fetchPendingOrders]);
 
   return (
     <Card className="w-full">

@@ -1,5 +1,6 @@
 "use client"
 import { useState } from "react"
+import Image from "next/image";
 import { Download, ImageIcon, Loader2, MessageSquare, ArrowLeft, Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -305,10 +306,10 @@ export default function TextToImageGenerator() {
                   </div>
                 ) : generatedImage ? (
                   <div className="relative w-full h-full">
-                    <img
+                    <Image
                       src={generatedImage}
                       alt="Generated product image"
-                      className="object-contain w-full h-full"
+                      width={500} height={500} className="object-contain w-full h-full"
                     />
                     <div className="absolute bottom-4 right-4 flex flex-col gap-2">
                       <Button
