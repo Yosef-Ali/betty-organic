@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import "@/styles/bell-animation.css";
-import { Bell, BellRing, Volume2, VolumeX } from "lucide-react";
+import { Bell, BellRing, Volume2, VolumeX, Eye, CheckCircle, Clock, User, Phone, Mail, MapPin, ExternalLink } from "lucide-react";
 import { NotificationSounds } from "@/lib/utils/notificationSounds";
 import { useRouter } from "next/navigation";
 import { cn, formatOrderCurrency } from "@/lib/utils";
@@ -12,8 +12,10 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/components/providers/ImprovedAuthProvider";
 import { useRealtime } from "@/lib/supabase/realtime-provider";
 import {
@@ -30,6 +32,7 @@ export function NotificationBell() {
   const [animateBell, setAnimateBell] = useState(false);
   const [animateBadge, setAnimateBadge] = useState(false);
   const [animateButton, setAnimateButton] = useState(false);
+  const [readNotifications, setReadNotifications] = useState<Set<string>>(new Set());
   const [soundEnabled, setSoundEnabled] = useState(() => {
     try {
       const saved = localStorage.getItem("notification_sound");
@@ -255,10 +258,64 @@ export function NotificationBell() {
 
   const roleBasedUnreadCount = unreadCount;
 
+  // Mark notification as read
+  const markAsRead = useCallback((notificationId: string) => {
+    setReadNotifications(prev => new Set([...prev, notificationId]));
+    setUnreadCount(prev => Math.max(0, prev - 1));
+  }, []);
+
+  // Mark all notifications as read
+  const markAllAsRead = useCallback(() => {
+    const allIds = notifications.map(n => n.id);
+    setReadNotifications(new Set(allIds));
+    setUnreadCount(0);
+  }, [notifications]);
+
+  // Dismiss notification (remove from list)
+  const dismissNotification = useCallback((notificationId: string) => {
+    setNotifications(prev => prev.filter(n => n.id !== notificationId));
+    setReadNotifications(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(notificationId);
+      return newSet;
+    });
+    setUnreadCount(prev => Math.max(0, prev - 1));
+  }, []);
+
   // Handle notification click
   const handleNotificationClick = (orderId: string) => {
+    markAsRead(orderId);
     router.push(`/dashboard/orders/${orderId}`);
-    setUnreadCount((prev) => Math.max(0, prev - 1));
+  };
+
+  // Handle quick view (mark as read without navigating)
+  const handleQuickView = (notificationId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    markAsRead(notificationId);
+  };
+
+  // Get time ago string
+  const getTimeAgo = (dateString: string) => {
+    const now = new Date();
+    const date = new Date(dateString);
+    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+    
+    if (diffInMinutes < 1) return 'Just now';
+    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`;
+    return `${Math.floor(diffInMinutes / 1440)}d ago`;
+  };
+
+  // Get status color
+  const getStatusColor = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'pending': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'new': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'processing': return 'bg-purple-100 text-purple-800 border-purple-200';
+      case 'confirmed': return 'bg-green-100 text-green-800 border-green-200';
+      case 'cancelled': return 'bg-red-100 text-red-800 border-red-200';
+      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
   };
 
   return (
@@ -321,40 +378,55 @@ export function NotificationBell() {
           </Button>
         </DropdownMenuTrigger>
 
-        <DropdownMenuContent align="end" className="w-64 p-2">
-          <div className="flex items-center justify-between mb-2">
-            <h4 className="font-semibold text-sm">
-              {profile?.role === 'customer' ? 'Your Orders' :
-                profile?.role === 'sales' ? 'Pending Orders' :
-                  'All Notifications'}
-              <span
-                className="text-xs font-normal text-gray-500 ml-1"
-                key={`header-count-${roleBasedUnreadCount}`}
-              >
+        <DropdownMenuContent align="end" className="w-80 p-3">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h4 className="font-semibold text-sm">
+                {profile?.role === 'customer' ? 'Your Orders' :
+                  profile?.role === 'sales' ? 'Pending Orders' :
+                    'All Notifications'}
+              </h4>
+              <p className="text-xs text-muted-foreground">
                 {(() => {
                   const currentCount = roleBasedUnreadCount;
-                  return `(${currentCount})`;
+                  return currentCount > 0 ? `${currentCount} unread` : 'All caught up';
                 })()}
-              </span>
-            </h4>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleSound}
-              className="h-6 w-6"
-              title={
-                soundEnabled
-                  ? "Mute notifications"
-                  : "Enable notification sounds"
-              }
-            >
-              {soundEnabled ? (
-                <Volume2 className="h-4 w-4" />
-              ) : (
-                <VolumeX className="h-4 w-4" />
+              </p>
+            </div>
+            <div className="flex items-center gap-1">
+              {unreadCount > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={markAllAsRead}
+                  className="h-7 px-2 text-xs"
+                  title="Mark all as read"
+                >
+                  <CheckCircle className="h-3 w-3 mr-1" />
+                  Read All
+                </Button>
               )}
-            </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={toggleSound}
+                className="h-7 w-7"
+                title={
+                  soundEnabled
+                    ? "Mute notifications"
+                    : "Enable notification sounds"
+                }
+              >
+                {soundEnabled ? (
+                  <Volume2 className="h-3 w-3" />
+                ) : (
+                  <VolumeX className="h-3 w-3" />
+                )}
+              </Button>
+            </div>
           </div>
+
+          <Separator className="mb-3" />
 
           {error ? (
             <div className="p-3 text-red-600 bg-red-50 rounded-md mb-1 border border-red-200 shadow-sm">
@@ -375,62 +447,171 @@ export function NotificationBell() {
               </div>
             </div>
           ) : (
-            <div className="max-h-[300px] overflow-y-auto">
-              {filteredNotifications.map((notification) => (
-                <DropdownMenuItem
-                  key={notification.id}
-                  onClick={() => handleNotificationClick(notification.id)}
-                  className="cursor-pointer mb-1 hover:bg-yellow-50 rounded-md transition-colors duration-200 border border-transparent hover:border-yellow-200"
-                >
-                  <div className="flex items-start gap-2 w-full">
-                    <div className="bg-yellow-100 text-yellow-800 p-2 rounded-full">
-                      <BellRing className="h-4 w-4" />
-                    </div>
-                    <div className="flex flex-col flex-1">
-                      <div className="flex justify-between items-center w-full">
-                        <span className="font-medium">
-                          {profile?.role === 'customer' ? 'Your Order' : 'New Order'}
-                        </span>
-                        <Badge variant="outline" className="ml-2 text-xs capitalize">
-                          {notification.status}
-                        </Badge>
+            <div className="max-h-[400px] overflow-y-auto space-y-2">
+              {filteredNotifications.map((notification) => {
+                const isRead = readNotifications.has(notification.id);
+                return (
+                  <div
+                    key={notification.id}
+                    className={cn(
+                      "p-3 rounded-lg border transition-all duration-200 cursor-pointer",
+                      isRead 
+                        ? "bg-gray-50 border-gray-200 opacity-75" 
+                        : "bg-white border-blue-200 shadow-sm hover:shadow-md hover:border-blue-300"
+                    )}
+                    onClick={() => handleNotificationClick(notification.id)}
+                  >
+                    <div className="flex items-start gap-3">
+                      {/* Status indicator */}
+                      <div className="relative">
+                        <div className={cn(
+                          "p-2 rounded-full transition-colors",
+                          isRead ? "bg-gray-100 text-gray-500" : "bg-blue-100 text-blue-600"
+                        )}>
+                          <BellRing className="h-4 w-4" />
+                        </div>
+                        {!isRead && (
+                          <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white"></div>
+                        )}
                       </div>
 
-                      <div className="text-xs font-medium">
-                        {notification.display_id ||
-                          `Order #${notification.id.slice(0, 8)}`}
+                      <div className="flex-1 min-w-0">
+                        {/* Header */}
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div className="flex-1">
+                            <h5 className={cn(
+                              "font-medium text-sm",
+                              isRead ? "text-gray-600" : "text-gray-900"
+                            )}>
+                              {profile?.role === 'customer' ? 'Your Order Update' : 'New Order Received'}
+                            </h5>
+                            <p className="text-xs text-muted-foreground">
+                              {notification.display_id || `#${notification.id.slice(0, 8)}`}
+                            </p>
+                          </div>
+                          <Badge 
+                            className={cn(
+                              "text-xs border",
+                              getStatusColor(notification.status)
+                            )}
+                          >
+                            {notification.status}
+                          </Badge>
+                        </div>
+
+                        {/* Details */}
+                        <div className="space-y-1 mb-3">
+                          {/* Customer info for sales/admin */}
+                          {(profile?.role === 'sales' || profile?.role === 'admin') && notification.customer_name && (
+                            <div className="flex items-center gap-2 text-xs">
+                              <User className="h-3 w-3 text-blue-500" />
+                              <span className="font-medium text-blue-700">
+                                {notification.customer_name}
+                              </span>
+                              {notification.customer_email && (
+                                <span className="text-muted-foreground">
+                                  ({notification.customer_email})
+                                </span>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Amount */}
+                          {notification.total_amount && (
+                            <div className="flex items-center gap-2 text-xs">
+                              <span className="font-semibold text-green-600">
+                                {formatOrderCurrency(notification.total_amount)}
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Time */}
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Clock className="h-3 w-3" />
+                            <span>{getTimeAgo(notification.created_at)}</span>
+                          </div>
+                        </div>
+
+                        {/* Action buttons */}
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            className="h-7 px-3 text-xs"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleNotificationClick(notification.id);
+                            }}
+                          >
+                            <Eye className="h-3 w-3 mr-1" />
+                            View Order
+                          </Button>
+                          
+                          {!isRead && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 px-3 text-xs"
+                              onClick={(e) => handleQuickView(notification.id, e)}
+                            >
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                              Mark Read
+                            </Button>
+                          )}
+
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              dismissNotification(notification.id);
+                            }}
+                            title="Dismiss notification"
+                          >
+                            ×
+                          </Button>
+                        </div>
                       </div>
-
-                      {/* Show customer info for sales/admin */}
-                      {(profile?.role === 'sales' || profile?.role === 'admin') && notification.customer_name && (
-                        <div className="text-xs text-blue-600 font-medium">
-                          Customer: {notification.customer_name}
-                        </div>
-                      )}
-
-                      {notification.total_amount && (
-                        <div className="text-xs text-muted-foreground">
-                          {formatOrderCurrency(notification.total_amount)}
-                        </div>
-                      )}
-
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(notification.created_at).toLocaleString()}
-                      </span>
                     </div>
                   </div>
-                </DropdownMenuItem>
-              ))}
+                );
+              })}
             </div>
           )}
 
-          <div className="mt-2 pt-2 border-t border-muted">
-            {/* Sound controls */}
-            <div className="flex items-center justify-between mb-2">
+          <Separator className="mt-3 mb-3" />
+          
+          {/* Footer actions */}
+          <div className="space-y-3">
+            {/* Main actions */}
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 text-xs"
+                onClick={() => router.push("/dashboard/orders")}
+              >
+                <ExternalLink className="h-3 w-3 mr-1" />
+                View All Orders
+              </Button>
+              
               <Button
                 variant="ghost"
                 size="sm"
-                className="flex items-center gap-1 text-xs"
+                className="text-xs"
+                onClick={fetchNotifications}
+                title="Refresh notifications"
+              >
+                Refresh
+              </Button>
+            </div>
+
+            {/* Settings row */}
+            <div className="flex items-center justify-between">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="flex items-center gap-1 text-xs h-7"
                 onClick={toggleSound}
               >
                 {soundEnabled ? (
@@ -446,42 +627,13 @@ export function NotificationBell() {
                 )}
               </Button>
 
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs"
-                onClick={() => {
-                  triggerNotificationAnimation();
-                  if (soundEnabled) {
-                    playNotificationSound();
-                  }
-                }}
-                title="Test notification animation and sound"
-              >
-                {soundEnabled ? 'Test Sound & Animation' : 'Test Animation'}
-              </Button>
-            </div>
-
-            {/* Action buttons */}
-            <div className="flex items-center justify-between mt-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs"
-                onClick={fetchNotifications}
-                title="Manually refresh notifications"
-              >
-                Refresh
-              </Button>
-
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-xs"
-                onClick={() => router.push("/dashboard/orders")}
-              >
-                View All Orders
-              </Button>
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                <div className={cn(
+                  "w-2 h-2 rounded-full",
+                  isConnected ? "bg-green-500" : "bg-yellow-500"
+                )} />
+                <span>{isConnected ? 'Live' : 'Connecting'}</span>
+              </div>
             </div>
           </div>
         </DropdownMenuContent>
