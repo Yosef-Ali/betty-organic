@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useOrderDetails } from "@/lib/hooks/useOrderDetails";
@@ -25,6 +25,7 @@ interface OrderDetailsProps {
 interface OrderWithProfile {
   id: string;
   display_id?: string;
+  status?: string;
   items: Array<{
     id: string;
     product: {
@@ -50,6 +51,8 @@ interface OrderWithProfile {
 export default function OrderDetailsCard({ orderId }: OrderDetailsProps) {
   const router = useRouter();
   const { subscribeToOrders } = useRealtime();
+  const [currentOrderStatus, setCurrentOrderStatus] = useState<string>('pending');
+  
   const {
     order,
     error,
@@ -60,6 +63,13 @@ export default function OrderDetailsCard({ orderId }: OrderDetailsProps) {
     handleRetry,
     retryCount,
   } = useOrderDetails(orderId);
+
+  // Update local status when order changes
+  React.useEffect(() => {
+    if (order?.status) {
+      setCurrentOrderStatus(order.status);
+    }
+  }, [order?.status]);
 
   // Subscribe to realtime updates for order details refresh
   React.useEffect(() => {
@@ -323,7 +333,17 @@ export default function OrderDetailsCard({ orderId }: OrderDetailsProps) {
         </>
 
         <Separator className="my-4" />
-        <PaymentDetails />
+        <PaymentDetails 
+          orderId={order.id}
+          orderStatus={currentOrderStatus}
+          totalAmount={totalAmount}
+          paymentStatus="pending" // Default for now - can be enhanced later
+          onStatusChange={(newStatus) => {
+            setCurrentOrderStatus(newStatus);
+            // Trigger a refresh to get updated data
+            handleRetry();
+          }}
+        />
       </CardContent>
 
       <CardFooter className="flex flex-row items-center border-t bg-muted/50 px-6 py-3">
