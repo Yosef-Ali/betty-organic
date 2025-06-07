@@ -15,6 +15,8 @@ import {
   X,
   UserPen,
   LayoutDashboard,
+  BarChart3,
+  TrendingUp,
 } from 'lucide-react';
 import {
   Tooltip,
@@ -67,9 +69,9 @@ export default function Sidebar({
 
   const salesItems = [
     {
-      label: 'Sales',
-      icon: <ShoppingBag className="h-4 w-4" />,
-      href: '/dashboard/sales',
+      label: 'Dashboard',
+      icon: <LayoutDashboard className="h-4 w-4" />,
+      href: '/dashboard',
     },
     {
       label: 'Orders',
@@ -82,9 +84,9 @@ export default function Sidebar({
       href: '/dashboard/products',
     },
     {
-      label: 'Reports',
-      icon: <LayoutDashboard className="h-4 w-4" />,
-      href: '/dashboard/reports',
+      label: 'Sales',
+      icon: <TrendingUp className="h-4 w-4" />,
+      href: '/dashboard/sales',
     },
   ];
 
@@ -94,7 +96,21 @@ export default function Sidebar({
       icon: <LayoutDashboard className="h-4 w-4" />,
       href: '/dashboard',
     },
-    ...salesItems,
+    {
+      label: 'Orders',
+      icon: <ShoppingCart className="h-4 w-4" />,
+      href: '/dashboard/orders',
+    },
+    {
+      label: 'Products',
+      icon: <Package className="h-4 w-4" />,
+      href: '/dashboard/products',
+    },
+    {
+      label: 'Sales',
+      icon: <TrendingUp className="h-4 w-4" />,
+      href: '/dashboard/sales',
+    },
     {
       label: 'Customers',
       icon: <Users2 className="h-4 w-4" />,
