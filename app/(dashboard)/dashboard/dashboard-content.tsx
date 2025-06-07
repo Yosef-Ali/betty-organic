@@ -1,10 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useToast } from 'hooks/use-toast';
 import { OverviewCard } from 'components/OverviewCard';
 import { RecentSales } from 'components/RecentSales';
 import { RecentOrders } from 'components/RecentOrders';
+import { useRealtime } from '@/lib/supabase/realtime-provider';
+import { ReportsContent } from '@/components/reports/ReportsContent';
+import { NotificationsContent } from '@/components/notifications/NotificationsContent';
+import { useAuth } from '@/hooks/useAuth';
 
 import {
   Card,
@@ -33,76 +37,80 @@ export default function DashboardContent() {
 
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  const { subscribeToOrders } = useRealtime();
+  const { user, profile } = useAuth();
+
+  const fetchDashboardData = useCallback(async () => {
+    try {
+      if (loading) setLoading(true);
+      setError(null);
+
+      const [revenue, customers, products, orders] = await Promise.all([
+        getTotalRevenue()
+          .catch(e => {
+            console.error('Revenue fetch error:', e);
+            return 0;
+          })
+          .then(res => Number(res) || 0),
+        getTotalCustomers()
+          .catch(e => {
+            console.error('Customers fetch error:', e);
+            return 0;
+          })
+          .then(res => Number(res) || 0),
+        getTotalProducts()
+          .catch(e => {
+            console.error('Products fetch error:', e);
+            return 0;
+          })
+          .then(res => Number(res) || 0),
+        getTotalOrders()
+          .catch(e => {
+            console.error('Orders fetch error:', e);
+            return 0;
+          })
+          .then(res => Number(res) || 0),
+      ]);
+
+      setTotalRevenue(revenue);
+      setTotalCustomers(customers);
+      setTotalProducts(products);
+      setTotalOrders(orders);
+    } catch (err) {
+      console.error('Error fetching dashboard data:', err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to load dashboard data',
+      );
+      if (toast) {
+        toast({
+          title: 'Error',
+          description:
+            'Failed to load dashboard data. Please try again later.',
+          variant: 'destructive',
+        });
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, []); // Remove dependencies to prevent recreation
+
+  // Handle realtime order updates to refresh dashboard stats
+  const handleOrderUpdate = useCallback((order: any, event: 'INSERT' | 'UPDATE' | 'DELETE') => {
+    // Refresh dashboard stats when orders change (revenue and order count)
+    fetchDashboardData();
+  }, []); // Remove fetchDashboardData dependency
 
   useEffect(() => {
-    let isMounted = true;
-
-    async function fetchDashboardData() {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const [revenue, customers, products, orders] = await Promise.all([
-          getTotalRevenue()
-            .catch(e => {
-              console.error('Revenue fetch error:', e);
-              return 0;
-            })
-            .then(res => Number(res) || 0),
-          getTotalCustomers()
-            .catch(e => {
-              console.error('Customers fetch error:', e);
-              return 0;
-            })
-            .then(res => Number(res) || 0),
-          getTotalProducts()
-            .catch(e => {
-              console.error('Products fetch error:', e);
-              return 0;
-            })
-            .then(res => Number(res) || 0),
-          getTotalOrders()
-            .catch(e => {
-              console.error('Orders fetch error:', e);
-              return 0;
-            })
-            .then(res => Number(res) || 0),
-        ]);
-
-        if (isMounted) {
-          setTotalRevenue(revenue);
-          setTotalCustomers(customers);
-          setTotalProducts(products);
-          setTotalOrders(orders);
-        }
-      } catch (err) {
-        console.error('Error fetching dashboard data:', err);
-        if (isMounted) {
-          setError(
-            err instanceof Error
-              ? err.message
-              : 'Failed to load dashboard data',
-          );
-          toast({
-            title: 'Error',
-            description:
-              'Failed to load dashboard data. Please try again later.',
-            variant: 'destructive',
-          });
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    }
-
+    // Initial fetch
     fetchDashboardData();
 
-    return () => {
-      isMounted = false;
-    };
-  }, [toast]);
+    // Subscribe to realtime updates
+    const unsubscribe = subscribeToOrders(handleOrderUpdate);
+
+    return unsubscribe;
+  }, [fetchDashboardData, subscribeToOrders, handleOrderUpdate]);
 
   if (loading) {
     return (
@@ -147,36 +155,66 @@ export default function DashboardContent() {
       <Tabs defaultValue="overview" className="space-y-4">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="reports">Reports</TabsTrigger>
-          <TabsTrigger value="analytics" disabled>
-            Analytics
-          </TabsTrigger>
-          <TabsTrigger value="notifications" disabled>
-            Notifications
-          </TabsTrigger>
+          {/* Show Reports for admin and sales */}
+          {(profile?.role === 'admin' || profile?.role === 'sales') && (
+            <TabsTrigger value="reports">Reports</TabsTrigger>
+          )}
+          {/* Show Notifications for admin and sales */}
+          {(profile?.role === 'admin' || profile?.role === 'sales') && (
+            <TabsTrigger value="notifications">Notifications</TabsTrigger>
+          )}
         </TabsList>
         <TabsContent value="overview" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <OverviewCard
-              title="Total Revenue"
-              value={`ETB ${totalRevenue.toLocaleString()}`}
-              icon={<DollarSign />}
-            />
-            <OverviewCard
-              title="Total Customers"
-              value={`${totalCustomers.toLocaleString()}`}
-              icon={<Users />}
-            />
-            <OverviewCard
-              title="Total Products"
-              value={`${totalProducts.toLocaleString()}`}
-              icon={<Package />}
-            />
-            <OverviewCard
-              title="Total Orders"
-              value={`${totalOrders.toLocaleString()}`}
-              icon={<CreditCard />}
-            />
+            {profile?.role === 'sales' ? (
+              // Sales-focused overview
+              <>
+                <OverviewCard
+                  title="Pending Orders"
+                  value="Loading..."
+                  icon={<Package />}
+                />
+                <OverviewCard
+                  title="Today's Orders"
+                  value="Loading..."
+                  icon={<CreditCard />}
+                />
+                <OverviewCard
+                  title="Processing Orders"
+                  value="Loading..."
+                  icon={<DollarSign />}
+                />
+                <OverviewCard
+                  title="Total Customers"
+                  value={`${totalCustomers.toLocaleString()}`}
+                  icon={<Users />}
+                />
+              </>
+            ) : (
+              // Admin overview (original)
+              <>
+                <OverviewCard
+                  title="Total Revenue"
+                  value={`ETB ${totalRevenue.toLocaleString()}`}
+                  icon={<DollarSign />}
+                />
+                <OverviewCard
+                  title="Total Customers"
+                  value={`${totalCustomers.toLocaleString()}`}
+                  icon={<Users />}
+                />
+                <OverviewCard
+                  title="Total Products"
+                  value={`${totalProducts.toLocaleString()}`}
+                  icon={<Package />}
+                />
+                <OverviewCard
+                  title="Total Orders"
+                  value={`${totalOrders.toLocaleString()}`}
+                  icon={<CreditCard />}
+                />
+              </>
+            )}
           </div>
           <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-7">
             <Card className="col-span-4">
@@ -205,115 +243,19 @@ export default function DashboardContent() {
           </div>
         </TabsContent>
 
-        <TabsContent value="reports" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <Card>
-              <CardHeader>
-                <CardTitle>Daily Sales</CardTitle>
-                <CardDescription>Sales performance for today</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">ETB {(totalRevenue / 30).toFixed(2)}</div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  +12% from yesterday
-                </div>
-                <div className="h-[200px] mt-4 flex items-center justify-center border-2 border-dashed rounded-lg">
-                  Daily sales chart coming soon
-                </div>
-              </CardContent>
-            </Card>
+        {/* Show Reports for admin and sales */}
+        {(profile?.role === 'admin' || profile?.role === 'sales') && (
+          <TabsContent value="reports" className="space-y-4">
+            <ReportsContent />
+          </TabsContent>
+        )}
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Weekly Sales</CardTitle>
-                <CardDescription>Sales performance this week</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">ETB {(totalRevenue / 4).toFixed(2)}</div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  +8% from last week
-                </div>
-                <div className="h-[200px] mt-4 flex items-center justify-center border-2 border-dashed rounded-lg">
-                  Weekly sales chart coming soon
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Monthly Sales</CardTitle>
-                <CardDescription>Sales performance this month</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">ETB {totalRevenue.toFixed(2)}</div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  +15% from last month
-                </div>
-                <div className="h-[200px] mt-4 flex items-center justify-center border-2 border-dashed rounded-lg">
-                  Monthly sales chart coming soon
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Sales Breakdown</CardTitle>
-              <CardDescription>Detailed analysis of sales performance</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-8">
-                <div className="space-y-2">
-                  <div className="flex items-center">
-                    <div className="flex-1">
-                      <div className="text-sm font-medium">Today&apos;s Orders</div>
-                      <div className="text-sm text-muted-foreground">
-                        {Math.round(totalOrders / 30)} orders
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm font-medium">ETB {(totalRevenue / 30).toFixed(2)}</div>
-                      <div className="text-xs text-muted-foreground">+12%</div>
-                    </div>
-                  </div>
-                  <Progress value={12} className="h-2" />
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center">
-                    <div className="flex-1">
-                      <div className="text-sm font-medium">This Week&apos;s Orders</div>
-                      <div className="text-sm text-muted-foreground">
-                        {Math.round(totalOrders / 4)} orders
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm font-medium">ETB {(totalRevenue / 4).toFixed(2)}</div>
-                      <div className="text-xs text-muted-foreground">+8%</div>
-                    </div>
-                  </div>
-                  <Progress value={8} className="h-2" />
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center">
-                    <div className="flex-1">
-                      <div className="text-sm font-medium">This Month&apos;s Orders</div>
-                      <div className="text-sm text-muted-foreground">
-                        {totalOrders} orders
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm font-medium">ETB {totalRevenue.toFixed(2)}</div>
-                      <div className="text-xs text-muted-foreground">+15%</div>
-                    </div>
-                  </div>
-                  <Progress value={15} className="h-2" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+        {/* Show Notifications for admin and sales */}
+        {(profile?.role === 'admin' || profile?.role === 'sales') && (
+          <TabsContent value="notifications" className="space-y-4">
+            <NotificationsContent />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

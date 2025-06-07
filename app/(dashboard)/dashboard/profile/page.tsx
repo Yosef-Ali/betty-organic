@@ -65,7 +65,7 @@ export default async function ProfilePage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <OrderHistory userId={user.id} />
+                <OrderHistory userId={user.id} filterByCustomer={true} />
               </CardContent>
             </Card>
           </TabsContent>

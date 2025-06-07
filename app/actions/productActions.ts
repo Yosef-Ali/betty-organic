@@ -224,7 +224,22 @@ export async function getProducts(): Promise<Product[]> {
 
     const { data, error } = await supabase
       .from('products')
-      .select('*')
+      .select(`
+        id,
+        name,
+        description,
+        price,
+        stock,
+        imageUrl,
+        category,
+        active,
+        unit,
+        totalsales,
+        createdat,
+        updatedat,
+        created_by
+      `)
+      .eq('active', true)
       .order('createdat', { ascending: false });
 
     if (error) {
@@ -232,13 +247,21 @@ export async function getProducts(): Promise<Product[]> {
       throw error;
     }
 
-    return (data || []).map(product => {
-      const { imageUrl, ...rest } = product;
-      return {
-        ...rest,
-        imageUrl: imageUrl || '/placeholder-product.svg',
-      };
-    });
+    return (data || []).map(product => ({
+      id: product.id,
+      name: product.name,
+      description: product.description,
+      price: product.price,
+      stock: product.stock,
+      imageUrl: product.imageUrl || '/placeholder-product.svg',
+      category: product.category,
+      active: product.active,
+      unit: product.unit,
+      totalSales: product.totalsales || 0,
+      createdAt: product.createdat || new Date().toISOString(),
+      updatedAt: product.updatedat || new Date().toISOString(),
+      created_by: product.created_by
+    }));
   } catch (error) {
     console.error('Error in getProducts:', error);
     throw error;

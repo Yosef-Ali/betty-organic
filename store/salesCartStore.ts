@@ -56,7 +56,7 @@ export const useSalesCartStore = create<SalesCartStore>()(
       getTotalAmount: () => {
         const { items } = get();
         return items.reduce((total, item) => {
-          return total + (item.pricePerKg * item.grams) / 1000;
+          return total + (item.pricePerKg * (item.grams / 1000));
         }, 0);
       },
     }),

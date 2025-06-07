@@ -1,16 +1,19 @@
-'use client';
+import { Loader2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
-export function LoadingSpinner({ className = '' }: { className?: string }) {
+interface LoadingSpinnerProps {
+  size?: 'sm' | 'md' | 'lg';
+  className?: string;
+}
+
+export function LoadingSpinner({ size = 'md', className }: LoadingSpinnerProps) {
+  const sizeClasses = {
+    sm: 'h-4 w-4',
+    md: 'h-6 w-6',
+    lg: 'h-8 w-8',
+  };
+
   return (
-    <div className={`flex items-center justify-center ${className}`}>
-      <div className="relative">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
-          role="status">
-          <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">
-            Loading...
-          </span>
-        </div>
-      </div>
-    </div>
+    <Loader2 className={cn('animate-spin', sizeClasses[size], className)} />
   );
 }

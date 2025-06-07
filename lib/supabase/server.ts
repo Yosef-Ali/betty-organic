@@ -31,37 +31,43 @@ export async function createClient() {
         },
         set(name: string, value: string, options: CookieOptions) {
           try {
-            // Only set cookies in server context
-            cookieStore.set(name, value, {
-              ...options,
-              // Making sure sameSite is one of the expected string values
-              sameSite: options.sameSite === true ? 'strict' :
-                options.sameSite === false ? 'none' :
-                  options.sameSite || 'lax',
-              secure: process.env.NODE_ENV === 'production',
-              path: options.path || '/' // Ensure consistent path
-            });
+            cookieStore.set({ name, value, ...options });
           } catch (error) {
-            // Log but don't throw - allow graceful degradation
-            console.error('Error setting cookie:', error);
+            // Silently ignore cookie setting errors in read-only contexts
+            // This is expected behavior in Next.js App Router
           }
         },
         remove(name: string, options: CookieOptions) {
           try {
-            cookieStore.set(name, '', {
-              ...options,
-              // Making sure sameSite is one of the expected string values
-              sameSite: options.sameSite === true ? 'strict' :
-                options.sameSite === false ? 'none' :
-                  options.sameSite || 'lax',
-              path: options.path || '/',
-              maxAge: 0
-            });
+            cookieStore.set({ name, value: '', ...options, maxAge: 0 });
           } catch (error) {
-            console.error('Error removing cookie:', error);
+            // Silently ignore cookie removal errors in read-only contexts
           }
-        }
-      }
+        },
+      },
+    }
+  );
+}
+
+// Export a function to get a read-only client (for components)
+export async function createReadOnlyClient() {
+  const cookieStore = await cookies();
+
+  return createServerClient<Database>(
+    SUPABASE_URL as string,
+    SUPABASE_ANON_KEY as string,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value;
+        },
+        set() {
+          // Do nothing for read-only client
+        },
+        remove() {
+          // Do nothing for read-only client  
+        },
+      },
     }
   );
 }

@@ -1,13 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
 import { Form } from '@/components/ui/form';
-import { Badge } from '@/components/ui/badge';
-import { ChevronLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { createProduct, updateProduct } from '@/app/actions/productActions';
 import {
@@ -16,6 +14,11 @@ import {
 } from './products/ProductFormSchema';
 import { ProductDetailsForm } from './products/ProductDetailsForm';
 import { ProductMediaForm } from './products/ProductMediaForm';
+import { ValidationMessages } from './products/ValidationMessages';
+import { useProductFormState } from '@/hooks/useProductFormState';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Banknote, Package, AlertTriangle, Save, X } from 'lucide-react';
 
 interface ProductFormProps {
   initialData?: ProductFormValues & { id: string };
@@ -23,17 +26,21 @@ interface ProductFormProps {
   isSales: boolean;
 }
 
-// Change the return type from JSX.Element to React.ReactElement | null
 export function ProductForm({
   initialData,
   isAdmin,
   isSales,
 }: ProductFormProps): React.ReactElement | null {
-  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
+  const {
+    isSubmitting,
+    setIsSubmitting,
+    validateBusinessRules,
+    calculateEstimatedValue,
+  } = useProductFormState();
 
-  // Move useEffect to top level
+  // Redirect if no permissions
   useEffect(() => {
     if (!isAdmin && !isSales) {
       router.push('/dashboard');
@@ -51,38 +58,22 @@ export function ProductForm({
       status: 'active',
       category: 'All',
     },
+    mode: 'onBlur',
   });
 
-  const validateFormData = (data: ProductFormValues): boolean => {
-    if (!data.name || data.name.length < 2) {
-      toast({
-        title: 'Validation Error',
-        description: 'Product name must be at least 2 characters long',
-        variant: 'destructive',
-      });
-      return false;
-    }
-    if (data.price < 0) {
-      toast({
-        title: 'Validation Error',
-        description: 'Price must be a positive number',
-        variant: 'destructive',
-      });
-      return false;
-    }
-    if (data.stock < 0) {
-      toast({
-        title: 'Validation Error',
-        description: 'Stock must be a non-negative number',
-        variant: 'destructive',
-      });
-      return false;
-    }
-    return true;
-  };
+  const watchedValues = form.watch();
+  
+  // Real-time validation
+  const validation = useMemo(() => {
+    return validateBusinessRules(watchedValues);
+  }, [watchedValues, validateBusinessRules]);
+
+  const estimatedValue = useMemo(() => {
+    return calculateEstimatedValue(watchedValues);
+  }, [watchedValues, calculateEstimatedValue]);
 
   const onSubmit = async (data: ProductFormValues) => {
-    if (isLoading) return;
+    if (isSubmitting) return;
 
     if (!isAdmin && !isSales) {
       toast({
@@ -93,12 +84,19 @@ export function ProductForm({
       return;
     }
 
-    try {
-      setIsLoading(true);
+    // Validate business rules before submission
+    const businessValidation = validateBusinessRules(data);
+    if (!businessValidation.isValid) {
+      toast({
+        title: 'Validation Error',
+        description: businessValidation.errors.join(', '),
+        variant: 'destructive',
+      });
+      return;
+    }
 
-      if (!validateFormData(data)) {
-        return;
-      }
+    try {
+      setIsSubmitting(true);
 
       const formData = new FormData();
       Object.entries(data).forEach(([key, value]) => {
@@ -107,30 +105,19 @@ export function ProductForm({
         }
       });
 
+      let result;
       if (initialData?.id) {
-        const result = await updateProduct(initialData.id, formData);
-        if (!result || typeof result !== 'object') {
-          throw new Error('Failed to update product: Invalid response');
-        }
-        if ('error' in result) {
-          throw new Error(
-            typeof result.error === 'string'
-              ? result.error
-              : 'Failed to update product',
-          );
-        }
+        result = await updateProduct(initialData.id, formData);
       } else {
-        const result = await createProduct(formData);
-        if (!result || typeof result !== 'object') {
-          throw new Error('Failed to create product: Invalid response');
-        }
-        if ('error' in result) {
-          throw new Error(
-            typeof result.error === 'string'
-              ? result.error
-              : 'Failed to create product',
-          );
-        }
+        result = await createProduct(formData);
+      }
+
+      if (!result || (typeof result === 'object' && 'error' in result)) {
+        throw new Error(
+          typeof result === 'object' && result.error 
+            ? String(result.error) 
+            : 'Operation failed'
+        );
       }
 
       toast({
@@ -143,63 +130,21 @@ export function ProductForm({
       router.push('/dashboard/products');
       router.refresh();
     } catch (error: unknown) {
-      let errorMessage = 'An unexpected error occurred';
-      let validationErrors: string[] = [];
-
-      // Handle Fetch API errors
-      if (error instanceof Response) {
-        try {
-          const errorData = await error.json();
-          errorMessage = errorData.message || error.statusText;
-          validationErrors = errorData.errors || [];
-        } catch (e) {
-          errorMessage = `HTTP Error: ${error.status} ${error.statusText}`;
-        }
-      }
-      // Handle Zod validation errors from server
-      else if (error && typeof error === 'object' && 'errors' in error) {
-        // Handle Zod-like validation errors
-        const zodError = error as {
-          errors: Array<{ path: string[]; message: string }>;
-        };
-        validationErrors = zodError.errors.map(
-          e => `${e.path.join('.')}: ${e.message}`,
-        );
-        errorMessage = 'Validation failed';
-      }
-      // Handle standard Error objects
-      else if (error instanceof Error) {
-        errorMessage = error.message;
-      }
-
-      console.error(
-        'Form submission error:',
-        JSON.stringify(
-          {
-            message: errorMessage,
-            validationErrors,
-            timestamp: new Date().toISOString(),
-            path: window.location.pathname,
-          },
-          null,
-          2,
-        ),
-      );
-
+      console.error('Form submission error:', error);
+      
       toast({
         title: 'Submission Error',
-        description:
-          validationErrors.length > 0
-            ? validationErrors.join('\n')
-            : errorMessage,
+        description: error instanceof Error 
+          ? error.message 
+          : 'An unexpected error occurred',
         variant: 'destructive',
       });
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
-  if (isLoading) {
+  if (isSubmitting) {
     return (
       <div className="flex items-center justify-center p-8">
         <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
@@ -212,21 +157,107 @@ export function ProductForm({
   }
 
   return (
-    <Form {...form}>
-      <form
-        id="product-form"
-        onSubmit={form.handleSubmit(onSubmit)}
-        className="mx-auto max-w-5xl"
-      >
-        <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-6">
-          <ProductDetailsForm form={form} />
-          <ProductMediaForm
-            form={form}
-            isLoading={isLoading}
-            initialData={initialData}
+    <div className="space-y-6">
+      <Form {...form}>
+        <form
+          id="product-form"
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="space-y-6"
+          noValidate
+        >
+          {/* Product Summary Card */}
+          {(watchedValues.name || watchedValues.price > 0 || watchedValues.stock > 0) && (
+            <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <h3 className="font-semibold text-blue-900">
+                      {watchedValues.name || 'New Product'}
+                    </h3>
+                    <div className="flex items-center gap-4 text-sm text-blue-700">
+                      {watchedValues.price > 0 && (
+                        <div className="flex items-center gap-1">
+                          <Banknote className="h-3 w-3" />
+                          {watchedValues.price.toFixed(2)} ETB
+                        </div>
+                      )}
+                      {watchedValues.stock > 0 && (
+                        <div className="flex items-center gap-1">
+                          <Package className="h-3 w-3" />
+                          {watchedValues.stock} units
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {estimatedValue > 0 && (
+                    <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                      Est. Value: {estimatedValue.toFixed(2)} ETB
+                    </Badge>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Validation Messages */}
+          <ValidationMessages 
+            errors={validation.errors}
+            warnings={validation.warnings}
+            isValid={validation.isValid}
           />
-        </div>
-      </form>
-    </Form>
+
+          {/* Form Fields */}
+          <div className="grid grid-cols-1 xl:grid-cols-[2fr_1fr] gap-6">
+            <ProductDetailsForm form={form} />
+            <ProductMediaForm
+              form={form}
+              isLoading={isSubmitting}
+              initialData={initialData}
+            />
+          </div>
+
+          {/* Form Actions */}
+          <div className="flex items-center justify-between pt-6 border-t">
+            <div className="text-sm text-muted-foreground">
+              {form.formState.isDirty && !isSubmitting && (
+                <span className="text-orange-600 flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" />
+                  Unsaved changes
+                </span>
+              )}
+            </div>
+            
+            <div className="flex items-center space-x-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.push('/dashboard/products')}
+                disabled={isSubmitting}
+              >
+                <X className="h-4 w-4 mr-2" />
+                Cancel
+              </Button>
+              <Button 
+                type="submit" 
+                disabled={isSubmitting || !validation.isValid}
+                className="min-w-[140px]"
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="animate-spin h-4 w-4 mr-2 border-2 border-white border-t-transparent rounded-full" />
+                    {initialData ? 'Updating...' : 'Creating...'}
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4 mr-2" />
+                    {initialData ? 'Update Product' : 'Create Product'}
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </form>
+      </Form>
+    </div>
   );
 }

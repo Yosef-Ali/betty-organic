@@ -18,7 +18,7 @@ export function OrderStatus() {
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        const data = await getOrders()
+        const data = await getOrders(undefined, 'OrderStatus')
         setOrders(data)
       } catch (err: unknown) {
         if (err instanceof Error) {

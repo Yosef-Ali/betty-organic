@@ -170,17 +170,7 @@ export async function createOrder(
   couponCode: string | null = null,
   discountAmount: number = 0
 ): Promise<OrderResponse> {
-  console.log('[DASHBOARD DEBUG] createOrder called with:', {
-    itemsCount: items.length,
-    customerId,
-    totalAmount,
-    status,
-    deliveryCost,
-    couponCode,
-    discountAmount
-  });
   try {
-    console.log('[DASHBOARD DEBUG] Starting order creation...');
     const supabase = await createClient();
     const authData = await getUser();
     if (!authData) throw new Error('User not authenticated');
@@ -201,13 +191,10 @@ export async function createOrder(
       return { success: false, error: 'Unauthorized: Invalid role for order creation' };
     }
     const display_id = await orderIdService.generateOrderID();
-    console.log('[DASHBOARD DEBUG] Generated order ID:', display_id);
 
     // IMPORTANT: Force the delivery cost to be the value passed in
     // This is a direct fix to ensure the delivery cost is saved to the database
     const finalDeliveryCost = deliveryCost;
-
-    console.log('[DASHBOARD DEBUG] Using delivery cost:', finalDeliveryCost, 'Original value:', deliveryCost);
 
     // Prepare the exact OrderInsert object based on types/supabase.ts
     const orderToInsert: OrderInsert = {
@@ -223,13 +210,6 @@ export async function createOrder(
       // id, created_at, updated_at are excluded
     };
 
-    console.log('[DASHBOARD DEBUG] Object being inserted into orders table:', JSON.stringify(orderToInsert, null, 2));
-    console.log('[DASHBOARD DEBUG] Creating order in database with data:', {
-      total_amount: totalAmount,
-      delivery_cost: finalDeliveryCost, // Use the validated delivery cost
-      items_count: items.length,
-      status: status
-    });
     // Use explicit type for insert data to satisfy overload
     const { data: insertedOrderData, error: orderError } = await supabase
       .from('orders')
@@ -238,17 +218,12 @@ export async function createOrder(
       .single();
 
     if (orderError || !insertedOrderData) {
-      console.error('[DASHBOARD DEBUG] Database error creating order:', orderError);
+      console.error('Database error creating order:', orderError);
       const message = orderError ? orderError.message : 'Order data unexpectedly null after insert.';
       return { success: false, error: `Database error creating order: ${message}` };
     }
     // Now insertedOrderData is OrderRow
     const orderId = insertedOrderData.id; // Safe access
-    console.log('[DASHBOARD DEBUG] Order created successfully:', orderId, {
-      saved_total: insertedOrderData.total_amount,
-      saved_delivery_cost: insertedOrderData.delivery_cost,
-      saved_status: insertedOrderData.status
-    });
 
     // Prepare OrderItemInsert objects strictly
     const orderItemsToInsert: OrderItemInsert[] = items.map(item => ({
@@ -260,14 +235,13 @@ export async function createOrder(
       // id is excluded
     }));
 
-    console.log('[DASHBOARD DEBUG] Creating order items...');
     // Use explicit type for insert data
     const { error: itemsError } = await supabase
       .from('order_items')
       .insert(orderItemsToInsert as OrderItemInsert[]); // Cast to exact type
 
     if (itemsError) {
-      console.error('[DASHBOARD DEBUG] Error creating order items:', { error: itemsError, orderId, items: orderItemsToInsert.length });
+      console.error('Error creating order items:', { error: itemsError, orderId, items: orderItemsToInsert.length });
       console.log('[DASHBOARD DEBUG] Cleaning up failed order...');
       await supabase.from('orders').delete().eq('id' as any, orderId); // Use 'as any' workaround
       return { success: false, error: `Failed to create order items: ${itemsError.message || 'Unknown error'}` };
@@ -399,7 +373,7 @@ type OrderWithRelationsResult = OrderRow & {
 };
 
 // Using a specific type for return value from getOrders
-export async function getOrders(customerId?: string): Promise<ExtendedOrder[]> {
+export async function getOrders(customerId?: string, caller?: string): Promise<ExtendedOrder[]> {
   const supabase = await createClient();
   try {
     const authData = await getUser();
@@ -411,9 +385,13 @@ export async function getOrders(customerId?: string): Promise<ExtendedOrder[]> {
       .order('created_at', { ascending: false });
 
     // Apply role-based filtering with type assertions to fix TypeScript errors
-    if (authData.profile?.role === 'admin') { /* No filter */ }
+    if (authData.profile?.role === 'admin') { 
+      /* No filter - admin sees all orders */ 
+    }
     else if (authData.profile?.role === 'sales') {
-      query = query.eq('profile_id', authData.id) as any; // Type assertion after the method call
+      // Sales users should see all orders (or filter by pending status if needed)
+      // query = query.in('status', ['pending', 'confirmed', 'processing']) as any;
+      /* No filter - sales sees all orders like admin */
     }
     else if (authData.profile?.role === 'customer') {
       query = query.eq('customer_profile_id', authData.id) as any; // Type assertion after the method call

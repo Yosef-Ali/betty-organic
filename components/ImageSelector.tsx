@@ -13,9 +13,10 @@ interface ImageSelectorProps {
   onChange: (url: string) => void;
   onDelete?: (imageUrl: string) => void;
   className?: string;
+  refreshTrigger?: number;
 }
 
-export function ImageSelector({ value, onChange, onDelete, className }: ImageSelectorProps) {
+export function ImageSelector({ value, onChange, onDelete, className, refreshTrigger }: ImageSelectorProps) {
   const [images, setImages] = useState<{ name: string; url: string; }[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -33,7 +34,7 @@ export function ImageSelector({ value, onChange, onDelete, className }: ImageSel
     }
 
     loadImages();
-  }, []);
+  }, [refreshTrigger]);
 
   const handleDeleteClick = async (e: React.MouseEvent, imageUrl: string) => {
     e.stopPropagation();

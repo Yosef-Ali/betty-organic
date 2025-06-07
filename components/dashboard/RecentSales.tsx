@@ -47,9 +47,11 @@ export function RecentSales({ data }: RecentSalesProps) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    console.log('[RecentSales] useEffect running');
     async function fetchOrders() {
       try {
-        const orders = await getOrders();
+        console.log('[RecentSales] About to call getOrders');
+        const orders = await getOrders(undefined, 'RecentSales');
         const mappedSales = orders.map(transformOrderToSale);
         setOrders(mappedSales);
       } catch (error) {

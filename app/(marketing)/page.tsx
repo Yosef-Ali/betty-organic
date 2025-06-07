@@ -7,7 +7,7 @@ import { AboutSection } from 'components/AboutSection';
 import ChatWidget from 'components/ChatWidget';
 import { ProductSection } from '@/components/products/product-section';
 import { Product } from '@/lib/supabase/db.types';
-import { getProducts } from './actions';
+import { getProducts } from '@/app/actions/productActions';
 
 export const metadata: Metadata = {
   title: 'Betty Organic - Fresh Fruits & Vegetables',
@@ -22,9 +22,7 @@ export default async function Home() {
   let error = null;
 
   try {
-    console.log('Fetching initial products...');
     initialProducts = await getProducts();
-    console.log(`Successfully fetched ${initialProducts.length} products`);
   } catch (e) {
     console.error('Failed to fetch initial products:', e);
     error = e instanceof Error ? e.message : 'Unable to load products at this time. Please try again later.';

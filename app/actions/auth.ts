@@ -45,8 +45,7 @@ export async function getUser(): Promise<UserWithProfile | null> {
     // getUser() verifies with Supabase Auth server, while getSession() relies on cookies
     const { data: { user }, error } = await supabase.auth.getUser();
     if (error || !user) {
-      // Log the error but don't throw - just return null
-      console.error('Error getting user:', error?.message || 'User not found');
+      // Return null silently - no auth session is normal for public pages
       return null;
     }
 

@@ -180,7 +180,6 @@ export function useSalesCartSheet({
   useEffect(() => {
     const handleDeliveryCostUpdate = (event: any) => {
       const newCost = event.detail.cost;
-      console.log('[SALES-CART] Received delivery cost update event:', newCost);
       setDeliveryCost(newCost);
     };
 
@@ -350,7 +349,7 @@ export function useSalesCartSheet({
           items: items.map(item => ({
             id: item.id,
             name: item.name,
-            price: (item.pricePerKg * item.grams) / 1000,
+            price: Number(((item.pricePerKg * item.grams) / 1000).toFixed(2)),
             quantity: item.grams / 1000,
             imageUrl: '',
             product_id: item.id,
@@ -359,7 +358,7 @@ export function useSalesCartSheet({
           order_items: items.map(item => ({
             product_id: item.id,
             quantity: Math.round(item.grams),
-            price: (item.pricePerKg * item.grams) / 1000,
+            price: Number(((item.pricePerKg * item.grams) / 1000).toFixed(2)),
             product_name: item.name
           })),
           customer: {

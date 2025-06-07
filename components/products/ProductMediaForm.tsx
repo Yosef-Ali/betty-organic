@@ -3,7 +3,6 @@
 import { useState, useCallback } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import { Loader2 } from 'lucide-react';
 import { UseFormReturn } from 'react-hook-form';
 import { uploadImage } from '@/app/actions/upload-image';
 import { deleteStorageImage } from '@/app/actions/deleteStorageImage';
@@ -36,7 +35,33 @@ import { ProductFormValues, ImageUploadResponse } from './ProductFormSchema';
 import { X } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 
-const DEFAULT_PRODUCT_IMAGE = '/fruits/strawberrie.jpg';
+const DEFAULT_PRODUCT_IMAGE = '/placeholder-product.svg';
+
+// Create a placeholder component for better visual feedback
+const ProductImagePlaceholder = () => (
+  <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900">
+    <div className="w-16 h-16 mb-4 rounded-lg bg-white dark:bg-gray-700 flex items-center justify-center shadow-sm">
+      <svg
+        className="w-8 h-8 text-gray-400"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={1.5}
+          d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+        />
+      </svg>
+    </div>
+    <p className="text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">No Image Selected</p>
+    <p className="text-xs text-gray-500 dark:text-gray-400 text-center px-4">
+      Upload an image, select from library, or generate with AI
+    </p>
+  </div>
+);
 
 interface ProductMediaFormProps {
   form: UseFormReturn<ProductFormValues>;
@@ -51,9 +76,8 @@ export function ProductMediaForm({
 }: ProductMediaFormProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>('');
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
-  const [additionalPrompt, setAdditionalPrompt] = useState('');
   const { toast } = useToast();
 
   // Get the current image to display - either the preview, form value, or default
@@ -86,70 +110,6 @@ export function ProductMediaForm({
     }
   };
 
-  const generateImage = useCallback(async () => {
-    if (!selectedFile) {
-      toast({
-        title: 'Error',
-        description: 'Please select an image first',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setIsGenerating(true);
-    try {
-      // Convert file to base64
-      const reader = new FileReader();
-      const base64Promise = new Promise((resolve, reject) => {
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = reject;
-      });
-      reader.readAsDataURL(selectedFile);
-      const base64String = await base64Promise;
-      const base64Image = (base64String as string).split(',')[1];
-
-      // Call Gemini API with the additional prompt if provided
-      const response = await fetch('/api/generate-product-image', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          base64Image,
-          mimeType: selectedFile.type,
-          prompt: additionalPrompt.trim() || undefined,
-        }),
-      });
-
-      const data = await response.json();
-      if (!data.success) throw new Error(data.error);
-
-      // Convert base64 to file
-      const generateFile = await fetch(`data:${selectedFile.type};base64,${data.image}`);
-      const generatedBlob = await generateFile.blob();
-      const generatedFile = new File([generatedBlob], `generated-${selectedFile.name}`, { type: selectedFile.type });
-
-      // Create new preview URL for the generated image
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl);
-      }
-      const newPreviewUrl = URL.createObjectURL(generatedFile);
-      setPreviewUrl(newPreviewUrl);
-      setSelectedFile(generatedFile);
-
-      toast({
-        title: 'Success',
-        description: 'Image enhanced successfully. Click Save to upload it.',
-      });
-    } catch (error) {
-      console.error('Error generating image:', error);
-      toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to generate image',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsGenerating(false);
-    }
-  }, [selectedFile, additionalPrompt, previewUrl, toast]);
 
   const handleImageUpload = async (
     event: React.ChangeEvent<HTMLInputElement>,
@@ -162,65 +122,51 @@ export function ProductMediaForm({
       URL.revokeObjectURL(previewUrl);
     }
 
-    // Create new preview URL
+    // Create new preview URL for immediate feedback
     const newPreviewUrl = URL.createObjectURL(file);
     setPreviewUrl(newPreviewUrl);
     setSelectedFile(file);
-  };
 
-  const saveGeneratedImage = async () => {
-    if (!selectedFile) {
-      toast({
-        title: 'Error',
-        description: 'No image to save',
-        variant: 'destructive',
-      });
-      return;
-    }
-
+    // Automatically upload to Supabase storage
     setIsUploading(true);
     try {
-      // Create form data for upload
       const formData = new FormData();
-      formData.append('file', selectedFile);
+      formData.append('file', file);
 
-      const uploadResponse = (await uploadImage(
-        formData,
-      )) as ImageUploadResponse;
+      const uploadResponse = await uploadImage(formData);
 
-      if (!uploadResponse.success) {
-        throw new Error(uploadResponse.error || 'Failed to upload image');
-      }
-
-      if (uploadResponse.imageUrl) {
-        // Update form with the new image URL
+      if (uploadResponse.success && uploadResponse.imageUrl) {
+        // Update form with the uploaded image URL
         form.setValue('imageUrl', uploadResponse.imageUrl);
-        // Clean up preview URL after successful upload
-        URL.revokeObjectURL(previewUrl);
+        form.trigger('imageUrl');
+        
+        // Clean up local preview since we now have the uploaded URL
+        URL.revokeObjectURL(newPreviewUrl);
         setPreviewUrl('');
         setSelectedFile(null);
-        // Trigger validation
-        form.trigger('imageUrl');
-        // Show success message
+
         toast({
           title: 'Success',
-          description: 'Image uploaded successfully.',
+          description: 'Image uploaded successfully and added to library.',
         });
+
+        // Trigger refresh of ImageSelector to show the new image
+        setRefreshTrigger(prev => prev + 1);
       } else {
-        throw new Error('No image URL received from upload');
+        throw new Error(uploadResponse.error || 'Failed to upload image');
       }
     } catch (error) {
-      console.error('Error in saving image:', error);
+      console.error('Error uploading image:', error);
       toast({
-        title: 'Error',
-        description:
-          error instanceof Error ? error.message : 'Failed to upload image',
+        title: 'Upload failed',
+        description: error instanceof Error ? error.message : 'Failed to upload image to storage',
         variant: 'destructive',
       });
     } finally {
       setIsUploading(false);
     }
   };
+
 
   return (
     <Card>
@@ -263,24 +209,18 @@ export function ProductMediaForm({
                 <div className="space-y-4">
                   {/* Main Preview Area */}
                   <div className="relative aspect-square w-full overflow-hidden rounded-lg border bg-muted">
-                    {(isGenerating || isUploading) && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-muted/50 z-10">
-                        <div className="flex flex-col items-center gap-2">
-                          <Loader2 className="h-8 w-8 animate-spin" />
-                          <span className="text-sm font-medium">
-                            {isGenerating ? 'Enhancing image...' : 'Uploading image...'}
-                          </span>
-                        </div>
-                      </div>
+                    {currentImageUrl && currentImageUrl !== DEFAULT_PRODUCT_IMAGE ? (
+                      <Image
+                        alt="Product preview"
+                        className="object-cover"
+                        fill
+                        src={currentImageUrl}
+                        sizes="(max-width: 768px) 100vw, 300px"
+                        priority
+                      />
+                    ) : (
+                      <ProductImagePlaceholder />
                     )}
-                    <Image
-                      alt="Product preview"
-                      className="object-cover"
-                      fill
-                      src={currentImageUrl}
-                      sizes="(max-width: 768px) 100vw, 300px"
-                      priority
-                    />
                   </div>
 
                   {/* Upload Controls */}
@@ -289,58 +229,11 @@ export function ProductMediaForm({
                       type="file"
                       accept="image/*"
                       onChange={handleImageUpload}
-                      disabled={isLoading || isGenerating || isUploading}
+                      disabled={isLoading}
                       className="cursor-pointer flex-1"
                     />
                   </div>
 
-                  {/* Image Generation Controls */}
-                  {selectedFile && (
-                    <div className="space-y-3 p-3 border rounded-md">
-                      <FormLabel className="text-sm">Additional instructions for image enhancement</FormLabel>
-                      <Textarea
-                        placeholder="E.g., Make it more vibrant, Remove background, etc."
-                        value={additionalPrompt}
-                        onChange={(e) => setAdditionalPrompt(e.target.value)}
-                        disabled={isGenerating || isUploading}
-                        className="resize-none"
-                        rows={2}
-                      />
-                      <div className="flex gap-2">
-                        <Button
-                          type="button"
-                          onClick={generateImage}
-                          disabled={isGenerating || isUploading}
-                          className="flex-1"
-                        >
-                          {isGenerating ? (
-                            <>
-                              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                              Enhancing...
-                            </>
-                          ) : (
-                            'Enhance Image'
-                          )}
-                        </Button>
-                        <Button
-                          type="button"
-                          onClick={saveGeneratedImage}
-                          disabled={isUploading || isGenerating || !selectedFile}
-                          className="flex-1"
-                          variant="secondary"
-                        >
-                          {isUploading ? (
-                            <>
-                              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                              Saving...
-                            </>
-                          ) : (
-                            'Save Image'
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                  )}
 
                   {/* Image Selector */}
                   <div className="space-y-2">
@@ -356,8 +249,10 @@ export function ProductMediaForm({
                         field.onChange(url);
                       }}
                       onDelete={handleDeleteImage}
+                      refreshTrigger={refreshTrigger}
                     />
                   </div>
+
                 </div>
               </FormControl>
               <FormDescription>
@@ -371,13 +266,13 @@ export function ProductMediaForm({
         {/* AI Image Generation Link at the bottom */}
         <div className="flex justify-center mt-4 pt-3 border-t">
           <Button variant="ghost" size="sm" className="text-sm flex items-center gap-2 text-muted-foreground hover:text-foreground" asChild>
-            <a href="/dashboard/product-image" target="_blank" rel="noopener noreferrer">
+            <a href="/dashboard/products/new/ai-studio">
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
                 <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18" />
                 <path d="M7 7h.01" />
                 <path d="M20.4 14.5 16 10 4 20" />
               </svg>
-              Generate product image with AI
+              Advanced AI Studio (Multiple Models)
             </a>
           </Button>
         </div>

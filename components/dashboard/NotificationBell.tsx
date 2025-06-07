@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useEffect, useState, useRef, useCallback } from "react";
+import "@/styles/bell-animation.css";
 import { Bell, BellRing, Volume2, VolumeX } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
-import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
+import { NotificationSounds } from "@/lib/utils/notificationSounds";
 import { useRouter } from "next/navigation";
 import { cn, formatOrderCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -14,22 +14,22 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { useAuth } from "@/hooks/useAuth";
-import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
-import type { Database } from "@/types/supabase";
+import { useAuth } from "@/components/providers/ImprovedAuthProvider";
+import { useRealtime } from "@/lib/supabase/realtime-provider";
 import {
-  NotificationOrder,
-  fetchPendingOrdersForNotification,
-} from "@/app/actions/notificationBellActions";
+  RoleBasedNotificationOrder,
+  fetchRoleBasedNotifications,
+} from "@/app/actions/roleBasedNotificationActions";
 import { isOrderPending } from "@/app/utils/notificationUtils";
 
 export function NotificationBell() {
-  const [notifications, setNotifications] = useState<NotificationOrder[]>([]);
+  const [notifications, setNotifications] = useState<RoleBasedNotificationOrder[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [animateBell, setAnimateBell] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState<string | null>(null);
+  const [animateBadge, setAnimateBadge] = useState(false);
+  const [animateButton, setAnimateButton] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(() => {
     try {
       const saved = localStorage.getItem("notification_sound");
@@ -40,32 +40,53 @@ export function NotificationBell() {
   });
 
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const { isConnected, connectionStatus, subscribeToOrders } = useRealtime();
 
   // Audio reference for notification sounds
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const channelRef = useRef<RealtimeChannel | null>(null);
-  const supabaseRef = useRef<SupabaseClient<Database> | null>(null);
-  const mountedRef = useRef(true); // Track component mount state
+  const mountedRef = useRef(true);
+  const lastFetchTimeRef = useRef<number>(0);
 
-  // Play notification sound
+  // Play notification sound with enhanced effects
   const playNotificationSound = useCallback(async () => {
     if (!soundEnabled) return;
 
     try {
-      // Initialize audio element if it doesn't exist
-      if (!audioRef.current) {
-        audioRef.current = new Audio("/sound/notification.mp3");
-        audioRef.current.preload = "auto";
-      }
-
-      // Reset to beginning and play
-      audioRef.current.currentTime = 0;
-      await audioRef.current.play();
+      await NotificationSounds.playNotification({
+        sound: true,
+        vibrate: false, // Enable on mobile if desired
+        soundType: 'chime'
+      });
     } catch (err) {
-      console.warn("Notification sound error:", err);
+      console.warn("Enhanced notification sound failed:", err);
+      // Fallback to simple audio
+      try {
+        const audio = new Audio("/sound/notification.mp3");
+        audio.volume = 0.7;
+        await audio.play();
+      } catch (fallbackErr) {
+        console.warn("Fallback audio also failed:", fallbackErr);
+      }
     }
   }, [soundEnabled]);
+
+  // Enhanced animation trigger
+  const triggerNotificationAnimation = useCallback(() => {
+    setAnimateBell(true);
+    setAnimateBadge(true);
+    setAnimateButton(true);
+
+    // Reset animations after they complete
+    setTimeout(() => {
+      setAnimateBell(false);
+      setAnimateBadge(false);
+    }, 1500); // Bell and badge animation duration
+
+    setTimeout(() => {
+      setAnimateButton(false);
+    }, 3000); // Button animation duration
+  }, []);
 
   // Toggle sound setting
   const toggleSound = useCallback(() => {
@@ -80,34 +101,27 @@ export function NotificationBell() {
     });
   }, []);
 
-  // Track the last time we fetched data to prevent excessive calls
-  const lastFetchTimeRef = useRef<number>(0);
+  // Fetch role-based notifications with cooldown protection
+  const fetchNotifications = useCallback(async () => {
+    if (!mountedRef.current || !user?.id || !profile?.role) return;
 
-  // Fetch pending orders with cooldown protection
-  const fetchPendingOrders = useCallback(async () => {
-    if (!mountedRef.current) return;
-
-    // Add cooldown of 5 seconds to prevent excessive API calls
+    // Add cooldown of 30 seconds to prevent excessive API calls
     const now = Date.now();
-    const cooldownPeriod = 5000; // 5 seconds
+    const cooldownPeriod = 30000;
 
     if (now - lastFetchTimeRef.current < cooldownPeriod) {
       console.log("[NotificationBell] Skipping fetch - cooldown period active");
       return;
     }
 
-    // Update last fetch time
     lastFetchTimeRef.current = now;
-
-    console.log("[NotificationBell] Fetching pending orders");
     setIsLoading(true);
 
     try {
-      // Use the server action to fetch pending orders
-      const response = await fetchPendingOrdersForNotification(user?.id);
+      const response = await fetchRoleBasedNotifications(user.id, profile.role);
 
       if (!response.success) {
-        setError(response.error || "Failed to load orders");
+        setError(response.error || "Failed to load notifications");
         setNotifications([]);
         setUnreadCount(0);
         return;
@@ -115,14 +129,13 @@ export function NotificationBell() {
 
       if (mountedRef.current) {
         setNotifications(response.orders);
-        // Always ensure unreadCount matches the actual number of notifications
-        setUnreadCount(response.orders.length);
+        // The server action already filters by role, so use the count directly
+        setUnreadCount(response.count);
         setError(null);
       }
     } catch (err) {
       if (mountedRef.current) {
-        const errorMessage =
-          err instanceof Error ? err.message : "Unknown error";
+        const errorMessage = err instanceof Error ? err.message : "Unknown error";
         setError(`Failed to load notifications: ${errorMessage}`);
         setNotifications([]);
         setUnreadCount(0);
@@ -132,160 +145,80 @@ export function NotificationBell() {
         setIsLoading(false);
       }
     }
-  }, [user]);
+  }, [user, profile]);
 
-  // Setup realtime subscription
-  const setupRealtimeSubscription = useCallback(() => {
-    try {
-      // Initialize Supabase client if needed
-      if (!supabaseRef.current) {
-        supabaseRef.current = createClient();
-      }
+  // Handle realtime order updates with role-based logic
+  const handleOrderUpdate = useCallback((order: any, event: 'INSERT' | 'UPDATE' | 'DELETE') => {
+    console.log('[NotificationBell] 🔔 Received event:', {
+      event,
+      orderId: order.id,
+      status: order.status,
+      userRole: profile?.role,
+      userId: user?.id,
+      mounted: mountedRef.current,
+      currentNotificationsCount: notifications.length,
+      currentUnreadCount: unreadCount
+    });
 
-      // Don't create a new channel if one already exists
-      if (channelRef.current) {
-        console.log("Reusing existing notification channel");
+    if (!mountedRef.current) {
+      console.log('[NotificationBell] ❌ Not mounted, skipping');
+      return;
+    }
+
+    // Handle new orders based on user role
+    if (event === 'INSERT') {
+      // Check if we have user and profile context
+      if (!user?.id || !profile?.role) {
+        console.log('[NotificationBell] ❌ Missing user context, skipping notification');
         return;
       }
 
-      // Create a stable channel name based on user ID
-      // This prevents creating multiple channels for the same user
-      const channelName = user?.id
-        ? `orders-notifications-${user.id}`
-        : "orders-notifications-anonymous";
+      const userRole = profile.role;
+      const isPending = isOrderPending(order.status);
+      let shouldAddNotification = false;
 
-      // Set up the channel
-      const channel = supabaseRef.current
-        .channel(channelName)
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "orders",
-            // Filter by customer_profile_id if user is authenticated
-            ...(user?.id
-              ? { filter: `customer_profile_id=eq.${user.id}` }
-              : {}),
-          },
-          (payload: RealtimePostgresChangesPayload<NotificationOrder>) => {
-            // Log the order ID for debugging if needed
-            // const orderId =
-            //   typeof payload.new === "object" &&
-            //   payload.new &&
-            //   "id" in payload.new
-            //     ? payload.new.id
-            //     : typeof payload.old === "object" &&
-            //       payload.old &&
-            //       "id" in payload.old
-            //     ? payload.old.id
-            //     : "unknown";
+      if (userRole === 'customer') {
+        shouldAddNotification = order.customer_profile_id === user.id && isPending;
+      } else if (userRole === 'sales' || userRole === 'admin') {
+        shouldAddNotification = isPending;
+      }
 
-            // Check if this is a pending order
-            const isPending = (() => {
-              if (
-                typeof payload.new !== "object" ||
-                !payload.new ||
-                !("status" in payload.new)
-              ) {
-                return false;
-              }
-
-              return isOrderPending(payload.new.status);
-            })();
-
-            // Handle different event types to update the badge count in real-time
-            if (payload.eventType === "INSERT" && isPending) {
-              // For new pending orders, increment the count and add to notifications
-              if (payload.new && typeof payload.new === "object") {
-                setUnreadCount((prev) => prev + 1);
-                setNotifications((prev) => [
-                  payload.new as NotificationOrder,
-                  ...prev,
-                ]);
-              }
-            } else if (payload.eventType === "UPDATE") {
-              // For updates, check if status changed to/from pending
-              const oldIsPending =
-                payload.old &&
-                typeof payload.old === "object" &&
-                "status" in payload.old &&
-                isOrderPending(payload.old.status as string);
-
-              if (isPending && !oldIsPending) {
-                // Changed from non-pending to pending - increment count
-                setUnreadCount((prev) => prev + 1);
-                if (payload.new && typeof payload.new === "object") {
-                  setNotifications((prev) => [
-                    payload.new as NotificationOrder,
-                    ...prev,
-                  ]);
-                }
-              } else if (!isPending && oldIsPending) {
-                // Changed from pending to non-pending - decrement count
-                setUnreadCount((prev) => Math.max(0, prev - 1));
-                if (
-                  payload.old &&
-                  typeof payload.old === "object" &&
-                  "id" in payload.old
-                ) {
-                  setNotifications((prev) =>
-                    prev.filter(
-                      (item) =>
-                        item.id !== (payload.old as NotificationOrder).id
-                    )
-                  );
-                }
-              }
-            } else if (payload.eventType === "DELETE") {
-              // For deletions, check if it was a pending order
-              if (
-                payload.old &&
-                typeof payload.old === "object" &&
-                "status" in payload.old &&
-                isOrderPending(payload.old.status as string)
-              ) {
-                // It was a pending order that was deleted - decrement count
-                setUnreadCount((prev) => Math.max(0, prev - 1));
-                if ("id" in payload.old) {
-                  setNotifications((prev) =>
-                    prev.filter(
-                      (item) =>
-                        item.id !== (payload.old as NotificationOrder).id
-                    )
-                  );
-                }
-              }
-            }
-
-            // Only fetch pending orders if needed (removing this frequent fetch that's causing loops)
-            // Instead of fetching on every change, rely on the real-time updates
-
-            // Only animate and play sound for new pending orders
-            if (
-              isPending &&
-              (payload.eventType === "INSERT" || payload.eventType === "UPDATE")
-            ) {
-              setAnimateBell(true);
-              playNotificationSound();
-              setTimeout(() => setAnimateBell(false), 2000);
-            }
-          }
-        )
-        .subscribe((status) => {
-          setConnectionStatus(status);
-          if (status === "SUBSCRIBED") {
-            // Fetch initial data when subscription is established
-            fetchPendingOrders();
-          }
+      if (shouldAddNotification) {
+        console.log('[NotificationBell] ✅ Adding notification for order:', order.id);
+        setNotifications(prev => {
+          const newNotifications = [order as RoleBasedNotificationOrder, ...prev];
+          console.log('[NotificationBell] 📊 Notifications count:', prev.length, '→', newNotifications.length);
+          return newNotifications;
         });
-
-      channelRef.current = channel;
-    } catch (err) {
-      console.error("Error setting up realtime subscription:", err);
-      setError("Failed to set up realtime updates");
+        setUnreadCount(prev => {
+          const newCount = prev + 1;
+          console.log('[NotificationBell] 📊 Unread count:', prev, '→', newCount);
+          return newCount;
+        });
+        triggerNotificationAnimation();
+        playNotificationSound();
+        console.log('[NotificationBell] 🎵 Sound and animation triggered');
+      } else {
+        console.log('[NotificationBell] ❌ Not adding notification:', {
+          orderId: order.id,
+          userRole,
+          isPending,
+          shouldAdd: shouldAddNotification,
+          customerProfileId: order.customer_profile_id,
+          currentUserId: user.id
+        });
+      }
+    } else if (event === 'UPDATE') {
+      setNotifications(prev =>
+        prev.map(notification =>
+          notification.id === order.id ? order as RoleBasedNotificationOrder : notification
+        )
+      );
+    } else if (event === 'DELETE') {
+      setNotifications(prev => prev.filter(notification => notification.id !== order.id));
+      setUnreadCount(prev => Math.max(0, prev - 1));
     }
-  }, [user, playNotificationSound, fetchPendingOrders]);
+  }, [playNotificationSound, profile, user, triggerNotificationAnimation, notifications.length, unreadCount]);
 
   // Force badge update when unreadCount changes
   useEffect(() => {
@@ -298,63 +231,29 @@ export function NotificationBell() {
     return () => clearTimeout(timer);
   }, [unreadCount]);
 
-  // Initialize component with better cleanup and connection handling
+  // Subscribe to realtime updates and fetch initial data
   useEffect(() => {
-    console.log("[NotificationBell] Component mounted");
     mountedRef.current = true;
 
-    // Track if we've already set up the subscription to prevent duplicates
-    let hasSetupSubscription = false;
+    // Subscribe to realtime order updates
+    const unsubscribe = subscribeToOrders(handleOrderUpdate);
 
-    // Create Supabase client only once
-    try {
-      if (!supabaseRef.current) {
-        const client = createClient();
-        supabaseRef.current = client;
-        console.log("[NotificationBell] Supabase client initialized");
-      }
-    } catch (err) {
-      setError("Failed to initialize notification system");
-      console.error(
-        "[NotificationBell] Failed to initialize Supabase client:",
-        err
-      );
-      return;
-    }
+    // Fetch initial data only once on mount
+    fetchNotifications();
 
-    // Only setup the subscription if we haven't already
-    if (!hasSetupSubscription && !channelRef.current) {
-      setupRealtimeSubscription();
-      hasSetupSubscription = true;
-    }
-
-    // Initial data fetch with cooldown protection
-    if (Date.now() - lastFetchTimeRef.current > 5000) {
-      fetchPendingOrders();
-    }
-
-    // Comprehensive cleanup on unmount
     return () => {
-      console.log(
-        "[NotificationBell] Component unmounting, cleaning up resources"
-      );
       mountedRef.current = false;
-
-      // Properly remove the channel
-      if (supabaseRef.current && channelRef.current) {
-        try {
-          supabaseRef.current.removeChannel(channelRef.current);
-          console.log("[NotificationBell] Channel removed successfully");
-        } catch (err) {
-          console.warn(
-            "[NotificationBell] Error removing channel during cleanup:",
-            err
-          );
-        }
-        channelRef.current = null;
-      }
+      unsubscribe();
     };
-  }, [setupRealtimeSubscription, fetchPendingOrders]);
+  }, [subscribeToOrders, handleOrderUpdate, fetchNotifications]);
+
+  // The server action already filters notifications by role, so we use them directly
+  // Only filter out completed orders that might have been included
+  const filteredNotifications = notifications.filter((notification) => {
+    return isOrderPending(notification.status);
+  });
+
+  const roleBasedUnreadCount = unreadCount;
 
   // Handle notification click
   const handleNotificationClick = (orderId: string) => {
@@ -372,34 +271,42 @@ export function NotificationBell() {
           <Button
             variant="ghost"
             size="icon"
-            className="relative w-10 h-10 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-full shadow-sm transition-all duration-200 hover:shadow"
+            className={cn(
+              "relative w-10 h-10 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-full shadow-sm transition-all duration-200 hover:shadow",
+              animateButton && "animate-button-pulse"
+            )}
             disabled={isLoading}
           >
-            <div className={cn(animateBell && "animate-bell")}>
+            <div className={cn(
+              "relative transition-all duration-200",
+              animateBell && "animate-bell"
+            )}>
               {animateBell ? (
-                <BellRing className="h-6 w-6 text-red-500 animate-bell" />
+                <BellRing className="h-6 w-6 text-red-500 drop-shadow-lg" />
               ) : (
                 <Bell
                   className={cn(
-                    "h-6 w-6",
-                    unreadCount > 0 ? "text-red-500" : "text-amber-600"
+                    "h-6 w-6 transition-colors duration-200",
+                    unreadCount > 0 ? "text-red-500 drop-shadow-md" : "text-amber-600"
                   )}
                 />
               )}
               {!soundEnabled && (
-                <VolumeX className="absolute bottom-0 right-0 h-3 w-3 text-gray-500" />
+                <VolumeX className="absolute -bottom-1 -right-1 h-3 w-3 text-gray-500 bg-white rounded-full p-0.5" />
               )}
             </div>
 
             {/* Badge for unread count */}
             {(() => {
-              // Force evaluation of the current unreadCount value
-              const currentCount = unreadCount;
-              // Use the current count for the badge
+              // Use role-based count for the badge
+              const currentCount = roleBasedUnreadCount;
               return currentCount > 0 ? (
                 <Badge
-                  key={`badge-count-${currentCount}`} // Add key to force re-render
-                  className="absolute -right-1 -top-1 h-5 w-5 rounded-full p-0 flex items-center justify-center bg-red-500 text-white border-2 border-background animate-pulse"
+                  key={`badge-count-${currentCount}`}
+                  className={cn(
+                    "absolute -right-1 -top-1 h-5 w-5 rounded-full p-0 flex items-center justify-center bg-red-500 text-white border-2 border-background animate-pulse",
+                    animateBadge && "animate-badge"
+                  )}
                 >
                   {currentCount > 99 ? "99+" : currentCount}
                 </Badge>
@@ -408,11 +315,8 @@ export function NotificationBell() {
 
             {/* Connection status indicator */}
             <span
-              className={`absolute -bottom-1 -right-1 h-2 w-2 rounded-full ${
-                connectionStatus === "SUBSCRIBED"
-                  ? "bg-green-500"
-                  : "bg-yellow-500"
-              }`}
+              className={`absolute -bottom-1 -right-1 h-2 w-2 rounded-full ${isConnected ? "bg-green-500" : "bg-yellow-500"
+                }`}
             />
           </Button>
         </DropdownMenuTrigger>
@@ -420,15 +324,15 @@ export function NotificationBell() {
         <DropdownMenuContent align="end" className="w-64 p-2">
           <div className="flex items-center justify-between mb-2">
             <h4 className="font-semibold text-sm">
-              Pending Orders
+              {profile?.role === 'customer' ? 'Your Orders' :
+                profile?.role === 'sales' ? 'Pending Orders' :
+                  'All Notifications'}
               <span
                 className="text-xs font-normal text-gray-500 ml-1"
-                key={`header-count-${unreadCount}`} // Add key to force re-render
+                key={`header-count-${roleBasedUnreadCount}`}
               >
                 {(() => {
-                  // Force evaluation of the current unreadCount value
-                  const currentCount = unreadCount;
-                  // Use the current count for the dropdown header
+                  const currentCount = roleBasedUnreadCount;
                   return `(${currentCount})`;
                 })()}
               </span>
@@ -460,7 +364,7 @@ export function NotificationBell() {
               </div>
               <div className="text-sm mt-1">{error}</div>
             </div>
-          ) : notifications.length === 0 ? (
+          ) : filteredNotifications.length === 0 ? (
             <div className="p-4 text-center text-muted-foreground bg-amber-50 rounded-md border border-amber-200">
               <div className="mb-2 text-2xl">📭</div>
               <div className="font-medium text-amber-800">
@@ -472,7 +376,7 @@ export function NotificationBell() {
             </div>
           ) : (
             <div className="max-h-[300px] overflow-y-auto">
-              {notifications.map((notification) => (
+              {filteredNotifications.map((notification) => (
                 <DropdownMenuItem
                   key={notification.id}
                   onClick={() => handleNotificationClick(notification.id)}
@@ -485,21 +389,31 @@ export function NotificationBell() {
                     <div className="flex flex-col flex-1">
                       <div className="flex justify-between items-center w-full">
                         <span className="font-medium">
-                          New {notification.status} order
+                          {profile?.role === 'customer' ? 'Your Order' : 'New Order'}
                         </span>
-                        <Badge variant="outline" className="ml-2 text-xs">
-                          Pending
+                        <Badge variant="outline" className="ml-2 text-xs capitalize">
+                          {notification.status}
                         </Badge>
                       </div>
+
                       <div className="text-xs font-medium">
                         {notification.display_id ||
                           `Order #${notification.id.slice(0, 8)}`}
                       </div>
+
+                      {/* Show customer info for sales/admin */}
+                      {(profile?.role === 'sales' || profile?.role === 'admin') && notification.customer_name && (
+                        <div className="text-xs text-blue-600 font-medium">
+                          Customer: {notification.customer_name}
+                        </div>
+                      )}
+
                       {notification.total_amount && (
                         <div className="text-xs text-muted-foreground">
                           {formatOrderCurrency(notification.total_amount)}
                         </div>
                       )}
+
                       <span className="text-xs text-muted-foreground">
                         {new Date(notification.created_at).toLocaleString()}
                       </span>
@@ -532,17 +446,20 @@ export function NotificationBell() {
                 )}
               </Button>
 
-              {soundEnabled && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-xs"
-                  onClick={() => playNotificationSound()}
-                  title="Test notification sound"
-                >
-                  Test
-                </Button>
-              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs"
+                onClick={() => {
+                  triggerNotificationAnimation();
+                  if (soundEnabled) {
+                    playNotificationSound();
+                  }
+                }}
+                title="Test notification animation and sound"
+              >
+                {soundEnabled ? 'Test Sound & Animation' : 'Test Animation'}
+              </Button>
             </div>
 
             {/* Action buttons */}
@@ -551,8 +468,8 @@ export function NotificationBell() {
                 variant="ghost"
                 size="sm"
                 className="text-xs"
-                onClick={fetchPendingOrders}
-                title="Manually refresh pending orders"
+                onClick={fetchNotifications}
+                title="Manually refresh notifications"
               >
                 Refresh
               </Button>

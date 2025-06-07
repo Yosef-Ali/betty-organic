@@ -1,8 +1,10 @@
 "use client";
 
+import React from "react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useOrderDetails } from "@/lib/hooks/useOrderDetails";
+import { useRealtime } from "@/lib/supabase/realtime-provider";
 import { useRouter } from "next/navigation";
 import { Profile } from "@/lib/types/auth";
 
@@ -47,6 +49,7 @@ interface OrderWithProfile {
 
 export default function OrderDetailsCard({ orderId }: OrderDetailsProps) {
   const router = useRouter();
+  const { subscribeToOrders } = useRealtime();
   const {
     order,
     error,
@@ -57,6 +60,21 @@ export default function OrderDetailsCard({ orderId }: OrderDetailsProps) {
     handleRetry,
     retryCount,
   } = useOrderDetails(orderId);
+
+  // Subscribe to realtime updates for order details refresh
+  React.useEffect(() => {
+    if (!orderId) return;
+    
+    const handleOrderDetailUpdate = (updatedOrder: any, event: 'INSERT' | 'UPDATE' | 'DELETE') => {
+      // If this is the order we're showing, refresh it
+      if (updatedOrder.id === orderId && (event === 'UPDATE' || event === 'INSERT')) {
+        handleRetry();
+      }
+    };
+
+    const unsubscribe = subscribeToOrders(handleOrderDetailUpdate);
+    return unsubscribe;
+  }, [orderId, subscribeToOrders, handleRetry]);
 
   if (!orderId) {
     return (
@@ -145,10 +163,10 @@ export default function OrderDetailsCard({ orderId }: OrderDetailsProps) {
   }
 
   // --- Start Calculation ---
-  // Process items with safe type checking
+  // Process items with safe type checking  
   const itemsWithTotal = order.items.map((item) => ({
     ...item,
-    total: Number(item.price || 0) * Number(item.quantity || 0),
+    total: Number(item.price || 0), // item.price is already the total for this line item
   }));
 
   // Calculate subtotal from items

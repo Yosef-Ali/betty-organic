@@ -65,7 +65,6 @@ interface OrdersDataTableProps {
   orders: ExtendedOrder[];
   onSelectOrderAction: (id: string) => void;
   onDeleteOrderAction: (id: string) => Promise<void>;
-  isLoading: boolean;
 }
 
 const formatDate = (dateString: string | null | undefined): string => {
@@ -92,7 +91,6 @@ export function OrdersDataTable({
   orders,
   onSelectOrderAction,
   onDeleteOrderAction,
-  isLoading,
 }: OrdersDataTableProps) {
   const { toast } = useToast();
   const [sorting, setSorting] = useState<SortingState>([
@@ -329,13 +327,6 @@ export function OrdersDataTable({
         onSortingChange={setSorting}
       />
 
-      {/* More subtle loading indicator that doesn't block the entire table */}
-      {isLoading && (
-        <div className="absolute top-2 right-28 flex items-center gap-2 bg-background/80 p-2 rounded-md shadow-sm border text-xs text-muted-foreground">
-          <div className="animate-spin w-3 h-3 border-2 border-primary border-t-transparent rounded-full" />
-          <span>Updating...</span>
-        </div>
-      )}
     </div>
   );
 }

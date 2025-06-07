@@ -3,7 +3,7 @@
 import { FC } from "react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { File, PlusCircle, ShoppingCart, Search, X } from "lucide-react";
+import { File, PlusCircle, ShoppingCart, Search, X, Loader2 } from "lucide-react";
 import Link from "next/link";
 import type { Database } from '@/types/supabase';
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
@@ -31,6 +31,7 @@ interface SalesHeaderProps {
   searchQuery: string;
   onSearchChangeAction: (query: string) => void;
   showCategoryTabs?: boolean;
+  isProcessingOrder?: boolean; // Add loading state prop
 }
 
 export const SalesHeader: FC<SalesHeaderProps> = ({
@@ -41,6 +42,7 @@ export const SalesHeader: FC<SalesHeaderProps> = ({
   searchQuery,
   onSearchChangeAction,
   showCategoryTabs = true, // Default to showing category tabs
+  isProcessingOrder = false, // Default to not processing
 }) => {
   return (
     <div className="flex flex-col gap-4 pb-4">
@@ -83,14 +85,26 @@ export const SalesHeader: FC<SalesHeaderProps> = ({
             size="icon"
             className="relative"
             onClick={onCartClickAction}
+            disabled={isProcessingOrder}
           >
-            <ShoppingCart className="h-5 w-5" />
-            {cartItemCount > 0 && (
+            {isProcessingOrder ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <ShoppingCart className="h-5 w-5" />
+            )}
+            {cartItemCount > 0 && !isProcessingOrder && (
               <span className="absolute -top-2 -right-2 bg-primary text-primary-foreground rounded-full w-5 h-5 text-xs flex items-center justify-center">
                 {cartItemCount}
               </span>
             )}
-            <span className="sr-only">Open cart</span>
+            {isProcessingOrder && (
+              <span className="absolute -top-2 -right-2 bg-orange-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center animate-pulse">
+                •••
+              </span>
+            )}
+            <span className="sr-only">
+              {isProcessingOrder ? 'Processing order...' : 'Open cart'}
+            </span>
           </Button>
         </div>
       </div>

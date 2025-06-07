@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -9,12 +9,13 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
-import { Button } from '@/components/ui/button';
-import { formatDistanceToNow } from 'date-fns';
-import { useToast } from '@/hooks/use-toast';
-import { Trash2 } from 'lucide-react';
+} from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
+import { formatDistanceToNow } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
+import { formatOrderCurrency } from "@/lib/utils";
+import { Trash2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,9 +25,9 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import type { Order } from '@/types/order';
-import { deleteOrder } from '@/app/actions/orderActions';
+} from "@/components/ui/alert-dialog";
+import type { Order } from "@/types/order";
+import { deleteOrder } from "@/app/actions/orderActions";
 
 export type OrderDetailsProps = {
   orderId: string;
@@ -48,17 +49,17 @@ export function OrderDetails({ orderId }: OrderDetailsProps) {
       const result = await deleteOrder(orderId);
       if (result.success) {
         toast({
-          title: 'Order deleted',
-          description: 'The order has been successfully deleted.',
+          title: "Order deleted",
+          description: "The order has been successfully deleted.",
         });
-        router.push('/dashboard/orders');
+        router.push("/dashboard/orders");
       }
     } catch (error) {
-      console.error('Error deleting order:', error);
+      console.error("Error deleting order:", error);
       toast({
-        title: 'Error',
-        description: 'Failed to delete the order. Please try again.',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to delete the order. Please try again.",
+        variant: "destructive",
       });
     } finally {
       setIsLoading(false);
@@ -82,7 +83,7 @@ export function OrderDetails({ orderId }: OrderDetailsProps) {
           <CardDescription>{error}</CardDescription>
         </CardHeader>
         <CardFooter className="justify-center">
-          <Button onClick={() => router.push('/auth/signin')}>
+          <Button onClick={() => router.push("/auth/signin")}>
             Return to Sign In
           </Button>
         </CardFooter>
@@ -105,7 +106,9 @@ export function OrderDetails({ orderId }: OrderDetailsProps) {
           <div>
             <CardTitle>Order #{order.id}</CardTitle>
             <CardDescription>
-              Created {formatDistanceToNow(new Date(order.created_at ?? Date.now()))} ago
+              Created{" "}
+              {formatDistanceToNow(new Date(order.created_at ?? Date.now()))}{" "}
+              ago
             </CardDescription>
           </div>
           <Button
@@ -120,17 +123,21 @@ export function OrderDetails({ orderId }: OrderDetailsProps) {
 
       <CardContent className="p-6 text-sm">
         <div className="space-y-4">
-          {order.items?.length ? order.items.map(item => (
-            <div key={item.id} className="flex justify-between">
-              <div>
-                <p className="font-medium">{item.product?.name || item.product_name}</p>
-                <p className="text-muted-foreground">
-                  {item.quantity} × Br {item.price}
-                </p>
+          {order.items?.length ? (
+            order.items.map((item) => (
+              <div key={item.id} className="flex justify-between">
+                <div>
+                  <p className="font-medium">
+                    {item.product?.name || item.product_name}
+                  </p>
+                  <p className="text-muted-foreground">
+                    {item.quantity} × Br {item.price}
+                  </p>
+                </div>
+                <p>{formatOrderCurrency(item.price * item.quantity)}</p>
               </div>
-              <p>Br {(item.price * item.quantity).toFixed(2)}</p>
-            </div>
-          )) : (
+            ))
+          ) : (
             <p>No items in this order</p>
           )}
         </div>
@@ -139,18 +146,25 @@ export function OrderDetails({ orderId }: OrderDetailsProps) {
 
         <div className="space-y-2">
           <h3 className="font-medium">Customer Details</h3>
-          <p>{order.customer?.name || 'Unknown Customer'}</p>
-          <p>{order.customer?.email || 'No email provided'}</p>
+          <p>{order.customer?.name || "Unknown Customer"}</p>
+          <p>{order.customer?.email || "No email provided"}</p>
         </div>
 
         <div className="space-y-2">
           <div className="flex justify-between">
             <p>Subtotal</p>
-            <p>Br {order.items?.reduce((sum, item) => sum + (item.price * item.quantity), 0).toFixed(2) || "0.00"}</p>
+            <p>
+              {formatOrderCurrency(
+                order.items?.reduce(
+                  (sum, item) => sum + item.price * item.quantity,
+                  0
+                ) || 0
+              )}
+            </p>
           </div>
           <div className="flex justify-between font-medium">
             <p>Total</p>
-            <p>Br {order.total_amount?.toFixed(2) || "0.00"}</p>
+            <p>{formatOrderCurrency(order.total_amount || 0)}</p>
           </div>
         </div>
       </CardContent>
@@ -166,7 +180,10 @@ export function OrderDetails({ orderId }: OrderDetailsProps) {
         )}
       </CardFooter>
 
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
@@ -185,6 +202,6 @@ export function OrderDetails({ orderId }: OrderDetailsProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </Card >
+    </Card>
   );
 }

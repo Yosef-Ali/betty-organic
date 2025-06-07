@@ -1,35 +1,137 @@
+/* Enhanced bell ring animation with more movement */
 @keyframes bellRing {
   0% {
-    transform: rotate(0);
+    transform: rotate(0deg) scale(1);
+  }
+  5% {
+    transform: rotate(20deg) scale(1.05);
   }
   10% {
-    transform: rotate(15deg);
+    transform: rotate(-18deg) scale(1.1);
+  }
+  15% {
+    transform: rotate(16deg) scale(1.05);
   }
   20% {
-    transform: rotate(-15deg);
+    transform: rotate(-14deg) scale(1.08);
+  }
+  25% {
+    transform: rotate(12deg) scale(1.03);
   }
   30% {
-    transform: rotate(10deg);
+    transform: rotate(-10deg) scale(1.06);
+  }
+  35% {
+    transform: rotate(8deg) scale(1.02);
   }
   40% {
-    transform: rotate(-10deg);
+    transform: rotate(-6deg) scale(1.04);
   }
   50% {
-    transform: rotate(5deg);
+    transform: rotate(4deg) scale(1.01);
   }
   60% {
-    transform: rotate(-5deg);
+    transform: rotate(-2deg) scale(1.02);
   }
   70% {
-    transform: rotate(0);
+    transform: rotate(1deg) scale(1);
+  }
+  80% {
+    transform: rotate(-0.5deg) scale(1);
+  }
+  90% {
+    transform: rotate(0.2deg) scale(1);
   }
   100% {
-    transform: rotate(0);
+    transform: rotate(0deg) scale(1);
   }
 }
 
+/* Bell shake animation */
+@keyframes bellShake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  10%, 30%, 50%, 70%, 90% {
+    transform: translateX(-3px);
+  }
+  20%, 40%, 60%, 80% {
+    transform: translateX(3px);
+  }
+}
+
+/* Pulsing glow effect */
+@keyframes bellGlow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(239, 68, 68, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.8), 0 0 30px rgba(239, 68, 68, 0.6);
+  }
+}
+
+/* Bounce effect for the badge */
+@keyframes badgeBounce {
+  0%, 100% {
+    transform: scale(1);
+  }
+  25% {
+    transform: scale(1.1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  75% {
+    transform: scale(1.1);
+  }
+}
+
+/* Combined bell animation */
 .animate-bell {
-  animation: bellRing 0.8s ease-in-out;
-  animation-iteration-count: 3;
+  animation: 
+    bellRing 0.6s ease-in-out,
+    bellShake 0.3s ease-in-out 0.6s,
+    bellGlow 1s ease-in-out;
+  animation-iteration-count: 2, 1, 1;
   transform-origin: top center;
+}
+
+/* Enhanced badge animation */
+.animate-badge {
+  animation: badgeBounce 0.8s ease-in-out;
+  animation-iteration-count: 2;
+}
+
+/* Button pulse effect when notification arrives */
+.animate-button-pulse {
+  animation: bellGlow 1.5s ease-in-out;
+  animation-iteration-count: 2;
+}
+
+/* Additional notification arrival animation */
+@keyframes notificationArrival {
+  0% {
+    transform: scale(1) rotate(0deg);
+    background-color: rgb(251 191 36);
+  }
+  25% {
+    transform: scale(1.1) rotate(5deg);
+    background-color: rgb(239 68 68);
+  }
+  50% {
+    transform: scale(1.15) rotate(-5deg);
+    background-color: rgb(234 179 8);
+  }
+  75% {
+    transform: scale(1.05) rotate(2deg);
+    background-color: rgb(239 68 68);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    background-color: rgb(251 191 36);
+  }
+}
+
+.animate-notification-arrival {
+  animation: notificationArrival 1.2s ease-in-out;
 }

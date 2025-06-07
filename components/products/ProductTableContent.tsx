@@ -97,10 +97,10 @@ export function ProductTableContent({
               className="aspect-square rounded-md object-cover"
               height={64}
               width={64}
-              src={product.imageUrl || '/placeholder-product.jpg'}
+              src={product.imageUrl || '/placeholder-product.svg'}
               onError={e => {
                 const target = e.target as HTMLImageElement;
-                target.src = '/placeholder-product.jpg';
+                target.src = '/placeholder-product.svg';
               }}
             />
           </TableCell>

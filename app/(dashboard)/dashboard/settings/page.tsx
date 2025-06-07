@@ -5,6 +5,7 @@ import { SettingsTestimonials } from '@/components/settings/SettingsTestimonials
 import { SettingsKnowledgeBase } from '@/components/settings/SettingsKnowledgeBase';
 import { SettingsGeneral } from '@/components/settings/SettingsGeneral';
 import { SettingsAbout } from '@/components/settings/SettingsAbout';
+import { SettingsAIConfiguration } from '@/components/settings/SettingsAIConfiguration';
 import {
   Card,
   CardContent,
@@ -44,6 +45,7 @@ export default async function SettingsPage() {
             <TabsList className="inline-flex gap-2 p-1 w-fit min-w-full sm:w-full">
               <TabsTrigger value="general" className="flex-1">General</TabsTrigger>
               <TabsTrigger value="about" className="flex-1">About</TabsTrigger>
+              <TabsTrigger value="ai-config" className="flex-1">AI Config</TabsTrigger>
               <TabsTrigger value="testimonials" className="flex-1">Testimonials</TabsTrigger>
               <TabsTrigger value="knowledge-base" className="flex-1">Knowledge Base</TabsTrigger>
             </TabsList>
@@ -53,6 +55,9 @@ export default async function SettingsPage() {
           </TabsContent>
           <TabsContent value="about" className="space-y-4 px-2 sm:px-0">
             <SettingsAbout />
+          </TabsContent>
+          <TabsContent value="ai-config" className="space-y-4 px-2 sm:px-0">
+            <SettingsAIConfiguration />
           </TabsContent>
           <TabsContent value="testimonials" className="space-y-4 px-2 sm:px-0">
             <SettingsTestimonials />

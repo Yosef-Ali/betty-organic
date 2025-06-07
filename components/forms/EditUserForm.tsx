@@ -1,177 +1,122 @@
 'use client'
 
 import { useState } from 'react'
-import { updateUserRole } from '@/app/actions/userActions'
 import { useRouter } from 'next/navigation'
+import { updateUser } from '@/app/actions/userActions'
 import { Button } from '@/components/ui/button'
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { useToast } from '@/hooks/use-toast'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useForm } from 'react-hook-form'
-import * as z from 'zod'
-
-const formSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters'),
-  email: z.string().optional(),
-  role: z.enum(['customer', 'admin', 'sales']),
-  status: z.enum(['active', 'inactive'])
-})
-
-type FormData = z.infer<typeof formSchema>
+import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { toast } from 'sonner'
 
 interface User {
   id: string
-  name: string
   email: string
-  role: string
-  status: string
+  name?: string
+  role?: string
 }
 
-export default function EditUserForm({ user }: { user: User }) {
-  const router = useRouter()
-  const { toast } = useToast()
-  const [isLoading, setIsLoading] = useState(false)
+interface EditUserFormProps {
+  user: User
+}
 
-  const form = useForm<FormData>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      name: user.name || '',
-      email: user.email || '',
-      role: (user.role as 'customer' | 'admin' | 'sales') || 'customer',
-      status: (user.status as 'active' | 'inactive') || 'active'
-    }
+export default function EditUserForm({ user }: EditUserFormProps) {
+  const router = useRouter()
+  const [isLoading, setIsLoading] = useState(false)
+  const [formData, setFormData] = useState({
+    name: user.name || '',
+    email: user.email || '',
+    role: user.role || 'user'
   })
 
-  async function onSubmit(data: FormData) {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+
     try {
-      setIsLoading(true)
-      const { error } = await updateUserRole(user.id, data.role)
-
-      if (error) {
-        throw new Error(error.message || 'Failed to update user')
-      }
-
-      toast({
-        title: 'Success',
-        description: 'User updated successfully'
-      })
+      await updateUser(user.id, formData)
+      toast.success('User updated successfully')
       router.push('/dashboard/users')
-      router.refresh()
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to update user',
-        variant: 'destructive'
-      })
+      toast.error('Failed to update user')
+      console.error('Error updating user:', error)
     } finally {
       setIsLoading(false)
     }
   }
 
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }))
+  }
+
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <FormField
-          control={form.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Name</FormLabel>
-              <FormControl>
-                <Input {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+    <Card className="max-w-2xl">
+      <CardHeader>
+        <CardTitle>Edit User</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="name">Name</Label>
+            <Input
+              id="name"
+              value={formData.name}
+              onChange={(e) => handleInputChange('name', e.target.value)}
+              placeholder="Enter user name"
+            />
+          </div>
 
-        <FormField
-          control={form.control}
-          name="email"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Email</FormLabel>
-              <FormControl>
-                <Input {...field} type="email" readOnly />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              value={formData.email}
+              onChange={(e) => handleInputChange('email', e.target.value)}
+              placeholder="Enter user email"
+            />
+          </div>
 
-        <FormField
-          control={form.control}
-          name="role"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Role</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a role" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="customer">Customer</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="sales">Sales</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+          <div className="space-y-2">
+            <Label htmlFor="role">Role</Label>
+            <Select
+              value={formData.role}
+              onValueChange={(value) => handleInputChange('role', value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select a role" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="user">User</SelectItem>
+                <SelectItem value="admin">Admin</SelectItem>
+                <SelectItem value="manager">Manager</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-        <FormField
-          control={form.control}
-          name="status"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Status</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a status" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <div className="flex justify-end space-x-4">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => router.push('/dashboard/users')}
-          >
-            Cancel
-          </Button>
-          <Button type="submit" disabled={isLoading}>
-            {isLoading ? 'Saving...' : 'Save Changes'}
-          </Button>
-        </div>
-      </form>
-    </Form>
+          <div className="flex gap-2">
+            <Button
+              type="submit"
+              disabled={isLoading}
+              className="flex-1"
+            >
+              {isLoading ? 'Updating...' : 'Update User'}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => router.push('/dashboard/users')}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
   )
 }

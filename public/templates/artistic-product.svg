@@ -1,0 +1,42 @@
+<svg width="400" height="400" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="waterGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:0.2" />
+      <stop offset="50%" style="stop-color:#06b6d4;stop-opacity:0.3" />
+      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:0.2" />
+    </linearGradient>
+    <radialGradient id="yellowAccent" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#fbbf24;stop-opacity:0.3" />
+      <stop offset="100%" style="stop-color:#f59e0b;stop-opacity:0.1" />
+    </radialGradient>
+  </defs>
+  
+  <rect width="100%" height="100%" fill="url(#waterGradient)"/>
+  
+  <!-- Watercolor background -->
+  <circle cx="100" cy="150" r="80" fill="#3b82f6" opacity="0.15"/>
+  <circle cx="300" cy="200" r="100" fill="#06b6d4" opacity="0.12"/>
+  <circle cx="200" cy="100" r="60" fill="#8b5cf6" opacity="0.1"/>
+  
+  <!-- Yellow accents -->
+  <circle cx="150" cy="300" r="40" fill="url(#yellowAccent)"/>
+  <circle cx="320" cy="80" r="35" fill="url(#yellowAccent)"/>
+  
+  <!-- Product pairs representation -->
+  <circle cx="170" cy="180" r="25" fill="#ef4444" stroke="#dc2626" stroke-width="2"/>
+  <circle cx="230" cy="200" r="25" fill="#ef4444" stroke="#dc2626" stroke-width="2"/>
+  
+  <!-- Watercolor brushstrokes -->
+  <path d="M 50 350 Q 150 300 250 350 Q 300 370 380 340" stroke="#3b82f6" stroke-width="8" fill="none" opacity="0.2"/>
+  <path d="M 30 50 Q 120 80 200 60 Q 280 40 350 70" stroke="#06b6d4" stroke-width="6" fill="none" opacity="0.25"/>
+  
+  <text x="200" y="280" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#374151">
+    Artistic Watercolor
+  </text>
+  <text x="200" y="300" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#6b7280">
+    Water art style with
+  </text>
+  <text x="200" y="320" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#6b7280">
+    scenic backgrounds
+  </text>
+</svg>

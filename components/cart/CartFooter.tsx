@@ -27,6 +27,7 @@ export interface CartFooterProps {
   onConfirmOrder: () => Promise<void>;
   isOrderConfirmed: boolean;
   disabled?: boolean;
+  isProcessingOrder?: boolean; // Add processing state prop
   onOrderCreate?: (orderData: {
     id?: string;
     profile_id?: string;
@@ -75,7 +76,8 @@ export const CartFooter: FC<CartFooterProps> = ({
   items,
   customer,
   clearCart,
-  onOpenChange
+  onOpenChange,
+  isProcessingOrder = false,
 }) => {
   const [coupon, setCoupon] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState('');
@@ -112,11 +114,7 @@ export const CartFooter: FC<CartFooterProps> = ({
 
       if (!items || items.length === 0) {
         console.error('[ORDER] Error: No items in cart');
-        toast({
-          title: "Error",
-          description: "Cannot create order with an empty cart",
-          variant: "destructive",
-        });
+        // Note: Empty cart should be prevented by UI - button should be disabled
         return;
       }
 
@@ -141,7 +139,7 @@ export const CartFooter: FC<CartFooterProps> = ({
       const orderItems = items.map(item => ({
         id: item.id,
         name: item.name,
-        price: (item.pricePerKg * item.grams) / 1000, // Total price for this item
+        price: Number(((item.pricePerKg * item.grams) / 1000).toFixed(2)), // Total price for this item
         quantity: item.grams / 1000, // Convert grams to kg
         imageUrl: item.imageUrl || '',
         product_id: item.id,
@@ -173,38 +171,25 @@ export const CartFooter: FC<CartFooterProps> = ({
 
         if (success) {
           console.log('[ORDER] Order created successfully, clearing cart and closing sheet');
-          toast({
-            title: "Order Complete",
-            description: "Your order has been processed successfully",
-          });
-
+          // Note: Success toast is handled by the parent SalesPage component
+          // to avoid duplicate notifications
+          
           if (clearCart) clearCart();
           if (onOpenChange) onOpenChange(false);
         } else {
           console.error('[ORDER] Order creation failed');
-          toast({
-            title: "Error",
-            description: "Failed to create order. Please try again.",
-            variant: "destructive",
-          });
+          // Note: Error toast is handled by the parent SalesPage component
+          // to avoid duplicate notifications
         }
       } catch (orderError) {
         console.error('[ORDER] Error during order creation:', orderError);
-        toast({
-          title: "Error",
-          description: orderError instanceof Error
-            ? `Order creation failed: ${orderError.message}`
-            : "Unknown error during order creation",
-          variant: "destructive",
-        });
+        // Note: Error handling is done by the parent SalesPage component
+        // to provide consistent error messaging
       }
     } catch (error) {
       console.error('[ORDER] General error in handleConfirmOrder:', error);
-      toast({
-        title: "Error",
-        description: "An unexpected error occurred. Please try again.",
-        variant: "destructive",
-      });
+      // Note: Error handling is done by the parent SalesPage component
+      // to provide consistent error messaging and avoid duplicates
     } finally {
       setIsLoading(false);
     }
@@ -312,7 +297,7 @@ export const CartFooter: FC<CartFooterProps> = ({
             <div className="grid grid-cols-2 gap-4">
               <Button
                 onClick={onCancel}
-                disabled={isLoading}
+                disabled={isLoading || isProcessingOrder}
                 variant="outline"
               >
                 Cancel
@@ -322,10 +307,10 @@ export const CartFooter: FC<CartFooterProps> = ({
                   handleConfirmOrder();
                   if (onOpenChange) onOpenChange(false);
                 }}
-                disabled={isLoading || !items || items.length === 0}
+                disabled={isLoading || isProcessingOrder || !items || items.length === 0}
                 className="bg-primary"
               >
-                {isLoading ? (
+                {isLoading || isProcessingOrder ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Processing...

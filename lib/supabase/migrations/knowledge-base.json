@@ -1,3 +1,0 @@
-{
-  "query": "ALTER TABLE \"knowledge_base\" DROP COLUMN IF EXISTS user_id; ALTER TABLE \"knowledge_base\" ADD COLUMN user_id UUID NOT NULL REFERENCES auth.users(id); ALTER TABLE \"knowledge_base\" ENABLE ROW LEVEL SECURITY; CREATE POLICY \"Users can manage their own entries\" ON \"knowledge_base\" FOR ALL USING (user_id = auth.uid());"
-}

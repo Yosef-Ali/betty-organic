@@ -1,0 +1,44 @@
+<svg width="400" height="400" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="lifestyleGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f59e0b;stop-opacity:0.1" />
+      <stop offset="50%" style="stop-color:#d97706;stop-opacity:0.05" />
+      <stop offset="100%" style="stop-color:#92400e;stop-opacity:0.1" />
+    </linearGradient>
+    <filter id="blur" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="2"/>
+    </filter>
+  </defs>
+  
+  <rect width="100%" height="100%" fill="url(#lifestyleGradient)"/>
+  
+  <!-- Natural environment elements -->
+  <rect x="0" y="300" width="400" height="100" fill="#16a34a" opacity="0.2" rx="20"/>
+  <circle cx="80" cy="120" r="40" fill="#22c55e" opacity="0.15"/>
+  <circle cx="320" cy="100" r="35" fill="#16a34a" opacity="0.12"/>
+  
+  <!-- Window light effect -->
+  <rect x="50" y="50" width="100" height="120" fill="#fbbf24" opacity="0.1" rx="8"/>
+  <rect x="60" y="60" width="80" height="100" fill="#f59e0b" opacity="0.05" rx="4"/>
+  
+  <!-- Product in context -->
+  <circle cx="200" cy="180" r="30" fill="#3b82f6" stroke="#1e40af" stroke-width="2"/>
+  
+  <!-- Context props (blurred background) -->
+  <rect x="280" y="200" width="60" height="40" fill="#6b7280" opacity="0.3" rx="4" filter="url(#blur)"/>
+  <circle cx="120" cy="220" r="20" fill="#4b5563" opacity="0.25" filter="url(#blur)"/>
+  <rect x="300" y="150" width="40" height="25" fill="#9ca3af" opacity="0.2" rx="3" filter="url(#blur)"/>
+  
+  <!-- Natural lighting rays -->
+  <path d="M 100 70 L 200 150 M 120 60 L 210 140 M 140 55 L 220 135" stroke="#fbbf24" stroke-width="2" opacity="0.2"/>
+  
+  <text x="200" y="280" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#374151">
+    Lifestyle Context
+  </text>
+  <text x="200" y="300" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#6b7280">
+    Products in natural
+  </text>
+  <text x="200" y="320" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#6b7280">
+    usage environments
+  </text>
+</svg>

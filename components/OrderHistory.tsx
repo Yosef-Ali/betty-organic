@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { Package, PackageOpen, ChevronRight } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import { getOrders } from '@/app/actions/orderActions';
-import { Database } from '@/types/supabase';
+import { useState, useEffect, useCallback } from "react";
+import { Package, PackageOpen, ChevronRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { getOrders } from "@/app/actions/orderActions";
+import { Database } from "@/types/supabase";
 import {
   Table,
   TableBody,
@@ -15,9 +15,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { format } from 'date-fns';
+import { format } from "date-fns";
+import { formatOrderCurrency } from "@/lib/utils";
+import { useRealtime } from "@/lib/supabase/realtime-provider";
 
-type Order = Database['public']['Tables']['orders']['Row'] & {
+type Order = Database["public"]["Tables"]["orders"]["Row"] & {
   order_items: Array<{
     id: string;
     order_id: string;
@@ -25,7 +27,7 @@ type Order = Database['public']['Tables']['orders']['Row'] & {
     quantity: number;
     price: number;
     product_name: string;
-    products: Database['public']['Tables']['products']['Row'];
+    products: Database["public"]["Tables"]["products"]["Row"];
   }>;
   customer: {
     id: string;
@@ -37,26 +39,72 @@ type Order = Database['public']['Tables']['orders']['Row'] & {
 
 interface OrderHistoryProps {
   userId: string;
+  refreshTrigger?: number;
+  filterByCustomer?: boolean; // true = customer seeing their orders, false = admin/sales seeing all
 }
 
-export function OrderHistory({ userId }: OrderHistoryProps) {
+export function OrderHistory({ userId, refreshTrigger, filterByCustomer = true }: OrderHistoryProps) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { subscribeToOrders } = useRealtime();
+
+  const fetchOrders = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      // For customers (filterByCustomer=true), get orders where customer_profile_id = userId
+      // For admin/sales (filterByCustomer=false), get all orders
+      const ordersData = await getOrders(filterByCustomer ? userId : undefined, 'OrderHistory');
+
+      // Filter client-side for customers to ensure we only show their orders
+      let filteredOrders = ordersData;
+      if (filterByCustomer) {
+        filteredOrders = ordersData.filter(order => order.customer_profile_id === userId);
+      }
+
+      setOrders(
+        filteredOrders.map((order: any) => ({
+          ...order,
+          display_id: order.display_id ?? null,
+        }))
+      );
+      setError(null);
+    } catch (error) {
+      console.error("OrderHistory: Error fetching orders:", error);
+      setError("Failed to load orders. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [userId, filterByCustomer]); // Stable dependencies
+
+
+  // Handle realtime order updates
+  const handleOrderUpdate = useCallback((order: any, event: 'INSERT' | 'UPDATE' | 'DELETE') => {
+    // Only update if this order is relevant to current user
+    const isRelevant = filterByCustomer ? order.customer_profile_id === userId : true;
+
+    if (!isRelevant) return;
+
+    if (event === 'INSERT') {
+      setOrders(prev => [order, ...prev]);
+    } else if (event === 'UPDATE') {
+      setOrders(prev =>
+        prev.map(existingOrder =>
+          existingOrder.id === order.id ? { ...existingOrder, ...order } : existingOrder
+        )
+      );
+    } else if (event === 'DELETE') {
+      setOrders(prev => prev.filter(existingOrder => existingOrder.id !== order.id));
+    }
+  }, [userId, filterByCustomer]);
 
   useEffect(() => {
-    async function fetchOrders() {
-      try {
-        const ordersData = await getOrders(userId);
-        setOrders(ordersData);
-      } catch (error) {
-        console.error('Error fetching orders:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
+    const unsubscribe = subscribeToOrders(handleOrderUpdate);
     fetchOrders();
-  }, [userId]);
+
+    return unsubscribe;
+  }, [refreshTrigger]); // Only refreshTrigger should cause re-fetch
 
   if (isLoading) {
     return (
@@ -91,19 +139,22 @@ export function OrderHistory({ userId }: OrderHistoryProps) {
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
-      case 'completed':
-        return 'bg-green-100 text-green-800';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'cancelled':
-        return 'bg-red-100 text-red-800';
+      case "completed":
+        return "bg-green-100 text-green-800";
+      case "pending":
+        return "bg-yellow-100 text-yellow-800";
+      case "cancelled":
+        return "bg-red-100 text-red-800";
       default:
-        return 'bg-gray-100 text-gray-800';
+        return "bg-gray-100 text-gray-800";
     }
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold">Order History</h3>
+      </div>
       <Table>
         <TableHeader>
           <TableRow>
@@ -123,13 +174,16 @@ export function OrderHistory({ userId }: OrderHistoryProps) {
               </TableCell>
               <TableCell>
                 {order.created_at
-                  ? format(new Date(order.created_at), 'MMM d, yyyy')
-                  : 'N/A'}
+                  ? format(new Date(order.created_at), "MMM d, yyyy")
+                  : "N/A"}
               </TableCell>
               <TableCell>{order.order_items?.length || 0} items</TableCell>
-              <TableCell>Br {order.total_amount.toFixed(2)}</TableCell>
+              <TableCell>{formatOrderCurrency(order.total_amount)}</TableCell>
               <TableCell>
-                <Badge variant="outline" className={getStatusColor(order.status)}>
+                <Badge
+                  variant="outline"
+                  className={getStatusColor(order.status)}
+                >
                   {order.status}
                 </Badge>
               </TableCell>

@@ -50,7 +50,7 @@ export function AppInitializer() {
       } catch (error: unknown) {
         // Avoid crashing the app if initialization fails
         if (error instanceof Error && error.name === 'AbortError') {
-          console.warn('App initialization timed out');
+          // App initialization timed out - this is expected behavior
         } else {
           // Safely handle errors that may not be serializable
           const errorMessage = error instanceof Error

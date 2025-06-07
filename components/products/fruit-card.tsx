@@ -21,7 +21,7 @@ export function FruitCard({ product }: FruitCardProps) {
       id: product.id,
       name: product.name,
       imageUrl: product.imageUrl || '',
-      pricePerKg: Number(product.price.toFixed(2)),
+      pricePerKg: product.price, // Use the raw price directly
       grams: 1000,
     };
     addItem(cartItem);
@@ -35,7 +35,7 @@ export function FruitCard({ product }: FruitCardProps) {
     <div className="group relative overflow-hidden rounded-lg bg-white shadow-md hover:shadow-lg transition-all duration-300">
       <div className="relative aspect-square w-full overflow-hidden bg-gray-100">
         {hasValidImage ? (
-          <button onClick={handleAddToCart} className="w-full h-full">
+          <button onClick={handleAddToCart} className="relative w-full h-full">
             <Image
               src={product.imageUrl || '/placeholder-product.svg'}
               alt={product.name}

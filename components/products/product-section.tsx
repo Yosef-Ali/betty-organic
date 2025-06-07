@@ -12,7 +12,7 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { useMarketingCartStore } from '@/store/cartStore';
 import { useUIStore } from '@/store/uiStore';
-import { getProducts } from '@/app/(marketing)/actions';
+import { getProducts } from '@/app/actions/productActions';
 import { optimizeProductImage } from '@/utils/product-utils';
 
 const PRODUCT_CATEGORIES = [

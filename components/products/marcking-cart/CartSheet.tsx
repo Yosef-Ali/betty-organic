@@ -15,7 +15,6 @@ import { X } from 'lucide-react';
 import { CartItem } from './CartItem';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { ConfirmPurchaseDialogNew } from './ConfirmPurchaseDialogNew';
 import { ConfirmPurchaseDialog } from './dialog';
 
 interface CartSheetProps {
@@ -24,15 +23,12 @@ interface CartSheetProps {
 }
 
 export const CartSheet = ({ isOpen, onOpenChangeAction = () => { } }: CartSheetProps) => {
-  const { items } = useMarketingCartStore();
+  const { items, getTotalAmount } = useMarketingCartStore();
   const { clearCart } = useMarketingCartStore();
   const { setCartOpen } = useUIStore();
   const [isPurchaseDialogOpen, setIsPurchaseDialogOpen] = useState(false);
 
-  const totalAmount = items.reduce(
-    (total, item) => total + item.pricePerKg * (item.grams / 1000),
-    0,
-  );
+  const totalAmount = getTotalAmount();
 
   // Handle purchase dialog closing
   const handlePurchaseDialogClose = () => {
@@ -56,7 +52,7 @@ export const CartSheet = ({ isOpen, onOpenChangeAction = () => { } }: CartSheetP
           onOpenChangeAction(open);
         } else {
           // If onOpenChangeAction is not provided, just use setCartOpen
-          console.log('Warning: onOpenChangeAction is not a function in CartSheet');
+          // Handle gracefully without logging
         }
         setCartOpen(open);
       }}>

@@ -129,13 +129,9 @@ export const ConfirmPurchaseDialog: React.FC<ConfirmPurchaseDialogProps> = ({
     }, []); // useCallback dependencies
 
     useEffect(() => {
-        console.log(`[EFFECT_CHECK] isOpen changed to: ${isOpen}. Running effect...`); // Add log here
         // Only fetch if the dialog is open to avoid unnecessary calls
         if (isOpen) {
-            console.log("[EFFECT_CHECK] isOpen is true, calling fetchAuthState...");
             fetchAuthState();
-        } else {
-            console.log("[EFFECT_CHECK] isOpen is false, not calling fetchAuthState.");
         }
         // Note: We no longer use onAuthStateChange here.
         // Real-time updates might require a different approach like polling,
@@ -189,8 +185,6 @@ export const ConfirmPurchaseDialog: React.FC<ConfirmPurchaseDialogProps> = ({
     // New function to handle order confirmation with just the address
     const handleConfirmWithAddress = async (deliveryAddress: string) => {
         try {
-            console.log("💾 Creating order with delivery address:", deliveryAddress);
-
             if (!items.length) {
                 throw new Error('No items in cart');
             }
@@ -481,13 +475,6 @@ export const ConfirmPurchaseDialog: React.FC<ConfirmPurchaseDialogProps> = ({
 
     // Render appropriate content based on auth and order state
     const renderContent = () => {
-        // Updated console log to reflect current state variables
-        console.log("🖥️ Rendering content:", {
-            isLoading,
-            isAuthenticated: isAuthenticated, // Explicitly show state
-            isOrderPlaced,
-            needsProfileUpdate
-        });
 
         if (isLoading) {
             return <LoadingSpinner />;

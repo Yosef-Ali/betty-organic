@@ -49,7 +49,7 @@ const ProductTable = () => {
         ...product,
         stock: product.stock ?? 0, // Default to 0 if stock is null
         totalSales: 0, // Set a default value for totalSales
-        imageUrl: product.imageUrl || '/placeholder-product.png', // Provide default image URL
+        imageUrl: product.imageUrl || '/placeholder-product.svg', // Provide default image URL
         createdAt: product.createdat || new Date().toISOString(),
         updatedAt: product.updatedat || new Date().toISOString(),
         active: product.active ?? true, // Default to true if null

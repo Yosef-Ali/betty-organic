@@ -17,12 +17,8 @@ export async function handlePurchaseOrder(
   total: number,
 ) {
   try {
-    console.log('[ORDER DEBUG] Starting order creation with items:', JSON.stringify(items));
-    console.log('[ORDER DEBUG] Total amount:', total);
-
     // Input validation
     if (!items?.length) {
-      console.log('[ORDER DEBUG] No items provided');
       return {
         error: 'No items provided for order',
         status: 400
@@ -30,7 +26,6 @@ export async function handlePurchaseOrder(
     }
 
     if (!total || total <= 0) {
-      console.log('[ORDER DEBUG] Invalid total amount:', total);
       return {
         error: 'Invalid total amount',
         status: 400
@@ -43,7 +38,6 @@ export async function handlePurchaseOrder(
     let userEmail: string;
     try {
       const authData = await getUser();
-      console.log('[ORDER DEBUG] Auth data:', JSON.stringify(authData));
       if (authData) {
         userId = authData.id;
         userRole = authData.profile?.role || 'customer';
@@ -51,17 +45,14 @@ export async function handlePurchaseOrder(
       } else {
         userId = uuidv4(); // Generate a unique ID for guest users
         userEmail = `guest-${userId}@guest.bettyorganic.com`;
-        console.log('[ORDER DEBUG] Created guest user ID:', userId);
       }
     } catch (error) {
-      console.log('[ORDER DEBUG] Error getting current user:', error);
       userId = uuidv4();
       userEmail = `guest-${userId}@guest.bettyorganic.com`;
     }
 
     // Generate a display ID for the order
     const display_id = await orderIdService.generateOrderID();
-    console.log('[ORDER DEBUG] Generated order ID:', display_id);
 
     // Get Supabase client
     const supabase = await createClient();
@@ -74,7 +65,7 @@ export async function handlePurchaseOrder(
       .single();
 
     if (profileError && profileError.code !== 'PGRST116') { // PGRST116 is "not found"
-      console.error('[ORDER DEBUG] Error checking profile:', profileError);
+      console.error('Error checking profile:', profileError);
       return {
         error: 'Failed to check user profile',
         status: 500
@@ -83,7 +74,6 @@ export async function handlePurchaseOrder(
 
     // If profile doesn't exist, create it
     if (!profile) {
-      console.log('[ORDER DEBUG] Creating new profile for user:', userId);
       const { error: createProfileError } = await supabase
         .from('profiles')
         .insert({
@@ -96,13 +86,12 @@ export async function handlePurchaseOrder(
         });
 
       if (createProfileError) {
-        console.error('[ORDER DEBUG] Failed to create profile:', createProfileError);
+        console.error('Failed to create profile:', createProfileError);
         return {
           error: 'Failed to create user profile',
           status: 500
         };
       }
-      console.log('[ORDER DEBUG] New profile created successfully');
     }
 
     // Now create the order with required fields
@@ -117,8 +106,6 @@ export async function handlePurchaseOrder(
       updated_at: new Date().toISOString()
     };
 
-    console.log('[ORDER DEBUG] Creating order with data:', orderData);
-
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .insert(orderData)
@@ -126,7 +113,7 @@ export async function handlePurchaseOrder(
       .single();
 
     if (orderError) {
-      console.error('[ORDER DEBUG] Failed to create order:', orderError);
+      console.error('Failed to create order:', orderError);
       return {
         error: `Failed to create order: ${orderError.message}`,
         status: 500
@@ -134,14 +121,12 @@ export async function handlePurchaseOrder(
     }
 
     if (!order) {
-      console.error('[ORDER DEBUG] No order data returned from insert');
+      console.error('No order data returned from insert');
       return {
         error: 'No order data returned',
         status: 500
       };
     }
-
-    console.log('[ORDER DEBUG] Order created successfully:', order);
 
     // Create order items using the admin client
     const orderItems = items.map(item => ({
@@ -152,14 +137,12 @@ export async function handlePurchaseOrder(
       product_name: item.name
     }));
 
-    console.log('[ORDER DEBUG] Creating order items:', JSON.stringify(orderItems));
-
     const { error: itemsError } = await supabase
       .from('order_items')
       .insert(orderItems);
 
     if (itemsError) {
-      console.error('[ORDER DEBUG] Failed to create order items:', itemsError);
+      console.error('Failed to create order items:', itemsError);
       // Cleanup the order if items failed
       await supabase.from('orders').delete().eq('id', order.id);
       return {
@@ -168,15 +151,13 @@ export async function handlePurchaseOrder(
       };
     }
 
-    console.log('[ORDER DEBUG] Order items created successfully');
-
     // Revalidate the dashboard paths to show the new order
     revalidatePath('/dashboard/orders');
     revalidatePath('/dashboard');
 
     return { data: order, status: 200 };
   } catch (err) {
-    console.error('[ORDER DEBUG] Purchase order error:', err);
+    console.error('Purchase order error:', err);
     return {
       error: err instanceof Error ? err.message : 'An unexpected error occurred',
       status: 500

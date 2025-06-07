@@ -1,4 +1,4 @@
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createBrowserClient } from '@supabase/ssr';
 import type { Database } from '@/types/supabase';
 
 /**
@@ -6,7 +6,10 @@ import type { Database } from '@/types/supabase';
  * This is used for realtime subscriptions which must be client-side
  */
 export function getClientSupabase() {
-  return createClientComponentClient<Database>();
+  return createBrowserClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
 }
 
 /**

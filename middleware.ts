@@ -9,7 +9,8 @@ export async function middleware(request: NextRequest) {
     request.nextUrl.pathname.startsWith('/api/public') ||
     request.nextUrl.pathname.includes('.') ||
     request.nextUrl.pathname === '/' ||
-    request.nextUrl.pathname === '/marketing'
+    request.nextUrl.pathname === '/marketing' ||
+    request.nextUrl.pathname === '/fix-notifications'
   ) {
     return NextResponse.next();
   }

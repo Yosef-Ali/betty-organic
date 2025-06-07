@@ -13,7 +13,7 @@ export async function getRecentOrders(limit = 5) {
     // Explicitly avoid caching by using the cache option
     const { data, error } = await supabase
       .from('orders')
-      .select('*, profiles!inner(name)')
+      .select('*, profiles!orders_customer_profile_id_fkey(name)')
       .order('created_at', { ascending: false })
       .limit(limit);
 

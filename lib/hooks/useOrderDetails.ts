@@ -146,10 +146,10 @@ export function useOrderDetails(orderId: string) {
     // Initial setup
     setupRealtimeListener();
 
-    // If the order data for the current orderId is already loaded, don't fetch again
-    if (order?.id === orderId) {
-      setIsLoading(false); // Ensure loading is false if data is already correct
-      return; // Don't fetch again
+    // Skip if we already have the correct order loaded and it's not a retry
+    if (order?.id === orderId && retryCount === 0) {
+      setIsLoading(false);
+      return;
     }
 
     // Skip fetching if we've already fetched this order ID recently (within 5 seconds)
@@ -270,7 +270,7 @@ export function useOrderDetails(orderId: string) {
         realtimeSubscription.cleanup();
       }
     };
-  }, [orderId, retryCount, order, retryFetch]); // Added retryFetch dependency
+  }, [orderId, retryCount]); // Remove order and retryFetch to prevent infinite loops
 
   // Function to handle manual retry
   const handleRetry = useCallback(() => {

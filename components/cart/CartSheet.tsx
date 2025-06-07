@@ -181,7 +181,7 @@ export const CartSheet: FC<CartSheetProps> = ({ isOpen, onOpenChange }) => {
             items={items.map(item => ({
               name: item.name,
               quantity: item.grams / 1000,
-              price: (item.pricePerKg * item.grams) / 1000,
+              price: Number(((item.pricePerKg * item.grams) / 1000).toFixed(2)),
             }))}
             total={getTotalAmount()}
             customerId={customer?.id || ''}

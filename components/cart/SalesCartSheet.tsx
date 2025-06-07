@@ -59,6 +59,7 @@ interface SalesCartSheetProps {
       role: string;
     };
   };
+  isProcessingOrder?: boolean; // Add loading state prop
 }
 
 export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
@@ -66,6 +67,7 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
   onOpenChange,
   onOrderCreate,
   user,
+  isProcessingOrder = false,
 }) => {
   const { clearCart } = useSalesCartStore();
 
@@ -252,11 +254,6 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
                 <CartItems items={items} />
               ) : (
                 <>
-                  {console.log("Data being passed to OrderSummary:", {
-                    profile,
-                    deliveryCost,
-                    totalAmount: getTotalAmount() + deliveryCost,
-                  })}
                   <OrderSummary
                     items={items}
                     totalAmount={getTotalAmount() + deliveryCost}
@@ -300,7 +297,8 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
             onConfirmOrder={handleConfirmOrder} // This seems to just set the state, not create the order
             isOrderConfirmed={isOrderConfirmed}
             onCancel={handleBackToCart}
-            disabled={isPending}
+            disabled={isPending || isProcessingOrder} // Disable during processing
+            isProcessingOrder={isProcessingOrder} // Pass loading state
             // Pass down necessary props for Pay button logic
             onOrderCreate={onOrderCreate}
             items={items}
@@ -323,7 +321,7 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
             items={items.map((item) => ({
               name: item.name,
               quantity: item.grams / 1000,
-              price: (item.pricePerKg * item.grams) / 1000,
+              price: Number(((item.pricePerKg * item.grams) / 1000).toFixed(2)),
             }))}
             total={getTotalAmount()}
             customerId={customer?.id || ""}

@@ -23,31 +23,43 @@ export function formatCurrency(amount: number): string {
     style: 'currency',
     currency: 'ETB',
     currencyDisplay: 'narrowSymbol',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   })
     .format(amount)
     .replace('ETB', 'Br.');
 }
 
 /**
- * Formats currency amounts that may be stored in cents in the database
- * This function handles the conversion from cents to main currency unit
- * @param amount The amount (possibly in cents)
+ * Formats currency amounts for display
+ * @param amount The amount in the main currency unit (ETB)
  * @returns Formatted currency string in Birr
  */
 export function formatOrderCurrency(amount: number): string {
-  // Convert from cents to main currency unit if the amount seems to be in cents
-  // We use a threshold to detect if the amount is likely in cents vs main currency unit
-  // If the amount is > 10000 (100.00 ETB in cents), it's likely stored in cents
-  // This avoids converting legitimate amounts like 1000 ETB (which should stay as 1000 ETB)
-  const displayAmount = amount > 10000 ? amount / 100 : amount;
-  
   return new Intl.NumberFormat('en-ET', {
     style: 'currency',
     currency: 'ETB',
     currencyDisplay: 'narrowSymbol',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   })
-    .format(displayAmount)
+    .format(amount)
     .replace('ETB', 'Br.');
+}
+
+/**
+ * Formats currency amounts for dashboard cards (more compact)
+ * @param amount The amount in the main currency unit (ETB)
+ * @returns Compact formatted currency string
+ */
+export function formatCompactCurrency(amount: number): string {
+  if (amount >= 1000000) {
+    return `Br.${(amount / 1000000).toFixed(1)}M`;
+  } else if (amount >= 1000) {
+    return `Br.${(amount / 1000).toFixed(1)}K`;
+  } else {
+    return `Br.${amount.toFixed(0)}`;
+  }
 }
 
 /**
