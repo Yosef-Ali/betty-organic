@@ -2,36 +2,72 @@
 
 import { createClient } from '@/lib/supabase/server'
 
-export async function sendWhatsAppOrderNotification(orderData: {
-  customerName: string
-  customerPhone: string
-  orderItems: Array<{
+interface OrderDetails {
+  id: string | number
+  display_id: string
+  items: Array<{
     name: string
-    quantity: number
+    grams: number
     price: number
+    unit_price: number
   }>
-  totalAmount: number
-  deliveryAddress?: string
-}) {
-  try {
-    // For now, just log the notification (WhatsApp integration can be added later)
-    console.log('Order notification would be sent:', {
-      to: process.env.ADMIN_WHATSAPP_NUMBER,
-      message: `New order from ${orderData.customerName} (${orderData.customerPhone}). Total: $${orderData.totalAmount}`
-    })
+  total: number
+  customer_name: string
+  customer_phone: string
+  delivery_address: string
+  customer_email?: string | null
+  user_id?: string | null
+  created_at: string
+}
 
-    // Simulate WhatsApp API call
-    // In a real implementation, you would call WhatsApp API here
+export async function sendWhatsAppOrderNotification(orderDetails: OrderDetails, adminPhoneNumber?: string) {
+  try {
+    // Use provided admin phone number from client settings, or fall back to environment variable
+    const adminPhone = adminPhoneNumber || process.env.ADMIN_WHATSAPP_NUMBER || '+251912345678'
     
+    // Format order items
+    const itemsList = orderDetails.items
+      .map(item => `• ${item.name} (${item.grams}g) - ETB ${item.price.toFixed(2)}`)
+      .join('\n')
+    
+    // Create formatted message
+    const message = `🍎 *NEW ORDER - Betty Organic*
+
+*Order ID:* ${orderDetails.display_id}
+*Customer:* ${orderDetails.customer_name}
+*Phone:* ${orderDetails.customer_phone}
+*Delivery Address:* ${orderDetails.delivery_address}
+
+*Items:*
+${itemsList}
+
+*Total Amount:* ETB ${orderDetails.total.toFixed(2)}
+
+*Order Time:* ${new Date(orderDetails.created_at).toLocaleString()}
+
+Please process this order as soon as possible! 🚚`
+
+    // Generate WhatsApp URL - this will open WhatsApp with pre-filled message
+    const whatsappUrl = `https://wa.me/${adminPhone.replace('+', '')}?text=${encodeURIComponent(message)}`
+    
+    // For free WhatsApp accounts, we just prepare the URL
+    // The admin will need to manually click send in WhatsApp
     return {
       success: true,
-      message: 'Notification sent successfully'
+      message: 'WhatsApp notification URL prepared - admin needs to manually send',
+      whatsappUrl,
+      requiresManualSend: true,
+      data: {
+        adminPhone,
+        message,
+        orderId: orderDetails.display_id
+      }
     }
   } catch (error) {
-    console.error('Failed to send WhatsApp notification:', error)
+    console.error('Failed to prepare WhatsApp notification:', error)
     return {
       success: false,
-      error: 'Failed to send notification'
+      error: 'Failed to prepare notification'
     }
   }
 }

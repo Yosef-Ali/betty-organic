@@ -1,11 +1,13 @@
 import { getUser } from '@/app/actions/auth';
 import { getProfile } from '@/app/actions/profile';
+import { getTestimonials } from '@/app/actions/testimonialActions';
 import { redirect } from 'next/navigation';
 import { SettingsTestimonials } from '@/components/settings/SettingsTestimonials';
 import { SettingsKnowledgeBase } from '@/components/settings/SettingsKnowledgeBase';
 import { SettingsGeneral } from '@/components/settings/SettingsGeneral';
 import { SettingsAbout } from '@/components/settings/SettingsAbout';
 import { SettingsAIConfiguration } from '@/components/settings/SettingsAIConfiguration';
+import { SettingsWhatsApp } from '@/components/settings/SettingsWhatsApp';
 import {
   Card,
   CardContent,
@@ -28,6 +30,15 @@ export default async function SettingsPage() {
     redirect('/dashboard');
   }
 
+  // Fetch testimonials on the server to avoid client-side loading states
+  let testimonials: any[] = [];
+  try {
+    testimonials = await getTestimonials();
+  } catch (error) {
+    console.error('Failed to fetch testimonials on server:', error);
+    // Don't redirect on error, just continue with empty array
+  }
+
   return (
     <div className="flex flex-col min-h-[calc(100vh-64px)]">
       <div className="flex-1 space-y-4 md:p-8 pt-6">
@@ -46,6 +57,7 @@ export default async function SettingsPage() {
               <TabsTrigger value="general" className="flex-1">General</TabsTrigger>
               <TabsTrigger value="about" className="flex-1">About</TabsTrigger>
               <TabsTrigger value="ai-config" className="flex-1">AI Config</TabsTrigger>
+              <TabsTrigger value="whatsapp" className="flex-1">WhatsApp</TabsTrigger>
               <TabsTrigger value="testimonials" className="flex-1">Testimonials</TabsTrigger>
               <TabsTrigger value="knowledge-base" className="flex-1">Knowledge Base</TabsTrigger>
             </TabsList>
@@ -59,8 +71,11 @@ export default async function SettingsPage() {
           <TabsContent value="ai-config" className="space-y-4 px-2 sm:px-0">
             <SettingsAIConfiguration />
           </TabsContent>
+          <TabsContent value="whatsapp" className="space-y-4 px-2 sm:px-0">
+            <SettingsWhatsApp />
+          </TabsContent>
           <TabsContent value="testimonials" className="space-y-4 px-2 sm:px-0">
-            <SettingsTestimonials />
+            <SettingsTestimonials initialTestimonials={testimonials} />
           </TabsContent>
           <TabsContent value="knowledge-base" className="space-y-4 px-2 sm:px-0">
             <SettingsKnowledgeBase />

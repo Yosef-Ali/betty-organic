@@ -92,16 +92,19 @@ export const AuthenticatedForm: React.FC<AuthenticatedFormProps> = ({
                 <div className="space-y-2">
                     <Label htmlFor="address" className="flex items-center gap-2">
                         <MapPin className="w-4 h-4 flex-shrink-0" />
-                        <span className="text-sm">Delivery Address*</span>
+                        <span className="text-sm">Delivery Address for This Order*</span>
                     </Label>
                     <Textarea
                         id="address"
-                        placeholder="Enter your delivery address"
+                        placeholder="Enter delivery address for this order (e.g., Addis Ababa, Bole area, near Edna Mall)"
                         value={customerInfo.address}
                         onChange={handleInfoChange}
                         required
                         className="min-h-[80px] w-full resize-none"
                     />
+                    <p className="text-xs text-gray-500">
+                        Enter where you want this order delivered (can be different from your profile address)
+                    </p>
                 </div>
             </div>
 

@@ -86,11 +86,12 @@ export const ConfirmPurchaseDialog: React.FC<ConfirmPurchaseDialogProps> = ({
 
                 if (profile) {
                     console.log("✅ [AUTH_FLOW] Profile found.");
-                    setCustomerInfo({ // Set customer info based on profile
+                    // Only set name and phone from profile, keep address empty for user to input delivery address
+                    setCustomerInfo(prev => ({ 
                         name: profile.name || (user.email?.split('@')[0] || ''),
                         phone: profile.phone || '',
-                        address: profile.address || ''
-                    });
+                        address: prev.address || '' // Keep existing address input or empty for new delivery address
+                    }));
                 } else {
                     console.log("⚠️ [AUTH_FLOW] No profile found for authenticated user.");
                     // Set customer info based on user email if no profile
@@ -98,7 +99,7 @@ export const ConfirmPurchaseDialog: React.FC<ConfirmPurchaseDialogProps> = ({
                         ...prev,
                         name: user.email?.split('@')[0] || '',
                         phone: '', // Clear previous guest/profile data
-                        address: '' // Clear previous guest/profile data
+                        address: prev.address || '' // Keep existing address input or empty
                     }));
                 }
             } else {
@@ -139,21 +140,27 @@ export const ConfirmPurchaseDialog: React.FC<ConfirmPurchaseDialogProps> = ({
         // For now, this fetches state on component mount/dialog open.
     }, [fetchAuthState, isOpen]); // Re-fetch when dialog opens
 
+    // Add unhandled promise rejection handler
+    useEffect(() => {
+        const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+            console.error('Unhandled promise rejection in ConfirmPurchaseDialog:', event.reason);
+            event.preventDefault(); // Prevent the default console error
+        };
+
+        if (typeof window !== 'undefined') {
+            window.addEventListener('unhandledrejection', handleUnhandledRejection);
+            return () => {
+                window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+            };
+        }
+    }, []);
+
     const handleSignIn = () => {
         saveCartToLocalStorage(items, customerInfo);
         router.push('/auth/login?returnTo=/');
     };
 
-    const handleShareWhatsApp = () => {
-        if (!orderDetails) return;
-        sendWhatsAppOrderNotification(orderDetails)
-            .then(() => toast.success('WhatsApp notification ready!'))
-            .catch((err) => {
-                const formattedError = typeof err === 'object' ? JSON.stringify(err, null, 2) : String(err);
-                console.error('Failed to prepare WhatsApp notification:', formattedError);
-                toast.error('Failed to prepare WhatsApp message.');
-            });
-    };    // Simplified function to handle just the delivery address input
+    // Simplified function to handle just the delivery address input
     const handleProfileUpdate = async (updatedInfo: { address: string }) => {
         try {
             setIsSubmitting(true);
@@ -183,7 +190,12 @@ export const ConfirmPurchaseDialog: React.FC<ConfirmPurchaseDialogProps> = ({
         validateCustomerInfo(!!isAuthenticated, customerInfo);
 
     // New function to handle order confirmation with just the address
-    const handleConfirmWithAddress = async (deliveryAddress: string) => {
+    const handleConfirmWithAddress = async (deliveryAddress: string, event?: React.MouseEvent) => {
+        // Prevent default behavior and stop propagation if event is passed
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
         try {
             if (!items.length) {
                 throw new Error('No items in cart');
@@ -244,16 +256,11 @@ export const ConfirmPurchaseDialog: React.FC<ConfirmPurchaseDialogProps> = ({
 
                 setOrderDetails(orderDetailsObj);
 
-                try {
-                    await sendWhatsAppOrderNotification(orderDetailsObj);
-                } catch (err) {
-                    // This is a non-critical error, so just log it
-                    const formattedError = typeof err === 'object' ? JSON.stringify(err, null, 2) : String(err);
-                    console.error('Failed to send WhatsApp notification:', formattedError);
-                }
+                // WhatsApp notification is now available but not automatic
+                // Admin can manually check orders and use WhatsApp from dashboard if needed
 
                 toast.success(`Order ${displayId} created successfully!`, {
-                    description: 'Admin has been notified of your order.',
+                    description: 'Your order has been sent to our team for processing.',
                 });
             } else {
                 // Guest user flow
@@ -310,7 +317,12 @@ export const ConfirmPurchaseDialog: React.FC<ConfirmPurchaseDialogProps> = ({
         }
     };
 
-    const handleConfirm = async () => {
+    const handleConfirm = async (event?: React.MouseEvent) => {
+        // Prevent default behavior and stop propagation if event is passed
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
         try {
             console.log("💾 Confirming order as:", isAuthenticated ? "authenticated user" : "guest");
             setIsSubmitting(true);
@@ -398,17 +410,11 @@ export const ConfirmPurchaseDialog: React.FC<ConfirmPurchaseDialogProps> = ({
 
                 setOrderDetails(orderDetailsObj);
 
-                try {
-                    await sendWhatsAppOrderNotification(orderDetailsObj);
-                } catch (err) {
-                    // This is a non-critical error, so just log it
-                    const formattedError = typeof err === 'object' ? JSON.stringify(err, null, 2) : String(err);
-                    console.error('Failed to send WhatsApp notification:', formattedError);
-                    // No toast here to avoid confusing the user about the order status
-                }
+                // WhatsApp notification is now available but not automatic
+                // Admin can manually check orders and use WhatsApp from dashboard if needed
 
                 toast.success(`Order ${displayId} created successfully!`, {
-                    description: 'Admin has been notified of your order.',
+                    description: 'Your order has been sent to our team for processing.',
                 });
             } else {
                 // Guest user flow remains unchanged
@@ -485,7 +491,6 @@ export const ConfirmPurchaseDialog: React.FC<ConfirmPurchaseDialogProps> = ({
                     isAuthenticated={!!isAuthenticated}
                     orderDetails={orderDetails}
                     customerInfo={customerInfo}
-                    handleShareWhatsAppAction={handleShareWhatsApp}
                     handleSignInAction={handleSignIn}
                     onCloseAction={onCloseAction}
                 />

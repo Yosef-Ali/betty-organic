@@ -203,7 +203,9 @@ export function useSalesCartSheet({
 
   const handleBackToCart = useCallback(() => {
     dispatch({ type: 'RESET_CART_STATE' });
-  }, []);
+    clearCart();
+    onOpenChange(false);
+  }, [clearCart, onOpenChange]);
 
   const handleConfirmOrder = useCallback(async () => {
     dispatch({ type: 'SET_ORDER_CONFIRMED', payload: true });
@@ -459,7 +461,7 @@ export function useSalesCartSheet({
         dispatch({ type: 'SET_SAVING', payload: false });
       }
     },
-    [state.profile, state.orderStatus, items, getTotalAmount, clearCart, onOpenChange, toast],
+    [state.profile, state.orderStatus, items, getTotalAmount, clearCart, onOpenChange, toast, deliveryCost, onOrderCreate],
   );
 
   const handleConfirmAction = useCallback(

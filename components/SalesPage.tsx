@@ -15,7 +15,7 @@ import { SalesPageSkeleton } from './sales/SalesPageSkeleton';
 // Import ProductCategory enum correctly
 import type { Database } from '@/types/supabase';
 type ProductCategory = Database['public']['Enums']['product_category'];
-import { OrderHistory } from './OrderHistory';
+import { RecentSalesOrders } from './sales/RecentSalesOrders';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 
 export interface Product {
@@ -72,6 +72,13 @@ const SalesPage: FC<SalesPageProps> = ({ user }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("products"); // Add state for active tab
+  
+  // Debug tab changes
+  const handleTabChange = useCallback((value: string) => {
+    console.log('🔄 [SalesPage] Tab changed to:', value);
+    setActiveTab(value);
+  }, []);
   const { items, addItem } = useSalesCartStore();
   const { toast } = useToast();
 
@@ -351,34 +358,36 @@ const SalesPage: FC<SalesPageProps> = ({ user }) => {
         onSearchChangeAction={handleSearchChange}
         showCategoryTabs={false} // Hide category tabs from header as we'll move them inline
       />
-      <div className="flex items-center justify-between mb-4">
-        <Tabs defaultValue="products" className="flex-grow">
-          <TabsList>
-            <TabsTrigger value="products">Products</TabsTrigger>
-            <TabsTrigger value="orders">Order History</TabsTrigger>
-          </TabsList>
-        </Tabs>
-        <div className="ml-auto">
-          <Tabs defaultValue={selectedCategory}>
-            <ScrollArea className="whitespace-nowrap">
-              <TabsList className="inline-flex justify-end">
-                {["All", "Spices_Oil_Tuna", "Flowers", "Vegetables", "Fruits", "Herbs_Lettuce", "Dry_Stocks_Bakery", "Eggs_Dairy_products"].map((category) => (
-                  <TabsTrigger
-                    key={category}
-                    value={category}
-                    onClick={() => handleCategoryChange(category as ProductCategory)}
-                    className={`px-3`}
-                  >
-                    {category.replace(/_/g, ' ')}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-              <ScrollBar orientation="horizontal" className="invisible" />
-            </ScrollArea>
-          </Tabs>
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="flex-grow">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex-grow">
+            <TabsList>
+              <TabsTrigger value="products">Products</TabsTrigger>
+              <TabsTrigger value="orders">Recent Orders</TabsTrigger>
+            </TabsList>
+          </div>
+          {activeTab === "products" && (
+            <div className="ml-auto">
+              <Tabs value={selectedCategory} onValueChange={(value) => handleCategoryChange(value as ProductCategory)}>
+                <ScrollArea className="whitespace-nowrap">
+                  <TabsList className="inline-flex justify-end">
+                    {["All", "Spices_Oil_Tuna", "Flowers", "Vegetables", "Fruits", "Herbs_Lettuce", "Dry_Stocks_Bakery", "Eggs_Dairy_products"].map((category) => (
+                      <TabsTrigger
+                        key={category}
+                        value={category}
+                        className={`px-3`}
+                      >
+                        {category.replace(/_/g, ' ')}
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+                  <ScrollBar orientation="horizontal" className="invisible" />
+                </ScrollArea>
+              </Tabs>
+            </div>
+          )}
         </div>
-      </div>
-      <Tabs defaultValue="products" className="flex-grow">
+        
         <TabsContent value="products" className="m-0">
           {isLoading ? (
             <SalesPageSkeleton />
@@ -387,7 +396,7 @@ const SalesPage: FC<SalesPageProps> = ({ user }) => {
           )}
         </TabsContent>
         <TabsContent value="orders" className="m-0">
-          <OrderHistory userId={user.id} />
+          <RecentSalesOrders userId={user.id} limit={10} />
         </TabsContent>
       </Tabs>
       <SalesCartSheet

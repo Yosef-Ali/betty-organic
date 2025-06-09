@@ -9,14 +9,13 @@ import {
     DialogDescription,
     DialogFooter,
 } from "@/components/ui/dialog";
-import { Share2, LogIn, ShoppingBag } from "lucide-react";
+import { LogIn, ShoppingBag, MessageCircle } from "lucide-react";
 import { OrderDetails, CustomerInfo } from "./types";
 
 interface OrderPlacedProps {
     isAuthenticated: boolean;
     orderDetails: OrderDetails;
     customerInfo: CustomerInfo;
-    handleShareWhatsAppAction: () => void;
     handleSignInAction: () => void;
     onCloseAction: () => void;
     processOrder?: () => void;
@@ -29,7 +28,6 @@ export default function OrderPlaced({
     isAuthenticated,
     orderDetails,
     customerInfo,
-    handleShareWhatsAppAction,
     handleSignInAction,
     onCloseAction,
     processOrder,
@@ -123,16 +121,45 @@ export default function OrderPlaced({
 
     if (!isAuthenticated) {
         // Guest order complete view
+        const handleShareWhatsApp = () => {
+            const message = `🍎 *Order Confirmation - Betty Organic*
+
+*Order ID:* ${orderDetails.display_id}
+*Customer:* ${orderDetails.customer_name}
+*Phone:* ${orderDetails.customer_phone}
+*Delivery Address:* ${orderDetails.delivery_address}
+
+*Items:*
+${orderDetails.items.map(item => `• ${item.name} (${item.grams}g) - ETB ${item.price.toFixed(2)}`).join('\n')}
+
+*Total Amount:* ETB ${orderDetails.total.toFixed(2)}
+
+*Order Time:* ${new Date(orderDetails.created_at).toLocaleString()}
+
+Please deliver to the address above. Thank you! 🚚`;
+
+            const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+            window.open(whatsappUrl, '_blank');
+        };
+
         return (
             <>
                 <DialogHeader>
                     <DialogTitle className="text-green-600 flex items-center gap-2">
-                        <Share2 className="w-5 h-5" />
-                        Share Your Order via WhatsApp
+                        <svg
+                            width="24"
+                            height="24"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="w-5 h-5"
+                        >
+                            <path d="M20 6L9 17L4 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                        Order Placed!
                     </DialogTitle>
                     <DialogDescription>
-                        Your order has been prepared. Please share it via WhatsApp to
-                        complete your order.
+                        Your order has been sent to our team for processing. We'll contact you soon!
                     </DialogDescription>
                 </DialogHeader>
 
@@ -170,36 +197,20 @@ export default function OrderPlaced({
                 </div>
 
                 <div className="flex flex-col gap-3">
-                    <Button
-                        variant="default"
-                        className="w-full gap-2 bg-green-600 hover:bg-green-700 py-6"
-                        onClick={handleShareWhatsAppAction}
-                        size="lg"
-                    >
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="24"
-                            height="24"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            className="w-5 h-5"
-                        >
-                            <path d="M6 12v3a3 3 0 0 0 3 3h9a3 3 0 0 0 3-3v-6a3 3 0 0 0-3-3h-9a3 3 0 0 0-3 3v3Z" />
-                            <path d="m6 12-3 3V9l3 3Z" />
-                            <line x1="13" y1="12" x2="16" y2="12" />
-                            <line x1="13" y1="15" x2="16" y2="15" />
-                        </svg>
-                        Share Order via WhatsApp
-                    </Button>
-
-                    {/* Button to continue shopping */}
+                    {/* Optional WhatsApp Share */}
                     <Button
                         variant="outline"
-                        className="w-full gap-2"
+                        className="w-full gap-2 border-green-600 text-green-600 hover:bg-green-50"
+                        onClick={handleShareWhatsApp}
+                    >
+                        <MessageCircle className="w-4 h-4" />
+                        Share via WhatsApp (Optional)
+                    </Button>
+                    
+                    {/* Button to continue shopping */}
+                    <Button
+                        variant="default"
+                        className="w-full gap-2 bg-green-600 hover:bg-green-700"
                         onClick={handleClose}
                     >
                         <ShoppingBag className="w-4 h-4" />
@@ -209,7 +220,7 @@ export default function OrderPlaced({
 
                 <div className="text-center mt-4 flex flex-col gap-2">
                     <div className="text-xs text-muted-foreground">
-                        Your order will only be processed after sharing via WhatsApp
+                        Your order has been sent to our team for processing
                     </div>
                     <div className="flex justify-center">
                         <Button variant="link" size="sm" onClick={handleSignInAction}>
@@ -223,6 +234,27 @@ export default function OrderPlaced({
     }
 
     // Signed-in user order complete view
+    const handleShareWhatsApp = () => {
+        const message = `🍎 *Order Confirmation - Betty Organic*
+
+*Order ID:* ${orderDetails.display_id}
+*Customer:* ${orderDetails.customer_name}
+*Phone:* ${orderDetails.customer_phone}
+*Delivery Address:* ${customerInfo.address}
+
+*Items:*
+${orderDetails.items.map(item => `• ${item.name} (${item.grams}g) - ETB ${item.price.toFixed(2)}`).join('\n')}
+
+*Total Amount:* ETB ${orderDetails.total.toFixed(2)}
+
+*Order Time:* ${new Date(orderDetails.created_at).toLocaleString()}
+
+Please deliver to the address above. Thank you! 🚚`;
+
+        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+        window.open(whatsappUrl, '_blank');
+    };
+
     return (
         <>
             <DialogHeader>
@@ -278,15 +310,16 @@ export default function OrderPlaced({
                     Order confirmation sent! Your order is being processed.
                 </div>
                 <div className="flex flex-col gap-3 w-full">
+                    {/* Optional WhatsApp Share */}
                     <Button
                         variant="outline"
-                        className="w-full"
-                        onClick={handleShareWhatsAppAction}
+                        className="w-full gap-2 border-green-600 text-green-600 hover:bg-green-50"
+                        onClick={handleShareWhatsApp}
                     >
-                        <Share2 className="w-4 h-4 mr-2" />
-                        Share via WhatsApp
+                        <MessageCircle className="w-4 h-4" />
+                        Share via WhatsApp (Optional)
                     </Button>
-
+                    
                     <Button
                         variant="default"
                         className="w-full gap-2 bg-green-600 hover:bg-green-700"

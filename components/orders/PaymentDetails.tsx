@@ -114,27 +114,23 @@ export default function PaymentDetails({
     }
   };
 
-  const getNextOrderStatus = (currentStatus: string, currentPaymentStatus: string) => {
-    if (currentPaymentStatus === 'paid') {
-      switch (currentStatus) {
-        case 'pending': return 'processing';
-        case 'processing': return 'completed';
-        default: return null;
-      }
+  const getNextOrderStatus = (currentStatus: string) => {
+    switch (currentStatus) {
+      case 'pending': return 'processing';
+      case 'processing': return 'completed';
+      default: return null;
     }
-    return null;
   };
 
-  const canAdvanceOrder = (currentStatus: string, currentPaymentStatus: string) => {
-    return currentPaymentStatus === 'paid' && 
-           (currentStatus === 'pending' || currentStatus === 'processing');
+  const canAdvanceOrder = (currentStatus: string) => {
+    return currentStatus === 'pending' || currentStatus === 'processing';
   };
 
-  const nextStatus = getNextOrderStatus(orderStatus, paymentStatus);
+  const nextStatus = getNextOrderStatus(orderStatus);
 
   return (
     <div className="space-y-4">
-      <div className="font-semibold">Payment & Order Management</div>
+      <div className="font-semibold">Order Management</div>
       
       {/* Payment Status Card */}
       <Card>
@@ -183,19 +179,31 @@ export default function PaymentDetails({
               </div>
             )}
 
-            {/* Mark as Paid button for pending payments */}
-            {paymentStatus === 'pending' && (
+            {/* Action buttons for pending orders */}
+            {orderStatus === 'pending' && (
               <>
                 <Separator />
-                <Button
-                  size="sm"
-                  className="w-full"
-                  onClick={() => handleStatusUpdate('processing')}
-                  disabled={isUpdating}
-                >
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  {isUpdating ? 'Processing...' : 'Mark Payment as Received'}
-                </Button>
+                <div className="space-y-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => handleStatusUpdate('processing')}
+                    disabled={isUpdating}
+                  >
+                    <ArrowRight className="h-4 w-4 mr-2" />
+                    {isUpdating ? 'Processing...' : 'Start Processing Order'}
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="w-full"
+                    onClick={() => handleStatusUpdate('completed')}
+                    disabled={isUpdating}
+                  >
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    {isUpdating ? 'Processing...' : 'Mark as Completed'}
+                  </Button>
+                </div>
               </>
             )}
           </div>
@@ -259,7 +267,7 @@ export default function PaymentDetails({
             </div>
 
             {/* Status Action Buttons */}
-            {canAdvanceOrder(orderStatus, paymentStatus) && nextStatus && (
+            {canAdvanceOrder(orderStatus) && nextStatus && orderStatus === 'processing' && (
               <>
                 <Separator />
                 <Button
@@ -275,10 +283,10 @@ export default function PaymentDetails({
               </>
             )}
 
-            {/* Payment pending notice */}
-            {paymentStatus === 'pending' && (
-              <div className="text-xs text-muted-foreground bg-yellow-50 p-2 rounded border border-yellow-200">
-                💡 Payment must be confirmed before advancing order status
+            {/* Processing notice */}
+            {orderStatus === 'processing' && (
+              <div className="text-xs text-blue-700 bg-blue-50 p-2 rounded border border-blue-200">
+                📦 Order is being processed - ready to complete when delivered
               </div>
             )}
 
