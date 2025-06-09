@@ -1,5 +1,6 @@
-import { createClient } from '@/lib/supabase/server';
+import { createServerClient } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 
 interface ProfileData {
   id: string;
@@ -16,7 +17,7 @@ export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
   const returnTo = requestUrl.searchParams.get('returnTo');
-  const next = returnTo || '/'; // Changed from '/dashboard' to '/'
+  const next = returnTo || '/dashboard'; // Redirect to dashboard after OAuth
 
   if (!code) {
     console.error('Missing auth code');
@@ -26,7 +27,37 @@ export async function GET(request: Request) {
   }
 
   try {
-    const supabase = await createClient();
+    const cookieStore = await cookies();
+    
+    // Create response first to modify cookies
+    const response = NextResponse.redirect(new URL(next, requestUrl));
+    
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value;
+          },
+          set(name: string, value: string, options: any) {
+            response.cookies.set({
+              name,
+              value,
+              ...options,
+            });
+          },
+          remove(name: string, options: any) {
+            response.cookies.set({
+              name,
+              value: '',
+              ...options,
+              maxAge: 0,
+            });
+          },
+        },
+      }
+    );
 
     // Exchange the code for a session
     const { data: authData, error: authError } = await supabase.auth.exchangeCodeForSession(code);
@@ -75,30 +106,8 @@ export async function GET(request: Request) {
       );
     }
 
-    // Create response with redirect
-    const response = NextResponse.redirect(new URL(next, requestUrl));
-
-    // Set session with error handling
-    const { error: sessionError } = await supabase.auth.setSession({
-      access_token: authData.session.access_token,
-      refresh_token: authData.session.refresh_token,
-    });
-
-    if (sessionError) {
-      console.error('Session error:', sessionError);
-      return NextResponse.redirect(
-        new URL(`/auth/error?error=${encodeURIComponent('session_error')}`, requestUrl)
-      );
-    }
-
-    // Set auth cookie
-    response.cookies.set('sb-auth-token', authData.session.access_token, {
-      path: '/',
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-    });
+    // Response was already created above with proper cookie handling
+    // The session should be automatically set by exchangeCodeForSession with SSR client
 
     // Check for pending order in session storage
     if (next.includes('/marketing')) {
