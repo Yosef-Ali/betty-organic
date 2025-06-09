@@ -310,7 +310,8 @@ export async function POST(req: NextRequest) {
     if (mode === 'image-to-image' && sourceImage) {
       try {
         // Call our image analysis API internally
-        const analysisResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/image-analysis-generation`, {
+        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://bettys-organic.com';
+        const analysisResponse = await fetch(`${baseUrl}/api/image-analysis-generation`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
