@@ -267,7 +267,7 @@ If you received this message, your WhatsApp integration is working correctly! âœ
                   <p><strong>ðŸ“± No automatic:</strong> Nothing opens automatically - everything is user-initiated</p>
                 </div>
                 <p className="text-sm text-blue-700">
-                  This respects user choice and doesn't force anyone to use WhatsApp while providing it as an option.
+                  This respects user choice and doesn&apos;t force anyone to use WhatsApp while providing it as an option.
                 </p>
               </div>
             </div>

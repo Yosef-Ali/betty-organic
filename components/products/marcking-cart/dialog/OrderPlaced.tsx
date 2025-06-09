@@ -159,7 +159,7 @@ Please deliver to the address above. Thank you! 🚚`;
                         Order Placed!
                     </DialogTitle>
                     <DialogDescription>
-                        Your order has been sent to our team for processing. We'll contact you soon!
+                        Your order has been sent to our team for processing. We&apos;ll contact you soon!
                     </DialogDescription>
                 </DialogHeader>
 
