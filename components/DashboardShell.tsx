@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Header from '@/components/Header';
 import Sidebar from '@/components/Sidebar';
 import { Toaster } from '@/components/ui/toaster';
-import { useAuth } from '@/components/providers/AuthProvider';
+import { useAuth } from '@/components/providers/ImprovedAuthProvider';
 
 interface DashboardShellProps {
   children: React.ReactNode;

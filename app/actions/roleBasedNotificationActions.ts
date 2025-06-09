@@ -23,6 +23,7 @@ export type RoleBasedNotificationOrder = {
 export type RoleBasedNotificationResponse = {
   success: boolean;
   orders: RoleBasedNotificationOrder[];
+  notifications: RoleBasedNotificationOrder[]; // For backwards compatibility
   count: number;
   error?: string;
   userRole?: 'admin' | 'sales' | 'customer';
@@ -45,6 +46,7 @@ export async function fetchRoleBasedNotifications(
       return {
         success: false,
         orders: [],
+        notifications: [],
         count: 0,
         error: 'User ID and role are required'
       };
@@ -86,6 +88,7 @@ export async function fetchRoleBasedNotifications(
       return {
         success: false,
         orders: [],
+        notifications: [],
         count: 0,
         error: 'Invalid user role'
       };
@@ -103,6 +106,7 @@ export async function fetchRoleBasedNotifications(
       return {
         success: false,
         orders: [],
+        notifications: [],
         count: 0,
         error: `Failed to load notifications: ${error.message}`
       };
@@ -137,6 +141,7 @@ export async function fetchRoleBasedNotifications(
     return {
       success: true,
       orders: transformedOrders,
+      notifications: transformedOrders, // For backwards compatibility
       count: transformedOrders.length,
       userRole
     };
@@ -146,6 +151,7 @@ export async function fetchRoleBasedNotifications(
     return {
       success: false,
       orders: [],
+      notifications: [],
       count: 0,
       error: error instanceof Error ? error.message : 'Unknown error'
     };

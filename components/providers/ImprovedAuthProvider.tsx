@@ -52,18 +52,20 @@ export function ImprovedAuthProvider({
   }, []);
 
   // Use server data during SSR/initial render, then switch to client data
-  const user = isHydrated ? clientUser : serverUser;
-  const profile = isHydrated ? clientProfile : serverProfile;
+  // BUT: if client data is null and server data exists, prefer server data
+  const user = isHydrated ? (clientUser || serverUser) : serverUser;
+  const profile = isHydrated ? (clientProfile || serverProfile) : serverProfile;
   const isLoading = isHydrated ? clientLoading : false;
   const error = isHydrated ? clientError : null;
 
-  console.log('🔐 [ImprovedAuth] State:', {
-    isHydrated,
-    serverUser: !!serverUser,
-    clientUser: !!clientUser,
-    finalUser: !!user,
-    userHasSession: !!user?.id
-  });
+  // Only log in development and avoid excessive logging
+  if (process.env.NODE_ENV === 'development' && !isHydrated) {
+    console.log('🔐 [ImprovedAuth] Initializing:', {
+      serverUser: !!serverUser,
+      serverProfile: !!serverProfile,
+      serverProfileRole: serverProfile?.role,
+    });
+  }
 
   return (
     <AuthContext.Provider

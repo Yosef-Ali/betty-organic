@@ -141,7 +141,7 @@ export const CartFooter: FC<CartFooterProps> = ({
         name: item.name,
         price: Number(((item.pricePerKg * item.grams) / 1000).toFixed(2)), // Total price for this item
         quantity: item.grams / 1000, // Convert grams to kg
-        imageUrl: item.imageUrl || '',
+        imageUrl: item.imageUrl || '/placeholder-product.svg',
         product_id: item.id,
         product_name: item.name
       }));

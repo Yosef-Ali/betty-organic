@@ -18,6 +18,13 @@ export function AuthErrorBoundary({ children }: AuthErrorBoundaryProps) {
   // Listen for auth errors and attempt to recover
   useEffect(() => {
     const handleAuthError = async (event: PromiseRejectionEvent) => {
+      // Filter out Event objects that are accidentally thrown as errors
+      if (event.reason instanceof Event) {
+        console.warn('Event object thrown as error, ignoring:', event.reason.type);
+        event.preventDefault();
+        return;
+      }
+
       const errorMessage = event.reason?.message || '';
 
       // Only intercept authentication related errors

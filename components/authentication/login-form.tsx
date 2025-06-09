@@ -184,7 +184,10 @@ export function LoginForm() {
           onClick={async () => {
             try {
               setIsPending(true);
-              const origin = window.location.origin; // Get origin on client
+              // Use production URL in production, localhost in development
+              const origin = process.env.NODE_ENV === 'production' 
+                ? 'https://bettys-organic.com' 
+                : window.location.origin;
               const result = await signInWithGoogle(origin); // Pass origin
               if (result.error) {
                 console.error('Google sign in error:', result.error);

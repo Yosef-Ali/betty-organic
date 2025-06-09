@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Bell, BellRing, Volume2, VolumeX, Settings, Trash2, MarkAsUnread, Check, Clock, ShoppingCart, Users, Package } from "lucide-react";
-import { useAuth } from "@/components/providers/AuthProvider";
+import { useAuth } from "@/components/providers/ImprovedAuthProvider";
 import { useRealtime } from "@/lib/supabase/realtime-provider";
 import { formatOrderCurrency, formatOrderId } from "@/lib/utils";
 import { format } from "date-fns";
@@ -123,10 +123,12 @@ export function NotificationsContent() {
       setLoading(true);
       setError(null);
 
+      console.log('[NotificationsContent] Fetching notifications for:', { userId: user.id, role: profile.role });
       const response = await fetchRoleBasedNotifications(user.id, profile.role);
+      console.log('[NotificationsContent] Response received:', response);
       
-      if (response.success && response.notifications) {
-        const notificationItems = response.notifications.map(order => 
+      if (response.success && response.orders) {
+        const notificationItems = response.orders.map(order => 
           orderToNotification(order, false)
         );
         

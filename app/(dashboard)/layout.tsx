@@ -2,7 +2,7 @@ import { getUser } from '@/app/actions/auth'; // Corrected import
 import { getProfile } from '@/app/actions/profile'; // Import getProfile
 import { redirect } from 'next/navigation';
 import { DashboardShell } from '@/components/DashboardShell';
-import { AuthProvider } from '@/components/providers/AuthProvider'; // Import AuthProvider
+import { ImprovedAuthProvider } from '@/components/providers/ImprovedAuthProvider'; // Import ImprovedAuthProvider
 import { RealtimeProvider } from '@/lib/supabase/realtime-provider';
 
 export const dynamic = 'force-dynamic';
@@ -22,10 +22,10 @@ export default async function DashboardLayout({
   }
 
   return (
-    <AuthProvider user={user} profile={profile}>
+    <ImprovedAuthProvider user={user} profile={profile}>
       <RealtimeProvider userId={user.id} userRole={profile?.role}>
         <DashboardShell role={profile?.role}>{children}</DashboardShell>
       </RealtimeProvider>
-    </AuthProvider>
+    </ImprovedAuthProvider>
   );
 }

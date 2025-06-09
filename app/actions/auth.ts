@@ -153,9 +153,8 @@ export async function signInWithGoogle(origin: string) {
   if (isLocal) {
     redirectTo = `${origin}/auth/callback`;
   } else {
-    // In production, always use the production domain
-    const productionUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://bettys-organic.com';
-    redirectTo = `${productionUrl}/auth/callback`;
+    // In production, always use the production domain - hardcoded to prevent issues
+    redirectTo = 'https://bettys-organic.com/auth/callback';
   }
 
   console.log('Google OAuth redirect URL:', redirectTo); // Debug log

@@ -38,7 +38,7 @@ export const CartItem: FC<CartItemProps> = ({ item, index, updateItemQuantity, r
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-start">
           <Image
-            src={item.imageUrl}
+            src={item.imageUrl || '/placeholder-product.svg'}
             alt={item.name}
             width={64}
             height={64}

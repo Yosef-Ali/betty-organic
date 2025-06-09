@@ -11,11 +11,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, ChevronLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { Testimonial } from '@/lib/types';
+import { Testimonial } from '@/lib/types/testimonials';
 import { TestimonialTable } from './TestimonialTable';
 import { TestimonialForm } from './EditTestimonialForm';
 
-export function SettingsTestimonials() {
+interface SettingsTestimonialsProps {
+  initialTestimonials?: Testimonial[];
+}
+
+export function SettingsTestimonials({ initialTestimonials = [] }: SettingsTestimonialsProps) {
   const [activeTab, setActiveTab] = useState('all');
   const [isAddingTestimonial, setIsAddingTestimonial] = useState(false);
   const [editingTestimonial, setEditingTestimonial] = useState<
@@ -112,7 +116,10 @@ export function SettingsTestimonials() {
                   onSuccess={handleCancel}
                 />
               ) : (
-                <TestimonialTable onEdit={handleEdit} />
+                <TestimonialTable 
+                  initialTestimonials={initialTestimonials}
+                  onEdit={handleEdit} 
+                />
               )}
             </CardContent>
           </Card>
@@ -127,7 +134,11 @@ export function SettingsTestimonials() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <TestimonialTable filterStatus="pending" onEdit={handleEdit} />
+              <TestimonialTable 
+                initialTestimonials={initialTestimonials}
+                filterStatus="pending" 
+                onEdit={handleEdit} 
+              />
             </CardContent>
           </Card>
         </TabsContent>
@@ -141,7 +152,11 @@ export function SettingsTestimonials() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <TestimonialTable filterStatus="approved" onEdit={handleEdit} />
+              <TestimonialTable 
+                initialTestimonials={initialTestimonials}
+                filterStatus="approved" 
+                onEdit={handleEdit} 
+              />
             </CardContent>
           </Card>
         </TabsContent>
