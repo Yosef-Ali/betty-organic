@@ -8,6 +8,7 @@ import ChatWidget from 'components/ChatWidget';
 import { ProductSection } from '@/components/products/product-section';
 import { Product } from '@/lib/supabase/db.types';
 import { getProducts } from '@/app/actions/productActions';
+import { OAuthHandler } from '@/components/OAuthHandler';
 
 export const metadata: Metadata = {
   title: 'Betty Organic - Fresh Fruits & Vegetables',
@@ -53,6 +54,7 @@ export default async function Home() {
         </div>
         <Footer />
         <ChatWidget />
+        <OAuthHandler />
       </main>
     </>
   );
