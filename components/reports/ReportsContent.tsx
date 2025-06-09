@@ -72,7 +72,7 @@ export function ReportsContent() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Today's Sales</CardTitle>
+            <CardTitle className="text-sm font-medium">Today&apos;s Sales</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -266,7 +266,7 @@ export function ReportsContent() {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex-1">
-                  <div className="text-sm font-medium">Today's Performance</div>
+                  <div className="text-sm font-medium">Today&apos;s Performance</div>
                   <div className="text-sm text-muted-foreground">
                     {todayStats.orders} orders • {formatCurrency(todayStats.revenue)}
                   </div>
@@ -284,7 +284,7 @@ export function ReportsContent() {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex-1">
-                  <div className="text-sm font-medium">This Week's Performance</div>
+                  <div className="text-sm font-medium">This Week&apos;s Performance</div>
                   <div className="text-sm text-muted-foreground">
                     {weekStats.orders} orders • {formatCurrency(weekStats.revenue)}
                   </div>
@@ -302,7 +302,7 @@ export function ReportsContent() {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex-1">
-                  <div className="text-sm font-medium">This Month's Performance</div>
+                  <div className="text-sm font-medium">This Month&apos;s Performance</div>
                   <div className="text-sm text-muted-foreground">
                     {monthStats.orders} orders • {formatCurrency(monthStats.revenue)}
                   </div>

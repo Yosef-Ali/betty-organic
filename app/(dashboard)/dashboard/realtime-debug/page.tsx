@@ -210,7 +210,7 @@ export default function RealtimeDebugPage() {
           <ol className="list-decimal list-inside space-y-2 text-sm">
             <li>Open browser DevTools console (F12)</li>
             <li>Test database connection first</li>
-            <li>Click "Create Test Order"</li>
+            <li>Click &quot;Create Test Order&quot;</li>
             <li>Watch console for RealtimeProvider logs</li>
             <li>Check if OrderDashboard and NotificationBell update</li>
             <li>Open another tab to see cross-tab updates</li>

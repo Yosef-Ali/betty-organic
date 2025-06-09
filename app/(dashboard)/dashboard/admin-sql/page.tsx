@@ -153,7 +153,7 @@ USING (
         <CardContent>
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Since we can't execute raw SQL via the client, copy this SQL and run it in your Supabase Dashboard SQL Editor:
+              Since we can&apos;t execute raw SQL via the client, copy this SQL and run it in your Supabase Dashboard SQL Editor:
             </p>
             
             <Textarea
@@ -168,7 +168,7 @@ USING (
                 <li>Go to your Supabase Dashboard</li>
                 <li>Navigate to SQL Editor</li>
                 <li>Copy and paste the SQL above</li>
-                <li>Click "Run" to execute</li>
+                <li>Click &quot;Run&quot; to execute</li>
                 <li>Come back and test again</li>
               </ol>
             </div>

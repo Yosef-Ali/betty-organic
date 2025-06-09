@@ -88,7 +88,7 @@ export default function MinimalTestPage() {
             <div className="text-xs text-muted-foreground">
               This bypasses our RealtimeProvider and connects directly to Supabase.
               If this works, the issue is in our RealtimeProvider.
-              If this doesn't work, the issue is with Supabase real-time itself.
+              If this doesn&apos;t work, the issue is with Supabase real-time itself.
             </div>
           </div>
         </CardContent>

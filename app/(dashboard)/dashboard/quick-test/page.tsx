@@ -35,7 +35,7 @@ export default function QuickTestPage() {
         <CardContent>
           <p className="text-sm text-muted-foreground mb-4">
             This will create and update a test order to trigger real-time events.
-            Watch the console for "[RealtimeProvider] Event received:" messages.
+            Watch the console for &quot;[RealtimeProvider] Event received:&quot; messages.
           </p>
           
           <Button 
@@ -84,7 +84,7 @@ export default function QuickTestPage() {
       <div className="mt-6 p-4 bg-blue-50 rounded-md">
         <h3 className="font-semibold mb-2">What to expect:</h3>
         <ol className="list-decimal list-inside space-y-1 text-sm">
-          <li>Click "Trigger Real-time Test"</li>
+          <li>Click &quot;Trigger Real-time Test&quot;</li>
           <li>Check console for <code>[RealtimeProvider] Event received:</code></li>
           <li>Should see 2 events: INSERT and UPDATE</li>
           <li>Check if notification bell updates with new pending order</li>
