@@ -198,29 +198,26 @@ export function useOrderDetails(orderId: string) {
           throw new Error('Order not found');
         }
 
-        // Create a default profile if needed
-        const defaultProfile: Profile = {
-          id: 'default-id',
-          name: 'Unknown Customer',
-          email: 'No Email',
-          role: 'customer',
-          status: 'active',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          avatar_url: null,
-          auth_provider: 'none',
-          address: null, // Added missing field
-          phone: null,   // Added missing field
-        };
-
-        // Transform the data to match our interface
+        // Transform the data to match our interface using real customer data
         const transformedOrder: OrderDetails = {
           id: data.id,
           display_id: data.display_id || '',
           createdAt: data.created_at || new Date().toISOString(), // Provide fallback for null
           updatedAt: data.updated_at || '',
-          // Assign defaultProfile since data.customer from getOrderDetails is incomplete
-          profile: defaultProfile,
+          // Use real customer profile data
+          profile: {
+            id: data.customer?.id || 'default-id',
+            name: data.customer?.name || 'Unknown Customer',
+            email: data.customer?.email || 'No Email',
+            role: (data.customer?.role as 'admin' | 'sales' | 'customer') || 'customer',
+            status: 'active',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            avatar_url: null,
+            auth_provider: 'none',
+            address: null,
+            phone: data.customer?.phone || null,
+          },
           items: Array.isArray(data.items) ? data.items.map(item => ({
             id: item.id || '',
             product: {
@@ -230,6 +227,10 @@ export function useOrderDetails(orderId: string) {
             quantity: item.quantity || 0,
           })) : [],
           total_amount: data.total_amount || 0,
+          delivery_cost: data.delivery_cost,
+          coupon_code: data.coupon_code,
+          discount_amount: data.discount_amount,
+          coupon: data.coupon,
         };
 
         if (isMounted) {

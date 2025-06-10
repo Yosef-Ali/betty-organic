@@ -302,35 +302,64 @@ export default function OrderDetailsCard({ orderId }: OrderDetailsProps) {
         </div>
 
         <Separator className="my-4" />
-        <>
-          <ShippingBillingInfo
-            profileName={profileName}
-            shippingAddress={{
-              name: profileName,
-              street: "N/A",
-              city: "N/A",
-              state: "N/A",
-              zipCode: "N/A",
-            }}
-          />
+        
+        {/* Customer Information Section */}
+        <div className="space-y-3">
+          <div className="font-semibold">Customer Information</div>
+          <div className="grid gap-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Name:</span>
+              <span>{profileName}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Email:</span>
+              <span>{profileEmail}</span>
+            </div>
+            {order.profile?.phone && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Phone:</span>
+                <span>{order.profile.phone}</span>
+              </div>
+            )}
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Customer Type:</span>
+              <span className="capitalize">{profileRole}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Customer Since:</span>
+              <span>{new Date(profileCreatedAt).toLocaleDateString()}</span>
+            </div>
+          </div>
+        </div>
 
-          <Separator className="my-4" />
-          <ProfileDetails
-            profile={{
-              id: profileId,
-              name: profileName,
-              email: profileEmail,
-              role: profileRole,
-              status: "active",
-              auth_provider: "email",
-              created_at: profileCreatedAt,
-              updated_at: profileUpdatedAt,
-              avatar_url: profileAvatarUrl,
-              address: null,
-              phone: null,
-            }}
-          />
-        </>
+        <Separator className="my-4" />
+        
+        {/* Order Location & Delivery Section */}
+        <div className="space-y-3">
+          <div className="font-semibold">Delivery Information</div>
+          <div className="grid gap-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Delivery Address:</span>
+              <span>{order.profile?.address || "Address not provided"}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Delivery Cost:</span>
+              <span>Br {(deliveryCost || 0).toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Order Type:</span>
+              <span className="capitalize">{order.type || 'standard'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Order Date:</span>
+              <span>{new Date(order.createdAt).toLocaleDateString()}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Order Time:</span>
+              <span>{new Date(order.createdAt).toLocaleTimeString()}</span>
+            </div>
+          </div>
+        </div>
 
         <Separator className="my-4" />
         <PaymentDetails 

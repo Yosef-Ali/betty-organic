@@ -88,12 +88,16 @@ export async function getOrderDetails(orderId: string): Promise<{ data: Frontend
   try {
     console.time('[DASHBOARD DEBUG] Order details fetch time');
 
-    // Fetch everything in a single query for better performance
+    // Fetch everything in a single query including customer profile data
     const { data: orderData, error: orderError } = await supabase
       .from('orders')
       .select(`
         id, display_id, created_at, updated_at, status, total_amount, type, profile_id, customer_profile_id,
-        order_items(id, product_id, quantity, price, product_name)
+        delivery_cost, coupon_code, discount_amount,
+        order_items(id, product_id, quantity, price, product_name),
+        customer_profile:profiles!customer_profile_id(
+          id, name, email, phone, address, role, status, created_at, updated_at, avatar_url
+        )
       `)
       .eq('id', orderId)
       .maybeSingle(); // Use maybeSingle() instead of single() to avoid errors for missing orders
@@ -121,6 +125,9 @@ export async function getOrderDetails(orderId: string): Promise<{ data: Frontend
       display_id: orderData.display_id || '',
       created_at: orderData.created_at,
       updated_at: orderData.updated_at || '',
+      delivery_cost: orderData.delivery_cost || 0,
+      coupon_code: orderData.coupon_code || undefined,
+      discount_amount: orderData.discount_amount || 0,
       // Map order_items safely, ensuring it matches FrontendOrderItem[]
       order_items: Array.isArray(orderData.order_items) ? orderData.order_items.map((item: any): FrontendOrderItem => ({
         id: item.id || '',
@@ -141,11 +148,17 @@ export async function getOrderDetails(orderId: string): Promise<{ data: Frontend
         product: { name: item.product_name || 'Unknown Product' },
         order_id: orderId,
       })) : [],
-      // Create a default customer object
-      customer: {
+      // Use real customer profile data if available
+      customer: orderData.customer_profile ? {
+        id: orderData.customer_profile.id,
+        name: orderData.customer_profile.name,
+        email: orderData.customer_profile.email,
+        phone: orderData.customer_profile.phone,
+        role: orderData.customer_profile.role,
+      } : {
         id: 'default-customer',
-        name: 'Customer',
-        email: 'customer@example.com',
+        name: 'Unknown Customer',
+        email: 'No Email',
         role: 'customer',
       },
       customer_id: orderData.customer_profile_id || '',
