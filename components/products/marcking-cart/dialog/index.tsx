@@ -11,7 +11,7 @@ import type { Session, User } from '@supabase/supabase-js'; // Import types;
 import { CartItemType } from "@/types/cart";
 import { useMarketingCartStore } from "@/store/cartStore";
 import { sendWhatsAppOrderNotification } from "@/app/(marketing)/actions/notificationActions";
-import { handlePurchaseOrder } from "@/app/actions/purchaseActions";
+import { handlePurchaseOrder, handleGuestOrder } from "@/app/actions/purchaseActions";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { updateUserProfile } from "@/app/actions/profile"; // Import profile update action
@@ -477,6 +477,99 @@ export const ConfirmPurchaseDialog: React.FC<ConfirmPurchaseDialogProps> = ({
         }
     };
 
+    // New function for direct guest order submission (not WhatsApp)
+    const handleDirectOrder = async (event?: React.MouseEvent) => {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+
+        try {
+            console.log("💾 Submitting direct guest order");
+            setIsSubmitting(true);
+
+            if (!items.length) {
+                throw new Error('No items in cart');
+            }
+
+            if (!isCustomerInfoValid()) {
+                throw new Error('Please provide valid contact information');
+            }
+
+            // Use the new handleGuestOrder server action
+            const result = await handleGuestOrder(
+                items.map(item => ({
+                    id: item.id,
+                    name: item.name,
+                    pricePerKg: item.pricePerKg,
+                    grams: item.grams,
+                })),
+                total,
+                customerInfo
+            );
+
+            if (result.error) {
+                throw new Error(result.error);
+            }
+
+            if (!result.data) {
+                throw new Error('Order data is missing');
+            }
+
+            const orderId = result.data.id;
+            const displayId = (result.data as any).display_id || `BO${String(orderId).padStart(6, '0')}`;
+
+            const orderDetailsObj: OrderDetails = {
+                id: orderId,
+                display_id: displayId,
+                items: items.map((item) => ({
+                    name: item.name,
+                    grams: item.grams,
+                    price: (item.pricePerKg * item.grams) / 1000,
+                    unit_price: item.pricePerKg,
+                })),
+                total: total,
+                customer_name: customerInfo.name || 'Guest Customer',
+                customer_phone: formatPhoneNumber(customerInfo.phone),
+                delivery_address: customerInfo.address,
+                created_at: new Date().toISOString(),
+            };
+
+            setOrderDetails(orderDetailsObj);
+            setIsOrderPlaced(true);
+            clearCart();
+
+            toast.success(`Order ${displayId} submitted successfully!`, {
+                description: 'Your order has been received and our team will contact you for confirmation.',
+            });
+
+            // Auto-close the dialog after a delay
+            setTimeout(() => {
+                onCloseAction();
+            }, 5000); // 5 seconds delay
+
+        } catch (error) {
+            let userFriendlyMessage: string;
+
+            if (error instanceof Error) {
+                userFriendlyMessage = error.message;
+                console.error(`Error processing direct order: ${error.message}`, error.stack);
+            } else {
+                const formattedError = typeof error === 'object' && error !== null
+                    ? JSON.stringify(error, null, 2)
+                    : String(error);
+                console.error('Unknown error processing direct order:', formattedError);
+                userFriendlyMessage = 'An unexpected error occurred. Please try again.';
+            }
+
+            toast.error(userFriendlyMessage, {
+                description: "Please check your information and try again."
+            });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
     // Removed debugAuth function as it relied on client-side Supabase
 
     // Render appropriate content based on auth and order state
@@ -534,6 +627,7 @@ export const ConfirmPurchaseDialog: React.FC<ConfirmPurchaseDialogProps> = ({
                 setCustomerInfo={setCustomerInfo}
                 isSubmitting={isSubmitting}
                 handleConfirm={handleConfirm}
+                handleDirectOrder={handleDirectOrder}
                 handleSignIn={handleSignIn}
                 onCancel={onCloseAction}
                 isCustomerInfoValid={isCustomerInfoValid}

@@ -11,7 +11,7 @@ import {
     DialogDescription,
     DialogFooter,
 } from "@/components/ui/dialog";
-import { Share2, MapPin, User, Phone, LogIn } from "lucide-react";
+import { Share2, MapPin, User, Phone, LogIn, ShoppingCart } from "lucide-react";
 import { createInfoChangeHandler } from "./utils";
 import { GuestFormProps } from "./types";
 
@@ -23,6 +23,7 @@ export const GuestForm = ({
     isSubmitting,
     handleConfirm,
     handleSignIn,
+    handleDirectOrder,
     onCancel,
     isCustomerInfoValid,
 }: GuestFormProps) => {
@@ -120,25 +121,24 @@ export const GuestForm = ({
                 </div>
             </div>
 
-            <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-md">
-                <p className="text-sm text-green-700 flex items-center gap-2 flex-wrap">
-                    <Share2 className="w-4 h-4 flex-shrink-0" />
+            <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                <p className="text-sm text-blue-700 flex items-center gap-2 flex-wrap">
+                    <ShoppingCart className="w-4 h-4 flex-shrink-0" />
                     <span className="break-words font-medium">
-                        Your order will be completed via WhatsApp
+                        Choose how to complete your order
                     </span>
                 </p>
-                <p className="text-xs text-green-600 mt-1 pl-6">
-                    After entering your details, you&apos;ll share your order with our
-                    admin via WhatsApp
+                <p className="text-xs text-blue-600 mt-1 pl-6">
+                    Submit directly to our system or share via WhatsApp for personal assistance
                 </p>
             </div>
 
-            <DialogFooter className="flex items-center justify-between mt-4">
-                <Button variant="outline" onClick={onCancel}>
-                    Cancel
-                </Button>
+            <DialogFooter className="flex flex-col gap-3 mt-4">
+                <div className="flex items-center justify-between w-full">
+                    <Button variant="outline" onClick={onCancel}>
+                        Cancel
+                    </Button>
 
-                <div className="flex gap-2">
                     {handleSignIn && (
                         <Button
                             variant="outline"
@@ -150,14 +150,28 @@ export const GuestForm = ({
                             Sign in
                         </Button>
                     )}
+                </div>
+
+                <div className="flex gap-2 w-full">
+                    {handleDirectOrder && (
+                        <Button
+                            onClick={handleDirectOrder}
+                            disabled={isSubmitting || !isCustomerInfoValid()}
+                            className="gap-1 flex-1"
+                            variant="default"
+                        >
+                            <ShoppingCart className="w-4 h-4" />
+                            {isSubmitting ? 'Processing...' : 'Submit Order'}
+                        </Button>
+                    )}
                     <Button
                         onClick={handleConfirm}
                         disabled={isSubmitting || !isCustomerInfoValid()}
-                        size="sm"
-                        className="gap-1"
+                        className="gap-1 flex-1"
+                        variant="outline"
                     >
                         <Share2 className="w-4 h-4" />
-                        {isSubmitting ? 'Processing...' : 'Continue to WhatsApp'}
+                        {isSubmitting ? 'Processing...' : 'Share on WhatsApp'}
                     </Button>
                 </div>
             </DialogFooter>

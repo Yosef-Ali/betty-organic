@@ -48,6 +48,7 @@ interface CommonFormProps {
 // GuestForm props
 export interface GuestFormProps extends CommonFormProps {
     handleSignIn: () => void; // Name matches how it's called in the dialog
+    handleDirectOrder?: () => void; // New prop for direct order submission
 }
 
 // AuthenticatedForm props
