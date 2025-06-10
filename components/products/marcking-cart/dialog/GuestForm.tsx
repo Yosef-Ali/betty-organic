@@ -70,8 +70,8 @@ export const GuestForm = ({
             </ScrollArea>
 
             {/* Contact & Delivery Info */}
-            <div className="rounded-lg border p-4 space-y-4 bg-white">
-                <h3 className="font-medium text-base text-gray-800 border-b pb-2">Contact & Delivery Details</h3>
+            <div className="rounded-lg border p-3 space-y-3 bg-white">
+                <h3 className="font-medium text-sm text-gray-800 border-b pb-2">Contact & Delivery Details</h3>
 
                 <div className="space-y-2">
                     <Label htmlFor="name" className="flex items-center gap-2">
@@ -83,7 +83,7 @@ export const GuestForm = ({
                         placeholder="Enter your name"
                         value={customerInfo.name}
                         onChange={handleNameChange}
-                        className="w-full"
+                        className="w-full h-10 text-sm"
                     />
                 </div>
 
@@ -98,7 +98,7 @@ export const GuestForm = ({
                         value={customerInfo.phone}
                         onChange={handlePhoneChange}
                         required
-                        className="w-full"
+                        className="w-full h-10 text-sm"
                     />
                     <p className="text-xs text-gray-500 break-words">
                         Ethiopian format: 09XXXXXXXX or +251XXXXXXXXX
@@ -121,8 +121,8 @@ export const GuestForm = ({
                 </div>
             </div>
 
-            <div className="mt-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
-                <p className="text-sm text-blue-700 flex items-center gap-2 font-medium mb-2">
+            <div className="mt-3 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-700 flex items-center gap-2 font-medium mb-1">
                     <ShoppingCart className="w-4 h-4 flex-shrink-0" />
                     Choose how to complete your order
                 </p>
@@ -131,31 +131,14 @@ export const GuestForm = ({
                 </p>
             </div>
 
-            <DialogFooter className="flex flex-col gap-3 mt-6 pt-4 border-t">
-                <div className="flex items-center justify-between w-full">
-                    <Button variant="outline" onClick={onCancel} size="sm">
-                        Cancel
-                    </Button>
-
-                    {handleSignIn && (
-                        <Button
-                            variant="outline"
-                            onClick={handleSignIn}
-                            className="gap-1"
-                            size="sm"
-                        >
-                            <LogIn className="w-3 h-3" />
-                            <span className="hidden sm:inline">Sign in</span>
-                        </Button>
-                    )}
-                </div>
-
-                <div className="flex flex-col sm:flex-row gap-2 w-full">
+            <DialogFooter className="flex flex-col gap-3 mt-6 pt-4 border-t w-full">
+                {/* Main action buttons - full width on mobile */}
+                <div className="flex flex-col gap-2 w-full">
                     {handleDirectOrder && (
                         <Button
                             onClick={handleDirectOrder}
                             disabled={isSubmitting || !isCustomerInfoValid()}
-                            className="gap-2 flex-1 h-11"
+                            className="gap-2 w-full h-12"
                             variant="default"
                         >
                             <ShoppingCart className="w-4 h-4 flex-shrink-0" />
@@ -167,7 +150,7 @@ export const GuestForm = ({
                     <Button
                         onClick={handleConfirm}
                         disabled={isSubmitting || !isCustomerInfoValid()}
-                        className="gap-2 flex-1 h-11"
+                        className="gap-2 w-full h-12"
                         variant="outline"
                     >
                         <Share2 className="w-4 h-4 flex-shrink-0" />
@@ -175,6 +158,31 @@ export const GuestForm = ({
                             {isSubmitting ? 'Processing...' : 'Share on WhatsApp'}
                         </span>
                     </Button>
+                </div>
+
+                {/* Secondary actions - Cancel and Sign in on separate line */}
+                <div className="flex flex-col gap-2 w-full pt-2 border-t border-gray-100">
+                    <div className="flex justify-center gap-3 w-full">
+                        <Button 
+                            variant="ghost" 
+                            onClick={onCancel} 
+                            size="sm"
+                            className="text-gray-500 hover:text-gray-700"
+                        >
+                            Cancel
+                        </Button>
+                        {handleSignIn && (
+                            <Button
+                                variant="ghost"
+                                onClick={handleSignIn}
+                                className="gap-1 text-blue-600 hover:text-blue-700"
+                                size="sm"
+                            >
+                                <LogIn className="w-3 h-3" />
+                                Sign in
+                            </Button>
+                        )}
+                    </div>
                 </div>
             </DialogFooter>
         </>
