@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { LogIn, ShoppingBag, MessageCircle } from "lucide-react";
 import { OrderDetails, CustomerInfo } from "./types";
+import { useMarketingCartStore } from "@/store/cartStore";
 
 interface OrderPlacedProps {
     isAuthenticated: boolean;
@@ -36,6 +37,7 @@ export default function OrderPlaced({
     clearOrderData
 }: OrderPlacedProps): React.ReactElement {
     const [orderProcessed, setOrderProcessed] = useState(false);
+    const { setContinuingShopping } = useMarketingCartStore();
 
     // Process order when component mounts if shouldProcessOrder is true
     useEffect(() => {
@@ -70,8 +72,11 @@ export default function OrderPlaced({
         };
     }, [isAuthenticated, processOrder, shouldProcessOrder, resetCart, clearOrderData, orderDetails.display_id]);
 
-    // Custom close handler that refreshes the page
+    // Custom close handler for continuing shopping
     const handleClose = () => {
+        // Set flag to indicate user is continuing shopping (preserve cart for next time)
+        setContinuingShopping(true);
+
         // Reset processed state on close
         setOrderProcessed(false);
 
@@ -80,28 +85,21 @@ export default function OrderPlaced({
             clearOrderData();
         }
 
-        // Reset cart to ensure fresh state for next order
-        if (resetCart) {
-            resetCart();
-        }
+        // DON'T reset cart since user wants to continue shopping
+        // if (resetCart) { resetCart(); } - REMOVED
 
-        // Dispatch an event to notify other components before refresh
+        // Dispatch an event to notify other components (no refresh needed)
         if (typeof window !== 'undefined') {
             window.dispatchEvent(new CustomEvent('orderCompleted', {
-                detail: { timestamp: Date.now(), shouldRefresh: true }
+                detail: { timestamp: Date.now(), shouldRefresh: false, continueShopping: true }
             }));
         }
 
         // Call original close handler
         onCloseAction();
 
-        // Refresh the page when dialog is closed
-        if (typeof window !== 'undefined') {
-            // Use a small timeout to ensure the dialog is fully closed first
-            setTimeout(() => {
-                window.location.reload();
-            }, 300);
-        }
+        // DON'T refresh the page when continuing shopping
+        // The user wants to continue with their current cart state
     };
 
     // Force a manual refresh on window object after processing order

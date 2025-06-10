@@ -19,10 +19,13 @@ export interface CartItem {
 
 interface MarketingCartStore {
   items: MarketingCartItem[]
+  isContinuingShopping: boolean
   addItem: (item: MarketingCartItem) => void
   removeFromCart: (id: string) => void
   updateItemQuantity: (id: string, grams: number) => void
   clearCart: () => void
+  setContinuingShopping: (continuing: boolean) => void
+  resetForNewOrder: () => void
   getTotalAmount: () => number
 }
 
@@ -33,24 +36,40 @@ export const useMarketingCartStore = create<MarketingCartStore>()(
   persist(
     (set, get) => ({
       items: [],
+      isContinuingShopping: false,
       addItem: (newItem) => {
         if (!newItem?.id) return;
         set((state) => {
+          // If user is not continuing shopping and cart has items, clear it first for fresh order
+          if (!state.isContinuingShopping && state.items.length > 0) {
+            // Start fresh cart with only the new item
+            return { 
+              items: [newItem], 
+              isContinuingShopping: false 
+            };
+          }
+          
+          // Normal add item logic
           const existingItem = state.items?.find((item) => item.id === newItem.id);
           if (existingItem) {
             return {
               items: state.items.map((item) =>
                 item.id === newItem.id ? { ...item, grams: item.grams + newItem.grams } : item
               ),
+              isContinuingShopping: state.isContinuingShopping,
             };
           }
-          return { items: [...(state.items || []), newItem] };
+          return { 
+            items: [...(state.items || []), newItem],
+            isContinuingShopping: state.isContinuingShopping,
+          };
         });
       },
       removeFromCart: (id) => {
         if (!id) return;
         set((state) => ({
           items: state.items?.filter((item) => item.id !== id) || [],
+          isContinuingShopping: state.isContinuingShopping,
         }));
       },
       updateItemQuantity: (id, grams) => {
@@ -59,10 +78,20 @@ export const useMarketingCartStore = create<MarketingCartStore>()(
           items: state.items?.map((item) =>
             item.id === id ? { ...item, grams: Math.max(100, grams) } : item
           ) || [],
+          isContinuingShopping: state.isContinuingShopping,
         }));
       },
       clearCart: () => {
-        set({ items: [] });
+        set({ items: [], isContinuingShopping: false });
+        if (typeof window !== 'undefined') {
+          window.localStorage.removeItem('marketing-cart');
+        }
+      },
+      setContinuingShopping: (continuing) => {
+        set({ isContinuingShopping: continuing });
+      },
+      resetForNewOrder: () => {
+        set({ items: [], isContinuingShopping: false });
         if (typeof window !== 'undefined') {
           window.localStorage.removeItem('marketing-cart');
         }
@@ -84,6 +113,7 @@ export const useMarketingCartStore = create<MarketingCartStore>()(
           // Handle migration from version 0 to 1
           return {
             items: persistedState.items || [],
+            isContinuingShopping: false,
           }
         }
         return persistedState as MarketingCartStore

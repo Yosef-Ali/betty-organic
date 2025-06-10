@@ -52,8 +52,18 @@ export const ConfirmPurchaseDialog: React.FC<ConfirmPurchaseDialogProps> = ({
     });
 
     const clearCart = useMarketingCartStore((state) => state.clearCart);
+    const resetForNewOrder = useMarketingCartStore((state) => state.resetForNewOrder);
+    const { isContinuingShopping, setContinuingShopping } = useMarketingCartStore();
     const router = useRouter();
     // Removed: const supabase = createClient();
+
+    // Handle continuing shopping flag
+    useEffect(() => {
+        if (isOpen && isContinuingShopping) {
+            // User is continuing shopping, reset the flag for next time
+            setContinuingShopping(false);
+        }
+    }, [isOpen, isContinuingShopping, setContinuingShopping]);
 
     // Fetch auth state using server actions
     const fetchAuthState = useCallback(async () => {
