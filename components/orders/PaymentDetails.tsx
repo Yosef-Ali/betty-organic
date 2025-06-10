@@ -184,6 +184,9 @@ export default function PaymentDetails({
               <>
                 <Separator />
                 <div className="space-y-2">
+                  <div className="text-xs text-amber-700 bg-amber-50 p-2 rounded border border-amber-200 mb-2">
+                    💰 Cash payment will be collected upon delivery
+                  </div>
                   <Button
                     size="sm"
                     variant="outline"
@@ -196,12 +199,12 @@ export default function PaymentDetails({
                   </Button>
                   <Button
                     size="sm"
-                    className="w-full"
+                    className="w-full bg-green-600 hover:bg-green-700"
                     onClick={() => handleStatusUpdate('completed')}
                     disabled={isUpdating}
                   >
                     <CheckCircle className="h-4 w-4 mr-2" />
-                    {isUpdating ? 'Processing...' : 'Mark as Completed'}
+                    {isUpdating ? 'Processing...' : 'Mark as Completed & Paid'}
                   </Button>
                 </div>
               </>
@@ -286,14 +289,14 @@ export default function PaymentDetails({
             {/* Processing notice */}
             {orderStatus === 'processing' && (
               <div className="text-xs text-blue-700 bg-blue-50 p-2 rounded border border-blue-200">
-                📦 Order is being processed - ready to complete when delivered
+                📦 Order is being processed - payment will be collected upon delivery
               </div>
             )}
 
             {/* Completed notice */}
             {orderStatus === 'completed' && (
               <div className="text-xs text-green-700 bg-green-50 p-2 rounded border border-green-200">
-                ✅ Order completed successfully
+                ✅ Order completed & payment received
               </div>
             )}
           </div>

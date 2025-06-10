@@ -366,7 +366,7 @@ export default function OrderDetailsCard({ orderId }: OrderDetailsProps) {
           orderId={order.id}
           orderStatus={currentOrderStatus}
           totalAmount={totalAmount}
-          paymentStatus="paid" // Cash orders are considered paid on delivery
+          paymentStatus={currentOrderStatus === 'completed' ? "paid" : "pending"} // Payment received when order completed for COD
           onStatusChange={(newStatus) => {
             setCurrentOrderStatus(newStatus);
             // Trigger a refresh to get updated data
