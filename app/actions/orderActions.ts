@@ -304,6 +304,17 @@ export async function createOrder(
 export async function deleteOrder(orderId: string): Promise<{ success: boolean; error?: string }> {
   const supabase = await createClient();
   try {
+    // Check user authentication and role
+    const authData = await getUser();
+    if (!authData) {
+      return { success: false, error: 'Authentication required' };
+    }
+
+    // Only admins can delete orders
+    if (authData.profile?.role !== 'admin') {
+      return { success: false, error: 'Insufficient permissions. Only administrators can delete orders.' };
+    }
+
     const { error: itemsError } = await supabase
       .from('order_items')
       .delete()

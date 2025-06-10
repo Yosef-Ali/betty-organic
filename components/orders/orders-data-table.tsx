@@ -65,6 +65,7 @@ interface OrdersDataTableProps {
   orders: ExtendedOrder[];
   onSelectOrderAction: (id: string) => void;
   onDeleteOrderAction: (id: string) => Promise<void>;
+  userRole?: string; // Add user role to control delete visibility
 }
 
 const formatDate = (dateString: string | null | undefined): string => {
@@ -91,6 +92,7 @@ export function OrdersDataTable({
   orders,
   onSelectOrderAction,
   onDeleteOrderAction,
+  userRole,
 }: OrdersDataTableProps) {
   const { toast } = useToast();
   const [sorting, setSorting] = useState<SortingState>([
@@ -297,23 +299,27 @@ export function OrdersDataTable({
                   </DropdownMenuItem>
                 )}
 
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={async () => {
-                    await onDeleteOrderAction(row.original.id);
-                  }}
-                  className="text-red-600"
-                >
-                  <Trash className="mr-2 h-4 w-4" />
-                  Delete order
-                </DropdownMenuItem>
+                {userRole === 'admin' && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={async () => {
+                        await onDeleteOrderAction(row.original.id);
+                      }}
+                      className="text-red-600"
+                    >
+                      <Trash className="mr-2 h-4 w-4" />
+                      Delete order
+                    </DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           );
         },
       },
     ],
-    [onSelectOrderAction, onDeleteOrderAction, toast]
+    [onSelectOrderAction, onDeleteOrderAction, toast, userRole]
   );
 
   return (

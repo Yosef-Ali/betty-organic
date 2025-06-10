@@ -17,6 +17,7 @@ import {
   deleteOrder,
 } from "../app/actions/orderActions";
 import { getCustomers } from "../app/actions/profile";
+import { getUser } from "../app/actions/auth";
 import { useToast } from "../hooks/use-toast";
 import OrderTable from "./OrdersTable";
 import type { ExtendedOrder } from "@/types/order";
@@ -39,6 +40,7 @@ const OrderDashboard: React.FC = () => {
   const [customers, setCustomers] = useState<any[]>([]);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const { toast } = useToast();
   const { subscribeToOrders } = useRealtime();
   // Refs for managing state updates
@@ -139,11 +141,17 @@ const OrderDashboard: React.FC = () => {
     try {
       setIsLoading(true);
 
-      // Fetch customers and orders in parallel
-      const [customersResponse, ordersResponse] = await Promise.all([
+      // Fetch user data, customers and orders in parallel
+      const [userResponse, customersResponse, ordersResponse] = await Promise.all([
+        getUser().catch(() => null),
         getCustomers().catch(() => []),
         getOrders(undefined, 'OrderDashboard').catch(() => [])
       ]);
+
+      // Set user role
+      if (userResponse?.profile?.role) {
+        setUserRole(userResponse.profile.role);
+      }
 
       if (!mountedRef.current) return;
 
@@ -284,6 +292,7 @@ const OrderDashboard: React.FC = () => {
               orders={orders}
               onSelectOrderAction={setSelectedOrderId}
               onDeleteOrder={handleDelete}
+              userRole={userRole || undefined}
             />
           </TabsContent>
           <TabsContent value="month">
@@ -291,6 +300,7 @@ const OrderDashboard: React.FC = () => {
               orders={orders}
               onSelectOrderAction={setSelectedOrderId}
               onDeleteOrder={handleDelete}
+              userRole={userRole || undefined}
             />
           </TabsContent>
         </Tabs>

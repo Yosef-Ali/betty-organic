@@ -8,12 +8,14 @@ interface OrdersTableProps {
   orders: ExtendedOrder[];
   onSelectOrderAction: (id: string) => void;
   onDeleteOrder: (id: string) => Promise<void>;
+  userRole?: string;
 }
 
 const OrdersTable: React.FC<OrdersTableProps> = ({
   orders,
   onSelectOrderAction,
   onDeleteOrder,
+  userRole,
 }) => {
   return (
     <div className="space-y-4">
@@ -21,6 +23,7 @@ const OrdersTable: React.FC<OrdersTableProps> = ({
         orders={orders}
         onSelectOrderAction={onSelectOrderAction}
         onDeleteOrderAction={onDeleteOrder}
+        userRole={userRole}
       />
 
       {orders.length === 0 && (
