@@ -637,7 +637,7 @@ export const ConfirmPurchaseDialog: React.FC<ConfirmPurchaseDialogProps> = ({
 
     return (
         <Dialog open={isOpen} onOpenChange={onCloseAction}>
-            <DialogContent className="sm:max-w-md md:max-w-lg">
+            <DialogContent className="sm:max-w-md md:max-w-lg max-h-[90vh] overflow-y-auto p-6">
                 <VisuallyHidden>
                     <DialogTitle>Confirm Purchase</DialogTitle>
                 </VisuallyHidden>

@@ -41,7 +41,7 @@ export const GuestForm = ({
             </DialogHeader>
 
             {/* Order items */}
-            <ScrollArea className="max-h-[200px] mt-4 mb-4 border rounded-lg p-3">
+            <ScrollArea className="max-h-[180px] mt-4 mb-4 border rounded-lg p-3 bg-gray-50">
                 <div className="space-y-4">
                     {items.map((item) => (
                         <div
@@ -70,8 +70,8 @@ export const GuestForm = ({
             </ScrollArea>
 
             {/* Contact & Delivery Info */}
-            <div className="rounded-lg border p-3 space-y-4">
-                <h3 className="font-medium text-sm">Contact & Delivery Details</h3>
+            <div className="rounded-lg border p-4 space-y-4 bg-white">
+                <h3 className="font-medium text-base text-gray-800 border-b pb-2">Contact & Delivery Details</h3>
 
                 <div className="space-y-2">
                     <Label htmlFor="name" className="flex items-center gap-2">
@@ -112,30 +112,28 @@ export const GuestForm = ({
                     </Label>
                     <Textarea
                         id="address"
-                        placeholder="Enter your delivery address"
+                        placeholder="Enter your complete delivery address with landmarks"
                         value={customerInfo.address}
                         onChange={handleAddressChange}
                         required
-                        className="min-h-[80px] w-full resize-none"
+                        className="min-h-[60px] max-h-[100px] w-full resize-none text-sm"
                     />
                 </div>
             </div>
 
-            <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
-                <p className="text-sm text-blue-700 flex items-center gap-2 flex-wrap">
+            <div className="mt-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-700 flex items-center gap-2 font-medium mb-2">
                     <ShoppingCart className="w-4 h-4 flex-shrink-0" />
-                    <span className="break-words font-medium">
-                        Choose how to complete your order
-                    </span>
+                    Choose how to complete your order
                 </p>
-                <p className="text-xs text-blue-600 mt-1 pl-6">
+                <p className="text-xs text-blue-600 leading-relaxed">
                     Submit directly to our system or share via WhatsApp for personal assistance
                 </p>
             </div>
 
-            <DialogFooter className="flex flex-col gap-3 mt-4">
+            <DialogFooter className="flex flex-col gap-3 mt-6 pt-4 border-t">
                 <div className="flex items-center justify-between w-full">
-                    <Button variant="outline" onClick={onCancel}>
+                    <Button variant="outline" onClick={onCancel} size="sm">
                         Cancel
                     </Button>
 
@@ -146,32 +144,36 @@ export const GuestForm = ({
                             className="gap-1"
                             size="sm"
                         >
-                            <LogIn className="w-4 h-4" />
-                            Sign in
+                            <LogIn className="w-3 h-3" />
+                            <span className="hidden sm:inline">Sign in</span>
                         </Button>
                     )}
                 </div>
 
-                <div className="flex gap-2 w-full">
+                <div className="flex flex-col sm:flex-row gap-2 w-full">
                     {handleDirectOrder && (
                         <Button
                             onClick={handleDirectOrder}
                             disabled={isSubmitting || !isCustomerInfoValid()}
-                            className="gap-1 flex-1"
+                            className="gap-2 flex-1 h-11"
                             variant="default"
                         >
-                            <ShoppingCart className="w-4 h-4" />
-                            {isSubmitting ? 'Processing...' : 'Submit Order'}
+                            <ShoppingCart className="w-4 h-4 flex-shrink-0" />
+                            <span className="text-sm font-medium">
+                                {isSubmitting ? 'Processing...' : 'Submit Order'}
+                            </span>
                         </Button>
                     )}
                     <Button
                         onClick={handleConfirm}
                         disabled={isSubmitting || !isCustomerInfoValid()}
-                        className="gap-1 flex-1"
+                        className="gap-2 flex-1 h-11"
                         variant="outline"
                     >
-                        <Share2 className="w-4 h-4" />
-                        {isSubmitting ? 'Processing...' : 'Share on WhatsApp'}
+                        <Share2 className="w-4 h-4 flex-shrink-0" />
+                        <span className="text-sm font-medium">
+                            {isSubmitting ? 'Processing...' : 'Share on WhatsApp'}
+                        </span>
                     </Button>
                 </div>
             </DialogFooter>
