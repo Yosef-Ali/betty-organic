@@ -132,13 +132,13 @@ export const GuestForm = ({
             </div>
 
             <DialogFooter className="flex flex-col gap-3 mt-6 pt-4 border-t w-full">
-                {/* Main action buttons - full width on mobile */}
-                <div className="flex flex-col gap-2 w-full">
+                {/* Main action buttons - in one line */}
+                <div className="flex gap-2 w-full">
                     {handleDirectOrder && (
                         <Button
                             onClick={handleDirectOrder}
                             disabled={isSubmitting || !isCustomerInfoValid()}
-                            className="gap-2 w-full h-12"
+                            className="gap-2 flex-1 h-12"
                             variant="default"
                         >
                             <ShoppingCart className="w-4 h-4 flex-shrink-0" />
@@ -150,39 +150,35 @@ export const GuestForm = ({
                     <Button
                         onClick={handleConfirm}
                         disabled={isSubmitting || !isCustomerInfoValid()}
-                        className="gap-2 w-full h-12"
+                        className="w-12 h-12 p-0"
                         variant="outline"
+                        title="Share on WhatsApp"
                     >
-                        <Share2 className="w-4 h-4 flex-shrink-0" />
-                        <span className="text-sm font-medium">
-                            {isSubmitting ? 'Processing...' : 'Share on WhatsApp'}
-                        </span>
+                        <Share2 className="w-5 h-5" />
                     </Button>
                 </div>
 
-                {/* Secondary actions - Cancel and Sign in on separate line */}
-                <div className="flex flex-col gap-2 w-full pt-2 border-t border-gray-100">
-                    <div className="flex justify-center gap-3 w-full">
-                        <Button 
-                            variant="ghost" 
-                            onClick={onCancel} 
+                {/* Secondary actions - Cancel and Sign in in one line */}
+                <div className="flex justify-center gap-3 w-full pt-2 border-t border-gray-100">
+                    <Button 
+                        variant="ghost" 
+                        onClick={onCancel} 
+                        size="sm"
+                        className="text-gray-500 hover:text-gray-700"
+                    >
+                        Cancel
+                    </Button>
+                    {handleSignIn && (
+                        <Button
+                            variant="ghost"
+                            onClick={handleSignIn}
+                            className="gap-1 text-blue-600 hover:text-blue-700"
                             size="sm"
-                            className="text-gray-500 hover:text-gray-700"
                         >
-                            Cancel
+                            <LogIn className="w-3 h-3" />
+                            Sign in
                         </Button>
-                        {handleSignIn && (
-                            <Button
-                                variant="ghost"
-                                onClick={handleSignIn}
-                                className="gap-1 text-blue-600 hover:text-blue-700"
-                                size="sm"
-                            >
-                                <LogIn className="w-3 h-3" />
-                                Sign in
-                            </Button>
-                        )}
-                    </div>
+                    )}
                 </div>
             </DialogFooter>
         </>

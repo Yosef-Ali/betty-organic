@@ -194,25 +194,25 @@ Please deliver to the address above. Thank you! 🚚`;
                     </div>
                 </div>
 
-                <div className="flex flex-col gap-3">
-                    {/* Optional WhatsApp Share */}
-                    <Button
-                        variant="outline"
-                        className="w-full gap-2 border-green-600 text-green-600 hover:bg-green-50"
-                        onClick={handleShareWhatsApp}
-                    >
-                        <MessageCircle className="w-4 h-4" />
-                        Share via WhatsApp (Optional)
-                    </Button>
-                    
+                <div className="flex gap-2">
                     {/* Button to continue shopping */}
                     <Button
                         variant="default"
-                        className="w-full gap-2 bg-green-600 hover:bg-green-700"
+                        className="flex-1 gap-2 bg-green-600 hover:bg-green-700 h-12"
                         onClick={handleClose}
                     >
                         <ShoppingBag className="w-4 h-4" />
                         Continue Shopping
+                    </Button>
+                    
+                    {/* Optional WhatsApp Share - icon only */}
+                    <Button
+                        variant="outline"
+                        className="w-12 h-12 p-0 border-green-600 text-green-600 hover:bg-green-50"
+                        onClick={handleShareWhatsApp}
+                        title="Share via WhatsApp (Optional)"
+                    >
+                        <MessageCircle className="w-5 h-5" />
                     </Button>
                 </div>
 
@@ -307,24 +307,25 @@ Please deliver to the address above. Thank you! 🚚`;
                 <div className="text-center text-sm text-green-600 mb-2">
                     Order confirmation sent! Your order is being processed.
                 </div>
-                <div className="flex flex-col gap-3 w-full">
-                    {/* Optional WhatsApp Share */}
-                    <Button
-                        variant="outline"
-                        className="w-full gap-2 border-green-600 text-green-600 hover:bg-green-50"
-                        onClick={handleShareWhatsApp}
-                    >
-                        <MessageCircle className="w-4 h-4" />
-                        Share via WhatsApp (Optional)
-                    </Button>
-                    
+                <div className="flex gap-2 w-full">
+                    {/* Button to continue shopping */}
                     <Button
                         variant="default"
-                        className="w-full gap-2 bg-green-600 hover:bg-green-700"
+                        className="flex-1 gap-2 bg-green-600 hover:bg-green-700 h-12"
                         onClick={handleClose}
                     >
                         <ShoppingBag className="w-4 h-4" />
                         Continue Shopping
+                    </Button>
+                    
+                    {/* Optional WhatsApp Share - icon only */}
+                    <Button
+                        variant="outline"
+                        className="w-12 h-12 p-0 border-green-600 text-green-600 hover:bg-green-50"
+                        onClick={handleShareWhatsApp}
+                        title="Share via WhatsApp (Optional)"
+                    >
+                        <MessageCircle className="w-5 h-5" />
                     </Button>
                 </div>
             </DialogFooter>
