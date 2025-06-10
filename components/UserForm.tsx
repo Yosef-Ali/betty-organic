@@ -14,14 +14,14 @@ import { ChevronLeft } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import Image from 'next/image'
-import { v4 as uuidv4 } from 'uuid'
+import { createUser, updateUser } from '@/app/actions/userActions'
 
 const formSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
   email: z.string().email({ message: 'Please enter a valid email address.' }),
   password: z.string().min(6, { message: 'Password must be at least 6 characters.' }).optional(),
-  role: z.enum(['admin', 'user']),
+  role: z.enum(['admin', 'sales', 'customer']),
   status: z.enum(['active', 'inactive']),
   imageUrl: z.string().nullable().optional()
 })
@@ -44,7 +44,7 @@ export function UserForm({ initialData }: UserFormProps) {
       name: '',
       email: '',
       password: '',
-      role: 'user',
+      role: 'customer',
       status: 'active',
       imageUrl: ''
     }
@@ -53,23 +53,51 @@ export function UserForm({ initialData }: UserFormProps) {
   async function onSubmit(data: UserFormValues) {
     setIsLoading(true)
     try {
-      const userData = { ...data }
-      if (!initialData?.id) {
-        userData.id = uuidv4()
+      let result;
+      
+      if (initialData?.id) {
+        // Update existing user
+        result = await updateUser(initialData.id, {
+          name: data.name,
+          email: data.email,
+          role: data.role,
+          status: data.status
+        });
+      } else {
+        // Create new user
+        if (!data.password) {
+          toast({
+            title: 'Error',
+            description: 'Password is required for new users.',
+            variant: 'destructive'
+          })
+          return;
+        }
+        
+        result = await createUser({
+          name: data.name,
+          email: data.email,
+          password: data.password,
+          role: data.role || 'customer', // Ensure default role
+          status: data.status
+        });
       }
 
-      // TODO: Implement user creation/update logic
-      toast({
-        title: initialData ? 'User updated' : 'User created',
-        description: `The user has been successfully ${initialData ? 'updated' : 'created'}.`
-      })
-      router.push('/dashboard/users')
-      router.refresh()
+      if (result.success) {
+        toast({
+          title: initialData ? 'User updated' : 'User created',
+          description: `The user has been successfully ${initialData ? 'updated' : 'created'}.`
+        })
+        router.push('/dashboard/users')
+        router.refresh()
+      } else {
+        throw new Error(result.error || 'Unknown error occurred');
+      }
     } catch (error) {
       console.error('Error saving user:', error)
       toast({
         title: 'Error',
-        description: 'Failed to save user. Please try again.',
+        description: error instanceof Error ? error.message : 'Failed to save user. Please try again.',
         variant: 'destructive'
       })
     } finally {
@@ -205,7 +233,8 @@ export function UserForm({ initialData }: UserFormProps) {
                             </FormControl>
                             <SelectContent>
                               <SelectItem value="admin">Admin</SelectItem>
-                              <SelectItem value="user">User</SelectItem>
+                              <SelectItem value="sales">Sales</SelectItem>
+                              <SelectItem value="customer">Customer</SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />

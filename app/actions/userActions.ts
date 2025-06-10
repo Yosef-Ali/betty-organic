@@ -3,6 +3,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { User } from '@supabase/supabase-js';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 const getSupabaseClient = async () => {
   const cookieStore = await cookies();
@@ -65,6 +66,23 @@ export async function updateUser(id: string, data: Partial<User>) {
   const supabase = await getSupabaseClient();
 
   try {
+    // Verify current user has admin permissions
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    
+    if (userError || !user) {
+      return { success: false, error: 'Authentication required' };
+    }
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    if (profile?.role !== 'admin') {
+      return { success: false, error: 'Insufficient permissions' };
+    }
+
     const { error } = await supabase.from('profiles').update(data).eq('id', id);
 
     if (error) {
@@ -128,15 +146,110 @@ export async function updateProfile(
   }
 }
 
+export async function createUser(data: {
+  email: string;
+  password: string;
+  name: string;
+  role?: 'admin' | 'sales' | 'customer'; // Make role optional with default
+  status?: 'active' | 'inactive';
+}) {
+  try {
+    // Verify current user has admin permissions
+    const supabase = await getSupabaseClient();
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    
+    if (userError || !user) {
+      return { success: false, error: 'Authentication required' };
+    }
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    if (profile?.role !== 'admin') {
+      return { success: false, error: 'Insufficient permissions' };
+    }
+
+    // Use admin client for creating users
+    const supabaseAdmin = createAdminClient();
+
+    // Create the user account
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email: data.email,
+      password: data.password,
+      email_confirm: true,
+    });
+
+    if (authError) {
+      console.error('Error creating auth user:', authError);
+      return { success: false, error: authError.message };
+    }
+
+    if (!authData.user) {
+      return { success: false, error: 'Failed to create user account' };
+    }
+
+    // Create the profile using admin client to bypass RLS
+    const { error: profileError } = await supabaseAdmin.from('profiles').insert({
+      id: authData.user.id,
+      email: data.email,
+      name: data.name,
+      role: data.role || 'customer', // Default to customer if no role specified
+      status: data.status || 'active',
+    });
+
+    if (profileError) {
+      console.error('Error creating user profile:', profileError);
+      // Try to clean up the auth user if profile creation fails
+      await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+      return { success: false, error: profileError.message };
+    }
+
+    return { success: true, data: authData.user };
+  } catch (error) {
+    console.error('Unexpected error creating user:', error);
+    return { success: false, error: 'Unexpected error creating user' };
+  }
+}
+
 export async function deleteUser(id: string) {
   const supabase = await getSupabaseClient();
 
   try {
-    const { error } = await supabase.from('profiles').delete().eq('id', id);
+    // Verify current user has admin permissions
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    
+    if (userError || !user) {
+      return { success: false, error: 'Authentication required' };
+    }
 
-    if (error) {
-      console.error('Error deleting user:', error);
-      return { success: false, error: error.message };
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    if (profile?.role !== 'admin') {
+      return { success: false, error: 'Insufficient permissions' };
+    }
+
+    // Use admin client to delete user from both auth and profiles
+    const supabaseAdmin = createAdminClient();
+    
+    // Delete from profiles first
+    const { error: profileError } = await supabaseAdmin.from('profiles').delete().eq('id', id);
+    if (profileError) {
+      console.error('Error deleting user profile:', profileError);
+      return { success: false, error: profileError.message };
+    }
+
+    // Delete from auth
+    const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(id);
+    if (authError) {
+      console.error('Error deleting auth user:', authError);
+      return { success: false, error: authError.message };
     }
 
     return { success: true };

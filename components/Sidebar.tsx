@@ -67,6 +67,19 @@ export default function Sidebar({
     },
   ];
 
+  const customerItems = [
+    {
+      label: 'Profile',
+      icon: <UserPen className="h-4 w-4" />,
+      href: '/dashboard/profile',
+    },
+    {
+      label: 'My Orders',
+      icon: <ShoppingCart className="h-4 w-4" />,
+      href: '/dashboard/orders',
+    },
+  ];
+
   const salesItems = [
     {
       label: 'Dashboard',
@@ -134,6 +147,8 @@ export default function Sidebar({
         return [...baseItems, ...adminItems];
       case 'sales':
         return [...baseItems, ...salesItems];
+      case 'customer':
+        return customerItems;
       default:
         return baseItems;
     }

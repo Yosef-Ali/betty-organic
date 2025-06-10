@@ -27,7 +27,7 @@ export default function EditUserForm({ user }: EditUserFormProps) {
   const [formData, setFormData] = useState({
     name: user.name || '',
     email: user.email || '',
-    role: user.role || 'user'
+    role: user.role || 'customer'
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -91,9 +91,9 @@ export default function EditUserForm({ user }: EditUserFormProps) {
                 <SelectValue placeholder="Select a role" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="user">User</SelectItem>
+                <SelectItem value="customer">Customer</SelectItem>
+                <SelectItem value="sales">Sales</SelectItem>
                 <SelectItem value="admin">Admin</SelectItem>
-                <SelectItem value="manager">Manager</SelectItem>
               </SelectContent>
             </Select>
           </div>

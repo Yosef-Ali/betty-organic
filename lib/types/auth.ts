@@ -85,10 +85,10 @@ export const rolePermissions: Record<UserRole, RolePermissions> = {
     canManageSettings: false,
   },
   customer: {
-    canViewDashboard: false,
+    canViewDashboard: true, // Customers can view their profile and orders
     canManageUsers: false,
     canManageProducts: false,
-    canManageOrders: false,
+    canManageOrders: false, // Can view their own orders but not manage all orders
     canViewReports: false,
     canManageSettings: false,
   },

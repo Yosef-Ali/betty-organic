@@ -138,6 +138,81 @@ export async function signIn(formData: FormData) {
   return { success: true, redirect: { destination: '/dashboard' } };
 }
 
+export async function signUp(formData: FormData) {
+  const supabase = await getSupabaseClient();
+  const email = formData.get('email') as string;
+  const password = formData.get('password') as string;
+  const full_name = formData.get('full_name') as string;
+
+  if (!email || !password || !full_name) {
+    return { 
+      error: 'Please fill in all required fields.',
+      success: false,
+      data: null 
+    };
+  }
+
+  try {
+    // Create the user account
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: full_name,
+          role: 'customer' // Set default role to customer
+        }
+      }
+    });
+
+    if (authError) {
+      console.error('Auth signup error:', authError);
+      return { 
+        error: authError.message,
+        success: false,
+        data: null 
+      };
+    }
+
+    if (!authData.user) {
+      return { 
+        error: 'Failed to create user account.',
+        success: false,
+        data: null 
+      };
+    }
+
+    // Create the profile with customer role as default
+    const { error: profileError } = await supabase.from('profiles').insert({
+      id: authData.user.id,
+      email: email,
+      name: full_name,
+      role: 'customer', // Default to customer role
+      status: 'active'
+    });
+
+    if (profileError) {
+      console.error('Profile creation error:', profileError);
+      // Continue anyway, the profile might be created by a database trigger
+    }
+
+    return { 
+      success: true, 
+      error: null,
+      data: authData.user,
+      message: 'Account created successfully! Please check your email to verify your account.'
+    };
+
+  } catch (error: any) {
+    console.error('Unexpected signup error:', error);
+    return { 
+      error: 'An unexpected error occurred. Please try again.',
+      success: false,
+      data: null 
+    };
+  }
+}
+
 export async function signInWithGoogle(origin: string) {
   const supabase = await getSupabaseClient();
 

@@ -112,7 +112,18 @@ function UserTableContent({
               </div>
             </div>
           </TableCell>
-          <TableCell>{user.role || 'user'}</TableCell>
+          <TableCell>
+            <div className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
+              ${user.role === 'admin' 
+                ? 'bg-red-100 text-red-800' 
+                : user.role === 'sales'
+                  ? 'bg-blue-100 text-blue-800'
+                  : 'bg-gray-100 text-gray-800'
+              }`}
+            >
+              {user.role === 'admin' ? 'Admin' : user.role === 'sales' ? 'Sales' : 'Customer'}
+            </div>
+          </TableCell>
           <TableCell>
             <div
               className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
@@ -269,6 +280,12 @@ export default function UserTable({ initialUsers }: UserTableProps) {
               onChange={e => setSearchTerm(e.target.value)}
               className="max-w-sm"
             />
+            <Button 
+              onClick={() => router.push('/dashboard/users/new')}
+              className="ml-4"
+            >
+              Add User
+            </Button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {isLoading ? (
@@ -308,8 +325,15 @@ export default function UserTable({ initialUsers }: UserTableProps) {
                         </div>
                       </div>
                       <div className="flex justify-between items-center">
-                        <div className="text-sm text-gray-500">
-                          {user.role || 'user'}
+                        <div className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
+                          ${user.role === 'admin' 
+                            ? 'bg-red-100 text-red-800' 
+                            : user.role === 'sales'
+                              ? 'bg-blue-100 text-blue-800'
+                              : 'bg-gray-100 text-gray-800'
+                          }`}
+                        >
+                          {user.role === 'admin' ? 'Admin' : user.role === 'sales' ? 'Sales' : 'Customer'}
                         </div>
                         <div
                           className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium

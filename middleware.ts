@@ -113,10 +113,28 @@ export async function middleware(request: NextRequest) {
 
       // Role-based route protection
       if (request.nextUrl.pathname.startsWith('/dashboard')) {
-        // Only admin and sales can access dashboard (except profile)
+        const userRole = profile?.role || '';
+        
+        // Define customer-accessible routes
+        const customerAccessibleRoutes = [
+          '/dashboard/profile',
+          '/dashboard/orders'
+        ];
+        
+        // Allow customers access to their profile and orders
+        const isCustomerAccessibleRoute = customerAccessibleRoutes.some(route =>
+          request.nextUrl.pathname.startsWith(route)
+        );
+        
+        // If it's a customer trying to access non-customer routes, redirect to profile
+        if (userRole === 'customer' && !isCustomerAccessibleRoute) {
+          return NextResponse.redirect(new URL('/dashboard/profile', request.url));
+        }
+        
+        // Only admin and sales can access other dashboard routes
         if (
-          !request.nextUrl.pathname.startsWith('/dashboard/profile') &&
-          !['admin', 'sales'].includes(profile?.role || '')
+          !isCustomerAccessibleRoute &&
+          !['admin', 'sales'].includes(userRole)
         ) {
           return NextResponse.redirect(new URL('/', request.url));
         }
@@ -124,8 +142,8 @@ export async function middleware(request: NextRequest) {
         // Admin-only routes
         if (
           (request.nextUrl.pathname.startsWith('/dashboard/admin') ||
-            request.nextUrl.pathname.startsWith('/dashboard/users/manage')) &&
-          profile?.role !== 'admin'
+            request.nextUrl.pathname.startsWith('/dashboard/users')) &&
+          userRole !== 'admin'
         ) {
           return NextResponse.redirect(new URL('/dashboard', request.url));
         }
