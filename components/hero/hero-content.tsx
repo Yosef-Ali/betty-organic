@@ -6,9 +6,25 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Star, Truck } from 'lucide-react';
 import OrderTrackingDialog from '@/components/OrderTrackingDialog';
+import AuthPromptDialog from '@/components/AuthPromptDialog';
+import { useAuth } from '@/hooks/useAuth';
 
 export function HeroContent() {
   const [isTrackingOpen, setIsTrackingOpen] = useState(false);
+  const [isAuthPromptOpen, setIsAuthPromptOpen] = useState(false);
+  const { user, loading } = useAuth();
+
+  const handleTrackOrderClick = () => {
+    if (loading) return; // Don't do anything while auth is loading
+    
+    if (user) {
+      // User is signed in, show tracking dialog
+      setIsTrackingOpen(true);
+    } else {
+      // User is not signed in, show auth prompt
+      setIsAuthPromptOpen(true);
+    }
+  };
 
   return (
     <motion.div
@@ -72,17 +88,24 @@ export function HeroContent() {
           size="lg"
           variant="outline"
           className="w-full sm:w-auto hover:bg-white/30"
-          onClick={() => setIsTrackingOpen(true)}
+          onClick={handleTrackOrderClick}
+          disabled={loading}
         >
           <Truck className="mr-2 h-4 w-4" />
-          Track Order
+          {loading ? 'Loading...' : 'Track Order'}
         </Button>
       </motion.div>
 
-      {/* Order Tracking Dialog */}
+      {/* Order Tracking Dialog - Only shown for authenticated users */}
       <OrderTrackingDialog 
         isOpen={isTrackingOpen}
         onClose={() => setIsTrackingOpen(false)}
+      />
+
+      {/* Auth Prompt Dialog - Shown for non-authenticated users */}
+      <AuthPromptDialog 
+        isOpen={isAuthPromptOpen}
+        onClose={() => setIsAuthPromptOpen(false)}
       />
     </motion.div>
   );

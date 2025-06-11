@@ -280,7 +280,22 @@ export default function OrderTrackingDialog({ isOpen, onClose }: OrderTrackingDi
                   ) : recentOrders.length === 0 ? (
                     <div className="text-center py-12 text-muted-foreground">
                       <Package className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                      <p>No recent orders found</p>
+                      <p className="text-sm font-medium mb-2">No recent orders found</p>
+                      <p className="text-xs text-gray-500 mb-4">
+                        Your orders will appear here once you place them
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' });
+                          // Close the dialog after scrolling
+                          setTimeout(() => onClose(), 300);
+                        }}
+                        className="text-green-600 border-green-200 hover:bg-green-50"
+                      >
+                        Browse Products
+                      </Button>
                     </div>
                   ) : (
                     <div className="space-y-3">
