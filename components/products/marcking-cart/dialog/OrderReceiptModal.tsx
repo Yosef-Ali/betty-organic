@@ -26,6 +26,7 @@ export const OrderReceiptModal: React.FC<OrderReceiptModalProps> = ({
   customerInfo,
   orderId,
 }) => {
+  console.log('[RECEIPT] Modal render - isOpen:', isOpen, 'items:', items?.length, 'total:', total);
   const handlePrint = () => {
     window.print();
   };
@@ -81,7 +82,7 @@ export const OrderReceiptModal: React.FC<OrderReceiptModalProps> = ({
       </style>
 
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[425px] z-[60]">
           <DialogHeader className="no-print">
             <DialogTitle>Order Receipt</DialogTitle>
           </DialogHeader>

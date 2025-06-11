@@ -103,8 +103,8 @@ export const CartFooter: FC<CartFooterProps> = ({
   const handleCloseReceipt = () => {
     setShowReceipt(false);
     setCompletedOrderData(null);
-    // Close the sales cart sheet after receipt is closed
-    if (onOpenChange) onOpenChange(false);
+    // Don't automatically close the sheet - let user decide
+    // The sheet will remain open so user can continue with more orders if needed
   };
 
   const handleConfirmOrder = async () => {
@@ -181,19 +181,28 @@ export const CartFooter: FC<CartFooterProps> = ({
 
         if (success) {
           console.log('[ORDER] Order created successfully, showing receipt');
+          
+          // Clear cart first
+          if (clearCart) clearCart();
+          
           // Store order data for receipt display
-          setCompletedOrderData({
+          const receiptData = {
             items: orderItems,
             total: totalAmountWithDelivery,
             customer: orderCustomer,
             orderId: `BO-SALES-${Date.now().toString().slice(-6)}`,
             deliveryCost
-          });
+          };
           
-          // Show receipt modal instead of closing immediately
-          setShowReceipt(true);
+          // Set the data first, then show receipt with a small delay to ensure proper rendering
+          setCompletedOrderData(receiptData);
           
-          if (clearCart) clearCart();
+          // Use setTimeout to ensure the data is set before showing the modal
+          setTimeout(() => {
+            console.log('[ORDER] Setting showReceipt to true');
+            setShowReceipt(true);
+          }, 50);
+          
           // Don't close the sheet yet - let user interact with receipt first
         } else {
           console.error('[ORDER] Order creation failed');
