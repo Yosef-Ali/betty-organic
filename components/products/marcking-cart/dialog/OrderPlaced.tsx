@@ -9,10 +9,11 @@ import {
     DialogDescription,
     DialogFooter,
 } from "@/components/ui/dialog";
-import { LogIn, ShoppingBag, MessageCircle, Printer, Receipt } from "lucide-react";
+import { LogIn, ShoppingBag, MessageCircle, Printer, Receipt, CheckCircle } from "lucide-react";
 import { OrderDetails, CustomerInfo } from "./types";
 import { useMarketingCartStore } from "@/store/cartStore";
 import { OrderReceiptModal } from "./OrderReceiptModal";
+import { processMarketingOrder } from "@/app/actions/marketing-actions";
 
 interface OrderPlacedProps {
     isAuthenticated: boolean;
@@ -39,7 +40,54 @@ export default function OrderPlaced({
 }: OrderPlacedProps): React.ReactElement {
     const [orderProcessed, setOrderProcessed] = useState(false);
     const [showPrintPreview, setShowPrintPreview] = useState(false);
+    const [autoNotificationSent, setAutoNotificationSent] = useState(false);
+    const [notificationStatus, setNotificationStatus] = useState<'pending' | 'sent' | 'failed' | 'manual'>('pending');
     const { setContinuingShopping } = useMarketingCartStore();
+
+    // Automatically send WhatsApp notification when order is placed
+    useEffect(() => {
+        const sendAutoNotification = async () => {
+            if (!autoNotificationSent && orderDetails && customerInfo) {
+                console.log('🚀 Sending automatic WhatsApp notification for order:', orderDetails.display_id);
+                setNotificationStatus('pending');
+                
+                try {
+                    const result = await processMarketingOrder({
+                        items: orderDetails.items.map(item => ({
+                            name: item.name,
+                            grams: item.grams,
+                            price: item.price
+                        })),
+                        customer: {
+                            name: orderDetails.customer_name || customerInfo.name,
+                            phone: orderDetails.customer_phone || customerInfo.phone,
+                            email: customerInfo.email,
+                            address: orderDetails.delivery_address || customerInfo.address
+                        },
+                        total: orderDetails.total,
+                        display_id: orderDetails.display_id
+                    });
+
+                    if (result.success && result.notificationSent) {
+                        setNotificationStatus('sent');
+                        console.log('✅ Automatic notification sent successfully via', result.notificationMethod);
+                    } else {
+                        setNotificationStatus('manual');
+                        console.log('⚠️ Automatic notification failed, fallback to manual mode');
+                    }
+                } catch (error) {
+                    console.error('❌ Auto-notification error:', error);
+                    setNotificationStatus('failed');
+                }
+                
+                setAutoNotificationSent(true);
+            }
+        };
+
+        // Send notification after a small delay to ensure component is fully mounted
+        const timer = setTimeout(sendAutoNotification, 500);
+        return () => clearTimeout(timer);
+    }, [orderDetails, customerInfo, autoNotificationSent]);
 
     // Process order when component mounts if shouldProcessOrder is true
     useEffect(() => {
@@ -194,6 +242,34 @@ Please prepare and deliver this order. Thank you! 🚚`;
                     <DialogDescription>
                         Your order has been sent to our team for processing. We&apos;ll contact you soon!
                     </DialogDescription>
+                    
+                    {/* Auto-notification status */}
+                    <div className="mt-3 flex items-center gap-2 text-sm">
+                        {notificationStatus === 'pending' && (
+                            <div className="flex items-center gap-2 text-blue-600">
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                                <span>Sending notification to admin...</span>
+                            </div>
+                        )}
+                        {notificationStatus === 'sent' && (
+                            <div className="flex items-center gap-2 text-green-600">
+                                <CheckCircle className="w-4 h-4" />
+                                <span>Admin automatically notified via WhatsApp</span>
+                            </div>
+                        )}
+                        {notificationStatus === 'manual' && (
+                            <div className="flex items-center gap-2 text-orange-600">
+                                <MessageCircle className="w-4 h-4" />
+                                <span>Manual notification available below</span>
+                            </div>
+                        )}
+                        {notificationStatus === 'failed' && (
+                            <div className="flex items-center gap-2 text-red-600">
+                                <MessageCircle className="w-4 h-4" />
+                                <span>Auto-notification failed - use manual option</span>
+                            </div>
+                        )}
+                    </div>
                 </DialogHeader>
 
                 <div className="my-4 p-4 border rounded-md bg-gray-50">
@@ -250,15 +326,29 @@ Please prepare and deliver this order. Thank you! 🚚`;
                         <Receipt className="w-5 h-5" />
                     </Button>
                     
-                    {/* Notify Admin via WhatsApp - icon only */}
-                    <Button
-                        variant="outline"
-                        className="w-12 h-12 p-0 border-green-600 text-green-600 hover:bg-green-50"
-                        onClick={handleShareWhatsApp}
-                        title="Notify Admin via WhatsApp"
-                    >
-                        <MessageCircle className="w-5 h-5" />
-                    </Button>
+                    {/* Manual WhatsApp notification - only show if auto-notification failed or manual mode */}
+                    {(notificationStatus === 'manual' || notificationStatus === 'failed') && (
+                        <Button
+                            variant="outline"
+                            className="w-12 h-12 p-0 border-green-600 text-green-600 hover:bg-green-50"
+                            onClick={handleShareWhatsApp}
+                            title={notificationStatus === 'failed' ? "Retry WhatsApp Notification" : "Send Manual WhatsApp Notification"}
+                        >
+                            <MessageCircle className="w-5 h-5" />
+                        </Button>
+                    )}
+                    
+                    {/* Auto-notification successful - show check */}
+                    {notificationStatus === 'sent' && (
+                        <Button
+                            variant="outline"
+                            className="w-12 h-12 p-0 border-green-600 text-green-600 cursor-default"
+                            disabled
+                            title="Admin Automatically Notified"
+                        >
+                            <CheckCircle className="w-5 h-5" />
+                        </Button>
+                    )}
                 </div>
 
                 <div className="text-center mt-4 flex flex-col gap-2">
@@ -334,6 +424,34 @@ Please prepare and deliver this order. Thank you! 🚚`;
                 <DialogDescription>
                     Your order #{orderDetails.display_id} has been successfully placed.
                 </DialogDescription>
+                
+                {/* Auto-notification status */}
+                <div className="mt-3 flex items-center gap-2 text-sm">
+                    {notificationStatus === 'pending' && (
+                        <div className="flex items-center gap-2 text-blue-600">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                            <span>Sending notification to admin...</span>
+                        </div>
+                    )}
+                    {notificationStatus === 'sent' && (
+                        <div className="flex items-center gap-2 text-green-600">
+                            <CheckCircle className="w-4 h-4" />
+                            <span>Admin automatically notified via WhatsApp</span>
+                        </div>
+                    )}
+                    {notificationStatus === 'manual' && (
+                        <div className="flex items-center gap-2 text-orange-600">
+                            <MessageCircle className="w-4 h-4" />
+                            <span>Manual notification available below</span>
+                        </div>
+                    )}
+                    {notificationStatus === 'failed' && (
+                        <div className="flex items-center gap-2 text-red-600">
+                            <MessageCircle className="w-4 h-4" />
+                            <span>Auto-notification failed - use manual option</span>
+                        </div>
+                    )}
+                </div>
             </DialogHeader>
 
             <div className="my-4 p-4 border rounded-md bg-gray-50">
@@ -390,15 +508,29 @@ Please prepare and deliver this order. Thank you! 🚚`;
                         <Receipt className="w-5 h-5" />
                     </Button>
                     
-                    {/* Optional WhatsApp Share - icon only */}
-                    <Button
-                        variant="outline"
-                        className="w-12 h-12 p-0 border-green-600 text-green-600 hover:bg-green-50"
-                        onClick={handleShareWhatsApp}
-                        title="Share via WhatsApp (Optional)"
-                    >
-                        <MessageCircle className="w-5 h-5" />
-                    </Button>
+                    {/* Manual WhatsApp notification - only show if auto-notification failed or manual mode */}
+                    {(notificationStatus === 'manual' || notificationStatus === 'failed') && (
+                        <Button
+                            variant="outline"
+                            className="w-12 h-12 p-0 border-green-600 text-green-600 hover:bg-green-50"
+                            onClick={handleShareWhatsApp}
+                            title={notificationStatus === 'failed' ? "Retry WhatsApp Notification" : "Send Manual WhatsApp Notification"}
+                        >
+                            <MessageCircle className="w-5 h-5" />
+                        </Button>
+                    )}
+                    
+                    {/* Auto-notification successful - show check */}
+                    {notificationStatus === 'sent' && (
+                        <Button
+                            variant="outline"
+                            className="w-12 h-12 p-0 border-green-600 text-green-600 cursor-default"
+                            disabled
+                            title="Admin Automatically Notified"
+                        >
+                            <CheckCircle className="w-5 h-5" />
+                        </Button>
+                    )}
                 </div>
             </DialogFooter>
             
