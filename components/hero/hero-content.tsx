@@ -1,11 +1,15 @@
 'use client';
 
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Star, Truck } from 'lucide-react';
+import OrderTrackingDialog from '@/components/OrderTrackingDialog';
 
 export function HeroContent() {
+  const [isTrackingOpen, setIsTrackingOpen] = useState(false);
+
   return (
     <motion.div
       className="flex flex-col items-center md:items-start text-center md:text-left relative z-20"
@@ -68,11 +72,18 @@ export function HeroContent() {
           size="lg"
           variant="outline"
           className="w-full sm:w-auto hover:bg-white/30"
+          onClick={() => setIsTrackingOpen(true)}
         >
           <Truck className="mr-2 h-4 w-4" />
           Track Order
         </Button>
       </motion.div>
+
+      {/* Order Tracking Dialog */}
+      <OrderTrackingDialog 
+        isOpen={isTrackingOpen}
+        onClose={() => setIsTrackingOpen(false)}
+      />
     </motion.div>
   );
 }

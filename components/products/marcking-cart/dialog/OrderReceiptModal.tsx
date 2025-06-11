@@ -7,13 +7,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import Barcode from "react-barcode";
-import { Printer, Share2 } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Printer, MessageCircle } from "lucide-react";
 
 interface OrderReceiptModalProps {
   isOpen: boolean;
@@ -55,12 +49,9 @@ export const OrderReceiptModal: React.FC<OrderReceiptModalProps> = ({
     return encodeURIComponent(text);
   };
 
-  const handleShare = (platform: "telegram" | "whatsapp") => {
+  const handleShareWhatsApp = () => {
     const text = generateShareText();
-    const url =
-      platform === "telegram"
-        ? `https://t.me/share/url?url=${window.location.href}&text=${text}`
-        : `https://api.whatsapp.com/send?text=${text}`;
+    const url = `https://api.whatsapp.com/send?text=${text}`;
     window.open(url, "_blank");
   };
 
@@ -151,22 +142,10 @@ export const OrderReceiptModal: React.FC<OrderReceiptModalProps> = ({
               <Printer className="h-4 w-4" />
               Print Receipt
             </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="gap-2">
-                  <Share2 className="h-4 w-4" />
-                  Share Receipt
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem onClick={() => handleShare("whatsapp")}>
-                  Share on WhatsApp
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleShare("telegram")}>
-                  Share on Telegram
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <Button variant="outline" onClick={handleShareWhatsApp} className="gap-2">
+              <MessageCircle className="h-4 w-4" />
+              Share on WhatsApp
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
