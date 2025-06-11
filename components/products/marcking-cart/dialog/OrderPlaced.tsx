@@ -250,12 +250,12 @@ Please prepare and deliver this order. Thank you! 🚚`;
                         <Receipt className="w-5 h-5" />
                     </Button>
                     
-                    {/* Optional WhatsApp Share - icon only */}
+                    {/* Notify Admin via WhatsApp - icon only */}
                     <Button
                         variant="outline"
                         className="w-12 h-12 p-0 border-green-600 text-green-600 hover:bg-green-50"
                         onClick={handleShareWhatsApp}
-                        title="Share via WhatsApp (Optional)"
+                        title="Notify Admin via WhatsApp"
                     >
                         <MessageCircle className="w-5 h-5" />
                     </Button>
@@ -278,7 +278,7 @@ Please prepare and deliver this order. Thank you! 🚚`;
 
     // Signed-in user order complete view
     const handleShareWhatsApp = () => {
-        const message = `🍎 *Order Confirmation - Betty Organic*
+        const message = `🍎 *New Order - Betty Organic*
 
 *Order ID:* ${orderDetails.display_id}
 *Customer:* ${orderDetails.customer_name}
@@ -292,9 +292,26 @@ ${orderDetails.items.map(item => `• ${item.name} (${item.grams}g) - ETB ${item
 
 *Order Time:* ${new Date(orderDetails.created_at).toLocaleString()}
 
-Please deliver to the address above. Thank you! 🚚`;
+Please prepare and deliver this order. Thank you! 🚚`;
 
-        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+        // Get admin WhatsApp number from localStorage settings
+        const savedSettings = localStorage.getItem('whatsAppSettings');
+        let adminNumber = '';
+        
+        if (savedSettings) {
+            try {
+                const settings = JSON.parse(savedSettings);
+                adminNumber = settings.adminPhoneNumber || '';
+            } catch (error) {
+                console.error('Failed to parse WhatsApp settings:', error);
+            }
+        }
+
+        // Create WhatsApp URL - if admin number exists, send directly to admin, otherwise general share
+        const whatsappUrl = adminNumber 
+            ? `https://wa.me/${adminNumber.replace('+', '')}?text=${encodeURIComponent(message)}`
+            : `https://wa.me/?text=${encodeURIComponent(message)}`;
+            
         window.open(whatsappUrl, '_blank');
     };
 
