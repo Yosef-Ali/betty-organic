@@ -16,6 +16,8 @@ interface OrderReceiptModalProps {
   total: number;
   customerInfo?: string;
   orderId?: string;
+  customerPhone?: string;
+  customerName?: string;
 }
 
 export const OrderReceiptModal: React.FC<OrderReceiptModalProps> = ({
@@ -25,34 +27,87 @@ export const OrderReceiptModal: React.FC<OrderReceiptModalProps> = ({
   total,
   customerInfo,
   orderId,
+  customerPhone,
+  customerName,
 }) => {
   console.log('[RECEIPT] Modal render - isOpen:', isOpen, 'items:', items?.length, 'total:', total);
   const handlePrint = () => {
     window.print();
   };
 
-  const generateShareText = () => {
+  const generateCustomerReceiptText = () => {
     const storeName = "Betty Organic";
 
-    let text = `🛍️ *Order Receipt - ${storeName}*\n`;
-    text += `🧾 Order ID: ${orderId}\n\n`;
-    text += "🛒 Items Ordered:\n";
+    let text = `🧾 *Your Order Receipt - ${storeName}*\n\n`;
+    text += `Hi ${customerName || 'Valued Customer'}! 👋\n\n`;
+    text += `✅ Your order has been confirmed!\n`;
+    text += `📋 Order ID: ${orderId}\n\n`;
+    text += "🛒 *Items Ordered:*\n";
     items.forEach((item, index) => {
       text += `${index + 1}. ${item.name} (${(item.quantity * 1000).toFixed(0)}g) - ETB ${item.price.toFixed(2)}\n`;
     });
-    text += `\n💰 Total: ETB ${total.toFixed(2)}\n\n`;
-    if (customerInfo) {
-      text += `📞 Customer: ${customerInfo}\n`;
-    }
-    text += `🕒 Order Time: ${new Date().toLocaleString()}\n\n`;
-    text += `🌿 Thank you for choosing organic! 🌿\n`;
-    text += `🔗 Visit us: ${window.location.origin}`;
+    text += `\n💰 *Total Amount: ETB ${total.toFixed(2)}*\n\n`;
+    text += `📅 Order Date: ${new Date().toLocaleDateString()}\n`;
+    text += `🕒 Order Time: ${new Date().toLocaleTimeString()}\n\n`;
+    text += `🚚 We'll prepare your fresh organic produce and contact you for delivery!\n\n`;
+    text += `🌿 Thank you for choosing Betty Organic! 🌿\n`;
+    text += `📞 For any questions, feel free to reply to this message.\n\n`;
+    text += `🔗 ${window.location.origin}`;
     return encodeURIComponent(text);
   };
 
-  const handleShareWhatsApp = () => {
-    const text = generateShareText();
-    const url = `https://api.whatsapp.com/send?text=${text}`;
+  const generateAdminNotificationText = () => {
+    let text = `🔔 *New Sales Order Receipt Sent - Betty Organic*\n\n`;
+    text += `📋 Order ID: ${orderId}\n`;
+    text += `👤 Customer: ${customerName || customerInfo || 'Walk-in Customer'}\n`;
+    text += `📱 Phone: ${customerPhone || 'Not provided'}\n\n`;
+    text += "🛒 *Order Items:*\n";
+    items.forEach((item, index) => {
+      text += `${index + 1}. ${item.name} (${(item.quantity * 1000).toFixed(0)}g) - ETB ${item.price.toFixed(2)}\n`;
+    });
+    text += `\n💰 *Total: ETB ${total.toFixed(2)}*\n\n`;
+    text += `📅 ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}\n\n`;
+    text += `✅ Receipt has been sent to customer via WhatsApp\n`;
+    text += `📋 Order is ready for processing`;
+    return encodeURIComponent(text);
+  };
+
+  const handleSendToCustomer = () => {
+    if (!customerPhone) {
+      alert('Customer phone number not available. Cannot send WhatsApp receipt.');
+      return;
+    }
+
+    // Clean phone number (remove spaces, dashes, etc.)
+    const cleanPhone = customerPhone.replace(/[\s\-\(\)]/g, '');
+    const text = generateCustomerReceiptText();
+    
+    // Send directly to customer's WhatsApp
+    const url = `https://wa.me/${cleanPhone.replace('+', '')}?text=${text}`;
+    window.open(url, "_blank");
+  };
+
+  const handleNotifyAdmin = () => {
+    // Get admin WhatsApp number from localStorage settings
+    const savedSettings = localStorage.getItem('whatsAppSettings');
+    let adminNumber = '';
+    
+    if (savedSettings) {
+      try {
+        const settings = JSON.parse(savedSettings);
+        adminNumber = settings.adminPhoneNumber || '';
+      } catch (error) {
+        console.error('Failed to parse WhatsApp settings:', error);
+      }
+    }
+
+    const text = generateAdminNotificationText();
+    
+    // Create WhatsApp URL - if admin number exists, send directly to admin, otherwise general share
+    const url = adminNumber 
+      ? `https://wa.me/${adminNumber.replace('+', '')}?text=${text}`
+      : `https://wa.me/?text=${text}`;
+      
     window.open(url, "_blank");
   };
 
@@ -138,15 +193,56 @@ export const OrderReceiptModal: React.FC<OrderReceiptModalProps> = ({
           </div>
 
           {/* Non-printable controls */}
-          <div className="flex justify-end mt-4 space-x-2 no-print">
-            <Button onClick={handlePrint} className="gap-2">
-              <Printer className="h-4 w-4" />
-              Print Receipt
-            </Button>
-            <Button variant="outline" onClick={handleShareWhatsApp} className="gap-2">
-              <MessageCircle className="h-4 w-4" />
-              Share on WhatsApp
-            </Button>
+          <div className="flex flex-col gap-3 mt-4 no-print">
+            <div className="flex justify-center">
+              <Button onClick={handlePrint} className="gap-2">
+                <Printer className="h-4 w-4" />
+                Print Receipt
+              </Button>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {customerPhone ? (
+                <Button 
+                  onClick={handleSendToCustomer} 
+                  className="gap-2 bg-green-600 hover:bg-green-700"
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  Send to Customer
+                </Button>
+              ) : (
+                <Button 
+                  disabled 
+                  variant="outline"
+                  className="gap-2 text-gray-400"
+                  title="Customer phone not available"
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  Send to Customer
+                </Button>
+              )}
+              
+              <Button 
+                variant="outline" 
+                onClick={handleNotifyAdmin} 
+                className="gap-2 border-blue-600 text-blue-600 hover:bg-blue-50"
+              >
+                <MessageCircle className="h-4 w-4" />
+                Notify Admin
+              </Button>
+            </div>
+            
+            {customerPhone && (
+              <p className="text-xs text-center text-green-600">
+                Receipt will be sent to: {customerPhone}
+              </p>
+            )}
+            
+            {!customerPhone && (
+              <p className="text-xs text-center text-gray-500">
+                Add customer phone number to enable WhatsApp receipt
+              </p>
+            )}
           </div>
         </DialogContent>
       </Dialog>

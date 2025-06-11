@@ -5,6 +5,9 @@
 /* Import custom bell animation */
 @import '../styles/bell-animation.css';
 
+/* Import Amharic fonts */
+@import '../public/fonts/amharic-fonts.css';
+
 @layer base {
   :root {
     --background: 0 0% 100%;

@@ -382,6 +382,8 @@ export const CartFooter: FC<CartFooterProps> = ({
           total={completedOrderData.total}
           customerInfo={`${completedOrderData.customer.name} (${completedOrderData.customer.email || 'No email'})`}
           orderId={completedOrderData.orderId}
+          customerPhone={completedOrderData.customer.phone}
+          customerName={completedOrderData.customer.name}
         />
       )}
     </CardFooter>
