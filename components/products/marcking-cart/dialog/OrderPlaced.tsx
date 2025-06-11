@@ -138,7 +138,7 @@ export default function OrderPlaced({
     if (!isAuthenticated) {
         // Guest order complete view
         const handleShareWhatsApp = () => {
-            const message = `🍎 *Order Confirmation - Betty Organic*
+            const message = `🍎 *New Order - Betty Organic*
 
 *Order ID:* ${orderDetails.display_id}
 *Customer:* ${orderDetails.customer_name}
@@ -152,9 +152,26 @@ ${orderDetails.items.map(item => `• ${item.name} (${item.grams}g) - ETB ${item
 
 *Order Time:* ${new Date(orderDetails.created_at).toLocaleString()}
 
-Please deliver to the address above. Thank you! 🚚`;
+Please prepare and deliver this order. Thank you! 🚚`;
 
-            const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+            // Get admin WhatsApp number from localStorage settings
+            const savedSettings = localStorage.getItem('whatsAppSettings');
+            let adminNumber = '';
+            
+            if (savedSettings) {
+                try {
+                    const settings = JSON.parse(savedSettings);
+                    adminNumber = settings.adminPhoneNumber || '';
+                } catch (error) {
+                    console.error('Failed to parse WhatsApp settings:', error);
+                }
+            }
+
+            // Create WhatsApp URL - if admin number exists, send directly to admin, otherwise general share
+            const whatsappUrl = adminNumber 
+                ? `https://wa.me/${adminNumber.replace('+', '')}?text=${encodeURIComponent(message)}`
+                : `https://wa.me/?text=${encodeURIComponent(message)}`;
+                
             window.open(whatsappUrl, '_blank');
         };
 
