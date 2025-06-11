@@ -1,5 +1,5 @@
 import { FC, useState } from 'react';
-import { Printer, Tag, ArrowRight, X, Loader2, Share2, Truck } from 'lucide-react';
+import { Printer, Tag, ArrowRight, X, Loader2, Share2, Truck, Receipt, MessageCircle } from 'lucide-react';
 import { CardFooter } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Order, OrderItem } from '@/types/order';
 import { Customer } from '@/types/customer';
 import { SalesCartItem } from '@/store/salesCartStore';
+import { OrderReceiptModal } from '@/components/products/marcking-cart/dialog/OrderReceiptModal';
 
 export interface CartFooterProps {
   getTotalAmount: () => number;
@@ -83,6 +84,8 @@ export const CartFooter: FC<CartFooterProps> = ({
   const [appliedCoupon, setAppliedCoupon] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [deliveryCost, setDeliveryCost] = useState(0);
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [completedOrderData, setCompletedOrderData] = useState<any>(null);
   const { toast } = useToast();
 
   const handleApplyCoupon = () => {
@@ -95,6 +98,13 @@ export const CartFooter: FC<CartFooterProps> = ({
 
   const handleRemoveCoupon = () => {
     setAppliedCoupon('');
+  };
+
+  const handleCloseReceipt = () => {
+    setShowReceipt(false);
+    setCompletedOrderData(null);
+    // Close the sales cart sheet after receipt is closed
+    if (onOpenChange) onOpenChange(false);
   };
 
   const handleConfirmOrder = async () => {
@@ -170,12 +180,21 @@ export const CartFooter: FC<CartFooterProps> = ({
         console.log('[ORDER] Order creation result:', success);
 
         if (success) {
-          console.log('[ORDER] Order created successfully, clearing cart and closing sheet');
-          // Note: Success toast is handled by the parent SalesPage component
-          // to avoid duplicate notifications
+          console.log('[ORDER] Order created successfully, showing receipt');
+          // Store order data for receipt display
+          setCompletedOrderData({
+            items: orderItems,
+            total: totalAmountWithDelivery,
+            customer: orderCustomer,
+            orderId: `BO-SALES-${Date.now().toString().slice(-6)}`,
+            deliveryCost
+          });
+          
+          // Show receipt modal instead of closing immediately
+          setShowReceipt(true);
           
           if (clearCart) clearCart();
-          if (onOpenChange) onOpenChange(false);
+          // Don't close the sheet yet - let user interact with receipt first
         } else {
           console.error('[ORDER] Order creation failed');
           // Note: Error toast is handled by the parent SalesPage component
@@ -303,10 +322,7 @@ export const CartFooter: FC<CartFooterProps> = ({
                 Cancel
               </Button>
               <Button
-                onClick={() => {
-                  handleConfirmOrder();
-                  if (onOpenChange) onOpenChange(false);
-                }}
+                onClick={handleConfirmOrder}
                 disabled={isLoading || isProcessingOrder || !items || items.length === 0}
                 className="bg-primary"
               >
@@ -347,6 +363,18 @@ export const CartFooter: FC<CartFooterProps> = ({
           </motion.div>
         )}
       </AnimatePresence>
+      
+      {/* Order Receipt Modal */}
+      {showReceipt && completedOrderData && (
+        <OrderReceiptModal
+          isOpen={showReceipt}
+          onClose={handleCloseReceipt}
+          items={completedOrderData.items}
+          total={completedOrderData.total}
+          customerInfo={`${completedOrderData.customer.name} (${completedOrderData.customer.email || 'No email'})`}
+          orderId={completedOrderData.orderId}
+        />
+      )}
     </CardFooter>
   );
 };

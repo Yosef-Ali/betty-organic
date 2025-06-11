@@ -83,6 +83,93 @@ function mapToFrontendOrder(orderData: OrderRow, orderItems: OrderItemInsert[]):
   };
 }
 
+export async function getRecentOrders(limit: number = 10): Promise<{ data: FrontendOrder[] | null; error: string | null }> {
+  const supabase = await createClient();
+  try {
+    console.time('[TRACKING DEBUG] Recent orders fetch time');
+
+    // Fetch recent orders with customer profile data
+    const { data: ordersData, error: ordersError } = await supabase
+      .from('orders')
+      .select(`
+        id, display_id, created_at, updated_at, status, total_amount, type, profile_id, customer_profile_id,
+        delivery_cost, coupon_code, discount_amount,
+        order_items(id, product_id, quantity, price, product_name),
+        customer_profile:profiles!customer_profile_id(
+          id, name, email, phone, address, role, status, created_at, updated_at, avatar_url
+        )
+      `)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (ordersError) {
+      console.error('[TRACKING DEBUG] Error fetching recent orders:', ordersError);
+      console.timeEnd('[TRACKING DEBUG] Recent orders fetch time');
+      return { data: null, error: ordersError.message };
+    }
+
+    if (!ordersData || ordersData.length === 0) {
+      console.timeEnd('[TRACKING DEBUG] Recent orders fetch time');
+      return { data: [], error: null };
+    }
+
+    // Map to frontend format
+    const mappedOrders: FrontendOrder[] = ordersData.map((orderData: any) => ({
+      id: orderData.id,
+      profile_id: orderData.profile_id || '',
+      customer_profile_id: orderData.customer_profile_id || '',
+      total_amount: orderData.total_amount || 0,
+      status: orderData.status || 'pending',
+      type: orderData.type || 'standard',
+      display_id: orderData.display_id || '',
+      created_at: orderData.created_at,
+      updated_at: orderData.updated_at || '',
+      delivery_cost: orderData.delivery_cost || 0,
+      coupon_code: orderData.coupon_code || undefined,
+      discount_amount: orderData.discount_amount || 0,
+      order_items: Array.isArray(orderData.order_items) ? orderData.order_items.map((item: any): FrontendOrderItem => ({
+        id: item.id || '',
+        product_id: item.product_id,
+        product_name: item.product_name || 'Unknown Product',
+        quantity: item.quantity || 0,
+        price: item.price || 0,
+        product: { name: item.product_name || 'Unknown Product' },
+        order_id: orderData.id,
+      })) : [],
+      items: Array.isArray(orderData.order_items) ? orderData.order_items.map((item: any): FrontendOrderItem => ({
+        id: item.id || '',
+        product_id: item.product_id,
+        product_name: item.product_name || 'Unknown Product',
+        quantity: item.quantity || 0,
+        price: item.price || 0,
+        product: { name: item.product_name || 'Unknown Product' },
+        order_id: orderData.id,
+      })) : [],
+      customer: orderData.customer_profile ? {
+        id: orderData.customer_profile.id,
+        name: orderData.customer_profile.name,
+        email: orderData.customer_profile.email,
+        phone: orderData.customer_profile.phone,
+        role: orderData.customer_profile.role,
+      } : {
+        id: 'default-customer',
+        name: 'Unknown Customer',
+        email: 'No Email',
+        role: 'customer',
+      },
+      customer_id: orderData.customer_profile_id || '',
+    }));
+
+    console.timeEnd('[TRACKING DEBUG] Recent orders fetch time');
+    return { data: mappedOrders, error: null };
+  } catch (error) {
+    console.error('[TRACKING DEBUG] Error in getRecentOrders:', error);
+    console.timeEnd('[TRACKING DEBUG] Recent orders fetch time');
+    const message = error instanceof Error ? error.message : 'Unknown error fetching recent orders';
+    return { data: null, error: message };
+  }
+}
+
 export async function getOrderDetails(orderId: string): Promise<{ data: FrontendOrder | null; error: string | null }> {
   const supabase = await createClient();
   try {

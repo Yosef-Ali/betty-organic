@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Search, 
   Package, 
@@ -17,9 +19,12 @@ import {
   ArrowRight,
   MapPin,
   Phone,
-  Calendar
+  Calendar,
+  RefreshCw,
+  ChevronRight,
+  History
 } from "lucide-react";
-import { getOrderDetails } from "@/app/actions/orderActions";
+import { getOrderDetails, getRecentOrders } from "@/app/actions/orderActions";
 import { cn } from "@/lib/utils";
 
 interface OrderTrackingDialogProps {
