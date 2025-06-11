@@ -64,13 +64,6 @@ export async function Navigation() {
               <div className="absolute -bottom-1 left-0 w-full h-0.5 bg-black opacity-0 group-hover:opacity-100 transition-opacity" />
             </Link>
 
-            <Link
-              href="/amharic-ocr"
-              className="text-lg font-medium relative group text-blue-600 hover:text-blue-800"
-            >
-              <span className="relative z-10">አማርኛ OCR</span>
-              <div className="absolute -bottom-1 left-0 w-full h-0.5 bg-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
-            </Link>
           </div>
           {/* Pass fetched user and profile */}
           <NavbarUserSection
