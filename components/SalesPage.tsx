@@ -318,8 +318,10 @@ const SalesPage: FC<SalesPageProps> = ({ user }) => {
             description: `Order #${response.order?.display_id || response.order?.id || 'unknown'} has been created`,
           });
 
+          // Clear the cart but don't close the sheet automatically
+          // Let the CartFooter receipt modal handle the user flow
           useSalesCartStore.getState().clearCart();
-          setIsCartOpen(false);
+          // setIsCartOpen(false); // REMOVED: Let user close manually after viewing receipt
           return true;
         } else {
           // Handle the case where response indicates failure
