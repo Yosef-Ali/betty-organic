@@ -5,7 +5,7 @@ interface WhatsAppSettings {
   enableOrderNotifications: boolean
   enableRealTimeNotifications: boolean
   notificationMessage: string
-  apiProvider?: 'twilio' | 'whatsapp-web-js' | 'baileys' | 'manual' // API provider option
+  apiProvider?: 'cloud-api' | 'twilio' | 'whatsapp-web-js' | 'baileys' | 'manual' // API provider option
   apiKey?: string
   apiSecret?: string
 }
@@ -19,8 +19,9 @@ export async function getWhatsAppSettings(): Promise<WhatsAppSettings | null> {
       enableOrderNotifications: true,
       enableRealTimeNotifications: true,
       notificationMessage: 'New order received from Betty Organic App! Order #{display_id}',
-      // Default to manual for simplicity - users can upgrade to API if needed
-      apiProvider: (process.env.WHATSAPP_API_PROVIDER as any) || 'manual',
+      // Default to cloud-api if configured, otherwise manual
+      apiProvider: (process.env.WHATSAPP_API_PROVIDER as any) || 
+                   (process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID ? 'cloud-api' : 'manual'),
       apiKey: process.env.WHATSAPP_API_KEY,
       apiSecret: process.env.WHATSAPP_API_SECRET
     }
@@ -57,6 +58,9 @@ async function sendWhatsAppMessage(
 ): Promise<{ success: boolean; error?: string; messageId?: string }> {
   try {
     switch (settings.apiProvider) {
+      case 'cloud-api':
+        return await sendCloudApiWhatsApp(phoneNumber, message, settings)
+      
       case 'twilio':
         return await sendTwilioWhatsApp(phoneNumber, message, settings)
       
@@ -78,6 +82,53 @@ async function sendWhatsAppMessage(
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to send WhatsApp message'
+    }
+  }
+}
+
+// WhatsApp Cloud API implementation (Meta Business API)
+async function sendCloudApiWhatsApp(
+  phoneNumber: string, 
+  message: string, 
+  settings: WhatsAppSettings
+): Promise<{ success: boolean; error?: string; messageId?: string }> {
+  try {
+    const accessToken = process.env.WHATSAPP_ACCESS_TOKEN
+    const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID
+
+    if (!accessToken || !phoneNumberId) {
+      throw new Error('WhatsApp Cloud API credentials not configured. Please set WHATSAPP_ACCESS_TOKEN and WHATSAPP_PHONE_NUMBER_ID in your environment variables.')
+    }
+
+    // Use the local API endpoint we created
+    const response = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/whatsapp/send`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        to: phoneNumber,
+        message: message,
+        type: 'text'
+      })
+    })
+
+    const result = await response.json()
+
+    if (result.success) {
+      console.log('✅ WhatsApp Cloud API message sent successfully:', result.messageId)
+      return {
+        success: true,
+        messageId: result.messageId
+      }
+    } else {
+      throw new Error(result.error || 'WhatsApp Cloud API error')
+    }
+  } catch (error) {
+    console.error('WhatsApp Cloud API error:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'WhatsApp Cloud API error'
     }
   }
 }
@@ -328,6 +379,118 @@ Please process this order as soon as possible! 🚚`
 }
 
 // New function for testing WhatsApp API connection
+// Function to send receipt to customer via WhatsApp
+export async function sendCustomerReceiptWhatsApp(receiptData: {
+  customerPhone: string
+  customerName: string
+  orderId: string
+  items: Array<{
+    name: string
+    quantity: number
+    price: number
+  }>
+  total: number
+}) {
+  try {
+    // Get WhatsApp settings
+    const settings = await getWhatsAppSettings()
+    
+    if (!settings) {
+      return {
+        success: false,
+        error: 'WhatsApp settings not configured'
+      }
+    }
+
+    // Clean phone number
+    const cleanPhone = receiptData.customerPhone.replace(/[\s\-\(\)]/g, '')
+    
+    // Create customer receipt message
+    const message = `🧾 *Your Order Receipt - Betty Organic*
+
+Hi ${receiptData.customerName}! 👋
+
+✅ Your order has been confirmed!
+📋 Order ID: ${receiptData.orderId}
+
+🛒 *Items Ordered:*
+${receiptData.items.map((item, index) => 
+  `${index + 1}. ${item.name} (${(item.quantity * 1000).toFixed(0)}g) - ETB ${item.price.toFixed(2)}`
+).join('\n')}
+
+💰 *Total Amount: ETB ${receiptData.total.toFixed(2)}*
+
+📅 Order Date: ${new Date().toLocaleDateString()}
+🕒 Order Time: ${new Date().toLocaleTimeString()}
+
+🚚 We'll prepare your fresh organic produce and contact you for delivery!
+
+🌿 Thank you for choosing Betty Organic! 🌿
+📞 For any questions, feel free to reply to this message.
+
+🔗 ${process.env.NEXT_PUBLIC_SITE_URL || 'https://bettys-organic.com'}`
+
+    console.log('📱 Preparing customer WhatsApp receipt:', {
+      to: cleanPhone,
+      orderId: receiptData.orderId,
+      customer: receiptData.customerName,
+      total: receiptData.total,
+      provider: settings.apiProvider
+    })
+
+    // Generate WhatsApp URL (this always works as fallback)
+    const whatsappUrl = `https://wa.me/${cleanPhone.replace('+', '')}?text=${encodeURIComponent(message)}`
+    
+    // Try to send automatically through configured API if available
+    let automaticResult = null
+    if (settings.apiProvider && settings.apiProvider !== 'manual' && settings.apiKey) {
+      try {
+        const sendResult = await sendWhatsAppMessage(
+          cleanPhone.startsWith('+') ? cleanPhone : `+${cleanPhone}`,
+          message,
+          settings
+        )
+
+        if (sendResult.success) {
+          console.log('✅ Customer receipt sent automatically via', settings.apiProvider)
+          automaticResult = {
+            messageId: sendResult.messageId,
+            provider: settings.apiProvider
+          }
+        } else {
+          console.warn('⚠️ Automatic sending failed, falling back to URL method:', sendResult.error)
+        }
+      } catch (error) {
+        console.warn('⚠️ Automatic API attempt failed, falling back to URL method:', error)
+      }
+    }
+
+    // Return success with appropriate method
+    return {
+      success: true,
+      message: automaticResult 
+        ? `Receipt sent successfully via ${automaticResult.provider}`
+        : 'Receipt ready to send via WhatsApp',
+      whatsappUrl,
+      method: automaticResult ? 'api' : 'url',
+      provider: settings.apiProvider || 'manual',
+      automatic: automaticResult,
+      data: {
+        customerPhone: cleanPhone,
+        message,
+        orderId: receiptData.orderId
+      }
+    }
+  } catch (error) {
+    console.error('Failed to send customer WhatsApp receipt:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to send receipt'
+    }
+  }
+}
+
+// Test WhatsApp connection
 export async function testWhatsAppConnection() {
   try {
     const settings = await getWhatsAppSettings()

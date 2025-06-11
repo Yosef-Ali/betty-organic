@@ -16,7 +16,7 @@ interface WhatsAppSettings {
   enableOrderNotifications: boolean;
   enableRealTimeNotifications: boolean;
   notificationMessage: string;
-  apiProvider: 'manual' | 'twilio' | 'whatsapp-web-js' | 'baileys';
+  apiProvider: 'cloud-api' | 'manual' | 'twilio' | 'whatsapp-web-js' | 'baileys';
   apiKey?: string;
   apiSecret?: string;
 }
@@ -27,7 +27,7 @@ export function SettingsWhatsApp() {
     enableOrderNotifications: true,
     enableRealTimeNotifications: true,
     notificationMessage: 'New order received from Betty Organic App! Order #{display_id}',
-    apiProvider: 'manual',
+    apiProvider: 'cloud-api',
     apiKey: '',
     apiSecret: ''
   });
@@ -206,6 +206,119 @@ If you received this message, your WhatsApp integration is working correctly! �
                 onCheckedChange={(checked) => handleInputChange('enableRealTimeNotifications', checked)}
               />
             </div>
+          </div>
+
+          {/* API Provider Selection */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-medium">API Provider</h3>
+            
+            <div className="space-y-2">
+              <Label htmlFor="apiProvider">WhatsApp Integration Method</Label>
+              <Select 
+                value={settings.apiProvider} 
+                onValueChange={(value) => handleInputChange('apiProvider', value as any)}
+              >
+                <SelectTrigger className="max-w-md">
+                  <SelectValue placeholder="Select API provider" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cloud-api">
+                    <div className="flex items-center gap-2">
+                      <Zap className="w-4 h-4 text-blue-600" />
+                      <span>WhatsApp Cloud API (Meta)</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="manual">
+                    <div className="flex items-center gap-2">
+                      <MessageCircle className="w-4 h-4 text-green-600" />
+                      <span>Manual (Free)</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="twilio">
+                    <div className="flex items-center gap-2">
+                      <Settings className="w-4 h-4 text-purple-600" />
+                      <span>Twilio WhatsApp API</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="whatsapp-web-js">Web.js Service</SelectItem>
+                  <SelectItem value="baileys">Baileys Service</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-sm text-muted-foreground">
+                Choose how WhatsApp messages should be sent
+              </p>
+            </div>
+
+            {/* API Credentials for Cloud API */}
+            {settings.apiProvider === 'cloud-api' && (
+              <div className="space-y-4 p-4 border rounded-lg bg-blue-50">
+                <h4 className="text-sm font-medium text-blue-900">WhatsApp Cloud API Configuration</h4>
+                <div className="space-y-3">
+                  <div>
+                    <Label htmlFor="accessToken">Access Token</Label>
+                    <Input
+                      id="accessToken"
+                      type="password"
+                      placeholder="EAAxxxxxxxxxxxx..."
+                      value={settings.apiKey || ''}
+                      onChange={(e) => handleInputChange('apiKey', e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Get this from Meta Developer Console → Your App → WhatsApp → API Setup
+                    </p>
+                  </div>
+                  <div>
+                    <Label htmlFor="phoneNumberId">Phone Number ID</Label>
+                    <Input
+                      id="phoneNumberId"
+                      placeholder="102xxxxxxxxxx"
+                      value={settings.apiSecret || ''}
+                      onChange={(e) => handleInputChange('apiSecret', e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Phone Number ID from Meta Developer Console
+                    </p>
+                  </div>
+                </div>
+                <div className="text-xs text-blue-700">
+                  <p><strong>Setup Steps:</strong></p>
+                  <ol className="list-decimal list-inside space-y-1 mt-1">
+                    <li>Create Meta Developer Account and Facebook App</li>
+                    <li>Add WhatsApp product to your app</li>
+                    <li>Get temporary access token and phone number ID</li>
+                    <li>Add test recipients (up to 5 phone numbers)</li>
+                    <li>Enter credentials above and save</li>
+                  </ol>
+                </div>
+              </div>
+            )}
+
+            {/* API Credentials for other providers */}
+            {(settings.apiProvider === 'twilio' || settings.apiProvider === 'whatsapp-web-js' || settings.apiProvider === 'baileys') && (
+              <div className="space-y-4 p-4 border rounded-lg bg-gray-50">
+                <h4 className="text-sm font-medium">{settings.apiProvider} Configuration</h4>
+                <div className="space-y-3">
+                  <div>
+                    <Label htmlFor="apiKey">API Key / Account SID</Label>
+                    <Input
+                      id="apiKey"
+                      type="password"
+                      value={settings.apiKey || ''}
+                      onChange={(e) => handleInputChange('apiKey', e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="apiSecret">API Secret / Auth Token</Label>
+                    <Input
+                      id="apiSecret"
+                      type="password"
+                      value={settings.apiSecret || ''}
+                      onChange={(e) => handleInputChange('apiSecret', e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Custom Message Template */}

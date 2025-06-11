@@ -56,21 +56,6 @@ export const OrderReceiptModal: React.FC<OrderReceiptModalProps> = ({
     return encodeURIComponent(text);
   };
 
-  const generateAdminNotificationText = () => {
-    let text = `🔔 *New Sales Order Receipt Sent - Betty Organic*\n\n`;
-    text += `📋 Order ID: ${orderId}\n`;
-    text += `👤 Customer: ${customerName || customerInfo || 'Walk-in Customer'}\n`;
-    text += `📱 Phone: ${customerPhone || 'Not provided'}\n\n`;
-    text += "🛒 *Order Items:*\n";
-    items.forEach((item, index) => {
-      text += `${index + 1}. ${item.name} (${(item.quantity * 1000).toFixed(0)}g) - ETB ${item.price.toFixed(2)}\n`;
-    });
-    text += `\n💰 *Total: ETB ${total.toFixed(2)}*\n\n`;
-    text += `📅 ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}\n\n`;
-    text += `✅ Receipt has been sent to customer via WhatsApp\n`;
-    text += `📋 Order is ready for processing`;
-    return encodeURIComponent(text);
-  };
 
   const handleSendToCustomer = () => {
     if (!customerPhone) {
@@ -87,29 +72,6 @@ export const OrderReceiptModal: React.FC<OrderReceiptModalProps> = ({
     window.open(url, "_blank");
   };
 
-  const handleNotifyAdmin = () => {
-    // Get admin WhatsApp number from localStorage settings
-    const savedSettings = localStorage.getItem('whatsAppSettings');
-    let adminNumber = '';
-    
-    if (savedSettings) {
-      try {
-        const settings = JSON.parse(savedSettings);
-        adminNumber = settings.adminPhoneNumber || '';
-      } catch (error) {
-        console.error('Failed to parse WhatsApp settings:', error);
-      }
-    }
-
-    const text = generateAdminNotificationText();
-    
-    // Create WhatsApp URL - if admin number exists, send directly to admin, otherwise general share
-    const url = adminNumber 
-      ? `https://wa.me/${adminNumber.replace('+', '')}?text=${text}`
-      : `https://wa.me/?text=${text}`;
-      
-    window.open(url, "_blank");
-  };
 
   return (
     <>
@@ -201,35 +163,26 @@ export const OrderReceiptModal: React.FC<OrderReceiptModalProps> = ({
               </Button>
             </div>
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="flex justify-center">
               {customerPhone ? (
                 <Button 
                   onClick={handleSendToCustomer} 
-                  className="gap-2 bg-green-600 hover:bg-green-700"
+                  className="gap-2 bg-green-600 hover:bg-green-700 w-full max-w-xs"
                 >
                   <MessageCircle className="h-4 w-4" />
-                  Send to Customer
+                  Send Receipt to Customer
                 </Button>
               ) : (
                 <Button 
                   disabled 
                   variant="outline"
-                  className="gap-2 text-gray-400"
+                  className="gap-2 text-gray-400 w-full max-w-xs"
                   title="Customer phone not available"
                 >
                   <MessageCircle className="h-4 w-4" />
-                  Send to Customer
+                  Send Receipt to Customer
                 </Button>
               )}
-              
-              <Button 
-                variant="outline" 
-                onClick={handleNotifyAdmin} 
-                className="gap-2 border-blue-600 text-blue-600 hover:bg-blue-50"
-              >
-                <MessageCircle className="h-4 w-4" />
-                Notify Admin
-              </Button>
             </div>
             
             {customerPhone && (
