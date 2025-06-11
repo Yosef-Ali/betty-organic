@@ -9,9 +9,10 @@ import {
     DialogDescription,
     DialogFooter,
 } from "@/components/ui/dialog";
-import { LogIn, ShoppingBag, MessageCircle } from "lucide-react";
+import { LogIn, ShoppingBag, MessageCircle, Printer, Receipt } from "lucide-react";
 import { OrderDetails, CustomerInfo } from "./types";
 import { useMarketingCartStore } from "@/store/cartStore";
+import { OrderReceiptModal } from "./OrderReceiptModal";
 
 interface OrderPlacedProps {
     isAuthenticated: boolean;
@@ -37,6 +38,7 @@ export default function OrderPlaced({
     clearOrderData
 }: OrderPlacedProps): React.ReactElement {
     const [orderProcessed, setOrderProcessed] = useState(false);
+    const [showPrintPreview, setShowPrintPreview] = useState(false);
     const { setContinuingShopping } = useMarketingCartStore();
 
     // Process order when component mounts if shouldProcessOrder is true
@@ -116,6 +118,22 @@ export default function OrderPlaced({
             return () => clearTimeout(timer);
         }
     }, [orderProcessed]);
+
+    // Format order data for the print preview
+    const formatOrderForPrint = () => {
+        return {
+            items: orderDetails.items.map(item => ({
+                name: item.name,
+                quantity: item.grams / 1000, // Convert grams to kg
+                price: item.price
+            })),
+            total: orderDetails.total,
+            customerInfo: isAuthenticated 
+                ? `${orderDetails.customer_name} (${orderDetails.customer_phone})`
+                : `${orderDetails.customer_name} (${orderDetails.customer_phone})`,
+            customerId: orderDetails.display_id
+        };
+    };
 
     if (!isAuthenticated) {
         // Guest order complete view
@@ -203,6 +221,16 @@ Please deliver to the address above. Thank you! 🚚`;
                     >
                         <ShoppingBag className="w-4 h-4" />
                         Continue Shopping
+                    </Button>
+                    
+                    {/* Print Receipt button - icon only */}
+                    <Button
+                        variant="outline"
+                        className="w-12 h-12 p-0 border-blue-600 text-blue-600 hover:bg-blue-50"
+                        onClick={() => setShowPrintPreview(true)}
+                        title="Print Receipt"
+                    >
+                        <Receipt className="w-5 h-5" />
                     </Button>
                     
                     {/* Optional WhatsApp Share - icon only */}
@@ -318,6 +346,16 @@ Please deliver to the address above. Thank you! 🚚`;
                         Continue Shopping
                     </Button>
                     
+                    {/* Print Receipt button - icon only */}
+                    <Button
+                        variant="outline"
+                        className="w-12 h-12 p-0 border-blue-600 text-blue-600 hover:bg-blue-50"
+                        onClick={() => setShowPrintPreview(true)}
+                        title="Print Receipt"
+                    >
+                        <Receipt className="w-5 h-5" />
+                    </Button>
+                    
                     {/* Optional WhatsApp Share - icon only */}
                     <Button
                         variant="outline"
@@ -329,6 +367,18 @@ Please deliver to the address above. Thank you! 🚚`;
                     </Button>
                 </div>
             </DialogFooter>
+            
+            {/* Order Receipt Modal */}
+            {showPrintPreview && (
+                <OrderReceiptModal
+                    isOpen={showPrintPreview}
+                    onClose={() => setShowPrintPreview(false)}
+                    items={formatOrderForPrint().items}
+                    total={formatOrderForPrint().total}
+                    customerInfo={formatOrderForPrint().customerInfo}
+                    orderId={formatOrderForPrint().customerId}
+                />
+            )}
         </>
     );
 }
