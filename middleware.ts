@@ -7,10 +7,15 @@ export async function middleware(request: NextRequest) {
   if (
     request.nextUrl.pathname.startsWith('/_next') ||
     request.nextUrl.pathname.startsWith('/api/public') ||
+    request.nextUrl.pathname.startsWith('/api/twilio/config-check') ||
+    request.nextUrl.pathname.startsWith('/api/temp-pdf') || // Allow temp-pdf API without auth
+    request.nextUrl.pathname.startsWith('/api/temp-image') || // Allow temp-image API without auth
+    request.nextUrl.pathname.startsWith('/api/generate-receipt-image') || // Allow receipt generation without auth
     request.nextUrl.pathname.includes('.') ||
     request.nextUrl.pathname === '/' ||
     request.nextUrl.pathname === '/marketing' ||
-    request.nextUrl.pathname === '/fix-notifications'
+    request.nextUrl.pathname === '/fix-notifications' || // Added comma here
+    request.nextUrl.pathname === '/test-twilio' // Explicitly skip /test-twilio
   ) {
     return NextResponse.next();
   }
@@ -114,23 +119,23 @@ export async function middleware(request: NextRequest) {
       // Role-based route protection
       if (request.nextUrl.pathname.startsWith('/dashboard')) {
         const userRole = profile?.role || '';
-        
+
         // Define customer-accessible routes
         const customerAccessibleRoutes = [
           '/dashboard/profile',
           '/dashboard/orders'
         ];
-        
+
         // Allow customers access to their profile and orders
         const isCustomerAccessibleRoute = customerAccessibleRoutes.some(route =>
           request.nextUrl.pathname.startsWith(route)
         );
-        
+
         // If it's a customer trying to access non-customer routes, redirect to profile
         if (userRole === 'customer' && !isCustomerAccessibleRoute) {
           return NextResponse.redirect(new URL('/dashboard/profile', request.url));
         }
-        
+
         // Only admin and sales can access other dashboard routes
         if (
           !isCustomerAccessibleRoute &&

@@ -121,6 +121,7 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
     null
   );
   const [isPending, setIsPending] = useState(false);
+  const [showCustomerStep, setShowCustomerStep] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -250,8 +251,38 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
 
           <div className="flex-1 overflow-hidden">
             <ScrollArea className="h-full">
-              {!isOrderConfirmed ? (
+              {!isOrderConfirmed && !showCustomerStep ? (
                 <CartItems items={items} />
+              ) : showCustomerStep ? (
+                <OrderSummary
+                  items={items}
+                  totalAmount={getTotalAmount() + deliveryCost}
+                  customerId={customer?.id || ""}
+                  setCustomerId={handleCustomerUpdate}
+                  orderStatus={orderStatus || "pending"}
+                  setOrderStatus={setOrderStatus}
+                  handleToggleLock={handleToggleLockStatus}
+                  handleConfirmDialog={handleConfirmDialogChange}
+                  isSaving={isSaving}
+                  onPrintPreview={handleThermalPrintPreview}
+                  isOrderSaved={isOrderSaved}
+                  orderNumber={orderNumber}
+                  isAdmin={profile?.role === "admin"}
+                  customerInfo={customer}
+                  setCustomerInfo={setCustomer}
+                  deliveryCost={deliveryCost}
+                  setDeliveryCost={setDeliveryCost}
+                  profile={
+                    profile
+                      ? {
+                          id: profile.id,
+                          role: profile.role,
+                          name: profile.name,
+                          email: profile.email,
+                        }
+                      : undefined
+                  }
+                />
               ) : (
                 <>
                   <OrderSummary
@@ -305,6 +336,7 @@ export const SalesCartSheet: React.FC<SalesCartSheetProps> = ({
             customer={customer}
             clearCart={clearCart}
             onOpenChange={onOpenChange}
+            onShowCustomerStep={setShowCustomerStep}
           />
         </SheetContent>
       </Sheet>

@@ -7,9 +7,11 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
-import { MessageCircle, Check, AlertCircle, Zap, Settings } from 'lucide-react';
-import { testWhatsAppConnection } from '@/app/actions/whatsappActions';
+import { MessageCircle, Check, AlertCircle, Zap, Settings, Shield, TrendingUp, CheckCircle, XCircle, Info } from 'lucide-react';
+import { testWhatsAppConnection, getWhatsAppDiagnostics } from '@/app/actions/whatsappActions';
 
 interface WhatsAppSettings {
   adminPhoneNumber: string;
@@ -34,9 +36,16 @@ export function SettingsWhatsApp() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isTestSending, setIsTestSending] = useState(false);
+  const [diagnostics, setDiagnostics] = useState<any>(null);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
 
-  // Load settings from localStorage on component mount
+  // Load settings and diagnostics on component mount
   useEffect(() => {
+    loadSettings();
+    loadDiagnostics();
+  }, []);
+  
+  const loadSettings = () => {
     const savedSettings = localStorage.getItem('whatsAppSettings');
     if (savedSettings) {
       try {
@@ -49,7 +58,18 @@ export function SettingsWhatsApp() {
         console.error('Failed to parse WhatsApp settings:', error);
       }
     }
-  }, []);
+  };
+  
+  const loadDiagnostics = async () => {
+    try {
+      const result = await getWhatsAppDiagnostics();
+      if (result.success) {
+        setDiagnostics(result.data);
+      }
+    } catch (error) {
+      console.error('Failed to load diagnostics:', error);
+    }
+  };
 
   const handleInputChange = (field: keyof WhatsAppSettings, value: string | boolean) => {
     setSettings(prev => ({
@@ -87,6 +107,9 @@ export function SettingsWhatsApp() {
       
       // Here you could also save to a database or server
       // await updateWhatsAppSettings(settings);
+      
+      // Reload diagnostics after saving
+      await loadDiagnostics();
       
       toast.success('WhatsApp settings saved successfully!');
     } catch (error) {
@@ -335,6 +358,119 @@ If you received this message, your WhatsApp integration is working correctly! âœ
             </p>
           </div>
 
+          {/* Configuration Status */}
+          {diagnostics && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-medium">Configuration Status</h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowDiagnostics(!showDiagnostics)}
+                  className="text-xs"
+                >
+                  {showDiagnostics ? 'Hide' : 'Show'} Details
+                </Button>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2">
+                  {diagnostics.validation.isValid ? (
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                  ) : (
+                    <XCircle className="w-4 h-4 text-red-600" />
+                  )}
+                  <span className="text-sm">
+                    Configuration {diagnostics.validation.isValid ? 'Valid' : 'Invalid'}
+                  </span>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  {diagnostics.capabilities.canSendMessages ? (
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                  ) : (
+                    <XCircle className="w-4 h-4 text-red-600" />
+                  )}
+                  <span className="text-sm">
+                    Auto-send {diagnostics.capabilities.canSendMessages ? 'Enabled' : 'Disabled'}
+                  </span>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  {diagnostics.capabilities.canReceiveWebhooks ? (
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                  ) : (
+                    <XCircle className="w-4 h-4 text-gray-400" />
+                  )}
+                  <span className="text-sm">
+                    Webhooks {diagnostics.capabilities.canReceiveWebhooks ? 'Ready' : 'Not Setup'}
+                  </span>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  {diagnostics.capabilities.hasSecureWebhooks ? (
+                    <Shield className="w-4 h-4 text-green-600" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 text-yellow-600" />
+                  )}
+                  <span className="text-sm">
+                    Security {diagnostics.capabilities.hasSecureWebhooks ? 'Enabled' : 'Basic'}
+                  </span>
+                </div>
+              </div>
+              
+              {showDiagnostics && (
+                <div className="space-y-3">
+                  {diagnostics.validation.errors.length > 0 && (
+                    <Alert>
+                      <XCircle className="h-4 w-4" />
+                      <AlertDescription>
+                        <strong>Errors:</strong>
+                        <ul className="list-disc list-inside mt-1">
+                          {diagnostics.validation.errors.map((error: string, i: number) => (
+                            <li key={i} className="text-sm">{error}</li>
+                          ))}
+                        </ul>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  
+                  {diagnostics.validation.warnings.length > 0 && (
+                    <Alert>
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>
+                        <strong>Warnings:</strong>
+                        <ul className="list-disc list-inside mt-1">
+                          {diagnostics.validation.warnings.map((warning: string, i: number) => (
+                            <li key={i} className="text-sm">{warning}</li>
+                          ))}
+                        </ul>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  
+                  {diagnostics.recommendations.length > 0 && (
+                    <Alert>
+                      <TrendingUp className="h-4 w-4" />
+                      <AlertDescription>
+                        <strong>Recommendations:</strong>
+                        <ul className="list-disc list-inside mt-1">
+                          {diagnostics.recommendations.map((rec: string, i: number) => (
+                            <li key={i} className="text-sm">{rec}</li>
+                          ))}
+                        </ul>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  
+                  <div className="text-xs text-muted-foreground">
+                    <strong>Supported Features:</strong> {diagnostics.capabilities.supportedFeatures.join(', ')}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Action Buttons */}
           <div className="flex gap-3 pt-4">
             <Button 
@@ -362,6 +498,15 @@ If you received this message, your WhatsApp integration is working correctly! âœ
                 <MessageCircle className="w-4 h-4" />
               )}
               {isTestSending ? 'Sending...' : 'Test WhatsApp'}
+            </Button>
+            
+            <Button 
+              variant="ghost"
+              onClick={loadDiagnostics}
+              className="flex items-center gap-2"
+            >
+              <Info className="w-4 h-4" />
+              Refresh Status
             </Button>
           </div>
 

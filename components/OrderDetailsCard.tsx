@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useOrderDetails } from "@/lib/hooks/useOrderDetails";
+import { calculateOrderTotals } from "@/utils/orders/orderCalculations";
 import { useRealtime } from "@/lib/supabase/realtime-provider";
 import { useRouter } from "next/navigation";
 import { Profile } from "@/lib/types/auth";
@@ -52,7 +53,7 @@ export default function OrderDetailsCard({ orderId }: OrderDetailsProps) {
   const router = useRouter();
   const { subscribeToOrders } = useRealtime();
   const [currentOrderStatus, setCurrentOrderStatus] = useState<string>('pending');
-  
+
   const {
     order,
     error,
@@ -74,7 +75,7 @@ export default function OrderDetailsCard({ orderId }: OrderDetailsProps) {
   // Subscribe to realtime updates for order details refresh
   React.useEffect(() => {
     if (!orderId) return;
-    
+
     const handleOrderDetailUpdate = (updatedOrder: any, event: 'INSERT' | 'UPDATE' | 'DELETE') => {
       // If this is the order we're showing, refresh it
       if (updatedOrder.id === orderId && (event === 'UPDATE' || event === 'INSERT')) {
@@ -172,36 +173,20 @@ export default function OrderDetailsCard({ orderId }: OrderDetailsProps) {
     );
   }
 
-  // --- Start Calculation ---
-  // Process items with safe type checking  
-  const itemsWithTotal = order.items.map((item) => ({
-    ...item,
-    total: Number(item.price || 0), // item.price is already the total for this line item
-  }));
+  // --- Start Calculation using universal utility ---
+  const { subtotal, deliveryCost, discountAmount, totalAmount, items: calculatedItems } = calculateOrderTotals(order as any);
 
-  // Calculate subtotal from items
-  const subtotal = itemsWithTotal.reduce((sum, item) => sum + item.total, 0);
-
-  // Get discount with fallback
-  const discountAmount = order.discount_amount || 0;
-
-  // --- Adjusted Delivery Cost Calculation ---
-  // Prioritize explicitly provided delivery_cost if > 0
-  // Otherwise, infer it from the difference between db total and subtotal (minus discount)
-  let inferredDeliveryCost = 0;
-  if (order.total_amount && order.total_amount > (subtotal - discountAmount)) {
-    inferredDeliveryCost = order.total_amount - subtotal + discountAmount;
-  }
-  const deliveryCost = (order.delivery_cost && order.delivery_cost > 0) ? order.delivery_cost : inferredDeliveryCost;
-  // --- End Adjusted Delivery Cost Calculation ---
-
-  // Calculate the correct total amount including delivery and discount
-  // Recalculate based on potentially inferred deliveryCost
-  const calculatedTotal = subtotal + deliveryCost - discountAmount;
-
-  // Use the database total_amount as the primary source of truth if available, otherwise use calculated
-  // This ensures the displayed total matches the database record when possible.
-  const totalAmount = order.total_amount || calculatedTotal;
+  // Use the properly calculated items from the universal calculator
+  const itemsWithTotal = (order.items || []).map((item, index) => {
+    const calculatedItem = calculatedItems[index];
+    return {
+      ...item,
+      total: calculatedItem ? calculatedItem.totalPrice : Number(item.price || 0),
+      displayQuantity: calculatedItem ? calculatedItem.quantity : (item.quantity || 1),
+      unitPrice: calculatedItem ? calculatedItem.unitPrice : Number(item.price || 0),
+    };
+  });
+  // --- End Calculation ---
 
   // Safely access profile information with fallbacks
   const profileName = order.profile?.name || "Unknown Customer";
@@ -233,7 +218,7 @@ export default function OrderDetailsCard({ orderId }: OrderDetailsProps) {
               <li key={item.id} className="flex items-center justify-between">
                 <span className="text-muted-foreground">
                   {item.product?.name || "Unknown Product"} x{" "}
-                  <span>{item.price} /kg</span>
+                  <span>{item.displayQuantity}kg @ Br {item.unitPrice.toFixed(2)}/kg</span>
                 </span>
                 <span>Br {item.total.toFixed(2)}</span>
               </li>
@@ -302,7 +287,7 @@ export default function OrderDetailsCard({ orderId }: OrderDetailsProps) {
         </div>
 
         <Separator className="my-4" />
-        
+
         {/* Customer Information Section */}
         <div className="space-y-3">
           <div className="font-semibold">Customer Information</div>
@@ -333,7 +318,7 @@ export default function OrderDetailsCard({ orderId }: OrderDetailsProps) {
         </div>
 
         <Separator className="my-4" />
-        
+
         {/* Order Location & Delivery Section */}
         <div className="space-y-3">
           <div className="font-semibold">Delivery Information</div>
@@ -362,7 +347,7 @@ export default function OrderDetailsCard({ orderId }: OrderDetailsProps) {
         </div>
 
         <Separator className="my-4" />
-        <PaymentDetails 
+        <PaymentDetails
           orderId={order.id}
           orderStatus={currentOrderStatus}
           totalAmount={totalAmount}

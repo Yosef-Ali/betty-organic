@@ -50,6 +50,7 @@ export default async function ProfilePage() {
                   initialName={profile?.name || ''}
                   initialEmail={user.email || ''}
                   initialImage={profile?.avatar_url || ''}
+                  initialPhone={profile?.phone || ''}
                   userId={user.id}
                 />
               </CardContent>

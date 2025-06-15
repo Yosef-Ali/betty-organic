@@ -1,7 +1,12 @@
 {
-  "python.defaultInterpreterPath": "/opt/homebrew/bin/python3",
-  "python.pythonPath": "/opt/homebrew/bin/python3",
-  "cSpell.words": [
-    "supabase"
-  ]
+  "terminal.integrated.defaultProfile.osx": "zsh",
+  "terminal.integrated.profiles.osx": {
+    "zsh": {
+      "path": "/bin/zsh",
+      "args": ["-l"]
+    }
+  },
+  "terminal.integrated.env.osx": {
+    "PATH": "${env:HOME}/.npm-global/bin:${env:HOME}/bin:${env:PATH}"
+  }
 }

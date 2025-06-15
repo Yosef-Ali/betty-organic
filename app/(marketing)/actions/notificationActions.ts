@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { sendAdminWhatsAppNotification } from '@/app/actions/whatsappActions'
 
 interface OrderDetails {
   id: string | number
@@ -22,52 +23,47 @@ interface OrderDetails {
 
 export async function sendWhatsAppOrderNotification(orderDetails: OrderDetails, adminPhoneNumber?: string) {
   try {
-    // Use provided admin phone number from client settings, or fall back to environment variable
-    const adminPhone = adminPhoneNumber || process.env.ADMIN_WHATSAPP_NUMBER || '+251912345678'
-    
-    // Format order items
-    const itemsList = orderDetails.items
-      .map(item => `• ${item.name} (${item.grams}g) - ETB ${item.price.toFixed(2)}`)
-      .join('\n')
-    
-    // Create formatted message
-    const message = `🍎 *NEW ORDER - Betty Organic*
+    console.log('📱 Sending order notification via Twilio WhatsApp...', { orderId: orderDetails.display_id })
 
-*Order ID:* ${orderDetails.display_id}
-*Customer:* ${orderDetails.customer_name}
-*Phone:* ${orderDetails.customer_phone}
-*Delivery Address:* ${orderDetails.delivery_address}
+    // Use the enhanced WhatsApp action that supports Twilio
+    const result = await sendAdminWhatsAppNotification(orderDetails)
 
-*Items:*
-${itemsList}
+    if (result.success) {
+      console.log('✅ Order notification sent successfully:', result)
 
-*Total Amount:* ETB ${orderDetails.total.toFixed(2)}
+      // Log the successful notification
+      await logOrderNotification(orderDetails.display_id, 'whatsapp', 'sent')
 
-*Order Time:* ${new Date(orderDetails.created_at).toLocaleString()}
+      return {
+        success: true,
+        message: result.automatic
+          ? `Admin notified automatically via ${result.automatic.provider}`
+          : 'Admin notification URL generated',
+        automatic: result.automatic,
+        whatsappUrl: result.whatsappUrl,
+        provider: result.provider,
+        data: result.data
+      }
+    } else {
+      console.error('❌ Failed to send order notification:', result.error)
 
-Please process this order as soon as possible! 🚚`
+      // Log the failed notification  
+      await logOrderNotification(orderDetails.display_id, 'whatsapp', 'failed')
 
-    // Generate WhatsApp URL - this will open WhatsApp with pre-filled message
-    const whatsappUrl = `https://wa.me/${adminPhone.replace('+', '')}?text=${encodeURIComponent(message)}`
-    
-    // For free WhatsApp accounts, we just prepare the URL
-    // The admin will need to manually click send in WhatsApp
-    return {
-      success: true,
-      message: 'WhatsApp notification URL prepared - admin needs to manually send',
-      whatsappUrl,
-      requiresManualSend: true,
-      data: {
-        adminPhone,
-        message,
-        orderId: orderDetails.display_id
+      return {
+        success: false,
+        error: result.error || 'Failed to send notification'
       }
     }
   } catch (error) {
-    console.error('Failed to prepare WhatsApp notification:', error)
+    console.error('❌ Order notification error:', error)
+
+    // Log the failed notification
+    await logOrderNotification(orderDetails.display_id, 'whatsapp', 'failed')
+
     return {
       success: false,
-      error: 'Failed to prepare notification'
+      error: error instanceof Error ? error.message : 'Failed to send notification'
     }
   }
 }
@@ -100,20 +96,25 @@ export async function sendOrderConfirmationEmail(orderData: {
 
 export async function logOrderNotification(orderId: string, type: 'whatsapp' | 'email', status: 'sent' | 'failed') {
   try {
-    const supabase = createClient()
-    
-    // Log notification attempt
-    const { error } = await supabase
-      .from('order_notifications')
-      .insert({
-        order_id: orderId,
-        notification_type: type,
-        status: status,
-        sent_at: new Date().toISOString()
-      })
+    const supabase = await createClient()
 
-    if (error) {
-      console.error('Failed to log notification:', error)
+    // Log notification attempt (if table exists)
+    try {
+      const { error } = await supabase
+        .from('order_notifications')
+        .insert({
+          order_id: orderId,
+          notification_type: type,
+          status: status,
+          sent_at: new Date().toISOString()
+        })
+
+      if (error) {
+        console.error('Failed to log notification:', error)
+      }
+    } catch (dbError) {
+      // Table might not exist - just log and continue
+      console.log('Note: order_notifications table not found, notification logged to console only')
     }
   } catch (error) {
     console.error('Failed to log notification:', error)

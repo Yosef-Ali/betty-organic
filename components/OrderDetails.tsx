@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import type { Order } from "@/types/order";
 import { deleteOrder } from "@/app/actions/orderActions";
+import { calculateOrderTotals } from "@/utils/orders/orderCalculations";
 
 export type OrderDetailsProps = {
   orderId: string;
@@ -99,6 +100,9 @@ export function OrderDetails({ orderId }: OrderDetailsProps) {
     );
   }
 
+  // Apply universal total calculation
+  const { subtotal, deliveryCost, discountAmount, totalAmount, items: calculatedItems } = calculateOrderTotals(order as any);
+
   return (
     <Card className="overflow-hidden">
       <CardHeader className="border-b bg-muted/50 px-6">
@@ -123,18 +127,16 @@ export function OrderDetails({ orderId }: OrderDetailsProps) {
 
       <CardContent className="p-6 text-sm">
         <div className="space-y-4">
-          {order.items?.length ? (
-            order.items.map((item) => (
-              <div key={item.id} className="flex justify-between">
+          {calculatedItems?.length ? (
+            calculatedItems.map((item, index) => (
+              <div key={index} className="flex justify-between">
                 <div>
-                  <p className="font-medium">
-                    {item.product?.name || item.product_name}
-                  </p>
+                  <p className="font-medium">{item.name}</p>
                   <p className="text-muted-foreground">
-                    {item.quantity} × Br {item.price}
+                    {item.quantity}kg × Br {item.unitPrice.toFixed(2)}/kg
                   </p>
                 </div>
-                <p>{formatOrderCurrency(item.price * item.quantity)}</p>
+                <p>{formatOrderCurrency(item.totalPrice)}</p>
               </div>
             ))
           ) : (
@@ -153,18 +155,23 @@ export function OrderDetails({ orderId }: OrderDetailsProps) {
         <div className="space-y-2">
           <div className="flex justify-between">
             <p>Subtotal</p>
-            <p>
-              {formatOrderCurrency(
-                order.items?.reduce(
-                  (sum, item) => sum + item.price * item.quantity,
-                  0
-                ) || 0
-              )}
-            </p>
+            <p>{formatOrderCurrency(subtotal)}</p>
           </div>
+          {deliveryCost > 0 && (
+            <div className="flex justify-between">
+              <p>Delivery</p>
+              <p>{formatOrderCurrency(deliveryCost)}</p>
+            </div>
+          )}
+          {discountAmount > 0 && (
+            <div className="flex justify-between">
+              <p>Discount</p>
+              <p className="text-green-600">-{formatOrderCurrency(discountAmount)}</p>
+            </div>
+          )}
           <div className="flex justify-between font-medium">
             <p>Total</p>
-            <p>{formatOrderCurrency(order.total_amount || 0)}</p>
+            <p>{formatOrderCurrency(totalAmount)}</p>
           </div>
         </div>
       </CardContent>

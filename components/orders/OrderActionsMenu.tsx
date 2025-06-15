@@ -8,12 +8,14 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { MoreVertical } from 'lucide-react';
+import { MoreVertical, MessageCircle } from 'lucide-react';
 
 export default function OrderActionsMenu({
   onTrashClick,
+  onWhatsAppClick,
 }: {
   onTrashClick: () => void;
+  onWhatsAppClick?: () => void;
 }) {
   return (
     <DropdownMenu>
@@ -26,6 +28,15 @@ export default function OrderActionsMenu({
       <DropdownMenuContent align="end">
         <DropdownMenuItem>Edit</DropdownMenuItem>
         <DropdownMenuItem>Export</DropdownMenuItem>
+        {onWhatsAppClick && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={onWhatsAppClick}>
+              <MessageCircle className="h-4 w-4 mr-2" />
+              Send Invoice via WhatsApp
+            </DropdownMenuItem>
+          </>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={onTrashClick}>Trash</DropdownMenuItem>
       </DropdownMenuContent>

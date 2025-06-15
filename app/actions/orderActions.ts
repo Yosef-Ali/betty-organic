@@ -492,12 +492,12 @@ export async function getOrders(customerId?: string, caller?: string): Promise<E
 
     let query = supabase
       .from('orders')
-      .select(`id, display_id, created_at, updated_at, status, total_amount, type, profile_id, customer_profile_id, order_items!order_items_order_id_fkey (*, products!inner (*)), customer:profiles!orders_customer_profile_id_fkey (id, name, email, role), seller:profiles!orders_profile_id_fkey (id, name, email, role)`)
+      .select(`id, display_id, created_at, updated_at, status, total_amount, type, profile_id, customer_profile_id, order_items!order_items_order_id_fkey (*, products!inner (*)), customer:profiles!orders_customer_profile_id_fkey (id, name, email, phone, role), seller:profiles!orders_profile_id_fkey (id, name, email, role)`)
       .order('created_at', { ascending: false });
 
     // Apply role-based filtering with type assertions to fix TypeScript errors
-    if (authData.profile?.role === 'admin') { 
-      /* No filter - admin sees all orders */ 
+    if (authData.profile?.role === 'admin') {
+      /* No filter - admin sees all orders */
     }
     else if (authData.profile?.role === 'sales') {
       // Sales users should see all orders (or filter by pending status if needed)

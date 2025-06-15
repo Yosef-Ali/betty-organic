@@ -15,7 +15,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
 import { Order, OrderItem } from '@/types/order';
 import { Customer } from '@/types/customer';
-import { SalesCartItem } from '@/store/salesCartStore';
+import { SalesCartItem, useSalesCartStore } from '@/store/salesCartStore';
 import { OrderReceiptModal } from '@/components/products/marcking-cart/dialog/OrderReceiptModal';
 
 export interface CartFooterProps {
@@ -29,6 +29,7 @@ export interface CartFooterProps {
   isOrderConfirmed: boolean;
   disabled?: boolean;
   isProcessingOrder?: boolean; // Add processing state prop
+  onShowCustomerStep?: (show: boolean) => void; // Add callback for customer step
   onOrderCreate?: (orderData: {
     id?: string;
     profile_id?: string;
@@ -79,6 +80,7 @@ export const CartFooter: FC<CartFooterProps> = ({
   clearCart,
   onOpenChange,
   isProcessingOrder = false,
+  onShowCustomerStep,
 }) => {
   const [coupon, setCoupon] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState('');
@@ -86,7 +88,11 @@ export const CartFooter: FC<CartFooterProps> = ({
   const [deliveryCost, setDeliveryCost] = useState(0);
   const [showReceipt, setShowReceipt] = useState(false);
   const [completedOrderData, setCompletedOrderData] = useState<any>(null);
+  const [showCustomerStep, setShowCustomerStep] = useState(false);
   const { toast } = useToast();
+
+  // Get items directly from store as fallback
+  const storeItems = useSalesCartStore(state => state.items);
 
   const handleApplyCoupon = () => {
     if (coupon.trim()) {
@@ -107,10 +113,36 @@ export const CartFooter: FC<CartFooterProps> = ({
     // The sheet will remain open so user can continue with more orders if needed
   };
 
+  const handleNextClick = () => {
+    // Show customer step instead of immediately confirming order
+    setShowCustomerStep(true);
+    onShowCustomerStep?.(true);
+  };
+
+  const handleBackToCart = () => {
+    setShowCustomerStep(false);
+    onShowCustomerStep?.(false);
+    // Don't call onCancel - just go back to cart items
+  };
+
   const handleConfirmOrder = async () => {
+    // Early validation - check if cart has items
+    const orderItems = items && items.length > 0 ? items : storeItems;
+    if (!orderItems || orderItems.length === 0) {
+      console.warn('[ORDER] Warning: Cannot confirm order - cart is empty');
+      toast({
+        title: "Cart is empty",
+        description: "Please add items to your cart before confirming the order.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
       console.log('[ORDER] Starting order confirmation process...');
+      console.log('[ORDER] Current items:', items);
+      console.log('[ORDER] Items length:', items?.length);
 
       // First confirm the order to update UI state
       await onConfirmOrder();
@@ -122,9 +154,16 @@ export const CartFooter: FC<CartFooterProps> = ({
         return;
       }
 
-      if (!items || items.length === 0) {
-        console.error('[ORDER] Error: No items in cart');
-        // Note: Empty cart should be prevented by UI - button should be disabled
+      // Use items from props or fallback to store items
+      const orderItems = items && items.length > 0 ? items : storeItems;
+
+      if (!orderItems || orderItems.length === 0) {
+        console.warn('[ORDER] Warning: No items in cart - cannot proceed with order');
+        toast({
+          title: "Cart is empty",
+          description: "Please add items to your cart before confirming the order.",
+          variant: "destructive",
+        });
         return;
       }
 
@@ -135,6 +174,7 @@ export const CartFooter: FC<CartFooterProps> = ({
         id: customer.id,
         name: customer.name || 'Selected Customer',
         email: customer.email || '',
+        phone: customer.phone || null,
         role: 'customer' as const
       } : {
         // If no customer is selected, we need to use the same user ID that created the order
@@ -142,11 +182,19 @@ export const CartFooter: FC<CartFooterProps> = ({
         id: customer?.id || "1d0e9745-575b-41ed-a255-6952cc009103", // Use a known valid ID from your database
         name: 'Walk-in Customer',
         email: '',
+        phone: null, // Walk-in customers don't have phone numbers for receipts
         role: 'customer' as const
       };
 
+      console.log('[ORDER] Customer data for receipt:', {
+        hasCustomer: !!customer?.id,
+        customerName: orderCustomer.name,
+        customerPhone: orderCustomer.phone,
+        isWalkIn: !customer?.id
+      });
+
       console.log('[ORDER] Using customer:', orderCustomer);      // Convert cart items to order items in the format expected by onOrderCreate
-      const orderItems = items.map(item => ({
+      const formattedOrderItems = orderItems.map(item => ({
         id: item.id,
         name: item.name,
         price: Number(((item.pricePerKg * item.grams) / 1000).toFixed(2)), // Total price for this item
@@ -156,13 +204,11 @@ export const CartFooter: FC<CartFooterProps> = ({
         product_name: item.name
       }));
 
-      console.log('[ORDER] Prepared order items:', orderItems);
-
-      console.log('[ORDER] Using customer:', orderCustomer);
+      console.log('[ORDER] Prepared order items:', formattedOrderItems);
 
       // Create order data with required structure for backend
       const orderData = {
-        items: orderItems,
+        items: formattedOrderItems,
         customer: orderCustomer, // Use the orderCustomer variable instead of customer directly
         total_amount: totalAmountWithDelivery,
         delivery_cost: deliveryCost,
@@ -181,28 +227,28 @@ export const CartFooter: FC<CartFooterProps> = ({
 
         if (success) {
           console.log('[ORDER] Order created successfully, showing receipt');
-          
+
           // Clear cart first
           if (clearCart) clearCart();
-          
+
           // Store order data for receipt display
           const receiptData = {
-            items: orderItems,
+            items: formattedOrderItems,
             total: totalAmountWithDelivery,
             customer: orderCustomer,
             orderId: `BO-SALES-${Date.now().toString().slice(-6)}`,
             deliveryCost
           };
-          
+
           // Set the data first, then show receipt with a small delay to ensure proper rendering
           setCompletedOrderData(receiptData);
-          
+
           // Use setTimeout to ensure the data is set before showing the modal
           setTimeout(() => {
             console.log('[ORDER] Setting showReceipt to true');
             setShowReceipt(true);
           }, 50);
-          
+
           // Don't close the sheet yet - let user interact with receipt first
         } else {
           console.error('[ORDER] Order creation failed');
@@ -229,43 +275,82 @@ export const CartFooter: FC<CartFooterProps> = ({
     <CardFooter className="flex-col items-stretch gap-6 pt-4 print:hidden">
       <Separator />
 
-      {/* Delivery Cost Input */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <Truck className="h-4 w-4" />
-          <Label htmlFor="delivery-cost" className="font-medium">Delivery Cost</Label>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Input
-            id="delivery-cost"
-            type="number"
-            min="0"
-            step="1"
-            placeholder="Enter delivery cost in Birr"
-            value={deliveryCost}
-            onChange={(e) => setDeliveryCost(parseFloat(e.target.value) || 0)}
-            className="w-full"
-          />
-        </div>
-      </div>
-
-      {/* Total Amount */}
-      <div className="flex justify-between items-center">
-        <span className="font-semibold text-lg">Total:</span>
-        <div className="text-right">
-          <span className="font-bold text-2xl">
-            Br {totalAmountWithDelivery.toFixed(2)}
-          </span>
-          {deliveryCost > 0 && (
-            <div className="text-sm text-muted-foreground">
-              (Includes Br {deliveryCost.toFixed(2)} delivery)
+      {/* Hide delivery and total when in customer step - shown in OrderSummary instead */}
+      {!showCustomerStep && (
+        <>
+          {/* Delivery Cost Input */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Truck className="h-4 w-4" />
+              <Label htmlFor="delivery-cost" className="font-medium">Delivery Cost</Label>
             </div>
-          )}
-        </div>
-      </div>
+            <div className="flex items-center space-x-2">
+              <Input
+                id="delivery-cost"
+                type="number"
+                min="0"
+                step="1"
+                placeholder="Enter delivery cost in Birr"
+                value={deliveryCost}
+                onChange={(e) => setDeliveryCost(parseFloat(e.target.value) || 0)}
+                className="w-full"
+              />
+            </div>
+          </div>
+
+          {/* Total Amount */}
+          <div className="flex justify-between items-center">
+            <span className="font-semibold text-lg">Total:</span>
+            <div className="text-right">
+              <span className="font-bold text-2xl">
+                Br {totalAmountWithDelivery.toFixed(2)}
+              </span>
+              {deliveryCost > 0 && (
+                <div className="text-sm text-muted-foreground">
+                  (Includes Br {deliveryCost.toFixed(2)} delivery)
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
 
       <AnimatePresence mode="wait">
-        {!isOrderConfirmed && (
+        {showCustomerStep && (
+          <motion.div
+            key="customer-step"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+            className="space-y-4"
+          >
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={handleBackToCart}
+                className="flex-1"
+              >
+                Back to Cart
+              </Button>
+              <Button
+                onClick={handleConfirmOrder}
+                disabled={isLoading || isProcessingOrder || !items?.length}
+                className="flex-1 bg-green-600 hover:bg-green-700"
+              >
+                {isLoading || isProcessingOrder ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  'Complete Order'
+                )}
+              </Button>
+            </div>
+          </motion.div>
+        )}
+        {!isOrderConfirmed && !showCustomerStep && (
           <motion.div
             key="pre-confirm"
             initial={{ opacity: 0, y: 20 }}
@@ -331,7 +416,7 @@ export const CartFooter: FC<CartFooterProps> = ({
                 Cancel
               </Button>
               <Button
-                onClick={handleConfirmOrder}
+                onClick={handleNextClick}
                 disabled={isLoading || isProcessingOrder || !items || items.length === 0}
                 className="bg-primary"
               >
@@ -341,7 +426,7 @@ export const CartFooter: FC<CartFooterProps> = ({
                     Processing...
                   </>
                 ) : (
-                  'Pay'
+                  'Next'
                 )}
               </Button>
             </div>
@@ -372,7 +457,7 @@ export const CartFooter: FC<CartFooterProps> = ({
           </motion.div>
         )}
       </AnimatePresence>
-      
+
       {/* Order Receipt Modal */}
       {showReceipt && completedOrderData && (
         <OrderReceiptModal

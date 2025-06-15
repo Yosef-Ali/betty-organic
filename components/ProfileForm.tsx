@@ -32,6 +32,7 @@ interface ProfileFormProps {
   initialName: string;
   initialEmail: string;
   initialImage: string;
+  initialPhone?: string;
   userId: string;
 }
 
@@ -39,6 +40,7 @@ export function ProfileForm({
   initialName,
   initialEmail,
   initialImage,
+  initialPhone,
   userId,
 }: ProfileFormProps) {
   const [message, setMessage] = useState('');
@@ -51,7 +53,7 @@ export function ProfileForm({
       name: initialName,
       email: initialEmail,
       avatar_url: initialImage,
-      phone: '',
+      phone: initialPhone || '',
     },
   });
 
@@ -129,9 +131,16 @@ export function ProfileForm({
               <FormItem>
                 <FormLabel>Phone Number</FormLabel>
                 <FormControl>
-                  <Input {...field} type="tel" placeholder="Enter phone number" />
+                  <Input
+                    {...field}
+                    type="tel"
+                    placeholder="+251944113998"
+                  />
                 </FormControl>
                 <FormMessage />
+                <p className="text-sm text-muted-foreground">
+                  Ethiopian phone number format: +251XXXXXXXXX
+                </p>
               </FormItem>
             )}
           />

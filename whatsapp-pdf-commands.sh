@@ -1,0 +1,23 @@
+#!/bin/bash
+# Quick commands for WhatsApp PDF testing
+
+echo "🚀 Betty Organic - WhatsApp PDF Quick Reference"
+echo "=============================================="
+echo ""
+echo "1️⃣  First time setup:"
+echo "   ./setup-ngrok.sh"
+echo ""
+echo "2️⃣  Start ngrok (in new terminal):"
+echo "   ngrok http 3000"
+echo ""
+echo "3️⃣  Copy ngrok URL to .env.local:"
+echo "   NEXT_PUBLIC_NGROK_URL=https://YOUR-NGROK-URL.ngrok.io"
+echo ""
+echo "4️⃣  Restart app:"
+echo "   npm run dev"
+echo ""
+echo "5️⃣  Test pages:"
+echo "   • Test PDF: http://localhost:3000/test-pdf-whatsapp"
+echo "   • Debug: http://localhost:3000/whatsapp-pdf-debug"
+echo ""
+echo "⚠️  Remember: Keep ngrok terminal open while testing!"

@@ -9,10 +9,12 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal } from "lucide-react";
+import { MoreHorizontal, MessageCircle } from "lucide-react";
 import { ExtendedOrder } from "@/types/order";
 import { formatOrderId, formatOrderCurrency } from "@/lib/utils";
 import { updateOrderStatus } from "@/app/actions/orderActions";
+import { sendCustomerInvoiceWhatsApp } from "@/app/actions/whatsappActions";
+import { calculateOrderTotals } from "@/utils/orders/orderCalculations";
 import { toast } from "sonner";
 
 export const columns: ColumnDef<ExtendedOrder>[] = [
@@ -56,8 +58,8 @@ export const columns: ColumnDef<ExtendedOrder>[] = [
               status === "completed"
                 ? "default"
                 : status === "pending"
-                ? "secondary"
-                : "destructive"
+                  ? "secondary"
+                  : "destructive"
             }
           >
             {status}
@@ -70,11 +72,15 @@ export const columns: ColumnDef<ExtendedOrder>[] = [
   {
     accessorKey: "total_amount",
     header: () => <div className="text-right">Amount</div>,
-    cell: ({ row }) => (
-      <div className="text-right font-medium">
-        {formatOrderCurrency(row.original.total_amount || 0)}
-      </div>
-    ),
+    cell: ({ row }) => {
+      // Use universal calculator to ensure consistent total calculation
+      const { totalAmount } = calculateOrderTotals(row.original);
+      return (
+        <div className="text-right font-medium">
+          {formatOrderCurrency(totalAmount)}
+        </div>
+      );
+    },
     enableGlobalFilter: true,
   },
   {
@@ -115,6 +121,72 @@ export const columns: ColumnDef<ExtendedOrder>[] = [
         } catch (error) {
           toast.error("Error updating order status");
         }
+      }; const handleWhatsAppInvoice = async (e: React.MouseEvent) => {
+        e.stopPropagation(); // Prevent row click
+        try {
+          const order = row.original;
+
+          // Get customer data from available fields
+          const customerPhone = order.customer?.phone || '';
+          const customerName = order.customer?.name || order.customer?.email || 'Customer';
+          const customerEmail = order.customer?.email || '';
+
+          console.log('Order data for WhatsApp:', {
+            orderId: order.id,
+            customer: order.customer,
+            customerPhone,
+            customerName,
+            hasOrderItems: !!(order.order_items && order.order_items.length > 0)
+          });
+
+          // Check if we have a phone number
+          if (!customerPhone) {
+            toast.error("Customer phone number not found for this order. Please update the customer's profile with a phone number.");
+            return;
+          }
+
+          // Format order items for invoice using universal calculation
+          const { subtotal, deliveryCost, discountAmount, totalAmount, items } = calculateOrderTotals(order);
+
+          const invoiceData = {
+            customerPhone,
+            customerName,
+            orderId: order.display_id || order.id,
+            items: items.map(item => ({
+              name: item.name,
+              quantity: item.quantity,
+              price: item.totalPrice
+            })),
+            subtotal,
+            shippingFee: deliveryCost,
+            discount: discountAmount,
+            totalAmount,
+            paymentMethod: 'Cash on Delivery',
+            transactionDate: new Date(order.created_at || Date.now()).toLocaleDateString(),
+            storeName: 'Betty Organic',
+            storeContact: '+251944113998'
+          };
+
+          console.log('Sending invoice data:', invoiceData);
+
+          toast.promise(
+            sendCustomerInvoiceWhatsApp(invoiceData),
+            {
+              loading: 'Sending invoice via WhatsApp...',
+              success: (result) => {
+                if (result.success) {
+                  return result.message || 'Invoice sent successfully!';
+                } else {
+                  throw new Error(result.error || 'Failed to send invoice');
+                }
+              },
+              error: (error) => `Failed to send invoice: ${error.message}`
+            }
+          );
+        } catch (error) {
+          toast.error("Error sending WhatsApp invoice");
+          console.error("WhatsApp invoice error:", error);
+        }
       };
 
       const handleClick = (e: React.MouseEvent, action: string) => {
@@ -151,6 +223,10 @@ export const columns: ColumnDef<ExtendedOrder>[] = [
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
               <DropdownMenuItem onClick={(e) => handleClick(e, "view")}>
                 View
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleWhatsAppInvoice}>
+                <MessageCircle className="h-4 w-4 mr-2" />
+                Send Invoice via WhatsApp
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuLabel>Update Status</DropdownMenuLabel>

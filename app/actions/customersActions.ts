@@ -133,13 +133,13 @@ export async function getCustomer(id: string) {
 
     return data
       ? {
-          id: data.id,
-          fullName: data.name,
-          email: data.email,
-          location: data.address || '',
-          imageUrl: data.avatar_url || '',
-          status: data.status || 'inactive',
-        }
+        id: data.id,
+        fullName: data.name,
+        email: data.email,
+        location: data.address || '',
+        imageUrl: data.avatar_url || '',
+        status: data.status || 'inactive',
+      }
       : null;
   } catch (error) {
     console.error('Error in getCustomer:', error);
@@ -158,6 +158,7 @@ export async function getCustomers() {
         id,
         name,
         email,
+        phone,
         address,
         avatar_url,
         role,
@@ -185,6 +186,7 @@ export async function getCustomers() {
         id: customer.id,
         fullName: customer.name,
         email: customer.email,
+        phone: customer.phone,
         address: customer.address || '',
         imageUrl: customer.avatar_url || '',
         status: customer.status || 'inactive',

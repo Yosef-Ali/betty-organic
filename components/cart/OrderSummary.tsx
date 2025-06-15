@@ -11,6 +11,7 @@ import {
   Share2,
   AlertCircle,
   CheckCircle2,
+  MessageCircle,
 } from "lucide-react";
 import {
   Select,
@@ -27,7 +28,9 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { getCustomerList } from "@/app/actions/customerActions";
+import { sendSalesReceiptWhatsApp } from "@/app/actions/whatsappActions";
 import { toast } from "sonner";
+import { CustomerPhoneInput } from "./CustomerPhoneInput";
 
 interface OrderSummaryProps {
   // Guest flow properties
@@ -123,15 +126,17 @@ export const OrderSummary: FC<OrderSummaryProps> = ({
   // Guest flow props with defaults
   isGuestFlow = false,
   guestName = "",
-  setGuestName = () => {},
+  setGuestName = () => { },
   guestLocation = "",
-  setGuestLocation = () => {},
+  setGuestLocation = () => { },
   guestPhone = "", // Default value
-  setGuestPhone = () => {}, // Default value
+  setGuestPhone = () => { }, // Default value
   onGuestOrderConfirm = () => {
     console.warn("onGuestOrderConfirm not provided");
   },
 }) => {
+  // Check if we're in the customer step (no Save Order button needed)
+  const isCustomerStep = !isOrderSaved && !orderNumber;
   // Validation constants
   const MIN_NAME_LENGTH = 3;
   const MAX_NAME_LENGTH = 50;
@@ -178,11 +183,12 @@ export const OrderSummary: FC<OrderSummaryProps> = ({
   });
 
   const [customerList, setCustomerList] = useState<
-    Array<{ id: string; name: string }>
+    Array<{ id: string; name: string; phone?: string | null; email?: string | null }>
   >([]);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerType | null>(
     null
   );
+  const [isSendingReceipt, setIsSendingReceipt] = useState(false);
 
   // Memoized date formatting function
   const getFormattedDate = useCallback((date: Date = new Date()) => {
@@ -248,7 +254,7 @@ export const OrderSummary: FC<OrderSummaryProps> = ({
         matchingCustomer &&
         (!selectedCustomer || selectedCustomer.id !== matchingCustomer.id)
       ) {
-        setSelectedCustomer(matchingCustomer);
+        setSelectedCustomer(matchingCustomer as CustomerType);
       }
     }
   }, [customerInfo?.id, customerList, selectedCustomer]);
@@ -277,8 +283,13 @@ export const OrderSummary: FC<OrderSummaryProps> = ({
     (value: string) => {
       const selected = customerList.find((c) => c.id === value);
       if (selected) {
-        const customerData = { id: selected.id, name: selected.name };
-        setSelectedCustomer(selected);
+        const customerData = {
+          id: selected.id,
+          name: selected.name,
+          phone: selected.phone || undefined,
+          email: selected.email || undefined
+        };
+        setSelectedCustomer(selected as CustomerType);
         setCustomerId(selected.id);
         if (setCustomerInfo) setCustomerInfo(customerData);
       }
@@ -312,9 +323,8 @@ export const OrderSummary: FC<OrderSummaryProps> = ({
 📞 *Contact:* +251947385509
 🌐 *Instagram:* @bettyorganic
 
-${
-  isGuestFlow
-    ? `
+${isGuestFlow
+            ? `
 🔍 *Next Steps:*
 1. We will confirm your order via WhatsApp
 2. Delivery options will be discussed
@@ -322,8 +332,8 @@ ${
 4. Order tracking: Use ref #${orderReference}
 
 ❓ *Questions?* Reply to this message!`
-    : ""
-}`;
+            : ""
+          }`;
 
         const customerInfoText = (() => {
           if (isGuestFlow) {
@@ -333,9 +343,8 @@ ${
    • Location: ${guestLocation}`;
           }
           return customerId
-            ? `👤 *Customer ID:* ${customerId}\n   🔢 *Order Number:* ${
-                orderNumber || "Pending"
-              }`
+            ? `👤 *Customer ID:* ${customerId}\n   🔢 *Order Number:* ${orderNumber || "Pending"
+            }`
             : "";
         })();
 
@@ -362,17 +371,16 @@ ${
 
 ${isGuestFlow ? "🔔 *NEW GUEST ORDER* 🔔" : "📋 *Order Details*"}
 📅 *Order Date:* ${getFormattedDate()}
-${
-  isGuestFlow
-    ? `
+${isGuestFlow
+            ? `
 📱 *Order Type:* Online Guest Order
 ⚡ *Priority:* High
 🚚 *Expected Delivery:* Between ${formatDeliveryDate(
-        tomorrow
-      )} - ${formatDeliveryDate(dayAfter)}
+              tomorrow
+            )} - ${formatDeliveryDate(dayAfter)}
 📊 *Status:* Pending Confirmation`
-    : ""
-}
+            : ""
+          }
 
 📝 *Order Details:*
 ${orderDetails}
@@ -420,6 +428,93 @@ ${storeInfo}`;
     ]
   );
 
+  // Send receipt to customer
+  const handleSendReceipt = useCallback(async () => {
+    if (!orderNumber || !selectedCustomer) {
+      toast.error("Order must be saved and customer selected first");
+      return;
+    }
+
+    if (!selectedCustomer.phone) {
+      toast.error("Customer phone number is required to send receipt", {
+        description: "Please select a customer with a phone number or add a phone number to the customer profile"
+      });
+      return;
+    }
+
+    // Validate phone number format
+    const phoneRegex = /^\+251\d{9}$/;
+    if (!phoneRegex.test(selectedCustomer.phone)) {
+      toast.error("Invalid phone number format", {
+        description: `Please update customer's phone to Ethiopian format (e.g., +251944113998). Current: ${selectedCustomer.phone}`
+      });
+      return;
+    }
+
+    setIsSendingReceipt(true);
+    try {
+      const now = new Date();
+      const receiptData = {
+        customerPhone: selectedCustomer.phone,
+        customerName: selectedCustomer.name,
+        orderId: orderNumber,
+        items: items.map(item => ({
+          name: item.name,
+          grams: item.grams,
+          pricePerKg: item.pricePerKg,
+          totalPrice: (item.pricePerKg * item.grams) / 1000
+        })),
+        subtotal: totalAmount - deliveryCost,
+        deliveryCost: deliveryCost,
+        discount: 0,
+        total: totalAmount,
+        orderDate: now.toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        }),
+        orderTime: now.toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit'
+        }),
+        paymentMethod: 'Cash',
+        storeName: 'Betty Organic',
+        storeContact: '+251944113998'
+      };
+
+      console.log('Sending receipt with data:', receiptData);
+
+      const result = await sendSalesReceiptWhatsApp(receiptData);
+
+      if (result.success) {
+        if (result.whatsappUrl) {
+          // Manual URL case
+          window.open(result.whatsappUrl, '_blank');
+          toast.success("Receipt ready to send via WhatsApp", {
+            description: "WhatsApp opened with receipt message"
+          });
+        } else {
+          // Automatic sending case
+          toast.success(result.message || "Receipt sent successfully!", {
+            description: `Sent via ${result.provider || 'WhatsApp'}`
+          });
+        }
+      } else {
+        toast.error("Failed to send receipt", {
+          description: result.error
+        });
+      }
+    } catch (error) {
+      console.error('Receipt sending error:', error);
+      toast.error("Error sending receipt", {
+        description: "Please try again"
+      });
+    } finally {
+      setIsSendingReceipt(false);
+    }
+  }, [orderNumber, selectedCustomer, items, totalAmount, deliveryCost]);
+
   return (
     <motion.div
       key="order-summary"
@@ -431,45 +526,74 @@ ${storeInfo}`;
     >
       <div className="flex justify-between items-center mb-4">
         <div>
-          <h3 className="font-semibold text-lg">Order Summary</h3>
+          <h3 className="font-semibold text-lg">
+            {isCustomerStep ? "Customer Details & Payment" : "Order Summary"}
+          </h3>
           {orderNumber && (
             <p className="text-sm text-muted-foreground">
               Order ID: {orderNumber}
             </p>
           )}
+          {isCustomerStep && (
+            <p className="text-sm text-muted-foreground">
+              Add customer details and complete the order
+            </p>
+          )}
         </div>
-        <div className="flex space-x-2">
-          <Button variant="outline" size="sm" onClick={onPrintPreview}>
-            <Printer className="h-4 w-4 mr-2" />
-            Print
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+        {/* Hide print/share buttons when in customer step */}
+        {!isCustomerStep && (
+          <div className="flex space-x-2">
+            <Button variant="outline" size="sm" onClick={onPrintPreview}>
+              <Printer className="h-4 w-4 mr-2" />
+              Print
+            </Button>
+
+            {/* Send Receipt Button - Only show if order is saved and customer selected */}
+            {isOrderSaved && selectedCustomer && selectedCustomer.phone && (
               <Button
                 variant="outline"
                 size="sm"
-                className="bg-green-500/10 hover:bg-green-500/20 text-green-600"
+                onClick={handleSendReceipt}
+                disabled={isSendingReceipt}
+                className="bg-blue-500/10 hover:bg-blue-500/20 text-blue-600"
               >
-                <svg
-                  className="h-4 w-4 mr-2"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                >
-                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" />
-                </svg>
-                Share
+                {isSendingReceipt ? (
+                  <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-2" />
+                ) : (
+                  <MessageCircle className="h-4 w-4 mr-2" />
+                )}
+                {isSendingReceipt ? 'Sending...' : 'Send Receipt'}
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => handleShare("direct")}>
-                Share to Manager
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleShare("group")}>
-                Share to Group
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+            )}
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="bg-green-500/10 hover:bg-green-500/20 text-green-600"
+                >
+                  <svg
+                    className="h-4 w-4 mr-2"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                  >
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" />
+                  </svg>
+                  Share
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => handleShare("direct")}>
+                  Share to Manager
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleShare("group")}>
+                  Share to Group
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
       </div>
       <div className="space-y-2 mb-4">
         {items.map((item) => (
@@ -486,31 +610,9 @@ ${storeInfo}`;
           <span>Subtotal:</span>
           <span>Br {(totalAmount - deliveryCost).toFixed(2)}</span>
         </div>
-        <div className="flex items-center justify-between text-sm mb-2">
+        <div className="flex justify-between text-sm">
           <span>Delivery Cost:</span>
-          <div className="flex items-center">
-            <span className="mr-2">Br</span>
-            <Input
-              type="number"
-              value={deliveryCost}
-              onChange={(e) => {
-                // IMPORTANT: Make sure we're updating the delivery cost correctly
-                // This is a direct fix to ensure the delivery cost is saved to the database
-                const newValue = Number(e.target.value);
-                console.log("Changing delivery cost to:", newValue);
-                if (setDeliveryCost) {
-                  // Update the delivery cost in the parent component
-                  setDeliveryCost(newValue);
-                  console.log("Delivery cost updated to:", newValue);
-                } else {
-                  console.error("setDeliveryCost function is not available");
-                }
-              }}
-              className="w-24 h-8 text-right"
-              min="0"
-              step="100"
-            />
-          </div>
+          <span>Br {deliveryCost.toFixed(2)}</span>
         </div>
         <div className="flex justify-between font-bold">
           <span>Total:</span>
@@ -538,13 +640,12 @@ ${storeInfo}`;
                           toast.error(error);
                         }
                       }}
-                      className={`mt-1 pr-8 ${
-                        guestName
+                      className={`mt-1 pr-8 ${guestName
                           ? validateGuestName(guestName)
                             ? "border-red-500 focus:border-red-500"
                             : "border-green-500 focus:border-green-500"
                           : ""
-                      }`}
+                        }`}
                     />
                     {guestName && (
                       <div className="absolute right-2 top-[calc(50%_+_4px)]">
@@ -579,13 +680,12 @@ ${storeInfo}`;
                         const newPhone = numbers ? `+251${numbers}` : "";
                         setGuestPhone?.(newPhone);
                       }}
-                      className={`rounded-l-none ${
-                        guestPhone
+                      className={`rounded-l-none ${guestPhone
                           ? /^\+251\d{9}$/.test(guestPhone)
                             ? "border-green-500 focus:border-green-500"
                             : "border-red-500 focus:border-red-500"
                           : ""
-                      }`}
+                        }`}
                       maxLength={9}
                     />
                     {guestPhone && (
@@ -619,13 +719,12 @@ ${storeInfo}`;
                           toast.error(error);
                         }
                       }}
-                      className={`mt-1 pr-8 ${
-                        guestLocation
+                      className={`mt-1 pr-8 ${guestLocation
                           ? validateGuestLocation(guestLocation)
                             ? "border-red-500 focus:border-red-500"
                             : "border-green-500 focus:border-green-500"
                           : ""
-                      }`}
+                        }`}
                     />
                     {guestLocation && (
                       <div className="absolute right-2 top-[calc(50%_-_8px)]">
@@ -645,25 +744,72 @@ ${storeInfo}`;
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label className="text-sm font-medium">Customer</Label>
-                <Select
-                  onValueChange={handleCustomerChange}
-                  value={selectedCustomer?.id || customerId || ""}
-                >
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Select customer" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {customerList.map((customer) => (
-                      <SelectItem key={customer.id} value={customer.id}>
-                        {customer.name} ({customer.id.substring(28)})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-medium">Customer</Label>
+                  <Select
+                    onValueChange={handleCustomerChange}
+                    value={selectedCustomer?.id || customerId || ""}
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Select customer" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {customerList.map((customer) => (
+                        <SelectItem key={customer.id} value={customer.id}>
+                          {customer.name} ({customer.id.substring(28)})
+                          {customer.phone ? (
+                            <span className="text-green-600 ml-2">📱</span>
+                          ) : (
+                            <span className="text-amber-600 ml-2">⚠️</span>
+                          )}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
+
+              {/* Customer Phone Number Input - Show when customer is selected */}
+              {selectedCustomer && (
+                <div className="border rounded-lg p-4 bg-blue-50/30">
+                  <div className="flex items-center justify-between mb-3">
+                    <Label className="text-sm font-medium">Customer Phone (WhatsApp)</Label>
+                    {selectedCustomer.phone ? (
+                      <span className="text-xs text-green-600 flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3" />
+                        Ready for receipts
+                      </span>
+                    ) : (
+                      <span className="text-xs text-amber-600 flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" />
+                        Add for receipts
+                      </span>
+                    )}
+                  </div>
+
+                  <CustomerPhoneInput
+                    customerId={selectedCustomer.id}
+                    currentPhone={selectedCustomer.phone || ''}
+                    customerName={selectedCustomer.name}
+                    onPhoneUpdated={(newPhone) => {
+                      // Update the selected customer and customer list
+                      setSelectedCustomer({
+                        ...selectedCustomer,
+                        phone: newPhone
+                      });
+                      setCustomerList(prev =>
+                        prev.map(c =>
+                          c.id === selectedCustomer.id
+                            ? { ...c, phone: newPhone }
+                            : c
+                        )
+                      );
+                    }}
+                  />
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -703,133 +849,135 @@ ${storeInfo}`;
           </div>
         )}
       </div>
-      <div className="flex justify-end space-x-2">
-        <Button
-          variant="outline"
-          onClick={() => handleConfirmDialog("cancel", null)}
-        >
-          Cancel
-        </Button>
-        <Button
-          onClick={() => {
-            if (isGuestFlow) {
-              const nameError = validateGuestName(guestName?.trim() || "");
-              const locationError = validateGuestLocation(
-                guestLocation?.trim() || ""
-              );
-              const phoneError = validatePhone(guestPhone || "");
-              if (nameError) {
-                toast.error(nameError);
-                return;
-              }
-              if (locationError) {
-                toast.error(locationError);
-                return;
-              }
-              if (phoneError) {
-                toast.error(phoneError);
-                return;
-              }
-              onGuestOrderConfirm?.();
-            } else {
-              if (!profile) {
-                toast.error("You must be logged in to create an order");
-                return;
-              }
-              if (!profile.role) {
-                toast.error("Your profile is missing required permissions");
-                return;
-              }
-              if (profile.role !== "admin" && profile.role !== "sales") {
-                toast.error(
-                  "Access Denied - Only admin or sales users can create orders"
+      {/* Hide action buttons when in customer step - let CartFooter handle the flow */}
+      {!isCustomerStep && (
+        <div className="flex justify-end space-x-2">
+          <Button
+            variant="outline"
+            onClick={() => handleConfirmDialog("cancel", null)}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={() => {
+              if (isGuestFlow) {
+                const nameError = validateGuestName(guestName?.trim() || "");
+                const locationError = validateGuestLocation(
+                  guestLocation?.trim() || ""
                 );
-                return;
+                const phoneError = validatePhone(guestPhone || "");
+                if (nameError) {
+                  toast.error(nameError);
+                  return;
+                }
+                if (locationError) {
+                  toast.error(locationError);
+                  return;
+                }
+                if (phoneError) {
+                  toast.error(phoneError);
+                  return;
+                }
+                onGuestOrderConfirm?.();
+              } else {
+                if (!profile) {
+                  toast.error("You must be logged in to create an order");
+                  return;
+                }
+                if (!profile.role) {
+                  toast.error("Your profile is missing required permissions");
+                  return;
+                }
+                if (profile.role !== "admin" && profile.role !== "sales") {
+                  toast.error(
+                    "Access Denied - Only admin or sales users can create orders"
+                  );
+                  return;
+                }
+
+                // Create customer data with valid UUID
+                const customerUuid = selectedCustomer
+                  ? selectedCustomer.id
+                  : crypto.randomUUID();
+                const orderCustomer = {
+                  id: customerUuid,
+                  name: selectedCustomer
+                    ? selectedCustomer.name
+                    : "Unknown Customer",
+                  role: "customer" as const,
+                  // Ensure these match the expected structure for an order
+                  profile_id: profile.id, // The seller/staff member's ID
+                  customer_profile_id: customerUuid, // The customer's ID (same as id)
+                };
+
+                handleConfirmDialog("save", orderCustomer);
               }
-
-              // Create customer data with valid UUID
-              const customerUuid = selectedCustomer
-                ? selectedCustomer.id
-                : crypto.randomUUID();
-              const orderCustomer = {
-                id: customerUuid,
-                name: selectedCustomer
-                  ? selectedCustomer.name
-                  : "Unknown Customer",
-                role: "customer" as const,
-                // Ensure these match the expected structure for an order
-                profile_id: profile.id, // The seller/staff member's ID
-                customer_profile_id: customerUuid, // The customer's ID (same as id)
-              };
-
-              handleConfirmDialog("save", orderCustomer);
-            }
-          }}
-          disabled={
-            isGuestFlow
-              ? isSaving ||
+            }}
+            disabled={
+              isGuestFlow
+                ? isSaving ||
                 !guestName?.trim() ||
                 !guestLocation?.trim() ||
                 validatePhone(guestPhone || "") !== null ||
                 isOrderSaved
-              : isSaving || !selectedCustomer || isOrderSaved
-          }
-          className={`relative min-w-[200px] ${
-            isGuestFlow
-              ? isOrderSaved
-                ? "bg-gray-600 hover:bg-gray-700"
-                : "bg-green-600 hover:bg-green-700"
-              : ""
-          } text-white`}
-        >
-          {isSaving ? (
-            <span className="flex items-center justify-center gap-2">
-              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                  fill="none"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                />
-              </svg>
-              {isGuestFlow ? "Opening WhatsApp..." : "Saving..."}
-            </span>
-          ) : isGuestFlow ? (
-            isOrderSaved ? (
+                : isSaving || !selectedCustomer || isOrderSaved
+            }
+            className={`relative min-w-[200px] ${isGuestFlow
+                ? isOrderSaved
+                  ? "bg-gray-600 hover:bg-gray-700"
+                  : "bg-green-600 hover:bg-green-700"
+                : ""
+              } text-white`}
+          >
+            {isSaving ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                    fill="none"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  />
+                </svg>
+                {isGuestFlow ? "Opening WhatsApp..." : "Saving..."}
+              </span>
+            ) : isGuestFlow ? (
+              isOrderSaved ? (
+                <span className="flex items-center justify-center gap-2">
+                  <CheckCircle2 className="h-4 w-4" />
+                  Order Sent
+                </span>
+              ) : (
+                <span className="flex items-center justify-center gap-2">
+                  <svg
+                    className="h-4 w-4"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                  >
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" />
+                  </svg>
+                  Confirm via WhatsApp
+                </span>
+              )
+            ) : isOrderSaved ? (
               <span className="flex items-center justify-center gap-2">
                 <CheckCircle2 className="h-4 w-4" />
-                Order Sent
+                Order Saved
               </span>
             ) : (
-              <span className="flex items-center justify-center gap-2">
-                <svg
-                  className="h-4 w-4"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                >
-                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" />
-                </svg>
-                Confirm via WhatsApp
-              </span>
-            )
-          ) : isOrderSaved ? (
-            <span className="flex items-center justify-center gap-2">
-              <CheckCircle2 className="h-4 w-4" />
-              Order Saved
-            </span>
-          ) : (
-            "Save Order"
-          )}
-        </Button>
-      </div>
+              "Save Order"
+            )}
+          </Button>
+        </div>
+      )}
     </motion.div>
   );
 };

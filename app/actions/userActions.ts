@@ -68,7 +68,7 @@ export async function updateUser(id: string, data: Partial<User>) {
   try {
     // Verify current user has admin permissions
     const { data: { user }, error: userError } = await supabase.auth.getUser();
-    
+
     if (userError || !user) {
       return { success: false, error: 'Authentication required' };
     }
@@ -119,20 +119,51 @@ export async function updateUserRole(id: string, role: string) {
 }
 
 export async function updateProfile(
-  userId: string,
   data: {
     name?: string;
     email?: string;
     avatar_url?: string;
+    phone?: string;
   },
 ) {
   const supabase = await getSupabaseClient();
 
   try {
+    // Get current user to ensure they're updating their own profile
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      return { success: false, error: 'Authentication required' };
+    }
+
+    // Validate phone number if provided
+    if (data.phone && data.phone.trim() !== '') {
+      // Remove all spaces and non-digit characters except +
+      const cleanPhone = data.phone.replace(/[^\+\d]/g, '');
+
+      // Ethiopian phone number patterns:
+      // +251XXXXXXXXX (country code + 9 digits)
+      // +251 XX XXX XXXX (with spaces)
+      // +251 9X XXX XXXX (mobile numbers usually start with 9)
+      // +251 11 XXX XXXX (Addis Ababa landlines)
+
+      const phoneRegex = /^\+251\d{9}$/;
+
+      if (!phoneRegex.test(cleanPhone)) {
+        return {
+          success: false,
+          error: 'Invalid phone number format. Please use Ethiopian format: +251XXXXXXXXX (e.g., +251944113998)'
+        };
+      }
+
+      // Store the cleaned version
+      data.phone = cleanPhone;
+    }
+
     const { error } = await supabase
       .from('profiles')
       .update(data)
-      .eq('id', userId);
+      .eq('id', user.id);
 
     if (error) {
       console.error('Error updating profile:', error);
@@ -157,7 +188,7 @@ export async function createUser(data: {
     // Verify current user has admin permissions
     const supabase = await getSupabaseClient();
     const { data: { user }, error: userError } = await supabase.auth.getUser();
-    
+
     if (userError || !user) {
       return { success: false, error: 'Authentication required' };
     }
@@ -220,7 +251,7 @@ export async function deleteUser(id: string) {
   try {
     // Verify current user has admin permissions
     const { data: { user }, error: userError } = await supabase.auth.getUser();
-    
+
     if (userError || !user) {
       return { success: false, error: 'Authentication required' };
     }
@@ -237,7 +268,7 @@ export async function deleteUser(id: string) {
 
     // Use admin client to delete user from both auth and profiles
     const supabaseAdmin = createAdminClient();
-    
+
     // Delete from profiles first
     const { error: profileError } = await supabaseAdmin.from('profiles').delete().eq('id', id);
     if (profileError) {

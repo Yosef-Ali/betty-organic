@@ -7,7 +7,7 @@ const createJestConfig = nextJest({
 const customJestConfig = {
   setupFilesAfterEnv: ['<rootDir>/supabase/tests/setup.ts'],
   testEnvironment: 'node',
-  testMatch: ['**/supabase/tests/**/*.test.ts'],
+  testMatch: ['**/supabase/tests/**/*.test.ts', '**/__tests__/**/*.test.ts'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
   },

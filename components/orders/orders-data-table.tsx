@@ -52,12 +52,16 @@ import {
   Clock,
   XCircle,
   AlertCircle,
+  MessageCircle,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ExtendedOrder, OrderItem } from "@/types/order";
 import { formatOrderId } from "@/lib/utils";
 import { formatCurrency, formatOrderCurrency } from "@/lib/utils";
 import { updateOrderStatus } from "@/app/actions/orderActions";
+import { sendImageInvoiceWhatsApp } from "@/lib/whatsapp/invoices";
+import { calculateOrderTotals } from "@/utils/orders/orderCalculations";
+import { toast } from "sonner";
 import { useToast } from "@/hooks/use-toast";
 import { SortingState } from "@tanstack/react-table";
 
@@ -117,8 +121,8 @@ export function OrdersDataTable({
       couponInfo: order.coupon_code
         ? `${order.coupon_code}`
         : order.coupon?.code
-        ? `${order.coupon.code}`
-        : "N/A",
+          ? `${order.coupon.code}`
+          : "N/A",
     }));
   }, [orders]);
 
@@ -238,6 +242,353 @@ export function OrdersDataTable({
                 duration: 5000,
               });
             }
+          };          // Function to handle WhatsApp invoice sending
+          const handleWhatsAppInvoice = async (order: ExtendedOrderRow) => {
+            try {
+              // Enhanced Debug: Log the complete order object structure
+              console.log('=== WHATSAPP INVOICE DEBUG ===');
+              console.log('Complete order object:', JSON.stringify(order, null, 2));
+              console.log('Customer object:', order.customer);
+              console.log('Customer phone raw:', order.customer?.phone);
+              console.log('Customer phone type:', typeof order.customer?.phone);
+
+              // Get customer data from available fields
+              const customerPhone = order.customer?.phone || '';
+              const customerName = order.customer?.name || order.customer?.email || 'Customer';
+
+              console.log('Extracted data:', {
+                orderId: order.id,
+                displayId: order.display_id,
+                customerPhone,
+                customerName,
+                phoneFound: !!customerPhone,
+                customerPhoneLength: customerPhone.length,
+                hasOrderItems: !!(order.order_items && order.order_items.length > 0),
+                orderItemsCount: order.order_items?.length || 0
+              });
+
+              // Check if we have a phone number
+              if (!customerPhone) {
+                // For demo/testing purposes, let's use a default admin phone number
+                const defaultPhone = '+251944113998'; // Your admin phone number for testing
+
+                toast({
+                  title: "Using Default Phone",
+                  description: `Customer phone not found. Using default phone ${defaultPhone} for testing.`,
+                  duration: 3000,
+                });
+
+                // Use default phone for testing
+                const { subtotal, deliveryCost, discountAmount, totalAmount, items } = calculateOrderTotals(order);
+
+                const invoiceData = {
+                  customerPhone: defaultPhone,
+                  customerName,
+                  orderId: order.display_id || order.id,
+                  items: items.map(item => ({
+                    name: item.name,
+                    quantity: item.quantity,
+                    price: item.totalPrice
+                  })),
+                  subtotal,
+                  shippingFee: deliveryCost,
+                  discount: discountAmount,
+                  totalAmount,
+                  paymentMethod: 'Cash on Delivery',
+                  transactionDate: new Date(order.created_at || Date.now()).toLocaleDateString(),
+                  storeName: 'Betty Organic',
+                  storeContact: '+251944113998'
+                };
+
+                console.log('Sending invoice data (with default phone):', invoiceData);
+
+                // Use CLIENT-SIDE image generation (like the working test page)
+                try {
+                  console.log('🖼️ Generating invoice image CLIENT-SIDE...');
+                  
+                  // Import the client-side image generator
+                  const { generateReceiptImage } = await import('@/lib/utils/pdfGenerator');
+                  
+                  // Convert order data to receipt format
+                  const receiptData = {
+                    customerName,
+                    orderId: order.display_id || order.id,
+                    items: items.map(item => ({
+                      name: item.name,
+                      quantity: item.quantity,
+                      price: item.totalPrice
+                    })),
+                    total: totalAmount,
+                    orderDate: new Date(order.created_at || Date.now()).toLocaleDateString('en-US', {
+                      weekday: 'long',
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    }),
+                    orderTime: new Date(order.created_at || Date.now()).toLocaleTimeString('en-US', {
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    }),
+                    storeName: 'Betty Organic',
+                    storeContact: '+251944113998'
+                  };
+
+                  // Generate image blob client-side
+                  const imageBlob = await generateReceiptImage(receiptData);
+                  
+                  // Convert to base64
+                  const imageBase64 = await new Promise<string>((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                      const base64String = (reader.result as string).split(',')[1];
+                      resolve(base64String);
+                    };
+                    reader.onerror = reject;
+                    reader.readAsDataURL(imageBlob);
+                  });
+
+                  console.log('✅ Client-side image generated:', {
+                    size: imageBlob.size,
+                    base64Length: imageBase64.length
+                  });
+
+                  // Send the pre-generated image data to server (like test page)
+                  const { sendImageDataToWhatsApp } = await import('@/lib/whatsapp/invoices');
+                  
+                  const result = await sendImageDataToWhatsApp({
+                    customerPhone: defaultPhone,
+                    customerName,
+                    orderId: order.display_id || order.id,
+                    total: totalAmount,
+                    orderDate: receiptData.orderDate,
+                    orderTime: receiptData.orderTime,
+                    storeName: 'Betty Organic',
+                    storeContact: '+251944113998',
+                    imageBase64
+                  });
+
+                  if (result.success) {
+                    toast({
+                      title: "✅ Invoice Image Sent",
+                      description: `Professional invoice image sent to ${defaultPhone} via WhatsApp`,
+                      duration: 5000,
+                    });
+                  } else {
+                    toast({
+                      title: "❌ Failed to Send Invoice",
+                      description: result.error || 'Failed to send invoice image',
+                      variant: "destructive",
+                      duration: 5000,
+                    });
+                  }
+                } catch (error) {
+                  console.error('Client-side image generation failed:', error);
+                  
+                  // Fallback to server-side generation
+                  const result = await sendImageInvoiceWhatsApp({
+                    customerPhone: defaultPhone,
+                    customerName,
+                    orderId: order.display_id || order.id,
+                    items: items.map(item => ({
+                      name: item.name,
+                      quantity: item.quantity,
+                      price: item.totalPrice
+                    })),
+                    total: totalAmount,
+                    orderDate: new Date(order.created_at || Date.now()).toLocaleDateString('en-US', {
+                      weekday: 'long',
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    }),
+                    orderTime: new Date(order.created_at || Date.now()).toLocaleTimeString('en-US', {
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    }),
+                    storeName: 'Betty Organic',
+                    storeContact: '+251944113998'
+                  });
+
+                  if (result.success) {
+                    toast({
+                      title: "✅ Invoice Sent",
+                      description: `Invoice sent to ${defaultPhone} via WhatsApp (fallback method)`,
+                      duration: 5000,
+                    });
+                  } else {
+                    toast({
+                      title: "❌ Failed to Send Invoice",
+                      description: result.error || 'Failed to send invoice',
+                      variant: "destructive",
+                      duration: 5000,
+                    });
+                  }
+                }
+                return;
+              }
+
+              // Format order items for invoice using universal calculation
+              const { subtotal, deliveryCost, discountAmount, totalAmount, items } = calculateOrderTotals(order);
+
+              const invoiceData = {
+                customerPhone,
+                customerName,
+                orderId: order.display_id || order.id,
+                items: items.map(item => ({
+                  name: item.name,
+                  quantity: item.quantity,
+                  price: item.totalPrice
+                })),
+                subtotal,
+                shippingFee: deliveryCost,
+                discount: discountAmount,
+                totalAmount,
+                paymentMethod: 'Cash on Delivery',
+                transactionDate: new Date(order.created_at || Date.now()).toLocaleDateString(),
+                storeName: 'Betty Organic',
+                storeContact: '+251944113998'
+              };
+
+              console.log('Sending invoice data:', invoiceData);
+
+              toast({
+                title: "📱 Sending Invoice",
+                description: "Generating professional invoice image and sending via WhatsApp...",
+                duration: 2000,
+              });
+
+              // Use CLIENT-SIDE image generation (like the working test page)
+              try {
+                console.log('🖼️ Generating invoice image CLIENT-SIDE for customer...');
+                
+                // Import the client-side image generator
+                const { generateReceiptImage } = await import('@/lib/utils/pdfGenerator');
+                
+                // Convert order data to receipt format
+                const receiptData = {
+                  customerName,
+                  orderId: order.display_id || order.id,
+                  items: items.map(item => ({
+                    name: item.name,
+                    quantity: item.quantity,
+                    price: item.totalPrice
+                  })),
+                  total: totalAmount,
+                  orderDate: new Date(order.created_at || Date.now()).toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                  }),
+                  orderTime: new Date(order.created_at || Date.now()).toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  }),
+                  storeName: 'Betty Organic',
+                  storeContact: '+251944113998'
+                };
+
+                // Generate image blob client-side
+                const imageBlob = await generateReceiptImage(receiptData);
+                
+                // Convert to base64
+                const imageBase64 = await new Promise<string>((resolve, reject) => {
+                  const reader = new FileReader();
+                  reader.onloadend = () => {
+                    const base64String = (reader.result as string).split(',')[1];
+                    resolve(base64String);
+                  };
+                  reader.onerror = reject;
+                  reader.readAsDataURL(imageBlob);
+                });
+
+                console.log('✅ Client-side image generated for customer:', {
+                  size: imageBlob.size,
+                  base64Length: imageBase64.length,
+                  customerPhone
+                });
+
+                // Send the pre-generated image data to server
+                const { sendImageDataToWhatsApp } = await import('@/lib/whatsapp/invoices');
+                
+                const result = await sendImageDataToWhatsApp({
+                  customerPhone,
+                  customerName,
+                  orderId: order.display_id || order.id,
+                  total: totalAmount,
+                  orderDate: receiptData.orderDate,
+                  orderTime: receiptData.orderTime,
+                  storeName: 'Betty Organic',
+                  storeContact: '+251944113998',
+                  imageBase64
+                });
+
+                if (result.success) {
+                  toast({
+                    title: "✅ Invoice Image Sent Successfully",
+                    description: `Professional invoice image sent to ${customerPhone} via WhatsApp`,
+                    duration: 5000,
+                  });
+                } else {
+                  toast({
+                    title: "❌ Failed to Send Invoice",
+                    description: result.error || 'Failed to send invoice image',
+                    variant: "destructive",
+                    duration: 5000,
+                  });
+                }
+              } catch (error) {
+                console.error('Client-side image generation failed for customer:', error);
+                
+                // Fallback to server-side generation
+                const result = await sendImageInvoiceWhatsApp({
+                  customerPhone,
+                  customerName,
+                  orderId: order.display_id || order.id,
+                  items: items.map(item => ({
+                    name: item.name,
+                    quantity: item.quantity,
+                    price: item.totalPrice
+                  })),
+                  total: totalAmount,
+                  orderDate: new Date(order.created_at || Date.now()).toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                  }),
+                  orderTime: new Date(order.created_at || Date.now()).toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  }),
+                  storeName: 'Betty Organic',
+                  storeContact: '+251944113998'
+                });
+
+                if (result.success) {
+                  toast({
+                    title: "✅ Invoice Sent Successfully",
+                    description: `Invoice sent to ${customerPhone} via WhatsApp (fallback method)`,
+                    duration: 5000,
+                  });
+                } else {
+                  toast({
+                    title: "❌ Failed to Send Invoice",
+                    description: result.error || 'Failed to send invoice',
+                    variant: "destructive",
+                    duration: 5000,
+                  });
+                }
+              }
+            } catch (error) {
+              toast({
+                title: "⚠️ Error",
+                description: "Error sending WhatsApp invoice image",
+                variant: "destructive",
+                duration: 5000,
+              });
+              console.error("WhatsApp invoice error:", error);
+            }
           };
 
           // Get the current status to show/hide options
@@ -258,6 +609,12 @@ export function OrdersDataTable({
                 >
                   <Eye className="mr-2 h-4 w-4" />
                   View details
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => handleWhatsAppInvoice(row.original)}
+                >
+                  <MessageCircle className="mr-2 h-4 w-4" />
+                  Send Invoice via WhatsApp
                 </DropdownMenuItem>
 
                 <DropdownMenuSeparator />
@@ -403,9 +760,9 @@ function DataTable<TData, TValue>({
                     {header.isPlaceholder
                       ? null
                       : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
+                        header.column.columnDef.header,
+                        header.getContext()
+                      )}
                   </TableHead>
                 ))}
               </TableRow>

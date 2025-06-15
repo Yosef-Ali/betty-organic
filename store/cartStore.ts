@@ -40,16 +40,7 @@ export const useMarketingCartStore = create<MarketingCartStore>()(
       addItem: (newItem) => {
         if (!newItem?.id) return;
         set((state) => {
-          // If user is not continuing shopping and cart has items, clear it first for fresh order
-          if (!state.isContinuingShopping && state.items.length > 0) {
-            // Start fresh cart with only the new item
-            return { 
-              items: [newItem], 
-              isContinuingShopping: false 
-            };
-          }
-          
-          // Normal add item logic
+          // Normal add item logic - always allow adding items to cart
           const existingItem = state.items?.find((item) => item.id === newItem.id);
           if (existingItem) {
             return {
@@ -59,7 +50,7 @@ export const useMarketingCartStore = create<MarketingCartStore>()(
               isContinuingShopping: state.isContinuingShopping,
             };
           }
-          return { 
+          return {
             items: [...(state.items || []), newItem],
             isContinuingShopping: state.isContinuingShopping,
           };
