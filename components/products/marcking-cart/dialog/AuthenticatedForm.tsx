@@ -94,14 +94,69 @@ export const AuthenticatedForm: React.FC<AuthenticatedFormProps> = ({
                         <MapPin className="w-4 h-4 flex-shrink-0" />
                         <span className="text-sm">Delivery Address for This Order*</span>
                     </Label>
-                    <Textarea
-                        id="address"
-                        placeholder="Enter delivery address for this order (e.g., Addis Ababa, Bole area, near Edna Mall)"
-                        value={customerInfo.address}
-                        onChange={handleInfoChange}
-                        required
-                        className="min-h-[80px] w-full resize-none"
-                    />
+                    <div className="space-y-2">
+                        <Textarea
+                            id="address"
+                            placeholder="Enter delivery address for this order (e.g., Addis Ababa, Bole area, near Edna Mall)"
+                            value={customerInfo.address}
+                            onChange={handleInfoChange}
+                            required
+                            className="min-h-[80px] w-full resize-none"
+                        />
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={async () => {
+                                if (!navigator.geolocation) {
+                                    alert('Location services not supported by your browser');
+                                    return;
+                                }
+                                
+                                try {
+                                    const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+                                        navigator.geolocation.getCurrentPosition(resolve, reject, {
+                                            enableHighAccuracy: true,
+                                            timeout: 10000,
+                                            maximumAge: 60000
+                                        });
+                                    });
+                                    
+                                    const { latitude, longitude } = position.coords;
+                                    
+                                    // Use reverse geocoding to get address
+                                    try {
+                                        const response = await fetch(
+                                            `https://api.mapbox.com/geocoding/v5/mapbox.places/${longitude},${latitude}.json?access_token=pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw&limit=1`
+                                        );
+                                        
+                                        if (response.ok) {
+                                            const data = await response.json();
+                                            const place = data.features[0];
+                                            if (place) {
+                                                const address = place.place_name || `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+                                                setCustomerInfo(prev => ({ ...prev, address }));
+                                            } else {
+                                                setCustomerInfo(prev => ({ ...prev, address: `Coordinates: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}` }));
+                                            }
+                                        } else {
+                                            setCustomerInfo(prev => ({ ...prev, address: `Current Location: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}` }));
+                                        }
+                                    } catch (geocodeError) {
+                                        // Fallback to coordinates if geocoding fails
+                                        setCustomerInfo(prev => ({ ...prev, address: `My Location: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}` }));
+                                    }
+                                    
+                                } catch (error) {
+                                    alert('Unable to get your location. Please enter address manually.');
+                                }
+                            }}
+                            className="gap-2 text-xs"
+                        >
+                            <MapPin className="w-3 h-3" />
+                            Use Current Location
+                        </Button>
+                    </div>
                     <p className="text-xs text-gray-500">
                         Enter where you want this order delivered (can be different from your profile address)
                     </p>

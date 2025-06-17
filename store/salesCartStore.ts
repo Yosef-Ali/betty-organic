@@ -48,9 +48,11 @@ export const useSalesCartStore = create<SalesCartStore>()(
           ),
         })),
       clearCart: () => {
+        console.log('[CANCEL] clearCart called - clearing items array and localStorage');
         set({ items: [] });
         if (typeof window !== 'undefined') {
           window.localStorage.removeItem('sales-cart');
+          console.log('[CANCEL] localStorage cleared');
         }
       },
       getTotalAmount: () => {

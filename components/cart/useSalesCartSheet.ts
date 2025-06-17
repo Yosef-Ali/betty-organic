@@ -202,6 +202,7 @@ export function useSalesCartSheet({
   }, [items]);
 
   const handleBackToCart = useCallback(() => {
+    console.log('[CANCEL] handleBackToCart called - clearing cart and resetting state');
     dispatch({ type: 'RESET_CART_STATE' });
     clearCart();
     onOpenChange(false);
@@ -467,6 +468,7 @@ export function useSalesCartSheet({
   const handleConfirmAction = useCallback(
     async (action: 'save' | 'cancel') => {
       try {
+        console.log('[CANCEL] handleConfirmAction called with action:', action);
         if (action === 'save') {
           if (!state.customer?.id) {
             toast({
@@ -478,6 +480,7 @@ export function useSalesCartSheet({
           }
           await handleSaveOrder(state.customer);
         } else {
+          console.log('[CANCEL] Cancel action triggered - calling handleBackToCart');
           handleBackToCart();
         }
       } catch (error) {
@@ -497,9 +500,11 @@ export function useSalesCartSheet({
     action: 'save' | 'cancel',
     selectedCustomer: Partial<Customer> | null,
   ) => {
+    console.log('[CANCEL] handleConfirmDialog called with action:', action, 'selectedCustomer:', selectedCustomer);
     if (action === 'save' && selectedCustomer) {
       await handleSaveOrder(selectedCustomer);
     } else {
+      console.log('[CANCEL] Calling handleConfirmAction with action:', action);
       handleConfirmAction(action);
     }
   }, [handleSaveOrder, handleConfirmAction]);
