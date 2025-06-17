@@ -114,8 +114,6 @@ export const AuthenticatedForm: React.FC<AuthenticatedFormProps> = ({
                                         return;
                                     }
                                     
-                                    alert('📍 Getting your location... Please allow location access when prompted.');
-                                    
                                     const position = await new Promise<GeolocationPosition>((resolve, reject) => {
                                         navigator.geolocation.getCurrentPosition(
                                             resolve, 
@@ -144,7 +142,6 @@ export const AuthenticatedForm: React.FC<AuthenticatedFormProps> = ({
                                     }
                                     
                                     setCustomerInfo(prev => ({ ...prev, address: locationText }));
-                                    alert('✅ Location detected! Please add specific details like building name, area, landmarks, etc.');
                                     
                                 } catch (error: any) {
                                     console.log('Geolocation error:', error);
