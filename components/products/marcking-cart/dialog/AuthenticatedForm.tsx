@@ -108,87 +108,59 @@ export const AuthenticatedForm: React.FC<AuthenticatedFormProps> = ({
                             variant="outline"
                             size="sm"
                             onClick={async () => {
-                                if (!navigator.geolocation) {
-                                    alert('🔒 Location services not supported by your browser. Please type your address manually.');
-                                    return;
-                                }
-                                
                                 try {
-                                    // Check if we're on HTTPS or localhost
-                                    const isSecure = window.location.protocol === 'https:' || window.location.hostname === 'localhost';
-                                    if (!isSecure) {
-                                        alert('🔒 Location services require a secure connection (HTTPS). Please type your address manually.');
+                                    if (!navigator.geolocation) {
+                                        alert('📍 Location not supported. Please enter your address manually.');
                                         return;
                                     }
                                     
-                                    // Request permission first
-                                    let permission;
-                                    if ('permissions' in navigator) {
-                                        permission = await navigator.permissions.query({ name: 'geolocation' });
-                                        if (permission.state === 'denied') {
-                                            alert('🔒 Location permission denied. Please enable location access in your browser settings and try again, or enter your address manually.');
-                                            return;
-                                        }
-                                    }
+                                    alert('📍 Getting your location... Please allow location access when prompted.');
                                     
                                     const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-                                        navigator.geolocation.getCurrentPosition(resolve, reject, {
-                                            enableHighAccuracy: false, // Less accurate but faster
-                                            timeout: 15000, // Longer timeout
-                                            maximumAge: 300000 // 5 minutes cache
-                                        });
+                                        navigator.geolocation.getCurrentPosition(
+                                            resolve, 
+                                            reject, 
+                                            {
+                                                enableHighAccuracy: true,
+                                                timeout: 10000,
+                                                maximumAge: 60000
+                                            }
+                                        );
                                     });
                                     
                                     const { latitude, longitude } = position.coords;
                                     
-                                    // Try multiple geocoding services for better coverage
-                                    let address = '';
+                                    // Simple coordinate-based address for Ethiopia
+                                    const lat = latitude.toFixed(6);
+                                    const lon = longitude.toFixed(6);
                                     
-                                    // First try: OpenStreetMap Nominatim (free, no API key needed)
-                                    try {
-                                        const osmResponse = await fetch(
-                                            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`,
-                                            {
-                                                headers: {
-                                                    'User-Agent': 'BettyOrganic/1.0'
-                                                }
-                                            }
-                                        );
-                                        
-                                        if (osmResponse.ok) {
-                                            const osmData = await osmResponse.json();
-                                            if (osmData.display_name) {
-                                                address = osmData.display_name;
-                                            }
-                                        }
-                                    } catch (osmError) {
-                                        console.log('OSM geocoding failed, trying fallback');
+                                    let locationText = `📍 My Location: ${lat}, ${lon}`;
+                                    
+                                    // Add Ethiopian city context based on coordinates
+                                    if (latitude >= 8.5 && latitude <= 9.5 && longitude >= 38.5 && longitude <= 39.0) {
+                                        locationText += ' (Addis Ababa area)';
+                                    } else if (latitude >= 6.0 && latitude <= 15.0 && longitude >= 33.0 && longitude <= 48.0) {
+                                        locationText += ' (Ethiopia)';
                                     }
                                     
-                                    // Fallback: Use coordinates with Ethiopian context
-                                    if (!address) {
-                                        address = `📍 Location: ${latitude.toFixed(4)}°N, ${longitude.toFixed(4)}°E (Near Addis Ababa, Ethiopia)`;
-                                    }
-                                    
-                                    setCustomerInfo(prev => ({ ...prev, address }));
-                                    alert('✅ Location detected! Please verify the address and add any specific details (building name, floor, etc.)');
+                                    setCustomerInfo(prev => ({ ...prev, address: locationText }));
+                                    alert('✅ Location detected! Please add specific details like building name, area, landmarks, etc.');
                                     
                                 } catch (error: any) {
-                                    console.error('Geolocation error:', error);
-                                    
-                                    let errorMessage = '❌ Unable to get your location. ';
+                                    console.log('Geolocation error:', error);
+                                    let message = '❌ Could not get location. ';
                                     
                                     if (error.code === 1) {
-                                        errorMessage += 'Location access denied. Please enable location permissions in your browser settings.';
+                                        message += 'Please allow location access and try again.';
                                     } else if (error.code === 2) {
-                                        errorMessage += 'Location unavailable. Please check your internet connection.';
+                                        message += 'Location unavailable.';
                                     } else if (error.code === 3) {
-                                        errorMessage += 'Location request timed out. Please try again or enter address manually.';
+                                        message += 'Location request timed out.';
                                     } else {
-                                        errorMessage += 'Please enter your delivery address manually.';
+                                        message += 'Please enter your address manually.';
                                     }
                                     
-                                    alert(errorMessage);
+                                    alert(message);
                                 }
                             }}
                             className="gap-2 text-xs"
