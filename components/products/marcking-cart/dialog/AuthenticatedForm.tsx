@@ -109,46 +109,86 @@ export const AuthenticatedForm: React.FC<AuthenticatedFormProps> = ({
                             size="sm"
                             onClick={async () => {
                                 if (!navigator.geolocation) {
-                                    alert('Location services not supported by your browser');
+                                    alert('🔒 Location services not supported by your browser. Please type your address manually.');
                                     return;
                                 }
                                 
                                 try {
+                                    // Check if we're on HTTPS or localhost
+                                    const isSecure = window.location.protocol === 'https:' || window.location.hostname === 'localhost';
+                                    if (!isSecure) {
+                                        alert('🔒 Location services require a secure connection (HTTPS). Please type your address manually.');
+                                        return;
+                                    }
+                                    
+                                    // Request permission first
+                                    let permission;
+                                    if ('permissions' in navigator) {
+                                        permission = await navigator.permissions.query({ name: 'geolocation' });
+                                        if (permission.state === 'denied') {
+                                            alert('🔒 Location permission denied. Please enable location access in your browser settings and try again, or enter your address manually.');
+                                            return;
+                                        }
+                                    }
+                                    
                                     const position = await new Promise<GeolocationPosition>((resolve, reject) => {
                                         navigator.geolocation.getCurrentPosition(resolve, reject, {
-                                            enableHighAccuracy: true,
-                                            timeout: 10000,
-                                            maximumAge: 60000
+                                            enableHighAccuracy: false, // Less accurate but faster
+                                            timeout: 15000, // Longer timeout
+                                            maximumAge: 300000 // 5 minutes cache
                                         });
                                     });
                                     
                                     const { latitude, longitude } = position.coords;
                                     
-                                    // Use reverse geocoding to get address
+                                    // Try multiple geocoding services for better coverage
+                                    let address = '';
+                                    
+                                    // First try: OpenStreetMap Nominatim (free, no API key needed)
                                     try {
-                                        const response = await fetch(
-                                            `https://api.mapbox.com/geocoding/v5/mapbox.places/${longitude},${latitude}.json?access_token=pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw&limit=1`
+                                        const osmResponse = await fetch(
+                                            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`,
+                                            {
+                                                headers: {
+                                                    'User-Agent': 'BettyOrganic/1.0'
+                                                }
+                                            }
                                         );
                                         
-                                        if (response.ok) {
-                                            const data = await response.json();
-                                            const place = data.features[0];
-                                            if (place) {
-                                                const address = place.place_name || `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
-                                                setCustomerInfo(prev => ({ ...prev, address }));
-                                            } else {
-                                                setCustomerInfo(prev => ({ ...prev, address: `Coordinates: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}` }));
+                                        if (osmResponse.ok) {
+                                            const osmData = await osmResponse.json();
+                                            if (osmData.display_name) {
+                                                address = osmData.display_name;
                                             }
-                                        } else {
-                                            setCustomerInfo(prev => ({ ...prev, address: `Current Location: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}` }));
                                         }
-                                    } catch (geocodeError) {
-                                        // Fallback to coordinates if geocoding fails
-                                        setCustomerInfo(prev => ({ ...prev, address: `My Location: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}` }));
+                                    } catch (osmError) {
+                                        console.log('OSM geocoding failed, trying fallback');
                                     }
                                     
-                                } catch (error) {
-                                    alert('Unable to get your location. Please enter address manually.');
+                                    // Fallback: Use coordinates with Ethiopian context
+                                    if (!address) {
+                                        address = `📍 Location: ${latitude.toFixed(4)}°N, ${longitude.toFixed(4)}°E (Near Addis Ababa, Ethiopia)`;
+                                    }
+                                    
+                                    setCustomerInfo(prev => ({ ...prev, address }));
+                                    alert('✅ Location detected! Please verify the address and add any specific details (building name, floor, etc.)');
+                                    
+                                } catch (error: any) {
+                                    console.error('Geolocation error:', error);
+                                    
+                                    let errorMessage = '❌ Unable to get your location. ';
+                                    
+                                    if (error.code === 1) {
+                                        errorMessage += 'Location access denied. Please enable location permissions in your browser settings.';
+                                    } else if (error.code === 2) {
+                                        errorMessage += 'Location unavailable. Please check your internet connection.';
+                                    } else if (error.code === 3) {
+                                        errorMessage += 'Location request timed out. Please try again or enter address manually.';
+                                    } else {
+                                        errorMessage += 'Please enter your delivery address manually.';
+                                    }
+                                    
+                                    alert(errorMessage);
                                 }
                             }}
                             className="gap-2 text-xs"

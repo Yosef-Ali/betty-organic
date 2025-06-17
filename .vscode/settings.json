@@ -3,10 +3,11 @@
   "terminal.integrated.profiles.osx": {
     "zsh": {
       "path": "/bin/zsh",
-      "args": ["-l"]
+      "args": ["-l"],
+      "env": {
+        "PATH": "/Users/mekdesyared/.npm-global/bin:/Users/mekdesyared/bin:${env:PATH}"
+      }
     }
   },
-  "terminal.integrated.env.osx": {
-    "PATH": "${env:HOME}/.npm-global/bin:${env:HOME}/bin:${env:PATH}"
-  }
+  "terminal.integrated.shellIntegration.enabled": true
 }
