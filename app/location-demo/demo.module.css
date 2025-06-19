@@ -1,0 +1,190 @@
+.container {
+  min-height: 100vh;
+  background: #f5f5f5;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.orderModal {
+  background: white;
+  border-radius: 20px;
+  padding: 24px;
+  max-width: 400px;
+  width: 100%;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.authenticated {
+  background: #e8f5e9;
+  color: #2e7d32;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+}
+
+.closeBtn {
+  width: 32px;
+  height: 32px;
+  background: #e8f5e9;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.orderModal h1 {
+  font-size: 24px;
+  margin-bottom: 8px;
+}
+
+.subtitle {
+  color: #666;
+  margin-bottom: 24px;
+}
+
+.orderBox {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 24px;
+}
+
+.orderItem {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.orderItem h3 {
+  font-size: 18px;
+  margin-bottom: 4px;
+}
+
+.orderItem p {
+  color: #666;
+  font-size: 14px;
+}
+
+.total {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 600;
+  padding-top: 16px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.section {
+  margin-bottom: 24px;
+}
+
+.section h3 {
+  font-size: 18px;
+  margin-bottom: 16px;
+}
+
+.contactInfo {
+  margin-bottom: 20px;
+}
+
+.contactInfo p {
+  margin-bottom: 8px;
+}
+
+.locationSection {
+  margin-top: 16px;
+}
+
+.locationSection label {
+  display: block;
+  margin-bottom: 12px;
+  font-weight: 500;
+}
+
+.selectLocationBtn {
+  width: 100%;
+  padding: 16px;
+  background: white;
+  border: 2px dashed #4ade80;
+  border-radius: 12px;
+  color: #4ade80;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.selectLocationBtn:hover {
+  background: #f0fdf4;
+}
+
+.selectedLocation {
+  padding: 16px;
+  background: #f0fdf4;
+  border: 2px solid #4ade80;
+  border-radius: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.selectedLocation p {
+  margin: 0;
+  flex: 1;
+}
+
+.changeBtn {
+  background: white;
+  border: 1px solid #4ade80;
+  color: #4ade80;
+  padding: 6px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.changeBtn:hover {
+  background: #4ade80;
+  color: white;
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 32px;
+}
+
+.cancelBtn,
+.confirmBtn {
+  flex: 1;
+  padding: 16px;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cancelBtn {
+  background: #f3f4f6;
+  color: #1f2937;
+}
+
+.confirmBtn {
+  background: #4ade80;
+  color: white;
+}
+
+.confirmBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

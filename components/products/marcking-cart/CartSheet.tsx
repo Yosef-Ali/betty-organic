@@ -11,11 +11,12 @@ import {
   SheetTitle,
   SheetClose,
 } from '@/components/ui/sheet';
-import { X } from 'lucide-react';
+import { X, User } from 'lucide-react';
 import { CartItem } from './CartItem';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { ConfirmPurchaseDialog } from './dialog';
+import { ContactDeliveryDialog } from '@/components/ContactDeliveryDialog';
 
 interface CartSheetProps {
   isOpen: boolean;
@@ -27,6 +28,14 @@ export const CartSheet = ({ isOpen, onOpenChangeAction = () => { } }: CartSheetP
   const { clearCart } = useMarketingCartStore();
   const { setCartOpen } = useUIStore();
   const [isPurchaseDialogOpen, setIsPurchaseDialogOpen] = useState(false);
+  const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
+
+  // Contact & Delivery state
+  const [customerInfo, setCustomerInfo] = useState({
+    name: '',
+    phone: '',
+    address: ''
+  });
 
   const totalAmount = getTotalAmount();
 
@@ -78,6 +87,21 @@ export const CartSheet = ({ isOpen, onOpenChangeAction = () => { } }: CartSheetP
           </ScrollArea>
           {items.length > 0 && (
             <div className="flex flex-col space-y-4 pr-6 pt-6">
+              {/* Contact & Delivery Button */}
+              <Button
+                variant="outline"
+                onClick={() => setIsContactDialogOpen(true)}
+                className="w-full flex items-center gap-2 h-12"
+              >
+                <User className="w-4 h-4" />
+                Contact & Delivery Details
+                {customerInfo.phone && customerInfo.address ? (
+                  <span className="ml-auto text-xs text-green-600 font-medium">✓ Complete</span>
+                ) : (
+                  <span className="ml-auto text-xs text-orange-600">⚠ Required</span>
+                )}
+              </Button>
+
               {/* Improved Total Amount Section */}
               <div className="bg-muted/30 p-4 rounded-md">
                 <div className="flex items-center">
@@ -121,6 +145,14 @@ export const CartSheet = ({ isOpen, onOpenChangeAction = () => { } }: CartSheetP
         onCloseAction={handlePurchaseDialogClose}
         items={items}
         total={totalAmount}
+        customerInfo={customerInfo}
+      />
+
+      <ContactDeliveryDialog
+        isOpen={isContactDialogOpen}
+        onOpenChangeAction={setIsContactDialogOpen}
+        customerInfo={customerInfo}
+        onCustomerInfoChangeAction={setCustomerInfo}
       />
     </>
   );

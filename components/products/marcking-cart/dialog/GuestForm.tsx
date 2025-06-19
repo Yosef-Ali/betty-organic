@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -11,7 +12,7 @@ import {
     DialogDescription,
     DialogFooter,
 } from "@/components/ui/dialog";
-import { Share2, MapPin, User, Phone, LogIn, ShoppingCart } from "lucide-react";
+import { Share2, User, LogIn, ShoppingCart } from "lucide-react";
 import { createInfoChangeHandler } from "./utils";
 import { GuestFormProps } from "./types";
 
@@ -19,20 +20,19 @@ export const GuestForm = ({
     items,
     total,
     customerInfo,
-    setCustomerInfo,
+    setCustomerInfoAction,
     isSubmitting,
-    handleConfirm,
-    handleSignIn,
-    handleDirectOrder,
-    onCancel,
-    isCustomerInfoValid,
+    handleConfirmAction,
+    handleSignInAction,
+    handleDirectOrderAction,
+    onCancelAction,
+    isCustomerInfoValidAction,
 }: GuestFormProps) => {
-    const handleNameChange = createInfoChangeHandler('name', setCustomerInfo);
-    const handlePhoneChange = createInfoChangeHandler('phone', setCustomerInfo);
-    const handleAddressChange = createInfoChangeHandler('address', setCustomerInfo);
+    const handleAddressChange = createInfoChangeHandler('address', setCustomerInfoAction);
 
     return (
-        <>
+        <div className="relative">
+            {/* Main Form Content */}
             <DialogHeader>
                 <DialogTitle>Order Details</DialogTitle>
                 <DialogDescription>
@@ -40,8 +40,8 @@ export const GuestForm = ({
                 </DialogDescription>
             </DialogHeader>
 
-            {/* Order items */}
-            <ScrollArea className="max-h-[180px] mt-4 mb-4 border rounded-lg p-3 bg-gray-50">
+            {/* Order items with Contact & Delivery Details integrated */}
+            <div className="mt-4 mb-4 border rounded-lg p-3 bg-gray-50">
                 <div className="space-y-4">
                     {items.map((item) => (
                         <div
@@ -62,125 +62,40 @@ export const GuestForm = ({
                             </span>
                         </div>
                     ))}
-                    <div className="pt-4 border-t flex justify-between font-bold">
+
+                    {/* Contact & Delivery Summary Button - Compact */}
+                    <div className="pt-4 border-t">
+                        <div
+                            className="w-full flex items-center justify-between p-3 h-auto border rounded-lg bg-gray-50"
+                        >
+                            <div className="flex items-center gap-2">
+                                <User className="w-4 h-4" />
+                                <span className="text-sm font-medium">Contact & Delivery</span>
+                            </div>
+                            <div className="text-right">
+                                {customerInfo.phone && customerInfo.address ? (
+                                    <span className="text-xs text-green-600 font-medium">✓ Complete</span>
+                                ) : (
+                                    <span className="text-xs text-orange-600">⚠ Required</span>
+                                )}
+                            </div>
+                        </div>
+                        {customerInfo.phone && customerInfo.address ? (
+                            <div className="mt-2 text-xs text-gray-600 px-2">
+                                <div><strong>Phone:</strong> {customerInfo.phone}</div>
+                                <div><strong>Address:</strong> {customerInfo.address}</div>
+                            </div>
+                        ) : (
+                            <div className="mt-2 text-xs text-orange-600 px-2">
+                                Please set contact details in the cart first
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Total - After Contact Details */}
+                    <div className="pt-4 border-t flex justify-between font-bold text-lg">
                         <span>Total:</span>
                         <span>ETB {total.toFixed(2)}</span>
-                    </div>
-                </div>
-            </ScrollArea>
-
-            {/* Contact & Delivery Info */}
-            <div className="rounded-lg border p-3 space-y-3 bg-white">
-                <h3 className="font-medium text-sm text-gray-800 border-b pb-2">Contact & Delivery Details</h3>
-
-                <div className="space-y-2">
-                    <Label htmlFor="name" className="flex items-center gap-2">
-                        <User className="w-4 h-4 flex-shrink-0" />
-                        <span className="text-sm">Your Name (optional)</span>
-                    </Label>
-                    <Input
-                        id="name"
-                        placeholder="Enter your name"
-                        value={customerInfo.name}
-                        onChange={handleNameChange}
-                        className="w-full h-10 text-sm"
-                    />
-                </div>
-
-                <div className="space-y-2">
-                    <Label htmlFor="phone" className="flex items-center gap-2">
-                        <Phone className="w-4 h-4 flex-shrink-0" />
-                        <span className="text-sm">Phone Number*</span>
-                    </Label>
-                    <Input
-                        id="phone"
-                        placeholder="e.g., 0911234567"
-                        value={customerInfo.phone}
-                        onChange={handlePhoneChange}
-                        required
-                        className="w-full h-10 text-sm"
-                    />
-                    <p className="text-xs text-gray-500 break-words">
-                        Ethiopian format: 09XXXXXXXX or +251XXXXXXXXX
-                    </p>
-                </div>
-
-                <div className="space-y-2">
-                    <Label htmlFor="address" className="flex items-center gap-2">
-                        <MapPin className="w-4 h-4 flex-shrink-0" />
-                        <span className="text-sm">Delivery Address*</span>
-                    </Label>
-                    <div className="space-y-2">
-                        <Textarea
-                            id="address"
-                            placeholder="Enter your complete delivery address with landmarks"
-                            value={customerInfo.address}
-                            onChange={handleAddressChange}
-                            required
-                            className="min-h-[60px] max-h-[100px] w-full resize-none text-sm"
-                        />
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={async () => {
-                                try {
-                                    if (!navigator.geolocation) {
-                                        alert('📍 Location not supported. Please enter your address manually.');
-                                        return;
-                                    }
-                                    
-                                    const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-                                        navigator.geolocation.getCurrentPosition(
-                                            resolve, 
-                                            reject, 
-                                            {
-                                                enableHighAccuracy: true,
-                                                timeout: 10000,
-                                                maximumAge: 60000
-                                            }
-                                        );
-                                    });
-                                    
-                                    const { latitude, longitude } = position.coords;
-                                    
-                                    // Simple coordinate-based address for Ethiopia
-                                    const lat = latitude.toFixed(6);
-                                    const lon = longitude.toFixed(6);
-                                    
-                                    let locationText = `📍 My Location: ${lat}, ${lon}`;
-                                    
-                                    // Add Ethiopian city context based on coordinates
-                                    if (latitude >= 8.5 && latitude <= 9.5 && longitude >= 38.5 && longitude <= 39.0) {
-                                        locationText += ' (Addis Ababa area)';
-                                    } else if (latitude >= 6.0 && latitude <= 15.0 && longitude >= 33.0 && longitude <= 48.0) {
-                                        locationText += ' (Ethiopia)';
-                                    }
-                                    
-                                    setCustomerInfo(prev => ({ ...prev, address: locationText }));
-                                    
-                                } catch (error: any) {
-                                    console.log('Geolocation error:', error);
-                                    let message = '❌ Could not get location. ';
-                                    
-                                    if (error.code === 1) {
-                                        message += 'Please allow location access and try again.';
-                                    } else if (error.code === 2) {
-                                        message += 'Location unavailable.';
-                                    } else if (error.code === 3) {
-                                        message += 'Location request timed out.';
-                                    } else {
-                                        message += 'Please enter your address manually.';
-                                    }
-                                    
-                                    alert(message);
-                                }
-                            }}
-                            className="gap-2 text-xs"
-                        >
-                            <MapPin className="w-3 h-3" />
-                            Use Current Location
-                        </Button>
                     </div>
                 </div>
             </div>
@@ -198,10 +113,10 @@ export const GuestForm = ({
             <DialogFooter className="flex flex-col gap-3 mt-6 pt-4 border-t w-full">
                 {/* Main action buttons - in one line */}
                 <div className="flex gap-2 w-full">
-                    {handleDirectOrder && (
+                    {handleDirectOrderAction && (
                         <Button
-                            onClick={handleDirectOrder}
-                            disabled={isSubmitting || !isCustomerInfoValid()}
+                            onClick={handleDirectOrderAction}
+                            disabled={isSubmitting || !isCustomerInfoValidAction()}
                             className="gap-2 flex-1 h-12"
                             variant="default"
                         >
@@ -212,8 +127,8 @@ export const GuestForm = ({
                         </Button>
                     )}
                     <Button
-                        onClick={handleConfirm}
-                        disabled={isSubmitting || !isCustomerInfoValid()}
+                        onClick={handleConfirmAction}
+                        disabled={isSubmitting || !isCustomerInfoValidAction()}
                         className="w-12 h-12 p-0"
                         variant="outline"
                         title="Share on WhatsApp"
@@ -224,18 +139,18 @@ export const GuestForm = ({
 
                 {/* Secondary actions - Cancel and Sign in in one line */}
                 <div className="flex justify-center gap-3 w-full pt-2 border-t border-gray-100">
-                    <Button 
-                        variant="ghost" 
-                        onClick={onCancel} 
+                    <Button
+                        variant="ghost"
+                        onClick={onCancelAction}
                         size="sm"
                         className="text-gray-500 hover:text-gray-700"
                     >
                         Cancel
                     </Button>
-                    {handleSignIn && (
+                    {handleSignInAction && (
                         <Button
                             variant="ghost"
-                            onClick={handleSignIn}
+                            onClick={handleSignInAction}
                             className="gap-1 text-blue-600 hover:text-blue-700"
                             size="sm"
                         >
@@ -245,6 +160,6 @@ export const GuestForm = ({
                     )}
                 </div>
             </DialogFooter>
-        </>
+        </div>
     );
 };

@@ -50,7 +50,7 @@ export default function OrderPlaced({
             if (!autoNotificationSent && orderDetails && customerInfo) {
                 console.log('🚀 Sending automatic WhatsApp notification for order:', orderDetails.display_id);
                 setNotificationStatus('pending');
-                
+
                 try {
                     const result = await processMarketingOrder({
                         items: orderDetails.items.map(item => ({
@@ -61,7 +61,7 @@ export default function OrderPlaced({
                         customer: {
                             name: orderDetails.customer_name || customerInfo.name,
                             phone: orderDetails.customer_phone || customerInfo.phone,
-                            email: customerInfo.email,
+                            email: orderDetails.customer_email || '',
                             address: orderDetails.delivery_address || customerInfo.address
                         },
                         total: orderDetails.total,
@@ -79,7 +79,7 @@ export default function OrderPlaced({
                     console.error('❌ Auto-notification error:', error);
                     setNotificationStatus('failed');
                 }
-                
+
                 setAutoNotificationSent(true);
             }
         };
@@ -176,7 +176,7 @@ export default function OrderPlaced({
                 price: item.price
             })),
             total: orderDetails.total,
-            customerInfo: isAuthenticated 
+            customerInfo: isAuthenticated
                 ? `${orderDetails.customer_name} (${orderDetails.customer_phone})`
                 : `${orderDetails.customer_name} (${orderDetails.customer_phone})`,
             customerId: orderDetails.display_id
@@ -205,7 +205,7 @@ Please prepare and deliver this order. Thank you! 🚚`;
             // Get admin WhatsApp number from localStorage settings
             const savedSettings = localStorage.getItem('whatsAppSettings');
             let adminNumber = '';
-            
+
             if (savedSettings) {
                 try {
                     const settings = JSON.parse(savedSettings);
@@ -216,10 +216,10 @@ Please prepare and deliver this order. Thank you! 🚚`;
             }
 
             // Create WhatsApp URL - if admin number exists, send directly to admin, otherwise general share
-            const whatsappUrl = adminNumber 
+            const whatsappUrl = adminNumber
                 ? `https://wa.me/${adminNumber.replace('+', '')}?text=${encodeURIComponent(message)}`
                 : `https://wa.me/?text=${encodeURIComponent(message)}`;
-                
+
             window.open(whatsappUrl, '_blank');
         };
 
@@ -242,7 +242,7 @@ Please prepare and deliver this order. Thank you! 🚚`;
                     <DialogDescription>
                         Your order has been sent to our team for processing. We&apos;ll contact you soon!
                     </DialogDescription>
-                    
+
                     {/* Auto-notification status */}
                     <div className="mt-3 flex items-center gap-2 text-sm">
                         {notificationStatus === 'pending' && (
@@ -315,7 +315,7 @@ Please prepare and deliver this order. Thank you! 🚚`;
                         <ShoppingBag className="w-4 h-4" />
                         Continue Shopping
                     </Button>
-                    
+
                     {/* Print Receipt button - icon only */}
                     <Button
                         variant="outline"
@@ -325,7 +325,7 @@ Please prepare and deliver this order. Thank you! 🚚`;
                     >
                         <Receipt className="w-5 h-5" />
                     </Button>
-                    
+
                     {/* Manual WhatsApp notification - only show if auto-notification failed or manual mode */}
                     {(notificationStatus === 'manual' || notificationStatus === 'failed') && (
                         <Button
@@ -337,7 +337,7 @@ Please prepare and deliver this order. Thank you! 🚚`;
                             <MessageCircle className="w-5 h-5" />
                         </Button>
                     )}
-                    
+
                     {/* Auto-notification successful - show check */}
                     {notificationStatus === 'sent' && (
                         <Button
@@ -387,7 +387,7 @@ Please prepare and deliver this order. Thank you! 🚚`;
         // Get admin WhatsApp number from localStorage settings
         const savedSettings = localStorage.getItem('whatsAppSettings');
         let adminNumber = '';
-        
+
         if (savedSettings) {
             try {
                 const settings = JSON.parse(savedSettings);
@@ -398,10 +398,10 @@ Please prepare and deliver this order. Thank you! 🚚`;
         }
 
         // Create WhatsApp URL - if admin number exists, send directly to admin, otherwise general share
-        const whatsappUrl = adminNumber 
+        const whatsappUrl = adminNumber
             ? `https://wa.me/${adminNumber.replace('+', '')}?text=${encodeURIComponent(message)}`
             : `https://wa.me/?text=${encodeURIComponent(message)}`;
-            
+
         window.open(whatsappUrl, '_blank');
     };
 
@@ -424,7 +424,7 @@ Please prepare and deliver this order. Thank you! 🚚`;
                 <DialogDescription>
                     Your order #{orderDetails.display_id} has been successfully placed.
                 </DialogDescription>
-                
+
                 {/* Auto-notification status */}
                 <div className="mt-3 flex items-center gap-2 text-sm">
                     {notificationStatus === 'pending' && (
@@ -497,7 +497,7 @@ Please prepare and deliver this order. Thank you! 🚚`;
                         <ShoppingBag className="w-4 h-4" />
                         Continue Shopping
                     </Button>
-                    
+
                     {/* Print Receipt button - icon only */}
                     <Button
                         variant="outline"
@@ -507,7 +507,7 @@ Please prepare and deliver this order. Thank you! 🚚`;
                     >
                         <Receipt className="w-5 h-5" />
                     </Button>
-                    
+
                     {/* Manual WhatsApp notification - only show if auto-notification failed or manual mode */}
                     {(notificationStatus === 'manual' || notificationStatus === 'failed') && (
                         <Button
@@ -519,7 +519,7 @@ Please prepare and deliver this order. Thank you! 🚚`;
                             <MessageCircle className="w-5 h-5" />
                         </Button>
                     )}
-                    
+
                     {/* Auto-notification successful - show check */}
                     {notificationStatus === 'sent' && (
                         <Button
@@ -533,7 +533,7 @@ Please prepare and deliver this order. Thank you! 🚚`;
                     )}
                 </div>
             </DialogFooter>
-            
+
             {/* Order Receipt Modal */}
             {showPrintPreview && (
                 <OrderReceiptModal
@@ -543,6 +543,8 @@ Please prepare and deliver this order. Thank you! 🚚`;
                     total={formatOrderForPrint().total}
                     customerInfo={formatOrderForPrint().customerInfo}
                     orderId={formatOrderForPrint().customerId}
+                    customerPhone={orderDetails.customer_phone}
+                    customerName={orderDetails.customer_name}
                 />
             )}
         </>

@@ -30,6 +30,7 @@ export const ConfirmPurchaseDialog: React.FC<ConfirmPurchaseDialogProps> = ({
     onCloseAction,
     items,
     total,
+    customerInfo: initialCustomerInfo,
 }: ConfirmPurchaseDialogProps): React.ReactElement => {
     // Auth states
     const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
@@ -44,12 +45,24 @@ export const ConfirmPurchaseDialog: React.FC<ConfirmPurchaseDialogProps> = ({
     const [orderDetails, setOrderDetails] = useState<OrderDetails | null>(null);
     const [needsProfileUpdate, setNeedsProfileUpdate] = useState(false); // Add state for profile update needed
 
-    // Customer info
+    // Customer info - initialize with prop if provided
     const [customerInfo, setCustomerInfo] = useState<CustomerInfo>({
-        name: "",
-        phone: "",
-        address: "",
+        name: initialCustomerInfo?.name || "",
+        phone: initialCustomerInfo?.phone || "",
+        address: initialCustomerInfo?.address || "",
     });
+
+    // Sync customerInfo when prop changes (important for when user saves in ContactDeliveryDialog)
+    useEffect(() => {
+        if (initialCustomerInfo) {
+            console.log("🔄 [ORDER_DIALOG] Syncing customerInfo from prop:", initialCustomerInfo);
+            setCustomerInfo({
+                name: initialCustomerInfo.name || "",
+                phone: initialCustomerInfo.phone || "",
+                address: initialCustomerInfo.address || "",
+            });
+        }
+    }, [initialCustomerInfo]);
 
     const clearCart = useMarketingCartStore((state) => state.clearCart);
     const resetForNewOrder = useMarketingCartStore((state) => state.resetForNewOrder);
@@ -97,7 +110,7 @@ export const ConfirmPurchaseDialog: React.FC<ConfirmPurchaseDialogProps> = ({
                 if (profile) {
                     console.log("✅ [AUTH_FLOW] Profile found.");
                     // Only set name and phone from profile, keep address empty for user to input delivery address
-                    setCustomerInfo(prev => ({ 
+                    setCustomerInfo(prev => ({
                         name: profile.name || (user.email?.split('@')[0] || ''),
                         phone: profile.phone || '',
                         address: prev.address || '' // Keep existing address input or empty for new delivery address
@@ -634,20 +647,20 @@ export const ConfirmPurchaseDialog: React.FC<ConfirmPurchaseDialogProps> = ({
                 items={items}
                 total={total}
                 customerInfo={customerInfo}
-                setCustomerInfo={setCustomerInfo}
+                setCustomerInfoAction={setCustomerInfo}
                 isSubmitting={isSubmitting}
-                handleConfirm={handleConfirm}
-                handleDirectOrder={handleDirectOrder}
-                handleSignIn={handleSignIn}
-                onCancel={onCloseAction}
-                isCustomerInfoValid={isCustomerInfoValid}
+                handleConfirmAction={handleConfirm}
+                handleDirectOrderAction={handleDirectOrder}
+                handleSignInAction={handleSignIn}
+                onCancelAction={onCloseAction}
+                isCustomerInfoValidAction={isCustomerInfoValid}
             />
         );
     };
 
     return (
         <Dialog open={isOpen} onOpenChange={onCloseAction}>
-            <DialogContent className="w-[95vw] max-w-md mx-auto max-h-[95vh] overflow-y-auto p-4 sm:p-6">
+            <DialogContent className="w-[95vw] max-w-md mx-auto max-h-[90vh] overflow-y-auto p-4 sm:p-6">
                 <VisuallyHidden>
                     <DialogTitle>Confirm Purchase</DialogTitle>
                 </VisuallyHidden>

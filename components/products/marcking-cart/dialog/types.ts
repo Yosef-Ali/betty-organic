@@ -30,6 +30,11 @@ export interface ConfirmPurchaseDialogProps {
     onCloseAction: () => void;
     items: CartItemType[];
     total: number;
+    customerInfo?: {
+        name: string;
+        phone: string;
+        address: string;
+    };
 }
 
 // Common form props shared by all forms
@@ -37,18 +42,18 @@ interface CommonFormProps {
     items: CartItemType[];
     total: number;
     customerInfo: CustomerInfo;
-    setCustomerInfo: React.Dispatch<React.SetStateAction<CustomerInfo>>;
+    setCustomerInfoAction: React.Dispatch<React.SetStateAction<CustomerInfo>>;
     isSubmitting: boolean;
-    handleConfirm: () => void;
-    onCancel: () => void;
-    isCustomerInfoValid: () => boolean;
+    handleConfirmAction: () => void;
+    onCancelAction: () => void;
+    isCustomerInfoValidAction: () => boolean;
 }
 
 
 // GuestForm props
 export interface GuestFormProps extends CommonFormProps {
-    handleSignIn: () => void; // Name matches how it's called in the dialog
-    handleDirectOrder?: () => void; // New prop for direct order submission
+    handleSignInAction: () => void; // Name matches how it's called in the dialog
+    handleDirectOrderAction?: () => void; // New prop for direct order submission
 }
 
 // AuthenticatedForm props

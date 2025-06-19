@@ -41,14 +41,9 @@ export const validateCustomerInfo = (
     isAuthenticated: boolean,
     customerInfo: CustomerInfo
 ): boolean => {
-    if (isAuthenticated) {
-        // For authenticated users, only delivery address is required
-        return customerInfo.address.trim().length > 0;
-    } else {
-        // For guests, both phone and address are required
-        return (
-            customerInfo.phone.length >= 9 &&
-            customerInfo.address.trim().length > 0
-        );
-    }
+    // Both authenticated and guest users need phone and address
+    const hasValidPhone = !!(customerInfo.phone && customerInfo.phone.trim().length >= 9);
+    const hasValidAddress = !!(customerInfo.address && customerInfo.address.trim().length >= 5);
+
+    return hasValidPhone && hasValidAddress;
 };
