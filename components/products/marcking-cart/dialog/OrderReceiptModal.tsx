@@ -324,39 +324,39 @@ export const OrderReceiptModal: React.FC<OrderReceiptModalProps> = ({
           </DialogHeader>
 
           {/* Printable content */}
-          <div id="receipt-content" className="print-content border border-border p-4 rounded bg-background dark:bg-white dark:text-black">
+          <div id="receipt-content" className="print-content border border-border p-4 rounded bg-card text-card-foreground print:bg-white print:text-black">
             <div className="text-center mb-4">
-              <h2 className="text-xl font-bold text-foreground dark:text-black">Betty Organic</h2>
-              <p className="text-sm text-muted-foreground dark:text-gray-600">
+              <h2 className="text-xl font-bold text-foreground">Betty Organic</h2>
+              <p className="text-sm text-muted-foreground">
                 Fresh Organic Fruits & Vegetables
               </p>
-              <p className="text-xs text-muted-foreground dark:text-gray-500 mt-1">
+              <p className="text-xs text-muted-foreground mt-1">
                 Thank you for your order!
               </p>
             </div>
 
             {customerInfo && (
-              <div className="mb-4 text-center border-b pb-2">
-                <p className="text-sm font-medium text-foreground dark:text-black">Customer: {customerInfo}</p>
-                {orderId && <p className="text-sm text-muted-foreground dark:text-gray-700">Order ID: {orderId}</p>}
+              <div className="mb-4 text-center border-b border-border pb-2">
+                <p className="text-sm font-medium text-foreground">Customer: {customerInfo}</p>
+                {orderId && <p className="text-sm text-muted-foreground">Order ID: {orderId}</p>}
               </div>
             )}
 
             <div className="mb-4">
-              <h3 className="font-semibold mb-2 text-foreground dark:text-black">Order Items:</h3>
+              <h3 className="font-semibold mb-2 text-foreground">Order Items:</h3>
               <ul className="space-y-1">
                 {items.map((item, index) => (
-                  <li key={index} className="flex justify-between text-sm border-b border-border dark:border-gray-300 pb-1 text-foreground dark:text-black">
+                  <li key={index} className="flex justify-between text-sm border-b border-border pb-1 text-foreground">
                     <span>
                       {item.name} ({(item.quantity * 1000).toFixed(0)}g)
                     </span>
-                    <span className="font-medium text-foreground dark:text-black">ETB {item.price.toFixed(2)}</span>
+                    <span className="font-medium text-foreground">ETB {item.price.toFixed(2)}</span>
                   </li>
                 ))}
               </ul>
             </div>
 
-            <div className="flex justify-between font-bold text-lg mb-4 border-t border-border dark:border-gray-300 pt-2 text-foreground dark:text-black">
+            <div className="flex justify-between font-bold text-lg mb-4 border-t border-border pt-2 text-foreground">
               <span>Total Amount:</span>
               <span>ETB {total.toFixed(2)}</span>
             </div>
@@ -365,11 +365,11 @@ export const OrderReceiptModal: React.FC<OrderReceiptModalProps> = ({
               <Barcode value={orderId || `ORDER-${Date.now()}`} width={1.5} height={50} />
             </div>
 
-            <div className="text-center text-xs text-muted-foreground dark:text-gray-600 border-t border-border dark:border-gray-300 pt-2">
+            <div className="text-center text-xs text-muted-foreground border-t border-border pt-2">
               <p className="font-medium">Order Details</p>
               <p>Date: {new Date().toLocaleDateString()}</p>
               <p>Time: {new Date().toLocaleTimeString()}</p>
-              <p className="mt-2 text-green-600 dark:text-green-700">🌿 Fresh • Organic • Healthy 🌿</p>
+              <p className="mt-2 text-green-600">🌿 Fresh • Organic • Healthy 🌿</p>
             </div>
           </div>
 
@@ -384,7 +384,7 @@ export const OrderReceiptModal: React.FC<OrderReceiptModalProps> = ({
               <Button
                 onClick={handleSendToCustomer}
                 disabled={isSending || !customerPhone}
-                className="gap-2 bg-green-600 hover:bg-green-700 flex-1 disabled:opacity-50"
+                className="gap-2 bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700 flex-1 disabled:opacity-50"
               >
                 <MessageCircle className="h-4 w-4" />
                 {isSending ? 'Sending Image Invoice...' : 'Send Image Invoice'}
@@ -400,7 +400,7 @@ export const OrderReceiptModal: React.FC<OrderReceiptModalProps> = ({
                 <p className="text-amber-600">
                   ⚠️ No customer phone number found
                 </p>
-                <p className="text-gray-600">
+                <p className="text-muted-foreground">
                   To send receipts automatically, select a customer with a phone number in the sales cart
                 </p>
               </div>
