@@ -57,7 +57,7 @@ export default function TestLocation() {
       <div style={{ marginTop: '20px', fontSize: '14px', color: '#666' }}>
         <h3>Troubleshooting:</h3>
         <ol>
-          <li>Make sure you're using HTTPS (location doesn't work on HTTP)</li>
+          <li>Make sure you&apos;re using HTTPS (location doesn&apos;t work on HTTP)</li>
           <li>Check browser settings for location permissions</li>
           <li>For Chrome: Settings → Privacy → Site Settings → Location</li>
           <li>Try in an incognito window to rule out extensions</li>

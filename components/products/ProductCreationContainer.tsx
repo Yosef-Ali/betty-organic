@@ -29,7 +29,7 @@ export function ProductCreationContainer() {
   }
 
   return (
-    <div className="flex-1 flex flex-col space-y-6 p-6 max-w-7xl mx-auto">
+    <div className="flex-1 flex flex-col space-y-6 p-6 max-w-7xl mx-auto bg-background text-foreground">
       <ProductHeader 
         title="Create New Product" 
         subtitle="Add a new product to your inventory"

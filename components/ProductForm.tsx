@@ -167,14 +167,14 @@ export function ProductForm({
         >
           {/* Product Summary Card */}
           {(watchedValues.name || watchedValues.price > 0 || watchedValues.stock > 0) && (
-            <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+            <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 border-blue-200 dark:border-blue-800">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
-                    <h3 className="font-semibold text-blue-900">
+                    <h3 className="font-semibold text-blue-900 dark:text-blue-100">
                       {watchedValues.name || 'New Product'}
                     </h3>
-                    <div className="flex items-center gap-4 text-sm text-blue-700">
+                    <div className="flex items-center gap-4 text-sm text-blue-700 dark:text-blue-300">
                       {watchedValues.price > 0 && (
                         <div className="flex items-center gap-1">
                           <Banknote className="h-3 w-3" />
@@ -190,7 +190,7 @@ export function ProductForm({
                     </div>
                   </div>
                   {estimatedValue > 0 && (
-                    <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                    <Badge variant="secondary" className="bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200">
                       Est. Value: {estimatedValue.toFixed(2)} ETB
                     </Badge>
                   )}
@@ -217,10 +217,10 @@ export function ProductForm({
           </div>
 
           {/* Form Actions */}
-          <div className="flex items-center justify-between pt-6 border-t">
+          <div className="flex items-center justify-between pt-6 border-t border-border">
             <div className="text-sm text-muted-foreground">
               {form.formState.isDirty && !isSubmitting && (
-                <span className="text-orange-600 flex items-center gap-1">
+                <span className="text-orange-600 dark:text-orange-400 flex items-center gap-1">
                   <AlertTriangle className="h-3 w-3" />
                   Unsaved changes
                 </span>

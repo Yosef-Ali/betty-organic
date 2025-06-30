@@ -318,45 +318,45 @@ export const OrderReceiptModal: React.FC<OrderReceiptModalProps> = ({
       </style>
 
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-[425px] z-[60]">
+        <DialogContent className="sm:max-w-[425px] z-[60] bg-background border-border">
           <DialogHeader className="no-print">
-            <DialogTitle>Order Receipt</DialogTitle>
+            <DialogTitle className="text-foreground">Order Receipt</DialogTitle>
           </DialogHeader>
 
           {/* Printable content */}
-          <div id="receipt-content" className="print-content border p-4 rounded bg-white">
+          <div id="receipt-content" className="print-content border border-border p-4 rounded bg-background dark:bg-white dark:text-black">
             <div className="text-center mb-4">
-              <h2 className="text-xl font-bold">Betty Organic</h2>
-              <p className="text-sm text-gray-500">
+              <h2 className="text-xl font-bold text-foreground dark:text-black">Betty Organic</h2>
+              <p className="text-sm text-muted-foreground dark:text-gray-600">
                 Fresh Organic Fruits & Vegetables
               </p>
-              <p className="text-xs text-gray-400 mt-1">
+              <p className="text-xs text-muted-foreground dark:text-gray-500 mt-1">
                 Thank you for your order!
               </p>
             </div>
 
             {customerInfo && (
               <div className="mb-4 text-center border-b pb-2">
-                <p className="text-sm font-medium">Customer: {customerInfo}</p>
-                {orderId && <p className="text-sm text-gray-600">Order ID: {orderId}</p>}
+                <p className="text-sm font-medium text-foreground dark:text-black">Customer: {customerInfo}</p>
+                {orderId && <p className="text-sm text-muted-foreground dark:text-gray-700">Order ID: {orderId}</p>}
               </div>
             )}
 
             <div className="mb-4">
-              <h3 className="font-semibold mb-2 text-gray-800">Order Items:</h3>
+              <h3 className="font-semibold mb-2 text-foreground dark:text-black">Order Items:</h3>
               <ul className="space-y-1">
                 {items.map((item, index) => (
-                  <li key={index} className="flex justify-between text-sm border-b border-gray-100 pb-1">
+                  <li key={index} className="flex justify-between text-sm border-b border-border dark:border-gray-300 pb-1 text-foreground dark:text-black">
                     <span>
                       {item.name} ({(item.quantity * 1000).toFixed(0)}g)
                     </span>
-                    <span className="font-medium">ETB {item.price.toFixed(2)}</span>
+                    <span className="font-medium text-foreground dark:text-black">ETB {item.price.toFixed(2)}</span>
                   </li>
                 ))}
               </ul>
             </div>
 
-            <div className="flex justify-between font-bold text-lg mb-4 border-t pt-2">
+            <div className="flex justify-between font-bold text-lg mb-4 border-t border-border dark:border-gray-300 pt-2 text-foreground dark:text-black">
               <span>Total Amount:</span>
               <span>ETB {total.toFixed(2)}</span>
             </div>
@@ -365,11 +365,11 @@ export const OrderReceiptModal: React.FC<OrderReceiptModalProps> = ({
               <Barcode value={orderId || `ORDER-${Date.now()}`} width={1.5} height={50} />
             </div>
 
-            <div className="text-center text-xs text-gray-500 border-t pt-2">
+            <div className="text-center text-xs text-muted-foreground dark:text-gray-600 border-t border-border dark:border-gray-300 pt-2">
               <p className="font-medium">Order Details</p>
               <p>Date: {new Date().toLocaleDateString()}</p>
               <p>Time: {new Date().toLocaleTimeString()}</p>
-              <p className="mt-2 text-green-600">🌿 Fresh • Organic • Healthy 🌿</p>
+              <p className="mt-2 text-green-600 dark:text-green-700">🌿 Fresh • Organic • Healthy 🌿</p>
             </div>
           </div>
 

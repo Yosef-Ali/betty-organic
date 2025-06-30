@@ -35,7 +35,7 @@ export function CartItem({ item }: CartItemProps) {
   };
 
   return (
-    <div className="flex items-center justify-between space-x-4 py-4">
+    <div className="flex items-center justify-between space-x-4 py-4 text-foreground">
       <div className="flex items-center space-x-4">
         <div className="relative h-16 w-16 overflow-hidden rounded-md">
           <Image
@@ -47,8 +47,8 @@ export function CartItem({ item }: CartItemProps) {
           />
         </div>
         <div>
-          <h3 className="text-sm font-medium">{item.name}</h3>
-          <p className="text-sm text-muted-foreground">
+          <h3 className="text-sm font-medium text-foreground">{item.name}</h3>
+          <p className="text-sm text-muted-foreground dark:text-muted-foreground">
             {formatOrderCurrency(item.pricePerKg)}/kg
           </p>
         </div>
@@ -58,7 +58,7 @@ export function CartItem({ item }: CartItemProps) {
         <Button
           variant="outline"
           size="icon"
-          className="h-8 w-8"
+          className="h-8 w-8 border-border hover:bg-accent hover:text-accent-foreground"
           onClick={() => handleQuantityChange(-100)}
         >
           <Minus className="h-4 w-4" />
@@ -67,13 +67,13 @@ export function CartItem({ item }: CartItemProps) {
           type="number"
           value={(item.grams / 1000).toFixed(1)}
           onChange={handleDirectInput}
-          className="h-8 w-20 text-center"
+          className="h-8 w-20 text-center bg-background text-foreground border-border"
           step="0.1"
         />
         <Button
           variant="outline"
           size="icon"
-          className="h-8 w-8"
+          className="h-8 w-8 border-border hover:bg-accent hover:text-accent-foreground"
           onClick={() => handleQuantityChange(100)}
         >
           <Plus className="h-4 w-4" />
@@ -81,7 +81,7 @@ export function CartItem({ item }: CartItemProps) {
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 text-destructive"
+          className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
           onClick={() => removeFromCart(item.id)}
         >
           <Trash2 className="h-4 w-4" />

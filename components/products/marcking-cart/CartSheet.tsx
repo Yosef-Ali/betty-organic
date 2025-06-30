@@ -65,14 +65,14 @@ export const CartSheet = ({ isOpen, onOpenChangeAction = () => { } }: CartSheetP
         }
         setCartOpen(open);
       }}>
-        <SheetContent className="flex w-full flex-col pr-0 sm:max-w-lg z-50">
+        <SheetContent className="flex w-full flex-col pr-0 sm:max-w-lg z-50 bg-background text-foreground">
           <SheetHeader>
             <SheetTitle>Shopping Cart ({items?.length})</SheetTitle>
           </SheetHeader>
           <ScrollArea className="flex-1 pr-6">
             {items?.length === 0 ? (
               <div className="flex h-full items-center justify-center">
-                <p className="text-muted-foreground">Your cart is empty</p>
+                <p className="text-muted-foreground dark:text-muted-foreground">Your cart is empty</p>
               </div>
             ) : (
               <div className="flex flex-col">
@@ -91,22 +91,22 @@ export const CartSheet = ({ isOpen, onOpenChangeAction = () => { } }: CartSheetP
               <Button
                 variant="outline"
                 onClick={() => setIsContactDialogOpen(true)}
-                className="w-full flex items-center gap-2 h-12"
+                className="w-full flex items-center gap-2 h-12 border-border hover:bg-accent hover:text-accent-foreground"
               >
                 <User className="w-4 h-4" />
                 Contact & Delivery Details
                 {customerInfo.phone && customerInfo.address ? (
-                  <span className="ml-auto text-xs text-green-600 font-medium">✓ Complete</span>
+                  <span className="ml-auto text-xs text-green-600 dark:text-green-400 font-medium">✓ Complete</span>
                 ) : (
-                  <span className="ml-auto text-xs text-orange-600">⚠ Required</span>
+                  <span className="ml-auto text-xs text-orange-600 dark:text-orange-400">⚠ Required</span>
                 )}
               </Button>
 
               {/* Improved Total Amount Section */}
-              <div className="bg-muted/30 p-4 rounded-md">
+              <div className="bg-muted/30 dark:bg-muted/20 p-4 rounded-md border border-border/50">
                 <div className="flex items-center">
-                  <span className="text-base font-semibold mr-auto">Total Amount</span>
-                  <span className="text-xl font-bold pl-4">
+                  <span className="text-base font-semibold mr-auto text-foreground">Total Amount</span>
+                  <span className="text-xl font-bold pl-4 text-foreground">
                     ETB {totalAmount.toFixed(2)}
                   </span>
                 </div>
@@ -114,14 +114,14 @@ export const CartSheet = ({ isOpen, onOpenChangeAction = () => { } }: CartSheetP
 
               <div className="flex items-center">
                 <Button
-                  className="w-full flex-1 mr-2"
+                  className="w-full flex-1 mr-2 bg-primary hover:bg-primary/90 text-primary-foreground"
                   onClick={() => setIsPurchaseDialogOpen(true)}
                 >
                   Order Now
                 </Button>
                 <Button
                   variant="destructive"
-                  className="flex-none"
+                  className="flex-none bg-destructive hover:bg-destructive/90 text-destructive-foreground"
                   size="sm"
                   onClick={() => {
                     clearCart();

@@ -660,21 +660,12 @@ export const ConfirmPurchaseDialog: React.FC<ConfirmPurchaseDialogProps> = ({
 
     return (
         <Dialog open={isOpen} onOpenChange={onCloseAction}>
-            <DialogContent className="w-[95vw] max-w-md mx-auto max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+            <DialogContent className="w-[95vw] max-w-md mx-auto max-h-[90vh] overflow-y-auto p-4 sm:p-6 bg-background text-foreground border-border">
                 <VisuallyHidden>
                     <DialogTitle>Confirm Purchase</DialogTitle>
                 </VisuallyHidden>
                 {/* Removed Debug button */}
 
-                {/* Auth status indicator */}
-                {process.env.NODE_ENV !== 'production' && (
-                    <div className="absolute top-0 left-0 z-50 opacity-30 hover:opacity-100">
-                        <div className="text-xs p-1 rounded bg-opacity-80"
-                            style={{ backgroundColor: isAuthenticated ? '#bef5c8' : '#fed7d7' }}>
-                            {isAuthenticated ? "Authenticated" : "Guest"}
-                        </div>
-                    </div>
-                )}
 
                 {renderContent()}
             </DialogContent>

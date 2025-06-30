@@ -270,7 +270,7 @@ export default function TextToImageGenerator() {
                   <div className="absolute bottom-4 right-4">
                     <Button
                       variant="outline"
-                      className="bg-white/90 border-gray-300 text-gray-700 hover:bg-white"
+                      className="bg-white/90 dark:bg-gray-800/90 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-800"
                       onClick={handleDownload}
                     >
                       <Download className="w-4 h-4 mr-2" />

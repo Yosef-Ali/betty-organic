@@ -251,10 +251,10 @@ export const ContactDeliveryDialog = ({
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChangeAction}>
-            <DialogContent className="w-[95vw] max-w-md mx-auto max-h-[90vh] flex flex-col">
+            <DialogContent className="w-[95vw] max-w-md mx-auto max-h-[90vh] flex flex-col bg-background text-foreground border-border">
                 <DialogHeader className="flex-shrink-0">
-                    <DialogTitle className="text-lg">Contact & Delivery Details</DialogTitle>
-                    <DialogDescription className="text-sm">
+                    <DialogTitle className="text-lg text-foreground">Contact & Delivery Details</DialogTitle>
+                    <DialogDescription className="text-sm text-muted-foreground">
                         {isLoadingProfile ? (
                             "Loading your profile information..."
                         ) : isAuthenticated ? (
@@ -269,8 +269,8 @@ export const ContactDeliveryDialog = ({
                 {isLoadingProfile ? (
                     <div className="flex-1 flex items-center justify-center py-8">
                         <div className="flex flex-col items-center gap-3">
-                            <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
-                            <p className="text-sm text-gray-500">Loading your information...</p>
+                            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+                            <p className="text-sm text-muted-foreground">Loading your information...</p>
                         </div>
                     </div>
                 ) : (
@@ -278,15 +278,15 @@ export const ContactDeliveryDialog = ({
                         {/* Tabbed interface for better organization */}
                         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
                             <TabsList className="grid w-full grid-cols-2 mb-4">
-                                <TabsTrigger value="contact" className="text-xs">
+                                <TabsTrigger value="contact" className="text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                                     <Phone className="w-3 h-3 mr-1" />
                                     Contact
-                                    {isContactComplete && <span className="ml-1 text-green-600">✓</span>}
+                                    {isContactComplete && <span className="ml-1 text-green-600 dark:text-green-400">✓</span>}
                                 </TabsTrigger>
-                                <TabsTrigger value="delivery" className="text-xs">
+                                <TabsTrigger value="delivery" className="text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                                     <MapPin className="w-3 h-3 mr-1" />
                                     Delivery
-                                    {isDeliveryComplete && <span className="ml-1 text-green-600">✓</span>}
+                                    {isDeliveryComplete && <span className="ml-1 text-green-600 dark:text-green-400">✓</span>}
                                 </TabsTrigger>
                             </TabsList>
 
@@ -303,7 +303,7 @@ export const ContactDeliveryDialog = ({
                                                 placeholder="Enter your name"
                                                 value={customerInfo.name}
                                                 onChange={(e) => onCustomerInfoChangeAction({ ...customerInfo, name: e.target.value })}
-                                                className="h-9 text-sm"
+                                                className="h-9 text-sm bg-background text-foreground border-border"
                                             />
                                         </div>
 
@@ -324,13 +324,13 @@ export const ContactDeliveryDialog = ({
                                                     }
                                                 }}
                                                 required
-                                                className={`h-9 text-sm ${errors.phone ? 'border-red-500 focus:border-red-500' : ''}`}
+                                                className={`h-9 text-sm bg-background text-foreground ${errors.phone ? 'border-red-500 focus:border-red-500' : 'border-border'}`}
                                             />
                                             {errors.phone && (
-                                                <p className="text-xs text-red-600 mt-1">{errors.phone}</p>
+                                                <p className="text-xs text-red-600 dark:text-red-400 mt-1">{errors.phone}</p>
                                             )}
                                             {!errors.phone && (
-                                                <p className="text-xs text-gray-500">
+                                                <p className="text-xs text-muted-foreground">
                                                     Format: 09XXXXXXXX or +251XXXXXXXXX
                                                 </p>
                                             )}
@@ -345,8 +345,8 @@ export const ContactDeliveryDialog = ({
                                             </Label>
 
                                             {errors.address && (
-                                                <div className="p-2 bg-red-50 border border-red-200 rounded-md">
-                                                    <p className="text-xs text-red-600">{errors.address}</p>
+                                                <div className="p-2 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-md">
+                                                    <p className="text-xs text-red-600 dark:text-red-400">{errors.address}</p>
                                                 </div>
                                             )}
 
@@ -356,25 +356,25 @@ export const ContactDeliveryDialog = ({
                                                 <button
                                                     type="button"
                                                     className={`w-full p-3 border rounded-lg text-left transition-colors flex items-center gap-3 ${selectedOption === 'current'
-                                                        ? 'border-green-500 bg-green-50'
-                                                        : 'border-gray-200 hover:border-green-300 bg-white'
+                                                        ? 'border-green-500 bg-green-50 dark:bg-green-950/20'
+                                                        : 'border-border hover:border-green-300 bg-background'
                                                         }`}
                                                     onClick={getCurrentLocation}
                                                     disabled={loading}
                                                 >
-                                                    <Navigation className="w-4 h-4 text-gray-600" />
+                                                    <Navigation className="w-4 h-4 text-muted-foreground" />
                                                     <div className="flex-1">
-                                                        <div className="font-medium text-sm">Use Current Location</div>
-                                                        {loading && <div className="text-xs text-gray-500 mt-1">Getting location...</div>}
+                                                        <div className="font-medium text-sm text-foreground">Use Current Location</div>
+                                                        {loading && <div className="text-xs text-muted-foreground mt-1">Getting location...</div>}
                                                         {selectedOption === 'current' && customerInfo.address && (
-                                                            <div className="text-xs text-green-700 mt-1">{customerInfo.address}</div>
+                                                            <div className="text-xs text-green-700 dark:text-green-400 mt-1">{customerInfo.address}</div>
                                                         )}
                                                     </div>
                                                 </button>
 
                                                 {/* Saved Locations */}
                                                 <div className="space-y-2">
-                                                    <div className="text-xs text-gray-500 text-center">Or choose saved location</div>
+                                                    <div className="text-xs text-muted-foreground text-center">Or choose saved location</div>
                                                     {savedLocations.map((loc) => {
                                                         const IconComponent = loc.icon;
                                                         return (
@@ -382,8 +382,8 @@ export const ContactDeliveryDialog = ({
                                                                 key={loc.id}
                                                                 type="button"
                                                                 className={`w-full p-3 border rounded-lg text-left transition-colors flex items-center gap-3 ${selectedOption === loc.id
-                                                                    ? 'border-green-500 bg-green-50'
-                                                                    : 'border-gray-200 hover:border-green-300 bg-white'
+                                                                    ? 'border-green-500 bg-green-50 dark:bg-green-950/20'
+                                                                    : 'border-border hover:border-green-300 bg-background'
                                                                     }`}
                                                                 onClick={() => {
                                                                     setSelectedOption(loc.id);
@@ -394,10 +394,10 @@ export const ContactDeliveryDialog = ({
                                                                     }
                                                                 }}
                                                             >
-                                                                <IconComponent className="w-4 h-4 text-gray-600" />
+                                                                <IconComponent className="w-4 h-4 text-muted-foreground" />
                                                                 <div className="flex-1">
-                                                                    <div className="font-medium text-sm">{loc.name}</div>
-                                                                    <div className="text-xs text-gray-500">{loc.address}</div>
+                                                                    <div className="font-medium text-sm text-foreground">{loc.name}</div>
+                                                                    <div className="text-xs text-muted-foreground">{loc.address}</div>
                                                                 </div>
                                                             </button>
                                                         );
@@ -406,7 +406,7 @@ export const ContactDeliveryDialog = ({
 
                                                 {/* Manual Entry */}
                                                 <div className="space-y-2">
-                                                    <div className="text-xs text-gray-500 text-center">Or enter manually</div>
+                                                    <div className="text-xs text-muted-foreground text-center">Or enter manually</div>
                                                     <Textarea
                                                         placeholder="Enter your delivery address..."
                                                         rows={3}
@@ -419,7 +419,7 @@ export const ContactDeliveryDialog = ({
                                                                 setErrors(prev => ({ ...prev, address: '' }));
                                                             }
                                                         }}
-                                                        className={`resize-none text-sm ${errors.address ? 'border-red-500 focus:border-red-500' : ''}`}
+                                                        className={`resize-none text-sm bg-background text-foreground ${errors.address ? 'border-red-500 focus:border-red-500' : 'border-border'}`}
                                                     />
                                                 </div>
                                             </div>
@@ -431,23 +431,23 @@ export const ContactDeliveryDialog = ({
                     </>
                 )}
 
-                <DialogFooter className="flex-shrink-0 pt-4 border-t">
+                <DialogFooter className="flex-shrink-0 pt-4 border-t border-border">
                     <Button
                         variant="outline"
                         onClick={() => onOpenChangeAction(false)}
-                        className="flex-1"
+                        className="flex-1 border-border hover:bg-accent hover:text-accent-foreground"
                         disabled={isSaving}
                     >
                         Cancel
                     </Button>
                     <Button
                         onClick={handleSave}
-                        className="flex-1 ml-2"
+                        className="flex-1 ml-2 bg-primary hover:bg-primary/90 text-primary-foreground"
                         disabled={isSaving || !customerInfo.phone.trim() || !customerInfo.address.trim()}
                     >
                         {isSaving ? (
                             <>
-                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
                                 Saving...
                             </>
                         ) : (

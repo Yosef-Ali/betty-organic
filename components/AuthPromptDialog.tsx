@@ -135,7 +135,7 @@ export default function AuthPromptDialog({ isOpen, onClose }: AuthPromptDialogPr
           {/* Guest Option */}
           <div className="text-center">
             <p className="text-xs text-gray-500 mb-3">
-              Don't have an order yet?
+              Don&apos;t have an order yet?
             </p>
             <Button 
               variant="ghost" 
