@@ -162,34 +162,38 @@ export default function DashboardContent() {
   });
 
   return (
-    <div className="flex-1 space-y-4 md:p-8 pt-6">
-      <div className="flex items-center justify-between space-y-2">
-        <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
+    <div className="flex-1 space-y-3 p-4 sm:space-y-4 md:p-8 pt-6">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h2>
         {/* Debug info */}
         <div className="text-xs text-gray-500">
           Role: {profile?.role || 'No role'} | Tabs: {(profile?.role === 'admin' || profile?.role === 'sales') ? 'Visible' : 'Hidden'}
         </div>
       </div>
-      <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="overview">
-            {profile?.role === 'sales' ? 'Sales Dashboard' : 'Overview'}
+      <Tabs defaultValue="overview" className="space-y-3 sm:space-y-4">
+        <TabsList className={`grid w-full sm:w-auto sm:flex ${
+          profile?.role === 'sales' ? 'grid-cols-3' : 
+          profile?.role === 'admin' ? 'grid-cols-3' : 
+          'grid-cols-1'
+        }`}>
+          <TabsTrigger value="overview" className="text-xs sm:text-sm px-2 sm:px-4">
+            {profile?.role === 'sales' ? 'Sales' : 'Overview'}
           </TabsTrigger>
           {/* Show different tabs based on role */}
           {profile?.role === 'admin' && (
-            <TabsTrigger value="reports">Reports</TabsTrigger>
+            <TabsTrigger value="reports" className="text-xs sm:text-sm px-2 sm:px-4">Reports</TabsTrigger>
           )}
           {/* Show Notifications for admin and sales */}
           {(profile?.role === 'admin' || profile?.role === 'sales') && (
-            <TabsTrigger value="notifications">Notifications</TabsTrigger>
+            <TabsTrigger value="notifications" className="text-xs sm:text-sm px-2 sm:px-4">Alerts</TabsTrigger>
           )}
           {/* Sales-specific tabs */}
           {profile?.role === 'sales' && (
-            <TabsTrigger value="orders">Order Management</TabsTrigger>
+            <TabsTrigger value="orders" className="text-xs sm:text-sm px-2 sm:px-4">Orders</TabsTrigger>
           )}
         </TabsList>
-        <TabsContent value="overview" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <TabsContent value="overview" className="space-y-3 sm:space-y-4">
+          <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
             {profile?.role === 'sales' ? (
               // Sales-focused overview
               <>
@@ -246,11 +250,11 @@ export default function DashboardContent() {
           </div>
           {profile?.role === 'sales' ? (
             // Sales-focused content
-            <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-7">
-              <Card className="col-span-4">
+            <div className="grid gap-3 sm:gap-4 grid-cols-1 lg:grid-cols-7">
+              <Card className="lg:col-span-4">
                 <CardHeader>
-                  <CardTitle>Pending Orders</CardTitle>
-                  <CardDescription>
+                  <CardTitle className="text-lg sm:text-xl">Pending Orders</CardTitle>
+                  <CardDescription className="text-sm">
                     Orders that need your attention and processing.
                   </CardDescription>
                 </CardHeader>
@@ -258,10 +262,10 @@ export default function DashboardContent() {
                   <RecentOrders />
                 </CardContent>
               </Card>
-              <Card className="col-span-3">
+              <Card className="lg:col-span-3">
                 <CardHeader>
-                  <CardTitle>Customer Activity</CardTitle>
-                  <CardDescription>
+                  <CardTitle className="text-lg sm:text-xl">Customer Activity</CardTitle>
+                  <CardDescription className="text-sm">
                     Recent customer orders and activity.
                   </CardDescription>
                 </CardHeader>
@@ -272,11 +276,11 @@ export default function DashboardContent() {
             </div>
           ) : (
             // Admin content (original)
-            <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-7">
-              <Card className="col-span-4">
+            <div className="grid gap-3 sm:gap-4 grid-cols-1 lg:grid-cols-7">
+              <Card className="lg:col-span-4">
                 <CardHeader>
-                  <CardTitle>Recent Sales</CardTitle>
-                  <CardDescription>
+                  <CardTitle className="text-lg sm:text-xl">Recent Sales</CardTitle>
+                  <CardDescription className="text-sm">
                     You made {(totalOrders ?? 0).toLocaleString()} sales this
                     month.
                   </CardDescription>
@@ -285,10 +289,10 @@ export default function DashboardContent() {
                   <RecentSales />
                 </CardContent>
               </Card>
-              <Card className="col-span-3">
+              <Card className="lg:col-span-3">
                 <CardHeader>
-                  <CardTitle>Recent Orders</CardTitle>
-                  <CardDescription>
+                  <CardTitle className="text-lg sm:text-xl">Recent Orders</CardTitle>
+                  <CardDescription className="text-sm">
                     You have {(totalOrders ?? 0).toLocaleString()} total orders.
                   </CardDescription>
                 </CardHeader>
@@ -320,41 +324,41 @@ export default function DashboardContent() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    <div className="grid gap-4 md:grid-cols-3">
+                    <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-3">
                       <Card className="border-yellow-200 bg-yellow-50">
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-sm text-yellow-800">Pending Orders</CardTitle>
+                        <CardHeader className="pb-2 sm:pb-3">
+                          <CardTitle className="text-xs sm:text-sm text-yellow-800">Pending Orders</CardTitle>
                         </CardHeader>
                         <CardContent>
-                          <div className="text-2xl font-bold text-yellow-900">{totalOrders}</div>
+                          <div className="text-xl sm:text-2xl font-bold text-yellow-900">{totalOrders}</div>
                           <p className="text-xs text-yellow-700 mt-1">Need processing</p>
                         </CardContent>
                       </Card>
                       
                       <Card className="border-blue-200 bg-blue-50">
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-sm text-blue-800">Processing Orders</CardTitle>
+                        <CardHeader className="pb-2 sm:pb-3">
+                          <CardTitle className="text-xs sm:text-sm text-blue-800">Processing Orders</CardTitle>
                         </CardHeader>
                         <CardContent>
-                          <div className="text-2xl font-bold text-blue-900">0</div>
+                          <div className="text-xl sm:text-2xl font-bold text-blue-900">0</div>
                           <p className="text-xs text-blue-700 mt-1">In progress</p>
                         </CardContent>
                       </Card>
                       
                       <Card className="border-green-200 bg-green-50">
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-sm text-green-800">Completed Today</CardTitle>
+                        <CardHeader className="pb-2 sm:pb-3">
+                          <CardTitle className="text-xs sm:text-sm text-green-800">Completed Today</CardTitle>
                         </CardHeader>
                         <CardContent>
-                          <div className="text-2xl font-bold text-green-900">0</div>
+                          <div className="text-xl sm:text-2xl font-bold text-green-900">0</div>
                           <p className="text-xs text-green-700 mt-1">Orders delivered</p>
                         </CardContent>
                       </Card>
                     </div>
                     
-                    <div className="border rounded-lg p-4">
-                      <h3 className="font-medium mb-3">Quick Actions</h3>
-                      <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-4">
+                    <div className="border rounded-lg p-3 sm:p-4">
+                      <h3 className="text-sm sm:text-base font-medium mb-3">Quick Actions</h3>
+                      <div className="grid gap-2 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
                         <Link href="/dashboard/orders">
                           <Button variant="outline" size="sm" className="justify-start w-full">
                             <Package className="h-4 w-4 mr-2" />

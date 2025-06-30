@@ -249,9 +249,9 @@ const OrderDashboard: React.FC = () => {
   }
 
   return (
-    <main className="grid flex-1 items-start gap-4 px-0 sm:px-6 sm:py-0 md:gap-8 lg:grid-cols-3 xl:grid-cols-3">
-      <div className="grid auto-rows-max items-start gap-4 md:gap-8 lg:col-span-2">
-        <div className="grid gap-4 px-4 sm:px-0 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
+    <main className="grid flex-1 items-start gap-3 p-4 sm:gap-4 sm:px-6 sm:py-0 md:gap-8 lg:grid-cols-3 xl:grid-cols-3">
+      <div className="grid auto-rows-max items-start gap-3 md:gap-8 lg:col-span-2">
+        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
           <OrdersOverviewCard />
           <StatCard
             title="This Week"
@@ -266,24 +266,22 @@ const OrderDashboard: React.FC = () => {
             changePercentage={currentMonthChangePercentage}
           />
         </div>
-        <Tabs defaultValue="week" className="px-4 sm:px-0">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <div className="flex items-center gap-2">
-              <TabsList className="mr-2">
-                <TabsTrigger value="week">This Week</TabsTrigger>
-                <TabsTrigger value="month">This Month</TabsTrigger>
+        <Tabs defaultValue="week" className="space-y-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
+              <TabsList className="self-start">
+                <TabsTrigger value="week" className="text-xs sm:text-sm">This Week</TabsTrigger>
+                <TabsTrigger value="month" className="text-xs sm:text-sm">This Month</TabsTrigger>
               </TabsList>
-              <div className="text-sm text-muted-foreground">
+              <div className="text-xs sm:text-sm text-muted-foreground">
                 {orders.length} total orders
               </div>
             </div>
 
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" className="h-8 gap-1">
+              <Button variant="outline" size="sm" className="h-8 gap-1 text-xs sm:text-sm">
                 <File className="h-3.5 w-3.5" />
-                <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                  Export
-                </span>
+                <span className="hidden sm:inline">Export</span>
               </Button>
             </div>
           </div>

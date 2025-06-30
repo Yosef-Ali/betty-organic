@@ -92,24 +92,23 @@ export function RecentSales({ data }: RecentSalesProps) {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Recent Sales</CardTitle>
-        <div className="text-sm text-muted-foreground">
-          Total Sales:{" "}
-          <span className="font-medium">{formatOrderCurrency(totalSales)}</span>
+    <div className="space-y-4">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <h3 className="text-base font-medium">Recent Sales</h3>
+        <div className="text-xs sm:text-sm text-muted-foreground">
+          Total: <span className="font-medium">{formatOrderCurrency(totalSales)}</span>
         </div>
-      </CardHeader>
-      <CardContent className="grid gap-8">
+      </div>
+      <div className="space-y-3 sm:space-y-4">
         {orders.length > 0 ? (
-          orders.map((sale) => {
+          orders.slice(0, 5).map((sale) => {
             const customerDisplay = getCustomerDisplay(sale.customer);
             return (
-              <div key={sale.id} className="flex items-center gap-4">
+              <div key={sale.id} className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
                 <div className="hidden sm:block">
-                  <Avatar className="h-9 w-9">
+                  <Avatar className="h-8 w-8">
                     <AvatarImage src="/default-avatar.png" alt="Avatar" />
-                    <AvatarFallback>
+                    <AvatarFallback className="text-xs">
                       {customerDisplay.primaryInfo
                         .split(" ")
                         .map((n) => n[0])
@@ -117,26 +116,28 @@ export function RecentSales({ data }: RecentSalesProps) {
                     </AvatarFallback>
                   </Avatar>
                 </div>
-                <div className="grid gap-1">
-                  <p className="text-sm font-medium leading-none">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">
                     {customerDisplay.primaryInfo}
                   </p>
                   {customerDisplay.secondaryInfo && (
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-xs text-muted-foreground truncate">
                       {customerDisplay.secondaryInfo}
                     </p>
                   )}
                 </div>
-                <div className="ml-auto font-medium">
+                <div className="text-sm font-medium shrink-0">
                   {formatOrderCurrency(sale.totalAmount)}
                 </div>
               </div>
             );
           })
         ) : (
-          <div>No recent sales found.</div>
+          <div className="text-center py-8 text-muted-foreground text-sm">
+            No recent sales found
+          </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
