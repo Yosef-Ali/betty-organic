@@ -3,6 +3,12 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export async function middleware(request: NextRequest) {
+  // Helper function to get the correct base URL for redirects
+  const getBaseUrl = () => {
+    const isDevelopment = process.env.NODE_ENV === 'development';
+    return isDevelopment ? 'http://localhost:3000' : request.url;
+  };
+
   // Skip middleware for public routes and assets
   if (
     request.nextUrl.pathname.startsWith('/_next') ||
@@ -59,7 +65,7 @@ export async function middleware(request: NextRequest) {
 
       // If user is already logged in and trying to access auth pages, redirect to dashboard
       if (user && !request.nextUrl.pathname.startsWith('/auth/logout')) {
-        return NextResponse.redirect(new URL('/dashboard', request.url));
+        return NextResponse.redirect(new URL('/dashboard', getBaseUrl()));
       }
 
       return response;
@@ -112,7 +118,7 @@ export async function middleware(request: NextRequest) {
         // Sign out the inactive user
         await supabase.auth.signOut();
         return NextResponse.redirect(
-          new URL('/auth/login?error=account_inactive', request.url)
+          new URL('/auth/login?error=account_inactive', getBaseUrl())
         );
       }
 
@@ -133,7 +139,7 @@ export async function middleware(request: NextRequest) {
 
         // If it's a customer trying to access non-customer routes, redirect to profile
         if (userRole === 'customer' && !isCustomerAccessibleRoute) {
-          return NextResponse.redirect(new URL('/dashboard/profile', request.url));
+          return NextResponse.redirect(new URL('/dashboard/profile', getBaseUrl()));
         }
 
         // Only admin and sales can access other dashboard routes
@@ -141,7 +147,7 @@ export async function middleware(request: NextRequest) {
           !isCustomerAccessibleRoute &&
           !['admin', 'sales'].includes(userRole)
         ) {
-          return NextResponse.redirect(new URL('/', request.url));
+          return NextResponse.redirect(new URL('/', getBaseUrl()));
         }
 
         // Admin-only routes
@@ -150,7 +156,7 @@ export async function middleware(request: NextRequest) {
             request.nextUrl.pathname.startsWith('/dashboard/users')) &&
           userRole !== 'admin'
         ) {
-          return NextResponse.redirect(new URL('/dashboard', request.url));
+          return NextResponse.redirect(new URL('/dashboard', getBaseUrl()));
         }
       }
 
@@ -166,8 +172,13 @@ export async function middleware(request: NextRequest) {
 }
 
 function redirectToLogin(request: NextRequest) {
-  const redirectUrl = new URL('/auth/login', request.url);
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  const baseUrl = isDevelopment ? 'http://localhost:3000' : request.url;
+  
+  const redirectUrl = new URL('/auth/login', baseUrl);
   redirectUrl.searchParams.set('returnTo', request.nextUrl.pathname);
+  
+  console.log(`🔄 Redirecting to login: ${redirectUrl.toString()}`);
   return NextResponse.redirect(redirectUrl);
 }
 
