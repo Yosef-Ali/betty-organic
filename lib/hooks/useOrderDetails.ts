@@ -12,6 +12,8 @@ interface OrderDetails {
   createdAt: string;
   updatedAt?: string;
   profile: Profile;
+  status?: string;
+  type?: string;
   items: Array<{
     id: string;
     product: {

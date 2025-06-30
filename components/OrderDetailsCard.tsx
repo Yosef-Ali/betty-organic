@@ -23,32 +23,6 @@ interface OrderDetailsProps {
   orderId: string;
 }
 
-interface OrderWithProfile {
-  id: string;
-  display_id?: string;
-  status?: string;
-  items: Array<{
-    id: string;
-    product: {
-      name: string;
-    };
-    price: number;
-    quantity: number;
-  }>;
-  profile: Profile;
-  updatedAt?: string;
-  createdAt: string;
-  total_amount: number;
-  delivery_cost?: number;
-  coupon_code?: string;
-  discount_amount?: number;
-  coupon?: {
-    code: string;
-    discount_amount: number;
-    discount_type: 'percentage' | 'fixed';
-  };
-}
-
 export default function OrderDetailsCard({ orderId }: OrderDetailsProps) {
   const router = useRouter();
   const { subscribeToOrders } = useRealtime();
@@ -337,7 +311,7 @@ export default function OrderDetailsCard({ orderId }: OrderDetailsProps) {
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Order Type:</span>
-              <span className="capitalize">standard</span>
+              <span className="capitalize">{order.type || 'standard'}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Order Date:</span>

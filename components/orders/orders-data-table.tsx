@@ -191,15 +191,17 @@ export function OrdersDataTable({
                             }
 
                             const result = await sendCustomerInvoiceWhatsApp({
+                                customerPhone: customerPhone,
+                                customerName: order.customerName,
                                 orderId: order.display_id || order.id,
                                 items: order.order_items?.map((item: any) => ({
                                     name: item.product_name || "Unknown Product",
                                     quantity: item.quantity || 0,
                                     price: item.total_price || 0,
                                 })) || [],
-                                total: order.total_amount || 0,
-                                orderDate: new Date(order.created_at || Date.now()).toLocaleDateString(),
-                                orderTime: new Date(order.created_at || Date.now()).toLocaleTimeString(),
+                                subtotal: order.total_amount || 0, // Assuming total_amount can be used as subtotal for now
+                                totalAmount: order.total_amount || 0,
+                                transactionDate: new Date(order.created_at || Date.now()).toLocaleDateString(),
                                 storeName: "Betty Organic",
                                 storeContact: "+251944113998",
                             });
