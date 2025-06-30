@@ -217,7 +217,7 @@ export function ProductSection({
           </div>
         </div>
 
-        <div className="mt-10 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4">
+        <div className="mt-10 -mx-4 px-2 sm:mx-0 sm:px-0 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4">
           {isLoading && (
             <div className="col-span-full flex items-center justify-center py-12">
               <div className="flex items-center gap-2">
