@@ -96,7 +96,7 @@ export const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
           </DialogHeader>
 
           {/* Printable content */}
-          <div className="print-content border p-4 rounded bg-white">
+          <div className="print-content border p-4 rounded">
             <div className="text-center mb-4">
               <h2 className="text-xl font-bold">Receipt</h2>
               <p className="text-sm text-gray-500">
