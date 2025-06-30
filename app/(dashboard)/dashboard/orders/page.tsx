@@ -21,13 +21,13 @@ export default async function OrdersDashboardPage() {
   const isCustomer = user.profile?.role === 'customer';
 
   return (
-    <div className="flex-1 space-y-4 md:p-8 pt-6">
+    <div className="flex-1 space-y-3 p-4 sm:space-y-4 md:p-8 pt-6">
       <div className="flex items-center justify-between">
         <div className="space-y-1">
-          <h2 className="text-3xl font-bold tracking-tight">
+          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
             {isCustomer ? 'My Orders' : 'Orders'}
           </h2>
-          <p className="text-muted-foreground">
+          <p className="text-sm sm:text-base text-muted-foreground">
             {isCustomer 
               ? 'View your order history and track order status'
               : 'View and manage order information'

@@ -155,48 +155,94 @@ export function OrderHistory({ userId, refreshTrigger, filterByCustomer = true }
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold">Order History</h3>
       </div>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Order ID</TableHead>
-            <TableHead>Date</TableHead>
-            <TableHead>Items</TableHead>
-            <TableHead>Total Amount</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead className="text-right">Action</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {orders.map((order) => (
-            <TableRow key={order.id}>
-              <TableCell className="font-medium">
-                {order.display_id || `#${order.id.slice(0, 8)}`}
-              </TableCell>
-              <TableCell>
-                {order.created_at
-                  ? format(new Date(order.created_at), "MMM d, yyyy")
-                  : "N/A"}
-              </TableCell>
-              <TableCell>{order.order_items?.length || 0} items</TableCell>
-              <TableCell>{formatOrderCurrency(order.total_amount)}</TableCell>
-              <TableCell>
-                <Badge
-                  variant="outline"
-                  className={getStatusColor(order.status)}
-                >
-                  {order.status}
-                </Badge>
-              </TableCell>
-              <TableCell className="text-right">
-                <Button variant="ghost" size="sm">
-                  View Details
-                  <ChevronRight className="ml-2 h-4 w-4" />
-                </Button>
-              </TableCell>
+      
+      {/* Desktop Table View */}
+      <div className="hidden md:block">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Order ID</TableHead>
+              <TableHead>Date</TableHead>
+              <TableHead>Items</TableHead>
+              <TableHead>Total Amount</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Action</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {orders.map((order) => (
+              <TableRow key={order.id}>
+                <TableCell className="font-medium">
+                  {order.display_id || `#${order.id.slice(0, 8)}`}
+                </TableCell>
+                <TableCell>
+                  {order.created_at
+                    ? format(new Date(order.created_at), "MMM d, yyyy")
+                    : "N/A"}
+                </TableCell>
+                <TableCell>{order.order_items?.length || 0} items</TableCell>
+                <TableCell>{formatOrderCurrency(order.total_amount)}</TableCell>
+                <TableCell>
+                  <Badge
+                    variant="outline"
+                    className={getStatusColor(order.status)}
+                  >
+                    {order.status}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-right">
+                  <Button variant="ghost" size="sm">
+                    View Details
+                    <ChevronRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Mobile Card View */}
+      <div className="md:hidden space-y-3">
+        {orders.map((order) => (
+          <div key={order.id} className="p-4 border rounded-lg bg-card">
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <h4 className="font-medium text-sm">
+                  {order.display_id || `#${order.id.slice(0, 8)}`}
+                </h4>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {order.created_at
+                    ? format(new Date(order.created_at), "MMM d, yyyy")
+                    : "N/A"}
+                </p>
+              </div>
+              <Badge
+                variant="outline"
+                className={`${getStatusColor(order.status)} text-xs`}
+              >
+                {order.status}
+              </Badge>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <div>
+                <p className="text-xs text-muted-foreground">Items</p>
+                <p className="text-sm font-medium">{order.order_items?.length || 0} items</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Total</p>
+                <p className="text-sm font-medium">{formatOrderCurrency(order.total_amount)}</p>
+              </div>
+            </div>
+            
+            <Button variant="outline" size="sm" className="w-full text-xs">
+              View Details
+              <ChevronRight className="ml-2 h-3 w-3" />
+            </Button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

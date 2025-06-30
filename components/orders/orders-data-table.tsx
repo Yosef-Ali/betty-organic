@@ -739,19 +739,19 @@ function DataTable<TData, TValue>({
   });
 
   return (
-    <div>
+    <div className="space-y-4">
       {searchKey && (
         <div className="flex items-center py-4">
           <Input
             placeholder={searchPlaceholder}
             value={globalFilter}
             onChange={(e) => setGlobalFilter(e.target.value)}
-            className="max-w-sm"
+            className="max-w-sm text-sm"
           />
         </div>
       )}
-      <div className="rounded-md border">
-        <Table>
+      <div className="rounded-md border overflow-x-auto">
+        <Table className="min-w-[800px]">
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
@@ -798,42 +798,59 @@ function DataTable<TData, TValue>({
           </TableBody>
         </Table>
       </div>
-      <div className="flex items-center justify-end space-x-2 py-4">
+      <div className="flex items-center justify-center sm:justify-end space-x-2 py-4 overflow-x-auto">
         <Pagination>
-          <PaginationContent>
+          <PaginationContent className="flex-wrap gap-1">
             <PaginationItem>
               <PaginationPrevious
                 onClick={() => table.previousPage()}
                 isActive={false}
                 aria-disabled={!table.getCanPreviousPage()}
                 tabIndex={!table.getCanPreviousPage() ? -1 : 0}
+                className="text-xs sm:text-sm px-2 sm:px-3"
               />
             </PaginationItem>
-            {Array.from({ length: table.getPageCount() }, (_, i) => i + 1).map(
-              (page) => (
-                <PaginationItem key={page}>
+            {Array.from({ length: Math.min(table.getPageCount(), 5) }, (_, i) => {
+              const currentPage = table.getState().pagination.pageIndex;
+              const totalPages = table.getPageCount();
+              let pageNumber;
+              
+              if (totalPages <= 5) {
+                pageNumber = i + 1;
+              } else {
+                // Show pages around current page
+                const start = Math.max(0, currentPage - 2);
+                const end = Math.min(totalPages - 1, start + 4);
+                pageNumber = start + i + 1;
+                if (pageNumber > end + 1) return null;
+              }
+              
+              return (
+                <PaginationItem key={pageNumber}>
                   <PaginationLink
-                    onClick={() => table.setPageIndex(page - 1)}
+                    onClick={() => table.setPageIndex(pageNumber - 1)}
                     isActive={
-                      table.getState().pagination.pageIndex === page - 1
+                      table.getState().pagination.pageIndex === pageNumber - 1
                     }
                     aria-current={
-                      table.getState().pagination.pageIndex === page - 1
+                      table.getState().pagination.pageIndex === pageNumber - 1
                         ? "page"
                         : undefined
                     }
+                    className="text-xs sm:text-sm h-8 w-8 sm:h-10 sm:w-10"
                   >
-                    {page}
+                    {pageNumber}
                   </PaginationLink>
                 </PaginationItem>
-              )
-            )}
+              );
+            })}
             <PaginationItem>
               <PaginationNext
                 onClick={() => table.nextPage()}
                 isActive={false}
                 aria-disabled={!table.getCanNextPage()}
                 tabIndex={!table.getCanNextPage() ? -1 : 0}
+                className="text-xs sm:text-sm px-2 sm:px-3"
               />
             </PaginationItem>
           </PaginationContent>
