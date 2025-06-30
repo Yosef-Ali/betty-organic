@@ -162,20 +162,19 @@ export default function DashboardContent() {
   });
 
   return (
-    <div className="flex-1 space-y-3 p-4 sm:space-y-4 md:p-8 pt-6">
+    <div className="flex-1 space-y-3 p-3 sm:space-y-4 sm:p-4 md:p-8 pt-4 sm:pt-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h2>
-        {/* Debug info */}
-        <div className="text-xs text-gray-500">
+        <h2 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">Dashboard</h2>
+        {/* Debug info - hidden in production */}
+        <div className="text-xs text-gray-500 hidden">
           Role: {profile?.role || 'No role'} | Tabs: {(profile?.role === 'admin' || profile?.role === 'sales') ? 'Visible' : 'Hidden'}
         </div>
       </div>
       <Tabs defaultValue="overview" className="space-y-3 sm:space-y-4">
-        <TabsList className={`grid w-full sm:w-auto sm:inline-flex ${
-          profile?.role === 'sales' ? 'grid-cols-3' : 
-          profile?.role === 'admin' ? 'grid-cols-3' : 
-          'grid-cols-1'
-        }`}>
+        <TabsList className={`grid w-full sm:w-auto sm:inline-flex ${profile?.role === 'sales' ? 'grid-cols-3' :
+            profile?.role === 'admin' ? 'grid-cols-3' :
+              'grid-cols-1'
+          }`}>
           <TabsTrigger value="overview" className="text-xs sm:text-sm px-2 sm:px-4">
             {profile?.role === 'sales' ? 'Sales' : 'Overview'}
           </TabsTrigger>
@@ -250,53 +249,53 @@ export default function DashboardContent() {
           </div>
           {profile?.role === 'sales' ? (
             // Sales-focused content
-            <div className="grid gap-3 sm:gap-4 grid-cols-1 lg:grid-cols-7">
-              <Card className="lg:col-span-4">
-                <CardHeader>
-                  <CardTitle className="text-lg sm:text-xl">Pending Orders</CardTitle>
-                  <CardDescription className="text-sm">
+            <div className="grid gap-3 sm:gap-4 grid-cols-1 xl:grid-cols-7">
+              <Card className="xl:col-span-4">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base sm:text-lg md:text-xl">Pending Orders</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">
                     Orders that need your attention and processing.
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="px-3 sm:px-6">
                   <RecentOrders />
                 </CardContent>
               </Card>
-              <Card className="lg:col-span-3">
-                <CardHeader>
-                  <CardTitle className="text-lg sm:text-xl">Customer Activity</CardTitle>
-                  <CardDescription className="text-sm">
+              <Card className="xl:col-span-3">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base sm:text-lg md:text-xl">Customer Activity</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">
                     Recent customer orders and activity.
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="px-3 sm:px-6">
                   <RecentSales />
                 </CardContent>
               </Card>
             </div>
           ) : (
             // Admin content (original)
-            <div className="grid gap-3 sm:gap-4 grid-cols-1 lg:grid-cols-7">
-              <Card className="lg:col-span-4">
-                <CardHeader>
-                  <CardTitle className="text-lg sm:text-xl">Recent Sales</CardTitle>
-                  <CardDescription className="text-sm">
+            <div className="grid gap-3 sm:gap-4 grid-cols-1 xl:grid-cols-7">
+              <Card className="xl:col-span-4">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base sm:text-lg md:text-xl">Recent Sales</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">
                     You made {(totalOrders ?? 0).toLocaleString()} sales this
                     month.
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="px-3 sm:px-6">
                   <RecentSales />
                 </CardContent>
               </Card>
-              <Card className="lg:col-span-3">
-                <CardHeader>
-                  <CardTitle className="text-lg sm:text-xl">Recent Orders</CardTitle>
-                  <CardDescription className="text-sm">
+              <Card className="xl:col-span-3">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base sm:text-lg md:text-xl">Recent Orders</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">
                     You have {(totalOrders ?? 0).toLocaleString()} total orders.
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="px-3 sm:px-6">
                   <RecentOrders />
                 </CardContent>
               </Card>
@@ -316,13 +315,13 @@ export default function DashboardContent() {
           <TabsContent value="orders" className="space-y-4">
             <div className="grid gap-4 md:grid-cols-1">
               <Card>
-                <CardHeader>
-                  <CardTitle>Order Management</CardTitle>
-                  <CardDescription>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base sm:text-lg">Order Management</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">
                     Manage customer orders, update statuses, and track deliveries.
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="px-3 sm:px-6">
                   <div className="space-y-4">
                     <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-3">
                       <Card className="border-yellow-200 bg-yellow-50">
@@ -330,61 +329,61 @@ export default function DashboardContent() {
                           <CardTitle className="text-xs sm:text-sm text-yellow-800">Pending Orders</CardTitle>
                         </CardHeader>
                         <CardContent>
-                          <div className="text-xl sm:text-2xl font-bold text-yellow-900">{totalOrders}</div>
+                          <div className="text-lg sm:text-xl lg:text-2xl font-bold text-yellow-900">{totalOrders}</div>
                           <p className="text-xs text-yellow-700 mt-1">Need processing</p>
                         </CardContent>
                       </Card>
-                      
+
                       <Card className="border-blue-200 bg-blue-50">
                         <CardHeader className="pb-2 sm:pb-3">
                           <CardTitle className="text-xs sm:text-sm text-blue-800">Processing Orders</CardTitle>
                         </CardHeader>
                         <CardContent>
-                          <div className="text-xl sm:text-2xl font-bold text-blue-900">0</div>
+                          <div className="text-lg sm:text-xl lg:text-2xl font-bold text-blue-900">0</div>
                           <p className="text-xs text-blue-700 mt-1">In progress</p>
                         </CardContent>
                       </Card>
-                      
+
                       <Card className="border-green-200 bg-green-50">
                         <CardHeader className="pb-2 sm:pb-3">
                           <CardTitle className="text-xs sm:text-sm text-green-800">Completed Today</CardTitle>
                         </CardHeader>
                         <CardContent>
-                          <div className="text-xl sm:text-2xl font-bold text-green-900">0</div>
+                          <div className="text-lg sm:text-xl lg:text-2xl font-bold text-green-900">0</div>
                           <p className="text-xs text-green-700 mt-1">Orders delivered</p>
                         </CardContent>
                       </Card>
                     </div>
-                    
+
                     <div className="border rounded-lg p-3 sm:p-4">
                       <h3 className="text-sm sm:text-base font-medium mb-3">Quick Actions</h3>
                       <div className="grid gap-2 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
                         <Link href="/dashboard/orders">
-                          <Button variant="outline" size="sm" className="justify-start w-full">
-                            <Package className="h-4 w-4 mr-2" />
-                            View All Orders
-                            <ExternalLink className="h-3 w-3 ml-auto" />
+                          <Button variant="outline" size="sm" className="justify-start w-full text-xs sm:text-sm">
+                            <Package className="h-4 w-4 mr-2 flex-shrink-0" />
+                            <span className="truncate">View All Orders</span>
+                            <ExternalLink className="h-3 w-3 ml-auto flex-shrink-0" />
                           </Button>
                         </Link>
                         <Link href="/dashboard/customers">
-                          <Button variant="outline" size="sm" className="justify-start w-full">
-                            <Users className="h-4 w-4 mr-2" />
-                            Customer List
-                            <ExternalLink className="h-3 w-3 ml-auto" />
+                          <Button variant="outline" size="sm" className="justify-start w-full text-xs sm:text-sm">
+                            <Users className="h-4 w-4 mr-2 flex-shrink-0" />
+                            <span className="truncate">Customer List</span>
+                            <ExternalLink className="h-3 w-3 ml-auto flex-shrink-0" />
                           </Button>
                         </Link>
                         <Link href="/dashboard/orders?status=pending">
-                          <Button variant="outline" size="sm" className="justify-start w-full">
-                            <CreditCard className="h-4 w-4 mr-2" />
-                            Process Payments
-                            <ExternalLink className="h-3 w-3 ml-auto" />
+                          <Button variant="outline" size="sm" className="justify-start w-full text-xs sm:text-sm">
+                            <CreditCard className="h-4 w-4 mr-2 flex-shrink-0" />
+                            <span className="truncate">Process Payments</span>
+                            <ExternalLink className="h-3 w-3 ml-auto flex-shrink-0" />
                           </Button>
                         </Link>
                         <Link href="/dashboard/sales">
-                          <Button variant="outline" size="sm" className="justify-start w-full">
-                            <DollarSign className="h-4 w-4 mr-2" />
-                            Sales Analytics
-                            <ExternalLink className="h-3 w-3 ml-auto" />
+                          <Button variant="outline" size="sm" className="justify-start w-full text-xs sm:text-sm">
+                            <DollarSign className="h-4 w-4 mr-2 flex-shrink-0" />
+                            <span className="truncate">Sales Analytics</span>
+                            <ExternalLink className="h-3 w-3 ml-auto flex-shrink-0" />
                           </Button>
                         </Link>
                       </div>

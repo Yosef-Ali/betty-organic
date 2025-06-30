@@ -63,60 +63,101 @@ export function RecentOrders() {
   }, []); // Empty dependencies
 
   return (
-    <div>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-[100px]">Order ID</TableHead>
-            <TableHead>Customer</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Type</TableHead>
-            <TableHead className="text-right">Amount</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {recentOrders.length === 0 ? (
+    <div className="space-y-3">
+      {/* Desktop Table View */}
+      <div className="hidden md:block">
+        <Table>
+          <TableHeader>
             <TableRow>
-              <TableCell colSpan={5} className="text-center py-4">
-                No recent orders
-              </TableCell>
+              <TableHead className="w-[100px]">Order ID</TableHead>
+              <TableHead>Customer</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead className="text-right">Amount</TableHead>
             </TableRow>
-          ) : recentOrders.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={5} className="text-center py-4">
-                No recent orders found
-              </TableCell>
-            </TableRow>
-          ) : (
-            recentOrders.map((order) => (
-              <TableRow key={order.id}>
-                <TableCell className="font-medium">
-                  {order.display_id || order.id.slice(0, 8)}
+          </TableHeader>
+          <TableBody>
+            {recentOrders.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center py-4">
+                  No recent orders
                 </TableCell>
-                <TableCell>{order.profiles?.name || "Unknown"}</TableCell>
-                <TableCell>
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs font-medium ${order.status === "confirmed"
+              </TableRow>
+            ) : (
+              recentOrders.map((order) => (
+                <TableRow key={order.id}>
+                  <TableCell className="font-medium">
+                    #{order.display_id || order.id.slice(0, 8)}
+                  </TableCell>
+                  <TableCell className="truncate max-w-[120px]">{order.profiles?.name || "Unknown"}</TableCell>
+                  <TableCell>
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs font-medium ${order.status === "confirmed"
                         ? "bg-green-100 text-green-800"
                         : order.status === "pending"
                           ? "bg-yellow-100 text-yellow-800"
                           : order.status === "cancelled"
                             ? "bg-red-100 text-red-800"
                             : "bg-gray-100 text-gray-800"
-                      }`}
-                  >
-                    {order.status}
-                  </span>
-                </TableCell>
-                <TableCell>{order.type}</TableCell>
-                <TableCell className="text-right">
-                  {formatOrderCurrency(order.total_amount)}
-                </TableCell>
-              </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
+                        }`}
+                    >
+                      {order.status}
+                    </span>
+                  </TableCell>
+                  <TableCell>{order.type}</TableCell>
+                  <TableCell className="text-right">
+                    {formatOrderCurrency(order.total_amount)}
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Mobile Card View */}
+      <div className="md:hidden space-y-2">
+        {recentOrders.length === 0 ? (
+          <div className="text-center py-6 text-sm text-muted-foreground">
+            No recent orders
+          </div>
+        ) : (
+          recentOrders.map((order) => (
+            <div key={order.id} className="bg-white border rounded-lg p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-blue-600">
+                  #{order.display_id || order.id.slice(0, 8)}
+                </span>
+                <span
+                  className={`px-2 py-1 rounded-full text-xs font-medium ${order.status === "confirmed"
+                    ? "bg-green-100 text-green-800"
+                    : order.status === "pending"
+                      ? "bg-yellow-100 text-yellow-800"
+                      : order.status === "cancelled"
+                        ? "bg-red-100 text-red-800"
+                        : "bg-gray-100 text-gray-800"
+                    }`}
+                >
+                  {order.status}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <p className="text-xs text-muted-foreground">Customer</p>
+                  <p className="text-sm font-medium truncate">{order.profiles?.name || "Unknown"}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-muted-foreground">Amount</p>
+                  <p className="text-sm font-medium">{formatOrderCurrency(order.total_amount)}</p>
+                </div>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Type: <span className="text-foreground">{order.type}</span></p>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
 }

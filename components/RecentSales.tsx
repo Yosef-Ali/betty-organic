@@ -45,29 +45,37 @@ export function RecentSales() {
   }, []); // Empty dependencies
 
   return (
-    <div className="space-y-8">
-      {recentSales.map((sale) => (
-        <div key={sale.id} className="flex items-center">
-          <Avatar className="h-9 w-9">
-            <AvatarImage
-              src={`https://avatar.vercel.sh/${sale.profiles.email}.png`}
-              alt={sale.profiles.name}
-            />
-            <AvatarFallback>{sale.profiles.name.charAt(0)}</AvatarFallback>
-          </Avatar>
-          <div className="ml-4 space-y-1">
-            <p className="text-sm font-medium leading-none">
-              {sale.profiles.name}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              {sale.profiles.email}
-            </p>
-          </div>
-          <div className="ml-auto font-medium">
-            +{formatOrderCurrency(sale.total_amount)}
-          </div>
+    <div className="space-y-4">
+      {recentSales.length === 0 ? (
+        <div className="text-center py-6 text-sm text-muted-foreground">
+          No recent sales
         </div>
-      ))}
+      ) : (
+        recentSales.map((sale) => (
+          <div key={sale.id} className="flex items-center space-x-3">
+            <Avatar className="h-8 w-8 sm:h-9 sm:w-9 flex-shrink-0">
+              <AvatarImage
+                src={`https://avatar.vercel.sh/${sale.profiles.email}.png`}
+                alt={sale.profiles.name}
+              />
+              <AvatarFallback className="text-xs">
+                {sale.profiles.name.charAt(0)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium leading-none truncate">
+                {sale.profiles.name}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1 truncate">
+                {sale.profiles.email}
+              </p>
+            </div>
+            <div className="text-sm font-medium text-green-600 flex-shrink-0">
+              +{formatOrderCurrency(sale.total_amount)}
+            </div>
+          </div>
+        ))
+      )}
     </div>
   );
 }
