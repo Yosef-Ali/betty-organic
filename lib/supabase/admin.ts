@@ -1,41 +1,23 @@
-// This file contains the Supabase admin client that can bypass Row-Level Security
+'use server';
+
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/supabase';
 
-/**
- * Creates a Supabase admin client that can bypass Row-Level Security
- * This function directly uses environment variables to avoid issues with Next.js
- */
-export function createAdminClient() {
-  // Access environment variables directly
+// Admin client for server-side operations that need to bypass RLS
+export async function createAdminClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  if (!supabaseUrl) {
-    throw new Error('[Admin Client] Missing environment variable: NEXT_PUBLIC_SUPABASE_URL');
+  if (!supabaseUrl || !supabaseServiceRoleKey) {
+    throw new Error('Missing Supabase environment variables for admin client');
   }
 
-  if (!supabaseServiceKey) {
-    throw new Error('[Admin Client] Missing environment variable: SUPABASE_SERVICE_ROLE_KEY');
-  }
-
-  // Create a fresh client each time to avoid stale connections
-  return createClient<Database>(supabaseUrl, supabaseServiceKey, {
+  // Create a Supabase client with the service role key
+  // This bypasses Row Level Security
+  return createClient<Database>(supabaseUrl, supabaseServiceRoleKey, {
     auth: {
       autoRefreshToken: false,
-      persistSession: false,
+      persistSession: false
     }
   });
 }
-
-// Export a static instance for backward compatibility, but using the function is preferred
-// Wrap in try-catch to avoid errors when environment variables are missing
-let supabaseAdmin: ReturnType<typeof createAdminClient> | null = null;
-try {
-  supabaseAdmin = createAdminClient();
-} catch (error) {
-  console.warn('Failed to create admin client:', error);
-  // Will be null, which callers should handle
-}
-
-export { supabaseAdmin };

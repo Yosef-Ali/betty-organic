@@ -29,8 +29,11 @@ import {
   LogIn,
   Share2,
   Loader,
+  AlertTriangle,
+  ChevronRight,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { ContactDeliveryDialog } from "@/components/ContactDeliveryDialog";
 
 interface CustomerInfo {
   name: string;
@@ -72,6 +75,7 @@ export const ConfirmPurchaseDialogFinal = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isOrderPlaced, setIsOrderPlaced] = useState(false);
   const [orderDetails, setOrderDetails] = useState<any>(null);
+  const [isContactDeliveryDialogOpen, setIsContactDeliveryDialogOpen] = useState(false);
 
   // Customer info
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo>({
@@ -159,6 +163,28 @@ export const ConfirmPurchaseDialogFinal = ({
       checkAuth();
     }
   }, [isOpen]);
+
+  // Close contact delivery dialog when main dialog closes
+  useEffect(() => {
+    if (!isOpen) {
+      setIsContactDeliveryDialogOpen(false);
+    }
+  }, [isOpen]);
+
+  // Handler for opening contact delivery dialog
+  const handleOpenContactDelivery = () => {
+    setIsContactDeliveryDialogOpen(true);
+  };
+
+  // Handler for when contact delivery dialog closes
+  const handleContactDeliveryClose = (open: boolean) => {
+    setIsContactDeliveryDialogOpen(open);
+  };
+
+  // Handler for customer info update
+  const handleCustomerInfoChange = (info: CustomerInfo) => {
+    setCustomerInfo(info);
+  };
 
   // Form handlers
   const handleInfoChange =
@@ -413,41 +439,47 @@ export const ConfirmPurchaseDialogFinal = ({
         </div>
       </ScrollArea>
 
-      {/* Simple user info and delivery address only */}
-      <div className="rounded-lg border p-3 space-y-4">
-        <h3 className="font-medium text-sm">Contact & Delivery Details</h3>
-
-        {/* Profile summary */}
-        <div className="bg-gray-50 p-3 rounded-md">
-          <div className="flex items-center gap-2 mb-2">
+      {/* Contact & Delivery Info - Clickable for authenticated users too */}
+      <div 
+        className="rounded-lg border p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+        onClick={handleOpenContactDelivery}
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
             <User className="w-4 h-4 text-gray-500" />
-            <span className="text-sm font-medium">
-              {profileData?.name || userEmail?.split("@")[0]}
-            </span>
+            <h3 className="font-medium text-sm">Contact & Delivery</h3>
+            {!customerInfo.address && (
+              <div className="flex items-center gap-1 text-amber-600">
+                <AlertTriangle className="w-3 h-3" />
+                <span className="text-xs">Required</span>
+              </div>
+            )}
           </div>
-          {profileData?.phone && (
-            <div className="flex items-center gap-2 mb-2">
-              <Phone className="w-4 h-4 text-gray-500" />
-              <span className="text-sm">{profileData.phone}</span>
-            </div>
-          )}
+          <ChevronRight className="w-5 h-5 text-gray-400" />
         </div>
-
-        {/* Address field */}
-        <div className="space-y-2">
-          <Label htmlFor="address" className="flex items-center gap-2">
-            <MapPin className="w-4 h-4 flex-shrink-0" />
-            <span className="text-sm">Delivery Address*</span>
-          </Label>
-          <Textarea
-            id="address"
-            placeholder="Enter your delivery address"
-            value={customerInfo.address}
-            onChange={handleInfoChange("address")}
-            required
-            className="min-h-[80px] w-full resize-none"
-          />
-        </div>
+        
+        {!customerInfo.address ? (
+          <p className="text-xs text-amber-600 mt-2">
+            Please provide delivery address
+          </p>
+        ) : (
+          <div className="mt-3 space-y-1 text-xs text-gray-600">
+            <p className="flex items-center gap-2">
+              <User className="w-3 h-3" />
+              {profileData?.name || userEmail?.split("@")[0]}
+            </p>
+            {profileData?.phone && (
+              <p className="flex items-center gap-2">
+                <Phone className="w-3 h-3" />
+                {profileData.phone}
+              </p>
+            )}
+            <p className="flex items-center gap-2">
+              <MapPin className="w-3 h-3" />
+              {customerInfo.address}
+            </p>
+          </div>
+        )}
       </div>
 
       <DialogFooter className="flex items-center justify-between mt-4">
@@ -505,56 +537,51 @@ export const ConfirmPurchaseDialogFinal = ({
         </div>
       </ScrollArea>
 
-      {/* Contact & Delivery Info */}
-      <div className="rounded-lg border p-3 space-y-4">
-        <h3 className="font-medium text-sm">Contact & Delivery Details</h3>
-
-        <div className="space-y-2">
-          <Label htmlFor="name" className="flex items-center gap-2">
-            <User className="w-4 h-4 flex-shrink-0" />
-            <span className="text-sm">Your Name (optional)</span>
-          </Label>
-          <Input
-            id="name"
-            placeholder="Enter your name"
-            value={customerInfo.name}
-            onChange={handleInfoChange("name")}
-            className="w-full"
-          />
+      {/* Contact & Delivery Info - Clickable */}
+      <div 
+        className="rounded-lg border p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+        onClick={handleOpenContactDelivery}
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <User className="w-4 h-4 text-gray-500" />
+            <h3 className="font-medium text-sm">Contact & Delivery</h3>
+            {(!customerInfo.phone || !customerInfo.address) && (
+              <div className="flex items-center gap-1 text-amber-600">
+                <AlertTriangle className="w-3 h-3" />
+                <span className="text-xs">Required</span>
+              </div>
+            )}
+          </div>
+          <ChevronRight className="w-5 h-5 text-gray-400" />
         </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="phone" className="flex items-center gap-2">
-            <Phone className="w-4 h-4 flex-shrink-0" />
-            <span className="text-sm">Phone Number*</span>
-          </Label>
-          <Input
-            id="phone"
-            placeholder="e.g., 0911234567"
-            value={customerInfo.phone}
-            onChange={handleInfoChange("phone")}
-            required
-            className="w-full"
-          />
-          <p className="text-xs text-gray-500 break-words">
-            Ethiopian format: 09XXXXXXXX or +251XXXXXXXXX
+        
+        {(!customerInfo.phone || !customerInfo.address) ? (
+          <p className="text-xs text-amber-600 mt-2">
+            Please set contact details in the cart first
           </p>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="address" className="flex items-center gap-2">
-            <MapPin className="w-4 h-4 flex-shrink-0" />
-            <span className="text-sm">Delivery Address*</span>
-          </Label>
-          <Textarea
-            id="address"
-            placeholder="Enter your delivery address"
-            value={customerInfo.address}
-            onChange={handleInfoChange("address")}
-            required
-            className="min-h-[80px] w-full resize-none"
-          />
-        </div>
+        ) : (
+          <div className="mt-3 space-y-1 text-xs text-gray-600">
+            {customerInfo.name && (
+              <p className="flex items-center gap-2">
+                <User className="w-3 h-3" />
+                {customerInfo.name}
+              </p>
+            )}
+            {customerInfo.phone && (
+              <p className="flex items-center gap-2">
+                <Phone className="w-3 h-3" />
+                {customerInfo.phone}
+              </p>
+            )}
+            {customerInfo.address && (
+              <p className="flex items-center gap-2">
+                <MapPin className="w-3 h-3" />
+                {customerInfo.address}
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-md">
@@ -812,6 +839,14 @@ export const ConfirmPurchaseDialogFinal = ({
 
         {renderContent()}
       </DialogContent>
+      
+      {/* Contact & Delivery Dialog */}
+      <ContactDeliveryDialog
+        isOpen={isContactDeliveryDialogOpen}
+        onOpenChangeAction={handleContactDeliveryClose}
+        customerInfo={customerInfo}
+        onCustomerInfoChangeAction={handleCustomerInfoChange}
+      />
     </Dialog>
   );
 };

@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import type { Order } from '@/types/order';
 import { getUser } from './auth';
 import { v4 as uuidv4 } from 'uuid';
@@ -202,40 +203,39 @@ export async function handleGuestOrder(
       };
     }
 
-    // Create a guest user ID
+    // For guest orders, we'll use the same approach as handlePurchaseOrder
+    // but store guest info in localStorage/session for reference
     const guestUserId = uuidv4();
-    const guestEmail = `guest-${guestUserId}@guest.bettyorganic.com`;
+    const guestEmail = `guest-${Date.now()}@guest.bettyorganic.com`;
 
     // Generate a display ID for the order
     const display_id = await orderIdService.generateOrderID();
 
-    // Get Supabase client
-    const supabase = await createClient();
+    // Get Supabase admin client for guest orders
+    const supabase = await createAdminClient();
 
-    // Create a guest profile
-    const { error: createProfileError } = await supabase
+    // Create a minimal guest profile using admin client
+    const { error: profileError } = await supabase
       .from('profiles')
       .insert({
         id: guestUserId,
         email: guestEmail,
-        name: customerInfo.name || 'Guest Customer',
-        phone: customerInfo.phone,
-        address: customerInfo.address,
         role: 'customer',
         status: 'active',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        name: customerInfo.name || 'Guest Customer',
+        phone: customerInfo.phone,
+        address: customerInfo.address
       });
 
-    if (createProfileError) {
-      console.error('Failed to create guest profile:', createProfileError);
+    if (profileError) {
+      console.error('Failed to create guest profile:', profileError);
       return {
-        error: 'Failed to create guest profile',
+        error: 'Failed to create guest profile. Please try again.',
         status: 500
       };
     }
 
-    // Create the order
+    // Create the order - this should work even without a profile
     const orderData = {
       profile_id: guestUserId,
       customer_profile_id: guestUserId,
@@ -243,9 +243,6 @@ export async function handleGuestOrder(
       type: 'online',
       total_amount: Number(total.toFixed(2)),
       display_id,
-      delivery_address: customerInfo.address,
-      customer_phone: customerInfo.phone,
-      customer_name: customerInfo.name || 'Guest Customer',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
@@ -289,6 +286,7 @@ export async function handleGuestOrder(
       console.error('Failed to create guest order items:', itemsError);
       // Cleanup the order if items failed
       await supabase.from('orders').delete().eq('id', order.id);
+      // Only delete profile if it was created
       await supabase.from('profiles').delete().eq('id', guestUserId);
       return {
         error: `Failed to create order items: ${itemsError.message}`,
@@ -296,11 +294,22 @@ export async function handleGuestOrder(
       };
     }
 
+    // Store guest info in a separate guest_orders table or in order metadata
+    // For now, we'll return it with the order data
+    const orderWithGuestInfo = {
+      ...order,
+      guest_info: {
+        name: customerInfo.name || 'Guest Customer',
+        phone: customerInfo.phone,
+        address: customerInfo.address
+      }
+    };
+
     // Revalidate the dashboard paths to show the new order
     revalidatePath('/dashboard/orders');
     revalidatePath('/dashboard');
 
-    return { data: order, status: 200 };
+    return { data: orderWithGuestInfo, status: 200 };
   } catch (err) {
     console.error('Guest order error:', err);
     return {

@@ -249,63 +249,84 @@ const OrderDashboard: React.FC = () => {
   }
 
   return (
-    <main className="grid flex-1 items-start gap-3 p-4 sm:gap-4 sm:px-6 sm:py-0 md:gap-8 lg:grid-cols-3 xl:grid-cols-3">
-      <div className="grid auto-rows-max items-start gap-3 md:gap-8 lg:col-span-2">
-        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
-          <OrdersOverviewCard />
-          <StatCard
-            title="This Week"
-            value={formatCompactCurrency(currentWeekTotal)}
-            change={`${currentWeekChangePercentage >= 0 ? "+" : ""}${currentWeekChangePercentage.toFixed(2)}% from last week`}
-            changePercentage={currentWeekChangePercentage}
-          />
-          <StatCard
-            title="This Month"
-            value={formatCompactCurrency(currentMonthTotal)}
-            change={`${currentMonthChangePercentage >= 0 ? "+" : ""}${currentMonthChangePercentage.toFixed(2)}% from last month`}
-            changePercentage={currentMonthChangePercentage}
-          />
+    <main className="flex-1 space-y-3 p-3 sm:space-y-4 sm:p-4 lg:p-6">
+      {/* Stats Cards - Mobile Friendly Grid */}
+      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+        <OrdersOverviewCard />
+        <StatCard
+          title="This Week"
+          value={formatCompactCurrency(currentWeekTotal)}
+          change={`${currentWeekChangePercentage >= 0 ? "+" : ""}${currentWeekChangePercentage.toFixed(2)}% from last week`}
+          changePercentage={currentWeekChangePercentage}
+        />
+        <StatCard
+          title="This Month"
+          value={formatCompactCurrency(currentMonthTotal)}
+          change={`${currentMonthChangePercentage >= 0 ? "+" : ""}${currentMonthChangePercentage.toFixed(2)}% from last month`}
+          changePercentage={currentMonthChangePercentage}
+        />
+      </div>
+
+      {/* Mobile: Order Details at Top */}
+      {selectedOrderId && orders.length > 0 && (
+        <div className="lg:hidden">
+          <OrderDetailsCard orderId={selectedOrderId} />
         </div>
-        <Tabs defaultValue="week" className="space-y-3">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
-              <TabsList className="self-start">
-                <TabsTrigger value="week" className="text-xs sm:text-sm">This Week</TabsTrigger>
-                <TabsTrigger value="month" className="text-xs sm:text-sm">This Month</TabsTrigger>
-              </TabsList>
-              <div className="text-xs sm:text-sm text-muted-foreground">
-                {orders.length} total orders
+      )}
+
+      {/* Orders Table Section */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        <div className="lg:col-span-2 space-y-3 sm:space-y-4">
+          <Tabs defaultValue="week" className="space-y-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
+                <TabsList className="self-start w-fit">
+                  <TabsTrigger value="week" className="text-xs sm:text-sm px-2 sm:px-3">
+                    This Week
+                  </TabsTrigger>
+                  <TabsTrigger value="month" className="text-xs sm:text-sm px-2 sm:px-3">
+                    This Month
+                  </TabsTrigger>
+                </TabsList>
+                <div className="text-xs sm:text-sm text-muted-foreground">
+                  {orders.length} total orders
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" className="h-8 gap-1 text-xs sm:text-sm px-2 sm:px-3">
+                  <File className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Export</span>
+                  <span className="sm:hidden">Export</span>
+                </Button>
               </div>
             </div>
+            <TabsContent value="week" className="space-y-0">
+              <OrderTable
+                orders={orders}
+                onSelectOrderAction={setSelectedOrderId}
+                onDeleteOrder={handleDelete}
+                userRole={userRole || undefined}
+              />
+            </TabsContent>
+            <TabsContent value="month" className="space-y-0">
+              <OrderTable
+                orders={orders}
+                onSelectOrderAction={setSelectedOrderId}
+                onDeleteOrder={handleDelete}
+                userRole={userRole || undefined}
+              />
+            </TabsContent>
+          </Tabs>
+        </div>
 
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" className="h-8 gap-1 text-xs sm:text-sm">
-                <File className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Export</span>
-              </Button>
-            </div>
+        {/* Desktop: Order Details Sidebar */}
+        {selectedOrderId && orders.length > 0 && (
+          <div className="hidden lg:block">
+            <OrderDetailsCard orderId={selectedOrderId} />
           </div>
-          <TabsContent value="week">
-            <OrderTable
-              orders={orders}
-              onSelectOrderAction={setSelectedOrderId}
-              onDeleteOrder={handleDelete}
-              userRole={userRole || undefined}
-            />
-          </TabsContent>
-          <TabsContent value="month">
-            <OrderTable
-              orders={orders}
-              onSelectOrderAction={setSelectedOrderId}
-              onDeleteOrder={handleDelete}
-              userRole={userRole || undefined}
-            />
-          </TabsContent>
-        </Tabs>
+        )}
       </div>
-      {selectedOrderId && orders.length > 0 && (
-        <OrderDetailsCard orderId={selectedOrderId} />
-      )}
     </main>
   );
 };

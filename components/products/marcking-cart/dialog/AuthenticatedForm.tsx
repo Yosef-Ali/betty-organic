@@ -12,9 +12,10 @@ import {
     DialogDescription,
     DialogFooter,
 } from "@/components/ui/dialog";
-import { MessageCircle, User } from "lucide-react";
+import { MessageCircle, User, ChevronRight, AlertTriangle } from "lucide-react";
 import { createInfoChangeHandler } from "./utils";
 import { AuthenticatedFormProps } from "./types";
+import { ContactDeliveryDialog } from "@/components/ContactDeliveryDialog";
 
 export const AuthenticatedForm: React.FC<AuthenticatedFormProps> = ({
     items,
@@ -28,7 +29,20 @@ export const AuthenticatedForm: React.FC<AuthenticatedFormProps> = ({
     profileData,
     userEmail,
 }: AuthenticatedFormProps) => {
+    const [isContactDeliveryOpen, setIsContactDeliveryOpen] = useState(false);
     const handleInfoChange = createInfoChangeHandler('address', setCustomerInfoAction);
+
+    const handleOpenContactDelivery = () => {
+        setIsContactDeliveryOpen(true);
+    };
+
+    const handleContactDeliveryClose = (open: boolean) => {
+        setIsContactDeliveryOpen(open);
+    };
+
+    const handleCustomerInfoChange = (info: { name: string; phone: string; address: string }) => {
+        setCustomerInfoAction(info);
+    };
 
     return (
         <div className="flex flex-col max-h-[calc(90vh-4rem)] text-foreground">
@@ -65,31 +79,40 @@ export const AuthenticatedForm: React.FC<AuthenticatedFormProps> = ({
                             </div>
                         ))}
 
-                        {/* Contact & Delivery Summary Button - Compact */}
+                        {/* Contact & Delivery Summary Button - Clickable */}
                         <div className="pt-4 border-t border-border">
                             <div
-                                className="w-full flex items-center justify-between p-3 h-auto border border-border rounded-lg bg-muted/50"
+                                className="w-full flex items-center justify-between p-3 h-auto border border-border rounded-lg bg-muted/50 cursor-pointer hover:bg-muted/70 transition-colors"
+                                onClick={handleOpenContactDelivery}
                             >
                                 <div className="flex items-center gap-2">
                                     <User className="w-4 h-4" />
                                     <span className="text-sm font-medium text-foreground">Contact & Delivery</span>
-                                </div>
-                                <div className="text-right">
-                                    {customerInfo.phone && customerInfo.address ? (
-                                        <span className="text-xs text-green-600 dark:text-green-400 font-medium">✓ Complete</span>
-                                    ) : (
-                                        <span className="text-xs text-orange-600 dark:text-orange-400">⚠ Required</span>
+                                    {!customerInfo.address && (
+                                        <div className="flex items-center gap-1 text-amber-600">
+                                            <AlertTriangle className="w-3 h-3" />
+                                            <span className="text-xs">Required</span>
+                                        </div>
                                     )}
                                 </div>
+                                <div className="flex items-center gap-2">
+                                    {customerInfo.address && (
+                                        <span className="text-xs text-green-600 dark:text-green-400 font-medium">✓ Complete</span>
+                                    )}
+                                    <ChevronRight className="w-5 h-5 text-gray-400" />
+                                </div>
                             </div>
-                            {customerInfo.phone && customerInfo.address ? (
+                            {customerInfo.address ? (
                                 <div className="mt-2 text-xs text-muted-foreground px-2">
-                                    <div><strong>Phone:</strong> {customerInfo.phone}</div>
+                                    <div><strong>Name:</strong> {profileData?.name || userEmail?.split('@')[0] || 'Customer'}</div>
+                                    {profileData?.phone && (
+                                        <div><strong>Phone:</strong> {profileData.phone}</div>
+                                    )}
                                     <div><strong>Address:</strong> {customerInfo.address}</div>
                                 </div>
                             ) : (
                                 <div className="mt-2 text-xs text-orange-600 dark:text-orange-400 px-2">
-                                    Please set contact details in the cart first
+                                    Please provide delivery address
                                 </div>
                             )}
                         </div>
@@ -117,6 +140,14 @@ export const AuthenticatedForm: React.FC<AuthenticatedFormProps> = ({
                     {isSubmitting ? 'Processing...' : 'Confirm Order'}
                 </Button>
             </DialogFooter>
+
+            {/* Contact & Delivery Dialog */}
+            <ContactDeliveryDialog
+                isOpen={isContactDeliveryOpen}
+                onOpenChangeAction={handleContactDeliveryClose}
+                customerInfo={customerInfo}
+                onCustomerInfoChangeAction={handleCustomerInfoChange}
+            />
         </div>
     );
 };

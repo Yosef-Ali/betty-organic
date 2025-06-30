@@ -171,7 +171,7 @@ export default function DashboardContent() {
         </div>
       </div>
       <Tabs defaultValue="overview" className="space-y-3 sm:space-y-4">
-        <TabsList className={`grid w-full sm:w-auto sm:flex ${
+        <TabsList className={`grid w-full sm:w-auto sm:inline-flex ${
           profile?.role === 'sales' ? 'grid-cols-3' : 
           profile?.role === 'admin' ? 'grid-cols-3' : 
           'grid-cols-1'

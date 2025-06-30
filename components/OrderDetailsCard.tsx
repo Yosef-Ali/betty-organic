@@ -108,16 +108,16 @@ export default function OrderDetailsCard({ orderId }: OrderDetailsProps) {
 
   if (isLoading || !order) {
     return (
-      <Card className="overflow-hidden">
-        <div className="border-b bg-muted/50 px-6 py-4">
-          <div className="h-6 w-48 bg-muted animate-pulse rounded mb-2"></div>
-          <div className="h-4 w-32 bg-muted animate-pulse rounded"></div>
+      <Card className="overflow-hidden w-full">
+        <div className="border-b bg-muted/50 px-4 sm:px-6 py-3 sm:py-4">
+          <div className="h-5 sm:h-6 w-32 sm:w-48 bg-muted animate-pulse rounded mb-2"></div>
+          <div className="h-3 sm:h-4 w-24 sm:w-32 bg-muted animate-pulse rounded"></div>
         </div>
-        <div className="p-6 space-y-4">
-          <div className="flex items-center justify-center py-8">
+        <div className="p-4 sm:p-6 space-y-4">
+          <div className="flex items-center justify-center py-6 sm:py-8">
             <div className="flex flex-col items-center space-y-3">
-              <div className="h-6 w-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-              <p className="text-sm text-muted-foreground">
+              <div className="h-5 sm:h-6 w-5 sm:w-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+              <p className="text-xs sm:text-sm text-muted-foreground">
                 Loading order details...
               </p>
               <p className="text-xs text-muted-foreground">
@@ -210,17 +210,21 @@ export default function OrderDetailsCard({ orderId }: OrderDetailsProps) {
         onTrashClick={() => setIsDialogOpen(true)}
       />
 
-      <CardContent className="p-6 text-sm">
+      <CardContent className="p-3 sm:p-4 lg:p-6 text-sm">
         <div className="grid gap-3">
-          <div className="font-semibold">Order Details</div>
-          <ul className="grid gap-3">
+          <div className="font-semibold text-base sm:text-lg">Order Details</div>
+          <ul className="grid gap-2 sm:gap-3">
             {itemsWithTotal.map((item) => (
-              <li key={item.id} className="flex items-center justify-between">
-                <span className="text-muted-foreground">
-                  {item.product?.name || "Unknown Product"} x{" "}
-                  <span>{item.displayQuantity}kg @ Br {item.unitPrice.toFixed(2)}/kg</span>
-                </span>
-                <span>Br {item.total.toFixed(2)}</span>
+              <li key={item.id} className="flex items-start justify-between py-2 border-b border-border/50">
+                <div className="text-muted-foreground flex-1 pr-2">
+                  <div className="font-medium text-foreground text-sm">
+                    {item.product?.name || "Unknown Product"}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {item.displayQuantity}kg @ Br {item.unitPrice.toFixed(2)}/kg
+                  </div>
+                </div>
+                <span className="font-medium text-sm">Br {item.total.toFixed(2)}</span>
               </li>
             ))}
           </ul>
@@ -294,11 +298,11 @@ export default function OrderDetailsCard({ orderId }: OrderDetailsProps) {
           <div className="grid gap-2 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Name:</span>
-              <span>{profileName}</span>
+              <span className="text-right max-w-[60%] truncate">{profileName}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Email:</span>
-              <span>{profileEmail}</span>
+              <span className="text-right max-w-[60%] truncate text-xs sm:text-sm">{profileEmail}</span>
             </div>
             {order.profile?.phone && (
               <div className="flex justify-between">
@@ -325,7 +329,7 @@ export default function OrderDetailsCard({ orderId }: OrderDetailsProps) {
           <div className="grid gap-2 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Delivery Address:</span>
-              <span>{order.profile?.address || "Address not provided"}</span>
+              <span className="text-right max-w-[60%] break-words text-xs sm:text-sm">{order.profile?.address || "Address not provided"}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Delivery Cost:</span>
@@ -333,7 +337,7 @@ export default function OrderDetailsCard({ orderId }: OrderDetailsProps) {
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Order Type:</span>
-              <span className="capitalize">{order.type || 'standard'}</span>
+              <span className="capitalize">standard</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Order Date:</span>
@@ -360,7 +364,7 @@ export default function OrderDetailsCard({ orderId }: OrderDetailsProps) {
         />
       </CardContent>
 
-      <CardFooter className="flex flex-row items-center border-t bg-muted/50 px-6 py-3">
+      <CardFooter className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-t bg-muted/50 px-3 sm:px-4 lg:px-6 py-3 gap-2 sm:gap-0">
         <div className="text-xs text-muted-foreground">
           Updated{" "}
           <time dateTime={order.updatedAt || new Date().toISOString()}>
@@ -369,7 +373,9 @@ export default function OrderDetailsCard({ orderId }: OrderDetailsProps) {
               : "Just now"}
           </time>
         </div>
-        <OrderPagination onPrevious={() => { }} onNext={() => { }} />
+        <div className="hidden sm:block">
+          <OrderPagination onPrevious={() => { }} onNext={() => { }} />
+        </div>
       </CardFooter>
 
       <ConfirmOrderDeleteDialog
