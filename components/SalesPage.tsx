@@ -360,30 +360,33 @@ const SalesPage: FC<SalesPageProps> = ({ user }) => {
         onSearchChangeAction={handleSearchChange}
         showCategoryTabs={false} // Hide category tabs from header as we'll move them inline
       />
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="flex-grow">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex-grow">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="flex-grow p-4">
+        <div className="space-y-3 mb-4">
+          {/* Main tabs */}
+          <div className="flex items-center justify-between">
             <TabsList>
               <TabsTrigger value="products">Products</TabsTrigger>
               <TabsTrigger value="orders">Recent Orders</TabsTrigger>
             </TabsList>
           </div>
+          
+          {/* Category tabs - moved to new line on mobile */}
           {activeTab === "products" && (
-            <div className="ml-auto">
+            <div className="w-full">
               <Tabs value={selectedCategory} onValueChange={(value) => handleCategoryChange(value as ProductCategory)}>
-                <ScrollArea className="whitespace-nowrap">
-                  <TabsList className="inline-flex justify-end">
+                <ScrollArea className="w-full">
+                  <TabsList className="inline-flex w-max min-w-full">
                     {["All", "Spices_Oil_Tuna", "Flowers", "Vegetables", "Fruits", "Herbs_Lettuce", "Dry_Stocks_Bakery", "Eggs_Dairy_products"].map((category) => (
                       <TabsTrigger
                         key={category}
                         value={category}
-                        className={`px-3`}
+                        className="px-2 py-1 text-xs sm:px-3 sm:py-2 sm:text-sm whitespace-nowrap"
                       >
                         {category.replace(/_/g, ' ')}
                       </TabsTrigger>
                     ))}
                   </TabsList>
-                  <ScrollBar orientation="horizontal" className="invisible" />
+                  <ScrollBar orientation="horizontal" className="h-2 mt-1" />
                 </ScrollArea>
               </Tabs>
             </div>
