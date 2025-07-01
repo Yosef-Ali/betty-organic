@@ -28,17 +28,26 @@ export const columns: ColumnDef<ExtendedOrder>[] = [
   },
   {
     id: "profile_name",
-    header: "Profile",
+    header: "Customer",
     accessorFn: (row) => {
-      // Check for available customer identification in order of preference
+      // Prioritize guest information over profile information
+      if (row.is_guest_order) {
+        return row.guest_name ? `Guest: ${row.guest_name}` : "Online Guest";
+      }
+      // Fallback to profile information
       if (row.profiles?.name) return row.profiles.name;
       if (row.profiles?.email) return row.profiles.email;
       if (row.profiles?.phone) return row.profiles.phone;
       return "Unknown Customer";
     },
     cell: ({ row }) => {
-      // Check for available customer identification in order of preference
-      const profile = row.original.profiles;
+      // Prioritize guest information over profile information
+      const order = row.original;
+      if (order.is_guest_order) {
+        return order.guest_name ? `Guest: ${order.guest_name}` : "Online Guest";
+      }
+      // Fallback to profile information
+      const profile = order.profiles;
       if (profile?.name) return profile.name;
       if (profile?.email) return profile.email;
       if (profile?.phone) return profile.phone;

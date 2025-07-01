@@ -14,34 +14,53 @@ export function processSingleOrder(
     // Ensure customerList is an array
     const safeCustomerList = Array.isArray(customerList) ? customerList : [];
 
-    const customerFromList = orderAny.customer_profile_id
-      ? safeCustomerList.find((c) => c?.id === orderAny.customer_profile_id)
-      : null;
-
-    const fallbackCustomer = {
-      id: "unknown",
-      name: "Unknown Customer",
-      email: "N/A",
-      phone: null,
-      role: "customer",
-    };
-
-    let customerDetails = fallbackCustomer;    if (customerFromList) {
+    // Handle guest orders first
+    let customerDetails;
+    if (orderAny.is_guest_order) {
+      const guestName = orderAny.guest_name 
+        ? `Guest: ${orderAny.guest_name}` 
+        : "Online Guest";
+      
       customerDetails = {
-        id: customerFromList.id || "unknown",
-        name: customerFromList.fullName || customerFromList.name || null,
-        email: customerFromList.email || "N/A",
-        phone: customerFromList.phone || null,
+        id: "guest",
+        name: guestName,
+        email: orderAny.guest_email || "guest@bettyorganic.com",
+        phone: orderAny.guest_phone || null,
+        role: "guest",
+      };
+    } else {
+      // Handle regular customer orders
+      const customerFromList = orderAny.customer_profile_id
+        ? safeCustomerList.find((c) => c?.id === orderAny.customer_profile_id)
+        : null;
+
+      const fallbackCustomer = {
+        id: "unknown",
+        name: "Unknown Customer",
+        email: "N/A",
+        phone: null,
         role: "customer",
       };
-    } else if (orderAny.customer) {
-      customerDetails = {
-        id: orderAny.customer.id || "unknown",
-        name: orderAny.customer.fullName || orderAny.customer.name || null,
-        email: orderAny.customer.email || "N/A",
-        phone: orderAny.customer.phone || null,
-        role: "customer",
-      };
+
+      customerDetails = fallbackCustomer;
+      
+      if (customerFromList) {
+        customerDetails = {
+          id: customerFromList.id || "unknown",
+          name: customerFromList.fullName || customerFromList.name || null,
+          email: customerFromList.email || "N/A",
+          phone: customerFromList.phone || null,
+          role: "customer",
+        };
+      } else if (orderAny.customer) {
+        customerDetails = {
+          id: orderAny.customer.id || "unknown",
+          name: orderAny.customer.fullName || orderAny.customer.name || null,
+          email: orderAny.customer.email || "N/A",
+          phone: orderAny.customer.phone || null,
+          role: "customer",
+        };
+      }
     }
 
     // Safely process order items
@@ -87,6 +106,12 @@ export function processSingleOrder(
       updated_at: orderAny?.updated_at || undefined,
       profile_id: orderAny?.profile_id ?? "",
       customer_profile_id: orderAny?.customer_profile_id ?? "",
+      // Guest order fields
+      is_guest_order: orderAny?.is_guest_order ?? false,
+      guest_name: orderAny?.guest_name ?? undefined,
+      guest_email: orderAny?.guest_email ?? undefined,
+      guest_phone: orderAny?.guest_phone ?? undefined,
+      guest_address: orderAny?.guest_address ?? undefined,
       order_items: orderItems,
       items: orderItems,
       customer: customerDetails,

@@ -23,7 +23,6 @@ import OrderPlaced from "./OrderPlaced";
 
 import { CustomerInfo, ConfirmPurchaseDialogProps, OrderDetails, AuthenticatedFormProps } from "./types";
 import { formatPhoneNumber, saveCartToLocalStorage, validateCustomerInfo } from "./utils";
-import { ProfileUpdateForm } from "./ProfileUpdateForm";
 
 export const ConfirmPurchaseDialog: React.FC<ConfirmPurchaseDialogProps> = ({
     isOpen,
@@ -70,8 +69,13 @@ export const ConfirmPurchaseDialog: React.FC<ConfirmPurchaseDialogProps> = ({
     const router = useRouter();
     // Removed: const supabase = createClient();
 
-    // Handle continuing shopping flag
+
+    // Reset order placed state and order details every time dialog is opened
     useEffect(() => {
+        if (isOpen) {
+            setIsOrderPlaced(false);
+            setOrderDetails(null);
+        }
         if (isOpen && isContinuingShopping) {
             // User is continuing shopping, reset the flag for next time
             setContinuingShopping(false);
@@ -394,14 +398,7 @@ export const ConfirmPurchaseDialog: React.FC<ConfirmPurchaseDialogProps> = ({
                 const result = await handlePurchaseOrder(items, total);
 
                 if (result.error) {
-                    // Check if the error is about incomplete profile
-                    if (result.error.includes("profile")) {
-                        console.log("🚨 [ORDER_FLOW] Profile information is incomplete, showing update form");
-                        setNeedsProfileUpdate(true);
-                        return; // Exit early to show the profile update form
-                    } else {
-                        throw new Error(result.error || 'Failed to create order');
-                    }
+                    throw new Error(result.error || 'Failed to create order');
                 }
 
                 if (!result.data) {
@@ -613,6 +610,8 @@ export const ConfirmPurchaseDialog: React.FC<ConfirmPurchaseDialogProps> = ({
             );
         }
 
+        // Removed profile update complexity for simpler flow
+        /*
         if (needsProfileUpdate) {
             return (
                 <ProfileUpdateForm
@@ -624,6 +623,7 @@ export const ConfirmPurchaseDialog: React.FC<ConfirmPurchaseDialogProps> = ({
                 />
             );
         }
+        */
 
         if (isAuthenticated) {
             return (
@@ -649,7 +649,6 @@ export const ConfirmPurchaseDialog: React.FC<ConfirmPurchaseDialogProps> = ({
                 customerInfo={customerInfo}
                 setCustomerInfoAction={setCustomerInfo}
                 isSubmitting={isSubmitting}
-                handleConfirmAction={handleConfirm}
                 handleDirectOrderAction={handleDirectOrder}
                 handleSignInAction={handleSignIn}
                 onCancelAction={onCloseAction}
@@ -660,7 +659,7 @@ export const ConfirmPurchaseDialog: React.FC<ConfirmPurchaseDialogProps> = ({
 
     return (
         <Dialog open={isOpen} onOpenChange={onCloseAction}>
-            <DialogContent className="w-[95vw] max-w-md mx-auto max-h-[90vh] overflow-y-auto p-4 sm:p-6 bg-background text-foreground border-border">
+            <DialogContent className="w-[95vw] max-w-lg mx-auto max-h-[90vh] overflow-y-auto p-4 sm:p-6 bg-background text-foreground border-border">
                 <VisuallyHidden>
                     <DialogTitle>Confirm Purchase</DialogTitle>
                 </VisuallyHidden>

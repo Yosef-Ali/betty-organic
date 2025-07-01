@@ -73,10 +73,15 @@ const OrderDashboard: React.FC = () => {
         }
 
         // Process the new order with current customers
+        let customer = null;
+        if (!order.is_guest_order) {
+          customer = customersRef.current.find(c => c.id === order.customer_profile_id) || null;
+        }
+        
         const processedOrder = {
           ...order,
           order_items: order.order_items || [],
-          customer: customersRef.current.find(c => c.id === order.customer_profile_id) || null
+          customer
         } as ExtendedOrder;
 
         const newOrders = [processedOrder, ...prev];

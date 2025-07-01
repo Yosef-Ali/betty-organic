@@ -18,7 +18,6 @@ import {
 import {
   Home,
   ShoppingBag,
-  ShoppingCart,
   Package,
   Users2,
   LineChart,
@@ -59,7 +58,7 @@ const allNavItems = [
   },
   {
     href: '/dashboard/orders',
-    icon: ShoppingCart,
+    icon: Package,
     label: 'Orders',
     roles: ['sales'],
   },
@@ -195,7 +194,7 @@ export default function Header({ onMobileMenuToggleAction, profile }: HeaderProp
       {/* Notification bell with simplified error boundary */}
       <div className="mx-2">
         <NotificationErrorBoundary>
-          <NotificationBell/>
+          <NotificationBell />
         </NotificationErrorBoundary>
       </div>
 

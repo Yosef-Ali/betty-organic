@@ -235,12 +235,18 @@ Please prepare and deliver this order. Thank you! 🚚`;
                             xmlns="http://www.w3.org/2000/svg"
                             className="w-5 h-5"
                         >
-                            <path d="M20 6L9 17L4 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                            <path
+                                d="M20 6L9 17l-5-5"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                            />
                         </svg>
-                        Order Placed!
+                        Order Submitted Successfully!
                     </DialogTitle>
                     <DialogDescription>
-                        Your order has been sent to our team for processing. We&apos;ll contact you soon!
+                        Your order has been received and our team will contact you soon for confirmation
                     </DialogDescription>
 
                     {/* Auto-notification status */}
@@ -272,102 +278,118 @@ Please prepare and deliver this order. Thank you! 🚚`;
                     </div>
                 </DialogHeader>
 
-                <div className="my-4 p-4 border rounded-md bg-gray-50">
-                    <h3 className="font-medium text-lg mb-2">Order Summary</h3>
-
-                    <ScrollArea className="max-h-[150px] mb-4">
-                        <div className="space-y-2">
-                            {orderDetails.items.map((item, index) => (
-                                <div key={index} className="flex justify-between text-sm">
-                                    <span>
-                                        {item.name} ({item.grams}g)
-                                    </span>
-                                    <span>ETB {item.price.toFixed(2)}</span>
-                                </div>
-                            ))}
+                <div className="my-6 p-4 bg-gradient-to-r from-emerald-50 to-green-50 dark:from-emerald-950/20 dark:to-green-950/20 border border-emerald-200 dark:border-emerald-800 rounded-lg">
+                    <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 bg-emerald-100 dark:bg-emerald-900 rounded-full flex items-center justify-center flex-shrink-0">
+                            <LogIn className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                         </div>
-                    </ScrollArea>
-
-                    <div className="space-y-2 mb-4">
-                        <p className="text-sm">
-                            <span className="font-medium">Delivery to:</span>{' '}
-                            {customerInfo.address}
-                        </p>
-                        <p className="text-sm">
-                            <span className="font-medium">Contact:</span>{' '}
-                            {customerInfo.phone}
-                        </p>
-                    </div>
-
-                    <div className="text-sm font-medium flex justify-between border-t pt-2">
-                        <span>Total Amount:</span>
-                        <span>ETB {orderDetails.total.toFixed(2)}</span>
+                        <div className="flex-1">
+                            <h3 className="font-medium text-emerald-800 dark:text-emerald-200 mb-1">
+                                Want to track your order?
+                            </h3>
+                            <p className="text-sm text-emerald-700 dark:text-emerald-300 leading-relaxed">
+                                Create an account to track this order and enjoy faster checkout on future purchases.
+                            </p>
+                            <div className="mt-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={handleSignInAction}
+                                    className="border-emerald-300 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-700 dark:text-emerald-300 dark:hover:bg-emerald-900"
+                                >
+                                    <LogIn className="w-4 h-4 mr-2" />
+                                    Create Account Now
+                                </Button>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <div className="flex gap-2">
-                    {/* Button to continue shopping */}
-                    <Button
-                        variant="default"
-                        className="flex-1 gap-2 bg-green-600 hover:bg-green-700 h-12"
-                        onClick={handleClose}
-                    >
-                        <ShoppingBag className="w-4 h-4" />
-                        Continue Shopping
-                    </Button>
+                <div className="space-y-3 text-sm">
+                    <div className="flex items-center gap-2">
+                        <span className="font-medium">Order ID:</span>
+                        <span className="px-2 py-1 bg-muted rounded text-xs font-mono">{orderDetails.display_id}</span>
+                    </div>
+                    <div className="text-muted-foreground">
+                        <span className="font-medium">What happens next:</span>
+                        <ul className="list-disc list-inside mt-1 space-y-1">
+                            <li>Our team will review and confirm your order</li>
+                            <li>We'll contact you shortly with delivery details</li>
+                            <li>Your fresh organic products will be delivered soon</li>
+                        </ul>
+                    </div>
+                </div>
 
-                    {/* Print Receipt button - icon only */}
-                    <Button
-                        variant="outline"
-                        className="w-12 h-12 p-0 border-blue-600 text-blue-600 hover:bg-blue-50"
-                        onClick={() => setShowPrintPreview(true)}
-                        title="Print Receipt"
-                    >
-                        <Receipt className="w-5 h-5" />
-                    </Button>
+                <DialogFooter className="flex flex-col gap-3 mt-6">
+                    {/* Action buttons row */}
+                    <div className="flex justify-center gap-2">
+                        {/* Continue Shopping button */}
+                        <Button
+                            variant="default"
+                            className="flex-1 gap-2 bg-green-600 hover:bg-green-700 h-12"
+                            onClick={handleClose}
+                        >
+                            <ShoppingBag className="w-4 h-4" />
+                            Continue Shopping
+                        </Button>
 
-                    {/* Manual WhatsApp notification - only show if auto-notification failed or manual mode */}
-                    {(notificationStatus === 'manual' || notificationStatus === 'failed') && (
+                        {/* Print Receipt button - icon only */}
                         <Button
                             variant="outline"
-                            className="w-12 h-12 p-0 border-green-600 text-green-600 hover:bg-green-50"
-                            onClick={handleShareWhatsApp}
-                            title={notificationStatus === 'failed' ? "Retry WhatsApp Notification" : "Send Manual WhatsApp Notification"}
+                            className="w-12 h-12 p-0 border-blue-600 text-blue-600 hover:bg-blue-50"
+                            onClick={() => setShowPrintPreview(true)}
+                            title="Print Receipt"
                         >
-                            <MessageCircle className="w-5 h-5" />
+                            <Receipt className="w-5 h-5" />
                         </Button>
-                    )}
 
-                    {/* Auto-notification successful - show check */}
-                    {notificationStatus === 'sent' && (
-                        <Button
-                            variant="outline"
-                            className="w-12 h-12 p-0 border-green-600 text-green-600 cursor-default"
-                            disabled
-                            title="Admin Automatically Notified"
-                        >
-                            <CheckCircle className="w-5 h-5" />
-                        </Button>
-                    )}
-                </div>
+                        {/* Manual WhatsApp notification - only show if auto-notification failed or manual mode */}
+                        {(notificationStatus === 'manual' || notificationStatus === 'failed') && (
+                            <Button
+                                variant="outline"
+                                className="w-12 h-12 p-0 border-green-600 text-green-600 hover:bg-green-50"
+                                onClick={handleShareWhatsApp}
+                                title={notificationStatus === 'failed' ? "Retry WhatsApp Notification" : "Send Manual WhatsApp Notification"}
+                            >
+                                <MessageCircle className="w-5 h-5" />
+                            </Button>
+                        )}
 
-                <div className="text-center mt-4 flex flex-col gap-2">
-                    <div className="text-xs text-muted-foreground">
-                        Your order has been sent to our team for processing
+                        {/* Auto-notification successful - show check */}
+                        {notificationStatus === 'sent' && (
+                            <Button
+                                variant="outline"
+                                className="w-12 h-12 p-0 border-green-600 text-green-600 cursor-default"
+                                disabled
+                                title="Admin Automatically Notified"
+                            >
+                                <CheckCircle className="w-5 h-5" />
+                            </Button>
+                        )}
                     </div>
-                    <div className="flex justify-center">
-                        <Button variant="link" size="sm" onClick={handleSignInAction}>
-                            <LogIn className="w-4 h-4 mr-1" />
-                            Sign in to track your orders
-                        </Button>
+
+                    <div className="text-center text-xs text-muted-foreground border-t pt-3">
+                        <div className="mb-2">
+                            Need help? Contact us at +251 94 738 5509
+                        </div>
+                        <div className="flex justify-center gap-3">
+                            <Button
+                                variant="link"
+                                size="sm"
+                                onClick={handleSignInAction}
+                                className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 p-0 h-auto"
+                            >
+                                Create Account to Track Orders
+                            </Button>
+                        </div>
                     </div>
-                </div>
+                </DialogFooter>
             </>
         );
     }
 
     // Signed-in user order complete view
-    const handleShareWhatsApp = () => {
+    const handleSignedUserShareWhatsApp = () => {
         const message = `🍎 *New Order - Betty Organic*
 
 *Order ID:* ${orderDetails.display_id}
@@ -405,7 +427,119 @@ Please prepare and deliver this order. Thank you! 🚚`;
         window.open(whatsappUrl, '_blank');
     };
 
-    return (
+    // Add a better post-order experience for signed-in users as well
+    const renderAuthenticatedOrderComplete = () => (
+        <>
+            <DialogHeader>
+                <DialogTitle className="text-green-600 flex items-center gap-2">
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="20"
+                        height="20"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                    >
+                        <path d="M20 6L9 17l-5-5" />
+                    </svg>
+                    Order Confirmed Successfully!
+                </DialogTitle>
+                <DialogDescription>
+                    Your order has been saved and our team has been notified
+                </DialogDescription>
+            </DialogHeader>
+
+            {/* Success message and order tracking info */}
+            <div className="my-6 p-4 bg-gradient-to-r from-emerald-50 to-green-50 dark:from-emerald-950/20 dark:to-green-950/20 border border-emerald-200 dark:border-emerald-800 rounded-lg">
+                <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 bg-emerald-100 dark:bg-emerald-900 rounded-full flex items-center justify-center flex-shrink-0">
+                        <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                    </div>
+                    <div className="flex-1">
+                        <h3 className="font-medium text-emerald-800 dark:text-emerald-200 mb-1">
+                            Your order is being processed
+                        </h3>
+                        <p className="text-sm text-emerald-700 dark:text-emerald-300 leading-relaxed">
+                            You can track your order status in the dashboard. We'll keep you updated on delivery progress.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div className="space-y-3 text-sm">
+                <div className="flex items-center gap-2">
+                    <span className="font-medium">Order ID:</span>
+                    <span className="px-2 py-1 bg-muted rounded text-xs font-mono">{orderDetails.display_id}</span>
+                </div>            <div className="text-muted-foreground">
+                    <span className="font-medium">Order Status:</span>
+                    <ul className="list-disc list-inside mt-1 space-y-1">
+                        <li>Order confirmed and being processed</li>
+                        <li>You'll receive updates on delivery progress</li>
+                        <li>Fresh organic products prepared with care</li>
+                    </ul>
+                </div>
+            </div>
+
+            <DialogFooter className="flex flex-col gap-3 mt-6">
+                {/* Action buttons row */}
+                <div className="flex justify-center gap-2">
+                    {/* Continue Shopping button */}
+                    <Button
+                        variant="default"
+                        className="flex-1 gap-2 bg-green-600 hover:bg-green-700 h-12"
+                        onClick={handleClose}
+                    >
+                        <ShoppingBag className="w-4 h-4" />
+                        Continue Shopping
+                    </Button>
+                    {/* Print Receipt button - icon only */}
+                    <Button
+                        variant="outline"
+                        className="w-12 h-12 p-0 border-blue-600 text-blue-600 hover:bg-blue-50"
+                        onClick={() => setShowPrintPreview(true)}
+                        title="Print Receipt"
+                    >
+                        <Receipt className="w-5 h-5" />
+                    </Button>
+                    {/* Manual WhatsApp notification - only show if auto-notification failed or manual mode */}
+                    {(notificationStatus === 'manual' || notificationStatus === 'failed') && (
+                        <Button
+                            variant="outline"
+                            className="w-12 h-12 p-0 border-green-600 text-green-600 hover:bg-green-50"
+                            onClick={handleSignedUserShareWhatsApp}
+                            title={notificationStatus === 'failed' ? "Retry WhatsApp Notification" : "Send Manual WhatsApp Notification"}
+                        >
+                            <MessageCircle className="w-5 h-5" />
+                        </Button>
+                    )}
+                </div>
+
+                {/* Help and View Orders - separated for clarity */}
+                <div className="text-center text-xs text-muted-foreground border-t pt-3">
+                    <div className="mb-1">
+                        Need help? Contact us at<br />
+                        <span className="font-medium">+251 94 738 5509</span>
+                    </div>
+                    <div className="mt-2">
+                        <Button
+                            variant="link"
+                            size="sm"
+                            className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 p-0 h-auto"
+                            onClick={() => window.open('/dashboard/orders', '_blank')}
+                        >
+                            View All Orders
+                        </Button>
+                    </div>
+                </div>
+            </DialogFooter>
+        </>
+    );
+
+    // Update the main return statement to use the new authenticated view
+    return isAuthenticated ? renderAuthenticatedOrderComplete() : (
         <>
             <DialogHeader>
                 <DialogTitle className="text-green-600 flex items-center gap-2">
@@ -475,6 +609,10 @@ Please prepare and deliver this order. Thank you! 🚚`;
                         <span className="font-medium">Delivery to:</span>{' '}
                         {customerInfo.address}
                     </p>
+                    <p className="text-sm">
+                        <span className="font-medium">Contact:</span>{' '}
+                        {customerInfo.phone}
+                    </p>
                 </div>
 
                 <div className="text-sm font-medium flex justify-between border-t pt-2">
@@ -513,7 +651,7 @@ Please prepare and deliver this order. Thank you! 🚚`;
                         <Button
                             variant="outline"
                             className="w-12 h-12 p-0 border-green-600 text-green-600 hover:bg-green-50"
-                            onClick={handleShareWhatsApp}
+                            onClick={handleSignedUserShareWhatsApp}
                             title={notificationStatus === 'failed' ? "Retry WhatsApp Notification" : "Send Manual WhatsApp Notification"}
                         >
                             <MessageCircle className="w-5 h-5" />

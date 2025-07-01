@@ -9,10 +9,14 @@ import { useRealtime } from "@/lib/supabase/realtime-provider";
 type RecentSale = {
   id: string;
   total_amount: number;
-  profiles: {
+  is_guest_order?: boolean;
+  guest_name?: string;
+  guest_email?: string;
+  guest_phone?: string;
+  profiles?: {
     name: string;
     email: string;
-  };
+  } | null;
 };
 
 export function RecentSales() {
@@ -51,30 +55,41 @@ export function RecentSales() {
           No recent sales
         </div>
       ) : (
-        recentSales.map((sale) => (
-          <div key={sale.id} className="flex items-center space-x-3">
-            <Avatar className="h-8 w-8 sm:h-9 sm:w-9 flex-shrink-0">
-              <AvatarImage
-                src={`https://avatar.vercel.sh/${sale.profiles.email}.png`}
-                alt={sale.profiles.name}
-              />
-              <AvatarFallback className="text-xs">
-                {sale.profiles.name.charAt(0)}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium leading-none truncate">
-                {sale.profiles.name}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1 truncate">
-                {sale.profiles.email}
-              </p>
+        recentSales.map((sale) => {
+          // Prioritize guest information over profile information
+          const isGuest = sale.is_guest_order;
+          const displayName = isGuest 
+            ? (sale.guest_name ? `Guest: ${sale.guest_name}` : 'Online Guest')
+            : sale.profiles?.name || 'Guest Customer';
+          const displayEmail = isGuest && sale.guest_email 
+            ? sale.guest_email 
+            : sale.profiles?.email || 'guest@bettyorganic.com';
+          
+          return (
+            <div key={sale.id} className="flex items-center space-x-3">
+              <Avatar className="h-8 w-8 sm:h-9 sm:w-9 flex-shrink-0">
+                <AvatarImage
+                  src={`https://avatar.vercel.sh/${displayEmail}.png`}
+                  alt={displayName}
+                />
+                <AvatarFallback className="text-xs">
+                  {displayName.charAt(0).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium leading-none truncate">
+                  {displayName}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1 truncate">
+                  {displayEmail}
+                </p>
+              </div>
+              <div className="text-sm font-medium text-green-600 flex-shrink-0">
+                +{formatOrderCurrency(sale.total_amount)}
+              </div>
             </div>
-            <div className="text-sm font-medium text-green-600 flex-shrink-0">
-              +{formatOrderCurrency(sale.total_amount)}
-            </div>
-          </div>
-        ))
+          );
+        })
       )}
     </div>
   );

@@ -10,16 +10,39 @@ export async function getSupabaseClient() {
 export async function getRecentOrders(limit = 5) {
   const supabase = await getSupabaseClient();
   try {
-    // Explicitly avoid caching by using the cache option
+    // Fetch orders with both profile and guest information
     const { data, error } = await supabase
       .from('orders')
-      .select('*, profiles!orders_customer_profile_id_fkey(name)')
+      .select(`
+        *,
+        is_guest_order,
+        guest_name,
+        guest_email,
+        guest_phone,
+        profiles:profile_id(name)
+      `)
       .order('created_at', { ascending: false })
       .limit(limit);
 
     if (error) {
-      console.error('Supabase error fetching recent orders:', error);
-      throw error;
+      console.warn('Error fetching recent orders with guest info:', error);
+      
+      // Fallback: try without guest columns (for older schema)
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          profiles:profile_id(name)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+      if (fallbackError) {
+        console.error('Error fetching recent orders fallback:', fallbackError);
+        return [];
+      }
+      
+      return fallbackData || [];
     }
 
     return data || [];
@@ -32,14 +55,46 @@ export async function getRecentOrders(limit = 5) {
 export async function getRecentSales(limit = 5) {
   const supabase = await getSupabaseClient();
   try {
+    // Fetch orders with both profile and guest information
     const { data, error } = await supabase
       .from('orders')
-      .select('*, profiles!orders_profile_id_fkey(name, email)')
+      .select(`
+        id,
+        total_amount,
+        created_at,
+        is_guest_order,
+        guest_name,
+        guest_email,
+        guest_phone,
+        profiles:profile_id(name, email)
+      `)
       .order('created_at', { ascending: false })
       .limit(limit);
 
-    if (error) throw error;
-    return data;
+    if (error) {
+      console.warn('Error fetching recent sales with guest info:', error);
+      
+      // Fallback: try without guest columns (for older orders)
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from('orders')
+        .select(`
+          id,
+          total_amount,
+          created_at,
+          profiles:profile_id(name, email)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+      if (fallbackError) {
+        console.error('Error fetching recent sales fallback:', fallbackError);
+        return [];
+      }
+      
+      return fallbackData || [];
+    }
+
+    return data || [];
   } catch (error) {
     console.error('Error fetching recent sales:', error);
     return [];

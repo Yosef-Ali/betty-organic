@@ -88,18 +88,20 @@ async function seedDatabase() {
 
   if (custError) throw custError
 
-  // Seed orders
+  // Seed orders using new schema
   const { data: orders, error: orderError } = await supabase
     .from('orders')
     .insert([
       {
-        customer_id: customers[0].id,
+        profile_id: customers[0].id,
+        customer_profile_id: customers[0].id,
         status: 'completed',
         total_amount: 29.90,
         type: 'online'
       },
       {
-        customer_id: customers[1].id,
+        profile_id: customers[1].id,
+        customer_profile_id: customers[1].id,
         status: 'pending',
         total_amount: 19.90,
         type: 'in-store'

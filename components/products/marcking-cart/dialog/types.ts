@@ -51,9 +51,16 @@ interface CommonFormProps {
 
 
 // GuestForm props
-export interface GuestFormProps extends CommonFormProps {
-    handleSignInAction: () => void; // Name matches how it's called in the dialog
-    handleDirectOrderAction?: () => void; // New prop for direct order submission
+export interface GuestFormProps {
+    items: CartItemType[];
+    total: number;
+    customerInfo: CustomerInfo;
+    setCustomerInfoAction: React.Dispatch<React.SetStateAction<CustomerInfo>>;
+    isSubmitting: boolean;
+    handleSignInAction: () => void;
+    handleDirectOrderAction?: () => void;
+    onCancelAction: () => void;
+    isCustomerInfoValidAction: () => boolean;
 }
 
 // AuthenticatedForm props

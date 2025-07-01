@@ -14,6 +14,11 @@ export type RoleBasedNotificationOrder = {
   profile_id: string;
   customer_profile_id?: string | null;
   type?: string;
+  // Guest order fields
+  is_guest_order?: boolean;
+  guest_name?: string;
+  guest_email?: string;
+  guest_phone?: string;
   // Customer information for sales/admin
   customer_name?: string;
   customer_email?: string;
@@ -60,28 +65,31 @@ export async function fetchRoleBasedNotifications(
         .from('orders')
         .select(`
           id, display_id, status, created_at, total_amount, 
-          profile_id, customer_profile_id, type
+          profile_id, customer_profile_id, type,
+          is_guest_order, guest_name, guest_email, guest_phone
         `)
         .eq('customer_profile_id', userId);
         
     } else if (userRole === 'sales') {
-      // Sales team sees all pending orders with customer info
+      // Sales team sees all pending orders with customer info and guest info
       query = supabase
         .from('orders')
         .select(`
           id, display_id, status, created_at, total_amount, 
           profile_id, customer_profile_id, type,
+          is_guest_order, guest_name, guest_email, guest_phone,
           profiles!customer_profile_id(name, email)
         `)
         .in('status', ['pending', 'new', 'processing']);
         
     } else if (userRole === 'admin') {
-      // Admin sees all orders with customer info
+      // Admin sees all orders with customer info and guest info
       query = supabase
         .from('orders')
         .select(`
           id, display_id, status, created_at, total_amount, 
           profile_id, customer_profile_id, type,
+          is_guest_order, guest_name, guest_email, guest_phone,
           profiles!customer_profile_id(name, email)
         `);
     } else {
@@ -128,12 +136,23 @@ export async function fetchRoleBasedNotifications(
     }
     // Admin sees all orders (no additional filtering)
 
-    // Transform data to include customer info for sales/admin
-    const transformedOrders = relevantOrders.map(order => ({
-      ...order,
-      customer_name: (order as any).profiles?.name || 'Unknown Customer',
-      customer_email: (order as any).profiles?.email || null,
-    })) as RoleBasedNotificationOrder[];
+    // Transform data to include customer info for sales/admin, prioritizing guest info
+    const transformedOrders = relevantOrders.map(order => {
+      // Prioritize guest information over profile information
+      const isGuest = (order as any).is_guest_order;
+      const customerName = isGuest
+        ? ((order as any).guest_name ? `Guest: ${(order as any).guest_name}` : 'Online Guest')
+        : (order as any).profiles?.name || 'Unknown Customer';
+      const customerEmail = isGuest && (order as any).guest_email
+        ? (order as any).guest_email
+        : (order as any).profiles?.email || null;
+
+      return {
+        ...order,
+        customer_name: customerName,
+        customer_email: customerEmail,
+      };
+    }) as RoleBasedNotificationOrder[];
 
     console.log(`[NOTIFICATIONS DEBUG] Final filtered orders for ${userRole}:`, transformedOrders.length);
     console.log(`[NOTIFICATIONS DEBUG] Final orders:`, transformedOrders.slice(0, 2));

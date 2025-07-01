@@ -21,8 +21,12 @@ type RecentOrder = {
   type: string;
   profiles: {
     name: string | null;
-  };
+  } | null;
   display_id?: string;
+  is_guest_order?: boolean;
+  guest_name?: string;
+  guest_email?: string;
+  guest_phone?: string;
 };
 
 export function RecentOrders() {
@@ -89,7 +93,12 @@ export function RecentOrders() {
                   <TableCell className="font-medium">
                     #{order.display_id || order.id.slice(0, 8)}
                   </TableCell>
-                  <TableCell className="truncate max-w-[120px]">{order.profiles?.name || "Unknown"}</TableCell>
+                  <TableCell className="truncate max-w-[120px]">
+                    {order.is_guest_order 
+                      ? (order.guest_name ? `Guest: ${order.guest_name}` : "Online Guest")
+                      : (order.profiles?.name || "Unknown")
+                    }
+                  </TableCell>
                   <TableCell>
                     <span
                       className={`px-2 py-1 rounded-full text-xs font-medium ${order.status === "confirmed"
@@ -144,7 +153,12 @@ export function RecentOrders() {
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <p className="text-xs text-muted-foreground">Customer</p>
-                  <p className="text-sm font-medium truncate">{order.profiles?.name || "Unknown"}</p>
+                  <p className="text-sm font-medium truncate">
+                    {order.is_guest_order 
+                      ? (order.guest_name ? `Guest: ${order.guest_name}` : "Online Guest")
+                      : (order.profiles?.name || "Unknown")
+                    }
+                  </p>
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-muted-foreground">Amount</p>

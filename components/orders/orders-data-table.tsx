@@ -81,14 +81,26 @@ export function OrdersDataTable({
 
     // Transform data for table display
     const data = useMemo<ExtendedOrderRow[]>(() => {
-        return orders.map((order) => ({
-            ...order,
-            formattedAmount: formatOrderCurrency(order.total_amount),
-            formattedDate: order.created_at
-                ? format(new Date(order.created_at), "MMM d, yyyy")
-                : "N/A",
-            customerName: order.customer?.name || "Unknown Customer",
-        }));
+        return orders.map((order) => {
+            // Determine customer name with guest logic
+            let customerName = "Unknown Customer";
+            if (order.is_guest_order) {
+                customerName = order.guest_name ? `Guest: ${order.guest_name}` : "Online Guest";
+            } else if (order.customer?.name) {
+                customerName = order.customer.name;
+            } else if (order.profiles?.name) {
+                customerName = order.profiles.name;
+            }
+
+            return {
+                ...order,
+                formattedAmount: formatOrderCurrency(order.total_amount),
+                formattedDate: order.created_at
+                    ? format(new Date(order.created_at), "MMM d, yyyy")
+                    : "N/A",
+                customerName,
+            };
+        });
     }, [orders]);
 
     const columns = useMemo<ColumnDef<ExtendedOrderRow>[]>(

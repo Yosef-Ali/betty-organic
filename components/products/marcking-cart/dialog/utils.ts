@@ -1,5 +1,11 @@
 import { CustomerInfo } from "./types";
 
+// Validate Ethiopian phone number format
+export const validateEthiopianPhone = (phone: string): boolean => {
+    const phoneRegex = /^(\+251|0)[9]\d{8}$/; // Ethiopian phone format
+    return phoneRegex.test(phone.replace(/\s/g, ''));
+};
+
 // Format phone number to international Ethiopian format
 export const formatPhoneNumber = (phone: string): string => {
     const cleaned = phone.replace(/\D/g, '');
@@ -42,7 +48,7 @@ export const validateCustomerInfo = (
     customerInfo: CustomerInfo
 ): boolean => {
     // Both authenticated and guest users need phone and address
-    const hasValidPhone = !!(customerInfo.phone && customerInfo.phone.trim().length >= 9);
+    const hasValidPhone = !!(customerInfo.phone && validateEthiopianPhone(customerInfo.phone));
     const hasValidAddress = !!(customerInfo.address && customerInfo.address.trim().length >= 5);
 
     return hasValidPhone && hasValidAddress;

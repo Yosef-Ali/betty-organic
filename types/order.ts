@@ -52,6 +52,12 @@ export type ExtendedOrder = Order & {
     phone?: string | null;
     avatar_url?: string | null;
   };
+  // Guest order fields
+  is_guest_order?: boolean;
+  guest_name?: string;
+  guest_email?: string;
+  guest_phone?: string;
+  guest_address?: string;
 };
 
 // Type guard for Order

@@ -375,9 +375,7 @@ ${isGuestFlow
             ? `
 📱 *Order Type:* Online Guest Order
 ⚡ *Priority:* High
-🚚 *Expected Delivery:* Between ${formatDeliveryDate(
-              tomorrow
-            )} - ${formatDeliveryDate(dayAfter)}
+🚚 *Delivery:* Will be arranged shortly
 📊 *Status:* Pending Confirmation`
             : ""
           }
@@ -641,10 +639,10 @@ ${storeInfo}`;
                         }
                       }}
                       className={`mt-1 pr-8 ${guestName
-                          ? validateGuestName(guestName)
-                            ? "border-red-500 focus:border-red-500"
-                            : "border-green-500 focus:border-green-500"
-                          : ""
+                        ? validateGuestName(guestName)
+                          ? "border-red-500 focus:border-red-500"
+                          : "border-green-500 focus:border-green-500"
+                        : ""
                         }`}
                     />
                     {guestName && (
@@ -681,10 +679,10 @@ ${storeInfo}`;
                         setGuestPhone?.(newPhone);
                       }}
                       className={`rounded-l-none ${guestPhone
-                          ? /^\+251\d{9}$/.test(guestPhone)
-                            ? "border-green-500 focus:border-green-500"
-                            : "border-red-500 focus:border-red-500"
-                          : ""
+                        ? /^\+251\d{9}$/.test(guestPhone)
+                          ? "border-green-500 focus:border-green-500"
+                          : "border-red-500 focus:border-red-500"
+                        : ""
                         }`}
                       maxLength={9}
                     />
@@ -720,10 +718,10 @@ ${storeInfo}`;
                         }
                       }}
                       className={`mt-1 pr-8 ${guestLocation
-                          ? validateGuestLocation(guestLocation)
-                            ? "border-red-500 focus:border-red-500"
-                            : "border-green-500 focus:border-green-500"
-                          : ""
+                        ? validateGuestLocation(guestLocation)
+                          ? "border-red-500 focus:border-red-500"
+                          : "border-green-500 focus:border-green-500"
+                        : ""
                         }`}
                     />
                     {guestLocation && (
@@ -926,10 +924,10 @@ ${storeInfo}`;
                 : isSaving || !selectedCustomer || isOrderSaved
             }
             className={`relative min-w-[200px] ${isGuestFlow
-                ? isOrderSaved
-                  ? "bg-gray-600 hover:bg-gray-700"
-                  : "bg-green-600 hover:bg-green-700"
-                : ""
+              ? isOrderSaved
+                ? "bg-gray-600 hover:bg-gray-700"
+                : "bg-green-600 hover:bg-green-700"
+              : ""
               } text-white`}
           >
             {isSaving ? (

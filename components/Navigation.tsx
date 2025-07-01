@@ -4,6 +4,7 @@ import { getUser } from '@/app/actions/auth'; // Corrected import
 import { getProfile } from '@/app/actions/profile'; // Added profile import
 import { NavbarUserSection } from './NavbarUserSection';
 import { MobileMenu } from './MobileMenu';
+import { ClientNavigation } from './ClientNavigation';
 
 export async function Navigation() {
   const user = await getUser(); // Use getUser
@@ -65,6 +66,10 @@ export async function Navigation() {
             </Link>
 
           </div>
+
+          {/* Cart functionality */}
+          <ClientNavigation />
+
           {/* Pass fetched user and profile */}
           <NavbarUserSection
             user={user}
