@@ -14,6 +14,12 @@ interface OrderDetails {
   profile: Profile;
   status?: string;
   type?: string;
+  // Guest order fields
+  is_guest_order?: boolean;
+  guest_name?: string;
+  guest_email?: string;
+  guest_phone?: string;
+  guest_address?: string;
   items: Array<{
     id: string;
     product: {
@@ -200,14 +206,32 @@ export function useOrderDetails(orderId: string) {
           throw new Error('Order not found');
         }
 
-        // Transform the data to match our interface using real customer data
+        // Transform the data to match our interface using real customer data or guest data
         const transformedOrder: OrderDetails = {
           id: data.id,
           display_id: data.display_id || '',
           createdAt: data.created_at || new Date().toISOString(), // Provide fallback for null
           updatedAt: data.updated_at || '',
-          // Use real customer profile data
-          profile: {
+          // Handle guest orders vs regular customer orders
+          is_guest_order: data.is_guest_order || false,
+          guest_name: data.guest_name,
+          guest_email: data.guest_email,
+          guest_phone: data.guest_phone,
+          guest_address: data.guest_address,
+          // Use real customer profile data or guest fallback
+          profile: data.is_guest_order ? {
+            id: 'guest',
+            name: data.guest_name ? `Guest: ${data.guest_name}` : 'Online Guest',
+            email: data.guest_email || 'guest@bettyorganic.com',
+            role: 'guest' as 'admin' | 'sales' | 'customer',
+            status: 'active',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            avatar_url: null,
+            auth_provider: 'none',
+            address: data.guest_address || null,
+            phone: data.guest_phone || null,
+          } : {
             id: data.customer?.id || 'default-id',
             name: data.customer?.name || 'Unknown Customer',
             email: data.customer?.email || 'No Email',

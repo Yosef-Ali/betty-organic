@@ -162,11 +162,30 @@ export default function OrderDetailsCard({ orderId }: OrderDetailsProps) {
   });
   // --- End Calculation ---
 
-  // Safely access profile information with fallbacks
-  const profileName = order.profile?.name || "Unknown Customer";
-  const profileEmail = order.profile?.email || "No Email";
+  // Safely access profile information with guest logic and fallbacks
+  let profileName = "Unknown Customer";
+  let profileEmail = "No Email";
+  let profileRole = "customer";
+  let profilePhone = null;
+  let profileAddress = null;
+  
+  if (order.is_guest_order) {
+    // Handle guest orders
+    profileName = order.guest_name ? `Guest: ${order.guest_name}` : "Online Guest";
+    profileEmail = order.guest_email || "guest@bettyorganic.com";
+    profileRole = "guest";
+    profilePhone = order.guest_phone;
+    profileAddress = order.guest_address;
+  } else {
+    // Handle regular customer orders
+    profileName = order.profile?.name || order.customer?.name || "Unknown Customer";
+    profileEmail = order.profile?.email || order.customer?.email || "No Email";
+    profileRole = order.profile?.role || order.customer?.role || "customer";
+    profilePhone = order.profile?.phone || order.customer?.phone;
+    profileAddress = order.profile?.address || order.customer?.address;
+  }
+  
   const profileId = order.profile?.id || "temp-id";
-  const profileRole = order.profile?.role || "customer";
   const profileCreatedAt =
     order.profile?.created_at || new Date().toISOString();
   const profileUpdatedAt =
@@ -278,10 +297,10 @@ export default function OrderDetailsCard({ orderId }: OrderDetailsProps) {
               <span className="text-muted-foreground">Email:</span>
               <span className="text-right max-w-[60%] truncate text-xs sm:text-sm">{profileEmail}</span>
             </div>
-            {order.profile?.phone && (
+            {profilePhone && (
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Phone:</span>
-                <span>{order.profile.phone}</span>
+                <span>{profilePhone}</span>
               </div>
             )}
             <div className="flex justify-between">
@@ -303,7 +322,7 @@ export default function OrderDetailsCard({ orderId }: OrderDetailsProps) {
           <div className="grid gap-2 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Delivery Address:</span>
-              <span className="text-right max-w-[60%] break-words text-xs sm:text-sm">{order.profile?.address || "Address not provided"}</span>
+              <span className="text-right max-w-[60%] break-words text-xs sm:text-sm">{profileAddress || "Address not provided"}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Delivery Cost:</span>

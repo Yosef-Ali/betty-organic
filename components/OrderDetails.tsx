@@ -148,8 +148,18 @@ export function OrderDetails({ orderId }: OrderDetailsProps) {
 
         <div className="space-y-2">
           <h3 className="font-medium">Customer Details</h3>
-          <p>{order.customer?.name || "Unknown Customer"}</p>
-          <p>{order.customer?.email || "No email provided"}</p>
+          <p>
+            {order.is_guest_order 
+              ? (order.guest_name ? `Guest: ${order.guest_name}` : "Online Guest")
+              : (order.customer?.name || "Unknown Customer")
+            }
+          </p>
+          <p>
+            {order.is_guest_order
+              ? (order.guest_email || "guest@bettyorganic.com")
+              : (order.customer?.email || "No email provided")
+            }
+          </p>
         </div>
 
         <div className="space-y-2">

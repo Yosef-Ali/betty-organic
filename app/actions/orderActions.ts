@@ -88,12 +88,13 @@ export async function getRecentOrders(limit: number = 10): Promise<{ data: Front
   try {
     console.time('[TRACKING DEBUG] Recent orders fetch time');
 
-    // Fetch recent orders with customer profile data
+    // Fetch recent orders with customer profile data and guest information
     const { data: ordersData, error: ordersError } = await supabase
       .from('orders')
       .select(`
         id, display_id, created_at, updated_at, status, total_amount, type, profile_id, customer_profile_id,
         delivery_cost, coupon_code, discount_amount,
+        is_guest_order, guest_name, guest_email, guest_phone, guest_address,
         order_items(id, product_id, quantity, price, product_name),
         customer_profile:profiles!customer_profile_id(
           id, name, email, phone, address, role, status, created_at, updated_at, avatar_url
@@ -181,6 +182,7 @@ export async function getOrderDetails(orderId: string): Promise<{ data: Frontend
       .select(`
         id, display_id, created_at, updated_at, status, total_amount, type, profile_id, customer_profile_id,
         delivery_cost, coupon_code, discount_amount,
+        is_guest_order, guest_name, guest_email, guest_phone, guest_address,
         order_items(id, product_id, quantity, price, product_name),
         customer_profile:profiles!customer_profile_id(
           id, name, email, phone, address, role, status, created_at, updated_at, avatar_url
@@ -215,6 +217,12 @@ export async function getOrderDetails(orderId: string): Promise<{ data: Frontend
       delivery_cost: orderData.delivery_cost || 0,
       coupon_code: orderData.coupon_code || undefined,
       discount_amount: orderData.discount_amount || 0,
+      // Guest order fields
+      is_guest_order: orderData.is_guest_order || false,
+      guest_name: orderData.guest_name || undefined,
+      guest_email: orderData.guest_email || undefined,
+      guest_phone: orderData.guest_phone || undefined,
+      guest_address: orderData.guest_address || undefined,
       // Map order_items safely, ensuring it matches FrontendOrderItem[]
       order_items: Array.isArray(orderData.order_items) ? orderData.order_items.map((item: any): FrontendOrderItem => ({
         id: item.id || '',
@@ -492,7 +500,7 @@ export async function getOrders(customerId?: string, caller?: string): Promise<E
 
     let query = supabase
       .from('orders')
-      .select(`id, display_id, created_at, updated_at, status, total_amount, type, profile_id, customer_profile_id, order_items!order_items_order_id_fkey (*, products!inner (*)), customer:profiles!orders_customer_profile_id_fkey (id, name, email, phone, role), seller:profiles!orders_profile_id_fkey (id, name, email, role)`)
+      .select(`id, display_id, created_at, updated_at, status, total_amount, type, profile_id, customer_profile_id, is_guest_order, guest_name, guest_email, guest_phone, guest_address, order_items!order_items_order_id_fkey (*, products!inner (*)), customer:profiles!orders_customer_profile_id_fkey (id, name, email, phone, role), seller:profiles!orders_profile_id_fkey (id, name, email, role)`)
       .order('created_at', { ascending: false });
 
     // Apply role-based filtering with type assertions to fix TypeScript errors
@@ -547,6 +555,12 @@ export async function getOrders(customerId?: string, caller?: string): Promise<E
         created_at: order.created_at,
         updated_at: order.updated_at ?? null,
         customer_id: order.customer_profile_id ?? '',
+        // Guest order fields
+        is_guest_order: (order as any).is_guest_order ?? false,
+        guest_name: (order as any).guest_name ?? undefined,
+        guest_email: (order as any).guest_email ?? undefined,
+        guest_phone: (order as any).guest_phone ?? undefined,
+        guest_address: (order as any).guest_address ?? undefined,
         customer: order.customer ? {
           id: order.customer.id,
           name: order.customer.name,
