@@ -357,13 +357,8 @@ export async function createOrder(
 
     console.log('[DASHBOARD DEBUG] Order items created successfully');
 
-    // Only revalidate for certain roles to prevent revalidation loops
-    if (['admin', 'sales'].includes(role)) {
-      console.log('[DASHBOARD DEBUG] Revalidating dashboard paths for admin/sales role');
-      revalidatePath('/dashboard/orders');
-    } else {
-      console.log('[DASHBOARD DEBUG] Skipping revalidation for non-admin/sales role:', role);
-    }
+    // Real-time updates will handle UI updates, no need for revalidatePath
+    console.log('[DASHBOARD DEBUG] Order creation completed, real-time will handle updates');
 
     console.log('[DASHBOARD DEBUG] Order creation completed successfully');
 
@@ -443,7 +438,8 @@ export async function deleteOrder(orderId: string): Promise<{ success: boolean; 
       throw orderError;
     }
 
-    revalidatePath('/dashboard/orders');
+    // Real-time updates will handle UI updates, no need for revalidatePath
+    console.log('[DASHBOARD DEBUG] Order deletion completed, real-time will handle updates');
     return { success: true };
   } catch (error) {
     console.error('[DASHBOARD DEBUG] Error in deleteOrder:', error);
@@ -616,7 +612,8 @@ export async function updateOrderStatus(
       return { success: false, error: error.message };
     }
 
-    revalidatePath('/dashboard/orders');
+    // Real-time updates will handle UI updates, no need for revalidatePath
+    console.log('[DASHBOARD DEBUG] Order status update completed, real-time will handle updates');
     return { success: true, data: updatedOrder }; // Data is OrderRow | null
   } catch (error) {
     console.error('[DASHBOARD DEBUG] Error in updateOrderStatus:', error);
@@ -697,7 +694,8 @@ export async function updateOrder(orderId: string, formData: FormData): Promise<
       return { success: false, error: 'Failed to insert order items' };
     }
 
-    revalidatePath('/dashboard/orders');
+    // Real-time updates will handle UI updates, no need for revalidatePath
+    console.log('[DASHBOARD DEBUG] Order update completed, real-time will handle updates');
 
     return {
       success: true,

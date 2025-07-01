@@ -241,14 +241,16 @@ export function NotificationBell() {
     // Subscribe to realtime order updates
     const unsubscribe = subscribeToOrders(handleOrderUpdate);
 
-    // Fetch initial data only once on mount
-    fetchNotifications();
-
     return () => {
       mountedRef.current = false;
       unsubscribe();
     };
-  }, [subscribeToOrders, handleOrderUpdate, fetchNotifications]);
+  }, [subscribeToOrders]); // Only depend on subscribeToOrders to prevent re-subscription loops
+
+  // Fetch initial data separately to avoid dependency issues
+  useEffect(() => {
+    fetchNotifications();
+  }, []); // Run only once on mount
 
   // The server action already filters notifications by role, so we use them directly
   // Only filter out completed orders that might have been included

@@ -179,12 +179,11 @@ export function RealtimeProvider({ children, userId, userRole }: RealtimeProvide
     }, delay);
   }, [setupRealtimeSubscription]);
 
-  // Initialize connection - work even without user context initially
+  // Initialize connection only once on mount, then reconnect only when user context changes
   useEffect(() => {
     console.log('[RealtimeProvider] Initializing with:', { userId: userId || 'none', userRole: userRole || 'none' });
 
-    // Always try to setup subscription, even without user context
-    // This allows the system to receive events and let components filter
+    // Setup subscription with current user context
     setupRealtimeSubscription();
 
     return () => {
@@ -197,7 +196,7 @@ export function RealtimeProvider({ children, userId, userRole }: RealtimeProvide
       }
       subscribersRef.current.clear();
     };
-  }, [setupRealtimeSubscription]);
+  }, [userId, userRole]); // Only reconnect when user context changes
 
   // Subscribe to order updates
   const subscribeToOrders = useCallback((

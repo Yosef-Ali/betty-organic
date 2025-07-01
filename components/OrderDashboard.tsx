@@ -199,21 +199,23 @@ const OrderDashboard: React.FC = () => {
     }
   }, [toast, selectedOrderId]);
 
-  // Setup realtime subscription and fetch initial data
+  // Setup realtime subscription
   useEffect(() => {
     mountedRef.current = true;
 
     // Subscribe to realtime updates
     const unsubscribe = subscribeToOrders(handleOrderUpdate);
 
-    // Fetch initial data
-    fetchInitialData();
-
     return () => {
       mountedRef.current = false;
       unsubscribe();
     };
-  }, [subscribeToOrders, handleOrderUpdate, fetchInitialData]);
+  }, [subscribeToOrders]); // Only depend on subscribeToOrders to prevent re-subscription loops
+
+  // Fetch initial data separately to avoid dependency issues
+  useEffect(() => {
+    fetchInitialData();
+  }, []); // Run only once on mount
 
   // Handle order deletion
   const handleDelete = async (id: string) => {
