@@ -64,11 +64,12 @@ Fresh • Organic • Healthy
         let imageBuffer;
         
         try {
-            // Create a simple green and white invoice design
+            // Create a clean gray/black invoice design matching the original
+            const dynamicHeight = 1100 + ((receiptData.items?.length || 0) * 40);
             imageBuffer = await sharp({
                 create: {
-                    width: 400,
-                    height: 600,
+                    width: 800,
+                    height: dynamicHeight,
                     channels: 3,
                     background: '#ffffff'
                 }
@@ -76,32 +77,56 @@ Fresh • Organic • Healthy
             .composite([
                 {
                     input: Buffer.from(
-                        `<svg width="400" height="600">
-                            <rect width="400" height="80" fill="#4CAF50"/>
-                            <text x="200" y="30" font-family="Arial" font-size="20" font-weight="bold" text-anchor="middle" fill="white">BETTY ORGANIC</text>
-                            <text x="200" y="50" font-family="Arial" font-size="12" text-anchor="middle" fill="white">Fresh Organic Produce</text>
-                            <text x="200" y="70" font-family="Arial" font-size="10" text-anchor="middle" fill="white">+251944113998</text>
+                        `<svg width="800" height="${dynamicHeight}" xmlns="http://www.w3.org/2000/svg">
+                            <!-- White background -->
+                            <rect width="800" height="${dynamicHeight}" fill="#ffffff"/>
                             
-                            <text x="200" y="120" font-family="Arial" font-size="18" font-weight="bold" text-anchor="middle" fill="#333">INVOICE RECEIPT</text>
+                            <!-- Header -->
+                            <text x="400" y="80" font-family="Arial, sans-serif" font-size="48" font-weight="bold" text-anchor="middle" fill="#1a1a1a">Betty Organic</text>
+                            <text x="400" y="120" font-family="Arial, sans-serif" font-size="20" text-anchor="middle" fill="#666666">Fresh Organic Fruits &amp; Vegetables</text>
+                            <text x="400" y="160" font-family="Arial, sans-serif" font-size="18" text-anchor="middle" fill="#666666">Thank you for your order!</text>
                             
-                            <text x="20" y="160" font-family="Arial" font-size="12" fill="#333">Customer: ${receiptData.customerName || 'Valued Customer'}</text>
-                            <text x="20" y="180" font-family="Arial" font-size="12" fill="#333">Order ID: ${receiptData.orderId || 'N/A'}</text>
-                            <text x="20" y="200" font-family="Arial" font-size="12" fill="#333">Date: ${receiptData.orderDate || 'N/A'}</text>
+                            <!-- Customer and Order Info Box -->
+                            <rect x="50" y="220" width="700" height="120" fill="#f8f9fa" stroke="#e5e7eb" stroke-width="1"/>
+                            <text x="80" y="260" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="#1a1a1a">Customer: ${receiptData.customerName || 'Valued Customer'}</text>
+                            <text x="580" y="260" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="#1a1a1a">Order ID: ${receiptData.orderId || 'N/A'}</text>
+                            <text x="80" y="300" font-family="Arial, sans-serif" font-size="16" fill="#666666">(${receiptData.customerEmail || 'customer@email.com'})</text>
                             
-                            <rect x="0" y="220" width="400" height="30" fill="#4CAF50"/>
-                            <text x="20" y="240" font-family="Arial" font-size="14" font-weight="bold" fill="white">ITEMS</text>
+                            <!-- Order Items Header -->
+                            <text x="80" y="420" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#1a1a1a">Order Items:</text>
                             
+                            <!-- Items List -->
                             ${receiptData.items?.map((item: any, index: number) => `
-                                <text x="20" y="${270 + (index * 20)}" font-family="Arial" font-size="11" fill="#333">${item.name || 'Item'}</text>
-                                <text x="250" y="${270 + (index * 20)}" font-family="Arial" font-size="11" fill="#666">${((item.quantity || 0) * 1000).toFixed(0)}g</text>
-                                <text x="350" y="${270 + (index * 20)}" font-family="Arial" font-size="11" fill="#333">ETB ${(item.price || 0).toFixed(2)}</text>
-                            `).join('') || ''}
+                                <text x="80" y="${480 + (index * 40)}" font-family="Arial, sans-serif" font-size="18" fill="#1a1a1a">${item.name || 'Unknown Product'} (${item.quantity || 0}g)</text>
+                                <text x="650" y="${480 + (index * 40)}" font-family="Arial, sans-serif" font-size="18" fill="#1a1a1a" text-anchor="end">ETB ${(item.price || 0).toFixed(2)}</text>
+                            `).join('') || '<text x="80" y="480" font-family="Arial, sans-serif" font-size="18" fill="#666666">No items</text>'}
                             
-                            <rect x="0" y="${290 + (itemsCount * 20)}" width="400" height="40" fill="#4CAF50"/>
-                            <text x="200" y="${315 + (itemsCount * 20)}" font-family="Arial" font-size="16" font-weight="bold" text-anchor="middle" fill="white">TOTAL: ETB ${(receiptData.total || 0).toFixed(2)}</text>
+                            <!-- Total Amount Box -->
+                            <rect x="50" y="${520 + ((receiptData.items?.length || 0) * 40)}" width="700" height="80" fill="#f8f9fa" stroke="#e5e7eb" stroke-width="1"/>
+                            <text x="80" y="${560 + ((receiptData.items?.length || 0) * 40)}" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#1a1a1a">Total Amount:</text>
+                            <text x="650" y="${560 + ((receiptData.items?.length || 0) * 40)}" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#1a1a1a" text-anchor="end">ETB ${(receiptData.total || 0).toFixed(2)}</text>
                             
-                            <text x="200" y="${360 + (itemsCount * 20)}" font-family="Arial" font-size="12" text-anchor="middle" fill="#4CAF50">Thank you for choosing Betty Organic!</text>
-                            <text x="200" y="${380 + (itemsCount * 20)}" font-family="Arial" font-size="10" text-anchor="middle" fill="#666">Fresh • Organic • Healthy</text>
+                            <!-- Barcode Section -->
+                            <text x="400" y="${680 + ((receiptData.items?.length || 0) * 40)}" font-family="Arial, sans-serif" font-size="16" text-anchor="middle" fill="#9ca3af">ORDER BARCODE</text>
+                            
+                            <!-- Simple barcode representation -->
+                            <rect x="280" y="${700 + ((receiptData.items?.length || 0) * 40)}" width="240" height="80" fill="#ffffff" stroke="#1a1a1a" stroke-width="2"/>
+                            <g fill="#1a1a1a">
+                                ${Array.from({length: 40}, (_, i) => 
+                                    `<rect x="${290 + (i * 5)}" y="${710 + ((receiptData.items?.length || 0) * 40)}" width="${Math.random() > 0.5 ? '3' : '1'}" height="60"/>`
+                                ).join('')}
+                            </g>
+                            
+                            <text x="400" y="${820 + ((receiptData.items?.length || 0) * 40)}" font-family="Arial, sans-serif" font-size="18" font-weight="bold" text-anchor="middle" fill="#1a1a1a">${receiptData.orderId || 'ORDER-ID'}</text>
+                            <text x="400" y="${845 + ((receiptData.items?.length || 0) * 40)}" font-family="Arial, sans-serif" font-size="14" text-anchor="middle" fill="#9ca3af">Scan for order verification</text>
+                            
+                            <!-- Order Details -->
+                            <text x="400" y="${920 + ((receiptData.items?.length || 0) * 40)}" font-family="Arial, sans-serif" font-size="24" font-weight="bold" text-anchor="middle" fill="#1a1a1a">Order Details</text>
+                            <text x="400" y="${960 + ((receiptData.items?.length || 0) * 40)}" font-family="Arial, sans-serif" font-size="18" text-anchor="middle" fill="#666666">Date: ${receiptData.orderDate || 'N/A'}</text>
+                            <text x="400" y="${990 + ((receiptData.items?.length || 0) * 40)}" font-family="Arial, sans-serif" font-size="18" text-anchor="middle" fill="#666666">Time: ${receiptData.orderTime || 'N/A'}</text>
+                            
+                            <!-- Footer -->
+                            <text x="400" y="${1080 + ((receiptData.items?.length || 0) * 40)}" font-family="Arial, sans-serif" font-size="20" text-anchor="middle" fill="#666666">Fresh • Organic • Healthy</text>
                         </svg>`
                     ),
                     top: 0,

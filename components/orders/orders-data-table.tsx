@@ -42,7 +42,7 @@ import { Input } from "@/components/ui/input";
 import {
     MoreHorizontal,
     Eye,
-    MessageCircle,
+    Download,
     Clock,
     RefreshCw,
     CheckCircle,
@@ -53,7 +53,7 @@ import {
 import { ExtendedOrder } from "@/types/order";
 import { formatOrderCurrency } from "@/lib/utils";
 import { updateOrderStatus } from "@/app/actions/orderActions";
-import { sendCustomerInvoiceWhatsApp } from "@/app/actions/whatsappActions";
+// Removed WhatsApp imports - now using downloadable invoices
 import { toast } from "sonner";
 import { format } from "date-fns";
 
@@ -191,40 +191,82 @@ export function OrdersDataTable({
                         }
                     };
 
-                    // Function to handle WhatsApp invoice sending
-                    const handleWhatsAppInvoice = async () => {
+                    // Function to handle invoice download
+                    const handleDownloadInvoice = async () => {
                         try {
                             const order = row.original;
-                            const customerPhone = order.customer?.phone || "";
-
-                            if (!customerPhone) {
-                                toast.error("Customer phone number not available");
-                                return;
-                            }
-
-                            const result = await sendCustomerInvoiceWhatsApp({
-                                customerPhone: customerPhone,
-                                customerName: order.customerName,
+                            
+                            // Better customer name handling
+                            const customerName = order.customerName || 
+                                                order.customer?.name || 
+                                                order.guest_name || 
+                                                'Valued Customer';
+                            
+                            // Better items mapping with total price calculation
+                            const orderItems = order.order_items?.map((item: any) => ({
+                                name: item.product_name || item.name || "Unknown Product",
+                                quantity: item.quantity || 0,
+                                price: (item.price || 0) * (item.quantity || 1), // Total price for this item
+                            })) || [];
+                            
+                            console.log('Generating invoice for download:', {
                                 orderId: order.display_id || order.id,
-                                items: order.order_items?.map((item: any) => ({
-                                    name: item.product_name || "Unknown Product",
-                                    quantity: item.quantity || 0,
-                                    price: item.total_price || 0,
-                                })) || [],
-                                subtotal: order.total_amount || 0, // Assuming total_amount can be used as subtotal for now
-                                totalAmount: order.total_amount || 0,
-                                transactionDate: new Date(order.created_at || Date.now()).toLocaleDateString(),
-                                storeName: "Betty Organic",
-                                storeContact: "+251944113998",
+                                customerName,
+                                itemsCount: orderItems.length
                             });
 
-                            if (result.success) {
-                                toast.success(`Invoice sent to ${customerPhone} via WhatsApp`);
+                            // Generate invoice image
+                            const receiptData = {
+                                customerName: customerName,
+                                customerEmail: order.customer?.email || order.guest_email || 'customer@email.com',
+                                orderId: order.display_id || order.id,
+                                items: orderItems,
+                                total: order.total_amount || 0,
+                                orderDate: new Date(order.created_at || Date.now()).toLocaleDateString(),
+                                orderTime: new Date(order.created_at || Date.now()).toLocaleTimeString(),
+                                storeName: "Betty Organic",
+                                storeContact: "+251944113998"
+                            };
+
+                            // Call API to generate image
+                            const response = await fetch('/api/generate-receipt-image', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(receiptData)
+                            });
+
+                            if (response.ok) {
+                                const result = await response.json();
+                                if (result.success && result.imageBase64) {
+                                    // Convert base64 to blob and download
+                                    const byteCharacters = atob(result.imageBase64);
+                                    const byteNumbers = new Array(byteCharacters.length);
+                                    for (let i = 0; i < byteCharacters.length; i++) {
+                                        byteNumbers[i] = byteCharacters.charCodeAt(i);
+                                    }
+                                    const byteArray = new Uint8Array(byteNumbers);
+                                    const blob = new Blob([byteArray], { type: 'image/png' });
+                                    
+                                    // Create download link
+                                    const url = URL.createObjectURL(blob);
+                                    const link = document.createElement('a');
+                                    link.href = url;
+                                    link.download = `Invoice-${order.display_id || order.id}.png`;
+                                    document.body.appendChild(link);
+                                    link.click();
+                                    document.body.removeChild(link);
+                                    URL.revokeObjectURL(url);
+                                    
+                                    toast.success(`Invoice downloaded! You can now send it to customer manually.`);
+                                } else {
+                                    toast.error("Failed to generate invoice image");
+                                }
                             } else {
-                                toast.error(result.error || "Failed to send invoice");
+                                toast.error("Failed to generate invoice");
                             }
                         } catch (error) {
-                            toast.error("Error sending WhatsApp invoice");
+                            console.error('Error generating invoice:', error);
+                            toast.error("Error generating invoice");
                         }
                     };
 
@@ -246,9 +288,9 @@ export function OrdersDataTable({
                                     <Eye className="mr-2 h-4 w-4" />
                                     View details
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={handleWhatsAppInvoice}>
-                                    <MessageCircle className="mr-2 h-4 w-4" />
-                                    Send Invoice via WhatsApp
+                                <DropdownMenuItem onClick={handleDownloadInvoice}>
+                                    <Download className="mr-2 h-4 w-4" />
+                                    Download Invoice
                                 </DropdownMenuItem>
 
                                 <DropdownMenuSeparator />
@@ -477,13 +519,81 @@ export function OrdersDataTable({
                                             <DropdownMenuContent align="end" className="w-48">
                                                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                                 <DropdownMenuItem
-                                                    onClick={(e) => {
+                                                    onClick={async (e) => {
                                                         e.stopPropagation();
-                                                        // Handle WhatsApp invoice
+                                                        // Handle invoice download
+                                                        // order is already defined above
+                                                        
+                                                        // Better customer name handling
+                                                        const customerName = order.customerName || 
+                                                                            order.customer?.name || 
+                                                                            order.guest_name || 
+                                                                            'Valued Customer';
+                                                        
+                                                        // Better items mapping with total price calculation
+                                                        const orderItems = order.order_items?.map((item: any) => ({
+                                                            name: item.product_name || item.name || "Unknown Product",
+                                                            quantity: item.quantity || 0,
+                                                            price: (item.price || 0) * (item.quantity || 1),
+                                                        })) || [];
+
+                                                        // Generate invoice image
+                                                        const receiptData = {
+                                                            customerName: customerName,
+                                                            customerEmail: order.customer?.email || order.guest_email || 'customer@email.com',
+                                                            orderId: order.display_id || order.id,
+                                                            items: orderItems,
+                                                            total: order.total_amount || 0,
+                                                            orderDate: new Date(order.created_at || Date.now()).toLocaleDateString(),
+                                                            orderTime: new Date(order.created_at || Date.now()).toLocaleTimeString(),
+                                                            storeName: "Betty Organic",
+                                                            storeContact: "+251944113998"
+                                                        };
+
+                                                        try {
+                                                            const response = await fetch('/api/generate-receipt-image', {
+                                                                method: 'POST',
+                                                                headers: { 'Content-Type': 'application/json' },
+                                                                body: JSON.stringify(receiptData)
+                                                            });
+
+                                                            if (response.ok) {
+                                                                const result = await response.json();
+                                                                if (result.success && result.imageBase64) {
+                                                                    // Convert base64 to blob and download
+                                                                    const byteCharacters = atob(result.imageBase64);
+                                                                    const byteNumbers = new Array(byteCharacters.length);
+                                                                    for (let i = 0; i < byteCharacters.length; i++) {
+                                                                        byteNumbers[i] = byteCharacters.charCodeAt(i);
+                                                                    }
+                                                                    const byteArray = new Uint8Array(byteNumbers);
+                                                                    const blob = new Blob([byteArray], { type: 'image/png' });
+                                                                    
+                                                                    // Create download link
+                                                                    const url = URL.createObjectURL(blob);
+                                                                    const link = document.createElement('a');
+                                                                    link.href = url;
+                                                                    link.download = `Invoice-${order.display_id || order.id}.png`;
+                                                                    document.body.appendChild(link);
+                                                                    link.click();
+                                                                    document.body.removeChild(link);
+                                                                    URL.revokeObjectURL(url);
+                                                                    
+                                                                    toast.success(`Invoice downloaded! You can now send it to customer manually.`);
+                                                                } else {
+                                                                    toast.error("Failed to generate invoice image");
+                                                                }
+                                                            } else {
+                                                                toast.error("Failed to generate invoice");
+                                                            }
+                                                        } catch (error) {
+                                                            console.error('Error generating invoice:', error);
+                                                            toast.error("Error generating invoice");
+                                                        }
                                                     }}
                                                 >
-                                                    <MessageCircle className="mr-2 h-4 w-4" />
-                                                    Send Invoice
+                                                    <Download className="mr-2 h-4 w-4" />
+                                                    Download Invoice
                                                 </DropdownMenuItem>
                                                 {userRole === "admin" && (
                                                     <>

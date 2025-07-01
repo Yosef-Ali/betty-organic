@@ -1,6 +1,38 @@
 'use server'
 
 import { getWhatsAppSettings, sendWhatsAppMessage, type WhatsAppSettings } from './core'
+import fs from 'fs'
+import path from 'path'
+
+// Helper function to download PDF to local file
+async function downloadPDFToFile(pdfUrl: string, orderId: string): Promise<string | null> {
+    try {
+        const response = await fetch(pdfUrl);
+        if (!response.ok) {
+            console.error('Failed to download PDF:', response.status);
+            return null;
+        }
+
+        const buffer = await response.arrayBuffer();
+        const tempDir = path.join(process.cwd(), 'temp');
+        
+        // Ensure temp directory exists
+        if (!fs.existsSync(tempDir)) {
+            fs.mkdirSync(tempDir, { recursive: true });
+        }
+
+        const fileName = `invoice_${orderId}_${Date.now()}.pdf`;
+        const filePath = path.join(tempDir, fileName);
+        
+        fs.writeFileSync(filePath, Buffer.from(buffer));
+        console.log('✅ PDF downloaded to:', filePath);
+        
+        return filePath;
+    } catch (error) {
+        console.error('Error downloading PDF:', error);
+        return null;
+    }
+}
 
 export async function sendAdminWhatsAppNotification(orderDetails: {
     id: string | number
@@ -66,39 +98,37 @@ Please process this order as soon as possible! 🚚`
 
         console.log('📱 Admin WhatsApp notification URL generated')
 
-        // Try to send automatically through Twilio if configured
+        // Try to send automatically through WhatsApp Web.js
         let automaticResult = null
-        if (settings.apiKey) {
-            try {
-                const sendResult = await sendWhatsAppMessage(
-                    settings.adminPhoneNumber,
-                    message, // This is the plain text message
-                    settings
-                );
+        try {
+            const sendResult = await sendWhatsAppMessage(
+                settings.adminPhoneNumber,
+                message, // This is the plain text message
+                settings
+            );
 
-                if (sendResult.success) {
-                    console.log('✅ Admin WhatsApp notification also sent automatically via', settings.apiProvider)
-                    automaticResult = {
-                        messageId: sendResult.messageId,
-                        provider: settings.apiProvider
-                    }
-                } else {
-                    console.warn('⚠️ Automatic WhatsApp sending failed, but URL method is primary:', sendResult.error)
+            if (sendResult.success && sendResult.messageId && !sendResult.whatsappUrl) {
+                console.log('✅ Admin WhatsApp notification sent automatically via WhatsApp Web.js')
+                automaticResult = {
+                    messageId: sendResult.messageId,
+                    provider: 'WhatsApp Web.js'
                 }
-            } catch (error) {
-                console.warn('⚠️ Automatic API attempt failed, but URL method is primary:', error)
+            } else {
+                console.warn('⚠️ Automatic WhatsApp sending failed, using URL method:', sendResult.error)
             }
+        } catch (error) {
+            console.warn('⚠️ Automatic sending attempt failed, using URL method:', error)
         }
 
         // Always return success with WhatsApp URL (primary method)
         return {
             success: true,
             message: automaticResult
-                ? `Admin notification URL generated and also sent via ${automaticResult.provider}`
+                ? `Admin notification sent automatically via ${automaticResult.provider}`
                 : 'Admin notification URL generated for opening',
             whatsappUrl,
-            method: 'url', // Primary method is always URL
-            provider: settings.apiProvider || 'manual',
+            method: automaticResult ? 'automatic' : 'url',
+            provider: 'WhatsApp Web.js',
             automatic: automaticResult, // Additional info if API also worked
             data: {
                 adminPhone: settings.adminPhoneNumber,
@@ -115,100 +145,6 @@ Please process this order as soon as possible! 🚚`
     }
 }
 
-// Enhanced: Send PDF document directly via Twilio WhatsApp (following official Twilio docs)
-// Per Twilio docs: WhatsApp does not support Body text with document attachments
-async function sendTwilioDocument({
-    phoneNumber,
-    documentUrl,
-    settings,
-}: {
-    phoneNumber: string;
-    documentUrl: string;
-    settings: WhatsAppSettings;
-}): Promise<{ success: boolean; error?: string; messageId?: string }> {
-    try {
-        if (!settings.apiKey || !settings.apiSecret) {
-            throw new Error('Twilio API credentials not configured');
-        }
-
-        const twilioAccountSid = settings.apiKey;
-        const twilioAuthToken = settings.apiSecret;
-        const twilioWhatsAppNumber = process.env.TWILIO_WHATSAPP_NUMBER;
-
-        if (!twilioWhatsAppNumber) {
-            throw new Error('TWILIO_WHATSAPP_NUMBER is not configured');
-        }
-
-        // Import formatPhoneNumber
-        const { formatPhoneNumber } = await import('./core');
-
-        // Validate the document URL is accessible before sending (following Twilio best practices)
-        console.log('🔍 Validating PDF URL accessibility:', documentUrl);
-        try {
-            const urlTest = await fetch(documentUrl, { method: 'HEAD' });
-            if (!urlTest.ok) {
-                throw new Error(`PDF URL returned ${urlTest.status}: ${urlTest.statusText}`);
-            }
-
-            const contentLength = urlTest.headers.get('content-length');
-            if (contentLength) {
-                const fileSizeMB = parseInt(contentLength) / (1024 * 1024);
-                if (fileSizeMB > 5) {
-                    throw new Error(`PDF file size (${fileSizeMB.toFixed(2)}MB) exceeds WhatsApp 5MB limit`);
-                }
-                console.log(`✅ PDF validated: ${fileSizeMB.toFixed(2)}MB`);
-            }
-        } catch (urlError) {
-            console.error('❌ PDF URL validation failed:', urlError);
-            throw new Error(`Cannot access PDF: ${urlError instanceof Error ? urlError.message : 'Unknown error'}`);
-        }
-
-        console.log('📄 Sending PDF document via Twilio WhatsApp API');
-
-        // Following Twilio's official documentation - MediaUrl only, no Body text
-        const formData = new URLSearchParams();
-        formData.append('From', twilioWhatsAppNumber);
-        formData.append('To', `whatsapp:${await formatPhoneNumber(phoneNumber)}`);
-        formData.append('MediaUrl', documentUrl);
-        // NOTE: Per Twilio docs, WhatsApp doesn't support Body text with document attachments
-
-        const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'Authorization': `Basic ${Buffer.from(`${twilioAccountSid}:${twilioAuthToken}`).toString('base64')}`
-            },
-            body: formData
-        });
-
-        const result = await response.json();
-
-        console.log('📄 Twilio API response:', {
-            status: response.status,
-            success: response.ok,
-            messageId: result.sid || null,
-            error: result.message || null
-        });
-
-        if (response.ok && result.sid) {
-            console.log('✅ PDF document sent successfully via Twilio WhatsApp:', result.sid);
-            return {
-                success: true,
-                messageId: result.sid
-            };
-        } else {
-            console.error('❌ Twilio API error response:', result);
-            const errorMsg = result.message || result.detail || `HTTP ${response.status}`;
-            throw new Error(`Twilio API failed: ${errorMsg}`);
-        }
-    } catch (error) {
-        console.error('💥 Twilio document sending failed:', error);
-        return {
-            success: false,
-            error: error instanceof Error ? error.message : 'Failed to send PDF document'
-        };
-    }
-}
 
 // Enhanced: Send actual PDF file via WhatsApp using Twilio
 export async function sendPDFReceiptWhatsApp(receiptData: {
@@ -305,10 +241,10 @@ export async function sendPDFReceiptWhatsApp(receiptData: {
         message += `📱 WhatsApp: ${storeContact}\n\n`;
         message += `💚 Thank you for choosing ${storeName}!`;
 
-        // Enhanced PDF document sending with better error handling
-        let sendResult: { success: boolean; error?: string; messageId?: string };
+        // Send PDF document using WhatsApp Web.js
+        let sendResult: { success: boolean; error?: string; messageId?: string; whatsappUrl?: string };
 
-        if (pdfUrl && settings.apiProvider === 'twilio') {
+        if (pdfUrl) {
             console.log('🚀 Attempting to send PDF as WhatsApp document attachment...');
 
             // First, verify the PDF URL is accessible
@@ -323,34 +259,32 @@ export async function sendPDFReceiptWhatsApp(receiptData: {
                 throw new Error(`PDF hosting failed: ${urlError instanceof Error ? urlError.message : 'Unknown error'}`);
             }
 
-            console.log('📤 Sending PDF document via Twilio...');
-            sendResult = await sendTwilioDocument({
-                phoneNumber: receiptData.customerPhone,
-                documentUrl: pdfUrl,
-                settings
-            });
+            // Download PDF to local file for WhatsApp Web.js
+            const pdfPath = await downloadPDFToFile(pdfUrl, receiptData.orderId);
+            
+            if (pdfPath) {
+                console.log('📤 Sending PDF document via WhatsApp Web.js...');
+                const { sendWhatsAppWebJsMessage } = await import('./webjs-service');
+                
+                sendResult = await sendWhatsAppWebJsMessage({
+                    phoneNumber: receiptData.customerPhone,
+                    message: message,
+                    mediaPath: pdfPath,
+                    mediaCaption: `🧾 Your invoice from ${storeName}`
+                });
 
-            console.log('📄 Document send result:', sendResult);
+                console.log('📄 Document send result:', sendResult);
 
-            // If document sending succeeds, send a separate follow-up message with details
-            if (sendResult.success) {
-                console.log('✅ PDF document sent successfully! Sending follow-up message...');
-
-                // Send follow-up message with order details
-                const followUpMessage = `🧾 *Invoice Details*\n\n${message}`;
-
+                // Clean up temporary file
                 try {
-                    await sendWhatsAppMessage(
-                        receiptData.customerPhone,
-                        followUpMessage,
-                        settings
-                    );
-                    console.log('✅ Follow-up message sent successfully');
-                } catch (followUpError) {
-                    console.warn('⚠️ Follow-up message failed, but PDF was sent:', followUpError);
+                    const fs = await import('fs');
+                    fs.default.unlinkSync(pdfPath);
+                } catch (cleanupError) {
+                    console.warn('⚠️ Failed to cleanup temporary PDF file:', cleanupError);
                 }
             } else {
-                console.warn('⚠️ Document sending failed, sending text message with link instead');
+                // Fallback to text message with PDF link
+                console.warn('⚠️ PDF download failed, sending text message with link instead');
                 const messageWithPDF = message + `\n\n📄 *Download your PDF invoice:*\n${pdfUrl}\n\n_Click the link above to download your detailed invoice_`;
                 sendResult = await sendWhatsAppMessage(
                     receiptData.customerPhone,
@@ -359,14 +293,10 @@ export async function sendPDFReceiptWhatsApp(receiptData: {
                 );
             }
         } else {
-            // For non-Twilio providers or if no PDF URL, send regular message
-            const messageWithPDF = pdfUrl
-                ? message + `\n\n📄 *Download your PDF invoice:*\n${pdfUrl}\n\n_Click the link above to download your detailed invoice_`
-                : message;
-
+            // Send regular message without PDF
             sendResult = await sendWhatsAppMessage(
                 receiptData.customerPhone,
-                messageWithPDF,
+                message,
                 settings
             );
         }
@@ -375,9 +305,9 @@ export async function sendPDFReceiptWhatsApp(receiptData: {
             console.log('✅ PDF invoice sent successfully via', settings.apiProvider);
             return {
                 success: true,
-                message: `PDF invoice sent successfully via ${settings.apiProvider}!`,
+                message: 'PDF invoice sent successfully via WhatsApp Web.js!',
                 messageId: sendResult.messageId,
-                provider: settings.apiProvider,
+                provider: 'WhatsApp Web.js',
                 receiptData,
                 pdfGenerated: true,
                 pdfUrl
@@ -400,7 +330,7 @@ export async function sendPDFReceiptWhatsApp(receiptData: {
                 message: 'PDF invoice ready to send via WhatsApp URL',
                 whatsappUrl,
                 method: 'url',
-                provider: settings.apiProvider,
+                provider: 'WhatsApp Web.js',
                 receiptData,
                 pdfGenerated: true,
                 pdfUrl,

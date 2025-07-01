@@ -18,9 +18,16 @@ interface WhatsAppSettings {
   enableOrderNotifications: boolean;
   enableRealTimeNotifications: boolean;
   notificationMessage: string;
-  apiProvider: 'cloud-api' | 'manual' | 'twilio' | 'whatsapp-web-js' | 'baileys';
-  apiKey?: string;
-  apiSecret?: string;
+  sessionPath?: string;
+  authTimeout?: number;
+  restartOnAuthFail?: boolean;
+}
+
+interface ClientStatus {
+  isReady: boolean;
+  isAuthenticating: boolean;
+  qrCode?: string;
+  sessionExists: boolean;
 }
 
 export function SettingsWhatsApp() {
@@ -29,20 +36,24 @@ export function SettingsWhatsApp() {
     enableOrderNotifications: true,
     enableRealTimeNotifications: true,
     notificationMessage: 'New order received from Betty Organic App! Order #{display_id}',
-    apiProvider: 'cloud-api',
-    apiKey: '',
-    apiSecret: ''
+    sessionPath: './whatsapp-session',
+    authTimeout: 60000,
+    restartOnAuthFail: true
   });
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isTestSending, setIsTestSending] = useState(false);
   const [diagnostics, setDiagnostics] = useState<any>(null);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const [clientStatus, setClientStatus] = useState<ClientStatus>({ isReady: false, isAuthenticating: false, sessionExists: false });
+  const [qrCode, setQrCode] = useState<string | null>(null);
+  const [isInitializing, setIsInitializing] = useState(false);
 
   // Load settings and diagnostics on component mount
   useEffect(() => {
     loadSettings();
     loadDiagnostics();
+    loadClientStatus();
   }, []);
   
   const loadSettings = () => {
@@ -65,9 +76,74 @@ export function SettingsWhatsApp() {
       const result = await getWhatsAppDiagnostics();
       if (result.success) {
         setDiagnostics(result.data);
+        if (result.data.clientStatus) {
+          setClientStatus(result.data.clientStatus);
+        }
       }
     } catch (error) {
       console.error('Failed to load diagnostics:', error);
+    }
+  };
+
+  const loadClientStatus = async () => {
+    try {
+      const response = await fetch('/api/whatsapp/status');
+      const result = await response.json();
+      if (result.success) {
+        setClientStatus(result.status);
+        if (result.status.qrCode) {
+          setQrCode(result.status.qrCode);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load client status:', error);
+    }
+  };
+
+  const initializeClient = async () => {
+    setIsInitializing(true);
+    try {
+      const response = await fetch('/api/whatsapp/status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'initialize' })
+      });
+      const result = await response.json();
+      
+      if (result.qrCode) {
+        setQrCode(result.qrCode);
+        toast.success('QR Code generated! Please scan with WhatsApp mobile app.');
+      } else if (result.success) {
+        toast.success('WhatsApp client initialized successfully!');
+        await loadClientStatus();
+      } else {
+        toast.error(result.message || 'Failed to initialize client');
+      }
+    } catch (error) {
+      console.error('Failed to initialize client:', error);
+      toast.error('Failed to initialize WhatsApp client');
+    } finally {
+      setIsInitializing(false);
+    }
+  };
+
+  const logoutClient = async () => {
+    try {
+      const response = await fetch('/api/whatsapp/logout', {
+        method: 'POST'
+      });
+      const result = await response.json();
+      
+      if (result.success) {
+        toast.success('WhatsApp client logged out successfully!');
+        setQrCode(null);
+        await loadClientStatus();
+      } else {
+        toast.error('Failed to logout client');
+      }
+    } catch (error) {
+      console.error('Failed to logout client:', error);
+      toast.error('Failed to logout WhatsApp client');
     }
   };
 
@@ -133,26 +209,20 @@ export function SettingsWhatsApp() {
 
     setIsTestSending(true);
     try {
-      // Generate test message for free WhatsApp
-      const testMessage = `🧪 *Test Message - Betty Organic*
-
-This is a test message from your Betty Organic WhatsApp integration.
-
-Time: ${new Date().toLocaleString()}
-
-If you received this message, your WhatsApp integration is working correctly! ✅`;
+      const result = await testWhatsAppConnection();
       
-      const whatsappUrl = `https://wa.me/${settings.adminPhoneNumber.replace('+', '')}?text=${encodeURIComponent(testMessage)}`;
-      
-      // Open WhatsApp with test message
-      window.open(whatsappUrl, '_blank');
-      
-      toast.success('Test WhatsApp opened!', {
-        description: 'WhatsApp opened with a test message. You can click send if you want to test it.'
-      });
+      if (result.success) {
+        toast.success(result.message);
+        if (result.whatsappUrl) {
+          // If we got a fallback URL, open it
+          window.open(result.whatsappUrl, '_blank');
+        }
+      } else {
+        toast.error(result.error || 'Test failed');
+      }
     } catch (error) {
-      console.error('Failed to open test message:', error);
-      toast.error('Failed to open WhatsApp test message');
+      console.error('Failed to send test message:', error);
+      toast.error('Failed to send test message');
     } finally {
       setIsTestSending(false);
     }
@@ -167,7 +237,7 @@ If you received this message, your WhatsApp integration is working correctly! �
             WhatsApp Integration
           </CardTitle>
           <CardDescription>
-            Configure WhatsApp settings for manual order notifications. Admin can optionally use WhatsApp to notify about orders when needed.
+            Configure WhatsApp Web.js integration for automated order notifications using your regular WhatsApp account.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -187,16 +257,73 @@ If you received this message, your WhatsApp integration is working correctly! �
             </p>
           </div>
 
-          {/* Simplified notice */}
+          {/* WhatsApp Web.js Status */}
           <div className="space-y-2">
             <div className="p-3 border rounded-lg bg-green-50 border-green-200">
               <div className="flex items-center gap-2 text-green-800">
                 <MessageCircle className="w-4 h-4" />
-                <span className="text-sm font-medium">Free WhatsApp Integration</span>
+                <span className="text-sm font-medium">WhatsApp Web.js Integration</span>
+                <Badge variant={clientStatus.isReady ? 'default' : clientStatus.isAuthenticating ? 'secondary' : 'destructive'}>
+                  {clientStatus.isReady ? 'Connected' : clientStatus.isAuthenticating ? 'Authenticating' : 'Not Connected'}
+                </Badge>
               </div>
               <p className="text-sm text-green-700 mt-1">
-                This integration works with your regular WhatsApp account. No paid API required.
+                Automated WhatsApp messaging using your regular WhatsApp account via browser automation.
               </p>
+            </div>
+            
+            {/* QR Code Display */}
+            {qrCode && (
+              <div className="p-4 border rounded-lg bg-yellow-50 border-yellow-200">
+                <h4 className="text-sm font-medium text-yellow-800 mb-2">Scan QR Code with WhatsApp Mobile App</h4>
+                <div className="flex justify-center">
+                  <img src={`data:image/png;base64,${qrCode}`} alt="WhatsApp QR Code" className="max-w-xs" />
+                </div>
+                <p className="text-xs text-yellow-700 mt-2 text-center">
+                  Open WhatsApp on your phone → Three dots menu → Linked devices → Link a device
+                </p>
+              </div>
+            )}
+            
+            {/* Client Actions */}
+            <div className="flex gap-2">
+              {!clientStatus.isReady && !clientStatus.isAuthenticating && (
+                <Button
+                  size="sm"
+                  onClick={initializeClient}
+                  disabled={isInitializing}
+                  className="flex items-center gap-2"
+                >
+                  {isInitializing ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Zap className="w-4 h-4" />
+                  )}
+                  {isInitializing ? 'Initializing...' : 'Connect WhatsApp'}
+                </Button>
+              )}
+              
+              {clientStatus.isReady && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={logoutClient}
+                  className="flex items-center gap-2"
+                >
+                  <XCircle className="w-4 h-4" />
+                  Disconnect
+                </Button>
+              )}
+              
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={loadClientStatus}
+                className="flex items-center gap-2"
+              >
+                <Info className="w-4 h-4" />
+                Refresh Status
+              </Button>
             </div>
           </div>
 
@@ -231,117 +358,51 @@ If you received this message, your WhatsApp integration is working correctly! �
             </div>
           </div>
 
-          {/* API Provider Selection */}
+          {/* WhatsApp Web.js Configuration */}
           <div className="space-y-4">
-            <h3 className="text-sm font-medium">API Provider</h3>
+            <h3 className="text-sm font-medium">WhatsApp Web.js Configuration</h3>
             
-            <div className="space-y-2">
-              <Label htmlFor="apiProvider">WhatsApp Integration Method</Label>
-              <Select 
-                value={settings.apiProvider} 
-                onValueChange={(value) => handleInputChange('apiProvider', value as any)}
-              >
-                <SelectTrigger className="max-w-md">
-                  <SelectValue placeholder="Select API provider" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="cloud-api">
-                    <div className="flex items-center gap-2">
-                      <Zap className="w-4 h-4 text-blue-600" />
-                      <span>WhatsApp Cloud API (Meta)</span>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="manual">
-                    <div className="flex items-center gap-2">
-                      <MessageCircle className="w-4 h-4 text-green-600" />
-                      <span>Manual (Free)</span>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="twilio">
-                    <div className="flex items-center gap-2">
-                      <Settings className="w-4 h-4 text-purple-600" />
-                      <span>Twilio WhatsApp API</span>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="whatsapp-web-js">Web.js Service</SelectItem>
-                  <SelectItem value="baileys">Baileys Service</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-sm text-muted-foreground">
-                Choose how WhatsApp messages should be sent
-              </p>
+            <div className="space-y-3">
+              <div>
+                <Label htmlFor="sessionPath">Session Storage Path</Label>
+                <Input
+                  id="sessionPath"
+                  value={settings.sessionPath || ''}
+                  onChange={(e) => handleInputChange('sessionPath', e.target.value)}
+                  placeholder="./whatsapp-session"
+                />
+                <p className="text-sm text-muted-foreground">
+                  Path where WhatsApp session data will be stored
+                </p>
+              </div>
+              
+              <div>
+                <Label htmlFor="authTimeout">Authentication Timeout (ms)</Label>
+                <Input
+                  id="authTimeout"
+                  type="number"
+                  value={settings.authTimeout || ''}
+                  onChange={(e) => handleInputChange('authTimeout', parseInt(e.target.value) || 60000)}
+                  placeholder="60000"
+                />
+                <p className="text-sm text-muted-foreground">
+                  How long to wait for QR code scan (default: 60 seconds)
+                </p>
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>Restart on Auth Failure</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Automatically restart client if authentication fails
+                  </p>
+                </div>
+                <Switch
+                  checked={settings.restartOnAuthFail || false}
+                  onCheckedChange={(checked) => handleInputChange('restartOnAuthFail', checked)}
+                />
+              </div>
             </div>
-
-            {/* API Credentials for Cloud API */}
-            {settings.apiProvider === 'cloud-api' && (
-              <div className="space-y-4 p-4 border rounded-lg bg-blue-50">
-                <h4 className="text-sm font-medium text-blue-900">WhatsApp Cloud API Configuration</h4>
-                <div className="space-y-3">
-                  <div>
-                    <Label htmlFor="accessToken">Access Token</Label>
-                    <Input
-                      id="accessToken"
-                      type="password"
-                      placeholder="EAAxxxxxxxxxxxx..."
-                      value={settings.apiKey || ''}
-                      onChange={(e) => handleInputChange('apiKey', e.target.value)}
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Get this from Meta Developer Console → Your App → WhatsApp → API Setup
-                    </p>
-                  </div>
-                  <div>
-                    <Label htmlFor="phoneNumberId">Phone Number ID</Label>
-                    <Input
-                      id="phoneNumberId"
-                      placeholder="102xxxxxxxxxx"
-                      value={settings.apiSecret || ''}
-                      onChange={(e) => handleInputChange('apiSecret', e.target.value)}
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Phone Number ID from Meta Developer Console
-                    </p>
-                  </div>
-                </div>
-                <div className="text-xs text-blue-700">
-                  <p><strong>Setup Steps:</strong></p>
-                  <ol className="list-decimal list-inside space-y-1 mt-1">
-                    <li>Create Meta Developer Account and Facebook App</li>
-                    <li>Add WhatsApp product to your app</li>
-                    <li>Get temporary access token and phone number ID</li>
-                    <li>Add test recipients (up to 5 phone numbers)</li>
-                    <li>Enter credentials above and save</li>
-                  </ol>
-                </div>
-              </div>
-            )}
-
-            {/* API Credentials for other providers */}
-            {(settings.apiProvider === 'twilio' || settings.apiProvider === 'whatsapp-web-js' || settings.apiProvider === 'baileys') && (
-              <div className="space-y-4 p-4 border rounded-lg bg-gray-50">
-                <h4 className="text-sm font-medium">{settings.apiProvider} Configuration</h4>
-                <div className="space-y-3">
-                  <div>
-                    <Label htmlFor="apiKey">API Key / Account SID</Label>
-                    <Input
-                      id="apiKey"
-                      type="password"
-                      value={settings.apiKey || ''}
-                      onChange={(e) => handleInputChange('apiKey', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="apiSecret">API Secret / Auth Token</Label>
-                    <Input
-                      id="apiSecret"
-                      type="password"
-                      value={settings.apiSecret || ''}
-                      onChange={(e) => handleInputChange('apiSecret', e.target.value)}
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Custom Message Template */}
@@ -520,12 +581,13 @@ If you received this message, your WhatsApp integration is working correctly! �
                   WhatsApp integration is completely optional and does not interfere with normal order processing.
                 </p>
                 <div className="space-y-1 text-sm text-blue-700">
-                  <p><strong>✅ Customers:</strong> Can optionally share order details via WhatsApp after placing order</p>
-                  <p><strong>👨‍💼 Admin:</strong> Can manually use WhatsApp from dashboard to notify about orders when needed</p>
-                  <p><strong>📱 No automatic:</strong> Nothing opens automatically - everything is user-initiated</p>
+                  <p><strong>🤖 Automated:</strong> Messages are sent automatically via WhatsApp Web.js</p>
+                  <p><strong>👨‍💼 Admin:</strong> Receives instant notifications for new orders</p>
+                  <p><strong>📱 Browser-based:</strong> Uses your regular WhatsApp account via browser automation</p>
+                  <p><strong>🔒 Secure:</strong> Session data is stored locally and encrypted</p>
                 </div>
                 <p className="text-sm text-blue-700">
-                  This respects user choice and doesn&apos;t force anyone to use WhatsApp while providing it as an option.
+                  WhatsApp Web.js provides full automation while using your existing WhatsApp account.
                 </p>
               </div>
             </div>

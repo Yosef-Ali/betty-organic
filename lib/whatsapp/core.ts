@@ -1,15 +1,19 @@
 'use server'
 
 import { getWhatsAppConfig, type WhatsAppConfig } from '@/lib/whatsapp/config'
+import { sendWhatsAppWebJsMessage, initializeWhatsAppClient, getWhatsAppClientStatus } from '@/lib/whatsapp/webjs-service'
+import { sendCloudAPIMessage, initializeCloudAPI, getCloudAPIStatus } from '@/lib/whatsapp/cloud-api-service'
+import { sendManualWhatsAppMessage, getManualModeStatus } from '@/lib/whatsapp/manual-service'
+import { generateWhatsAppUrl } from '@/lib/whatsapp/fallback-service'
 
 export interface WhatsAppSettings {
     adminPhoneNumber: string
     enableOrderNotifications: boolean
     enableRealTimeNotifications: boolean
     notificationMessage: string
-    apiProvider?: 'twilio' // Only Twilio is supported now
-    apiKey?: string
-    apiSecret?: string
+    sessionPath?: string
+    authTimeout?: number
+    restartOnAuthFail?: boolean
 }
 
 // Centralized phone number formatting utility
@@ -21,18 +25,14 @@ export async function getWhatsAppSettings(): Promise<WhatsAppSettings | null> {
     try {
         const config = getWhatsAppConfig()
 
-        // Only Twilio provider is supported
-        const apiKey = config.twilio.accountSid
-        const apiSecret = config.twilio.authToken
-
         return {
             adminPhoneNumber: config.adminPhoneNumber,
             enableOrderNotifications: config.enableOrderNotifications,
             enableRealTimeNotifications: config.enableRealTimeNotifications,
             notificationMessage: config.notificationMessage,
-            apiProvider: 'twilio',
-            apiKey,
-            apiSecret
+            sessionPath: config.webJs.sessionPath,
+            authTimeout: config.webJs.authTimeout,
+            restartOnAuthFail: config.webJs.restartOnAuthFail
         }
     } catch (error) {
         console.error('Failed to get WhatsApp settings:', error)
@@ -59,71 +59,94 @@ export async function updateWhatsAppSettings(settings: WhatsAppSettings) {
     }
 }
 
-// Simplified Twilio WhatsApp API implementation
-export async function sendTwilioWhatsApp({
-    phoneNumber,
-    message,
-    mediaUrl,
-    settings,
-}: {
-    phoneNumber: string;
-    message?: string;
-    mediaUrl?: string;
-    settings: WhatsAppSettings;
-}): Promise<{ success: boolean; error?: string; messageId?: string }> {
-    try {
-        if (!settings.apiKey || !settings.apiSecret) {
-            throw new Error('Twilio API credentials not configured');
-        }
 
-        const twilioAccountSid = settings.apiKey;
-        const twilioAuthToken = settings.apiSecret;
-        const twilioWhatsAppNumber = process.env.TWILIO_WHATSAPP_NUMBER;
-
-        if (!twilioWhatsAppNumber) {
-            throw new Error('TWILIO_WHATSAPP_NUMBER is not configured');
-        }
-
-        const payload: Record<string, string> = {
-            From: twilioWhatsAppNumber,
-            To: `whatsapp:${await formatPhoneNumber(phoneNumber)}`,
-        };
-
-        if (message) payload.Body = message;
-        if (mediaUrl) payload.MediaUrl = mediaUrl;
-
-        const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'Authorization': `Basic ${Buffer.from(`${twilioAccountSid}:${twilioAuthToken}`).toString('base64')}`
-            },
-            body: new URLSearchParams(payload)
-        });
-
-        const result = await response.json();
-
-        if (response.ok && result.sid) {
-            return { success: true, messageId: result.sid };
-        } else {
-            throw new Error(result.message || result.detail || 'Twilio API error');
-        }
-    } catch (error) {
-        return {
-            success: false,
-            error: error instanceof Error ? error.message : 'Twilio API error'
-        };
-    }
-}
-
-// Only Twilio WhatsApp sending is supported now
+// Send WhatsApp message using the configured provider
 export async function sendWhatsAppMessage(
     phoneNumber: string,
     message: string,
     settings: WhatsAppSettings,
-    mediaUrl?: string
-): Promise<{ success: boolean; error?: string; messageId?: string }> {
-    return sendTwilioWhatsApp({ phoneNumber, message, mediaUrl, settings });
+    mediaPath?: string
+): Promise<{ success: boolean; error?: string; messageId?: string; whatsappUrl?: string }> {
+    try {
+        const config = getWhatsAppConfig()
+
+        console.log(`📱 Sending WhatsApp message via ${config.provider} provider`)
+
+        // Choose provider based on configuration
+        switch (config.provider) {
+            case 'cloud-api':
+                console.log('🔵 Using WhatsApp Cloud API')
+                const cloudResult = await sendCloudAPIMessage({
+                    phoneNumber,
+                    message,
+                    mediaUrl: mediaPath
+                })
+
+                if (cloudResult.success) {
+                    return {
+                        success: true,
+                        messageId: cloudResult.messageId
+                    }
+                } else {
+                    // Fallback to manual if Cloud API fails
+                    console.warn('⚠️ Cloud API failed, falling back to manual URL:', cloudResult.error)
+                    const manualResult = await sendManualWhatsAppMessage({ phoneNumber, message })
+                    return {
+                        success: true,
+                        messageId: manualResult.messageId,
+                        whatsappUrl: manualResult.whatsappUrl,
+                        error: `Cloud API failed: ${cloudResult.error}. Generated manual URL instead.`
+                    }
+                }
+
+            case 'whatsapp-web-js':
+                console.log('🟢 Using WhatsApp Web.js')
+                const webjsResult = await sendWhatsAppWebJsMessage({
+                    phoneNumber,
+                    message,
+                    mediaPath
+                })
+
+                if (webjsResult.success) {
+                    return {
+                        success: true,
+                        messageId: webjsResult.messageId
+                    }
+                } else {
+                    // Fallback to manual if Web.js fails
+                    console.warn('⚠️ WhatsApp Web.js failed, falling back to manual URL:', webjsResult.error)
+                    const manualResult = await sendManualWhatsAppMessage({ phoneNumber, message })
+                    return {
+                        success: true,
+                        messageId: manualResult.messageId,
+                        whatsappUrl: manualResult.whatsappUrl,
+                        error: `Web.js failed: ${webjsResult.error}. Generated manual URL instead.`
+                    }
+                }
+
+            case 'manual':
+            default:
+                console.log('🔵 Using Manual WhatsApp Mode')
+                const manualResult = await sendManualWhatsAppMessage({ phoneNumber, message })
+                return {
+                    success: true,
+                    messageId: manualResult.messageId,
+                    whatsappUrl: manualResult.whatsappUrl
+                }
+        }
+    } catch (error) {
+        console.error('Error in sendWhatsAppMessage:', error)
+
+        // Always provide manual fallback
+        const whatsappUrl = await generateWhatsAppUrl(phoneNumber, message)
+
+        return {
+            success: true,
+            messageId: 'error_fallback_' + Date.now(),
+            whatsappUrl: whatsappUrl,
+            error: 'System error, generated manual URL'
+        };
+    }
 }
 
 // Test WhatsApp connection
@@ -138,7 +161,14 @@ export async function testWhatsAppConnection() {
             }
         }
 
-        const testMessage = `🧪 *Test Message - Betty Organic*\n\nThis is a test message from your Betty Organic WhatsApp integration.\n\nProvider: ${settings.apiProvider || 'twilio'}\nTime: ${new Date().toLocaleString()}\n\nIf you received this message, your WhatsApp integration is working correctly! ✅`
+        const testMessage = `🧪 *Test Message - Betty Organic*
+
+This is a test message from your Betty Organic WhatsApp integration.
+
+Provider: WhatsApp Web.js
+Time: ${new Date().toLocaleString()}
+
+If you received this message, your WhatsApp integration is working correctly! ✅`
 
         const result = await sendWhatsAppMessage(
             settings.adminPhoneNumber,
@@ -149,11 +179,12 @@ export async function testWhatsAppConnection() {
         return {
             success: result.success,
             message: result.success
-                ? `Test message sent successfully via ${settings.apiProvider}`
+                ? 'Test message sent successfully via WhatsApp Web.js'
                 : `Test failed: ${result.error}`,
-            provider: settings.apiProvider,
+            provider: 'WhatsApp Web.js',
             messageId: result.messageId,
-            error: result.error
+            error: result.error,
+            whatsappUrl: result.whatsappUrl
         }
     } catch (error) {
         console.error('WhatsApp connection test failed:', error)
@@ -170,15 +201,124 @@ export async function getWhatsAppDiagnostics() {
         const { diagnoseConfiguration } = await import('@/lib/whatsapp/config')
         const diagnostics = diagnoseConfiguration()
 
+        // Get client status
+        const clientStatus = await getWhatsAppClientStatus()
+
         return {
             success: true,
-            data: diagnostics
+            data: {
+                ...diagnostics,
+                clientStatus
+            }
         }
     } catch (error) {
         console.error('Failed to get WhatsApp diagnostics:', error)
         return {
             success: false,
             error: error instanceof Error ? error.message : 'Failed to get diagnostics'
+        }
+    }
+}
+
+// Get WhatsApp provider status
+export async function getWhatsAppProviderStatus(): Promise<{
+    isReady: boolean
+    isAuthenticating: boolean
+    qrCode?: string
+    sessionExists: boolean
+    isManualMode: boolean
+    provider: string
+    message: string
+}> {
+    try {
+        const config = getWhatsAppConfig()
+
+        console.log(`🔍 Checking status for ${config.provider} provider`)
+
+        switch (config.provider) {
+            case 'cloud-api':
+                const cloudStatus = await getCloudAPIStatus()
+                return {
+                    isReady: cloudStatus.isReady,
+                    isAuthenticating: cloudStatus.isAuthenticating,
+                    qrCode: cloudStatus.qrCode,
+                    sessionExists: cloudStatus.sessionExists,
+                    isManualMode: cloudStatus.isManualMode,
+                    provider: 'WhatsApp Cloud API',
+                    message: cloudStatus.isReady ? 'Cloud API Ready' : 'Cloud API Not Configured'
+                }
+
+            case 'whatsapp-web-js':
+                const webjsStatus = await getWhatsAppClientStatus()
+                return {
+                    isReady: webjsStatus.isReady,
+                    isAuthenticating: webjsStatus.isAuthenticating,
+                    qrCode: webjsStatus.qrCode,
+                    sessionExists: webjsStatus.sessionExists,
+                    isManualMode: false,
+                    provider: 'WhatsApp Web.js',
+                    message: webjsStatus.isReady ? 'Web.js Ready' :
+                        webjsStatus.isAuthenticating ? 'Authenticating...' : 'Not Connected'
+                }
+
+            case 'manual':
+            default:
+                const manualStatus = await getManualModeStatus()
+                return {
+                    isReady: manualStatus.isReady,
+                    isAuthenticating: manualStatus.isAuthenticating,
+                    qrCode: manualStatus.qrCode,
+                    sessionExists: manualStatus.sessionExists,
+                    isManualMode: manualStatus.isManualMode,
+                    provider: 'Manual Mode',
+                    message: 'Manual URLs Ready'
+                }
+        }
+    } catch (error) {
+        console.error('Error getting provider status:', error)
+        return {
+            isReady: false,
+            isAuthenticating: false,
+            sessionExists: false,
+            isManualMode: true,
+            provider: 'Error',
+            message: 'Status check failed'
+        }
+    }
+}
+
+// Initialize the configured WhatsApp provider
+export async function initializeWhatsAppProvider(): Promise<{
+    success: boolean
+    message: string
+    qrCode?: string
+    error?: string
+}> {
+    try {
+        const config = getWhatsAppConfig()
+
+        console.log(`🚀 Initializing ${config.provider} provider`)
+
+        switch (config.provider) {
+            case 'cloud-api':
+                return await initializeCloudAPI()
+
+            case 'whatsapp-web-js':
+                return await initializeWhatsAppClient()
+
+            case 'manual':
+            default:
+                return {
+                    success: true,
+                    message: 'Manual mode initialized - no setup required'
+                }
+        }
+    } catch (error) {
+        console.error('Error initializing provider:', error)
+        return {
+            success: false,
+            message: 'Provider initialization failed',
+            error: error instanceof Error ? error.message : 'Unknown error'
         }
     }
 }

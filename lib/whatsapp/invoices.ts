@@ -33,9 +33,16 @@ export async function sendCustomerInvoiceWhatsApp(invoiceData: {
         }
 
         const storeName = invoiceData.storeName || 'Betty Organic';
-        const itemsList = invoiceData.items
-            .map(item => `• ${item.name} (Qty: ${item.quantity}) - ETB ${item.price.toFixed(2)}`)
-            .join('\n');
+        
+        // Handle empty items case
+        let itemsList = '';
+        if (invoiceData.items && invoiceData.items.length > 0) {
+            itemsList = invoiceData.items
+                .map(item => `• ${item.name} (Qty: ${item.quantity}) - ETB ${item.price.toFixed(2)}`)
+                .join('\n');
+        } else {
+            itemsList = '• Order details not available';
+        }
 
         let message = `📄 *Invoice - ${storeName}*\n\n`;
         message += `Dear ${invoiceData.customerName},\n\n`;
@@ -70,7 +77,12 @@ export async function sendCustomerInvoiceWhatsApp(invoiceData: {
             to: invoiceData.customerPhone,
             orderId: invoiceData.orderId,
             provider: settings.apiProvider,
+            itemsCount: invoiceData.items.length,
+            items: invoiceData.items
         });
+        
+        console.log('📄 Generated invoice message:');
+        console.log(message);
 
         const sendResult = await sendWhatsAppMessage(
             invoiceData.customerPhone,
@@ -82,9 +94,12 @@ export async function sendCustomerInvoiceWhatsApp(invoiceData: {
             console.log('✅ Customer invoice sent successfully via', settings.apiProvider);
             return {
                 success: true,
-                message: 'Invoice sent successfully via WhatsApp.',
+                message: sendResult.whatsappUrl 
+                    ? 'Invoice WhatsApp URL generated for manual sending.'
+                    : 'Invoice sent successfully via WhatsApp.',
                 messageId: sendResult.messageId,
                 provider: settings.apiProvider,
+                whatsappUrl: sendResult.whatsappUrl,
             };
         } else {
             console.warn('⚠️ Failed to send customer invoice automatically:', sendResult.error);

@@ -7,7 +7,7 @@ import { SettingsKnowledgeBase } from '@/components/settings/SettingsKnowledgeBa
 import { SettingsGeneral } from '@/components/settings/SettingsGeneral';
 import { SettingsAbout } from '@/components/settings/SettingsAbout';
 import { SettingsAIConfiguration } from '@/components/settings/SettingsAIConfiguration';
-import { SettingsWhatsApp } from '@/components/settings/SettingsWhatsApp';
+import { SettingsWhatsAppSimple } from '@/components/settings/SettingsWhatsAppSimple';
 import {
   Card,
   CardContent,
@@ -72,7 +72,7 @@ export default async function SettingsPage() {
             <SettingsAIConfiguration />
           </TabsContent>
           <TabsContent value="whatsapp" className="space-y-4 px-2 sm:px-0">
-            <SettingsWhatsApp />
+            <SettingsWhatsAppSimple />
           </TabsContent>
           <TabsContent value="testimonials" className="space-y-4 px-2 sm:px-0">
             <SettingsTestimonials initialTestimonials={testimonials} />
