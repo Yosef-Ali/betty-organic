@@ -16,9 +16,31 @@ const getImageStorage = () => {
     return globalThis.imageStorage;
 };
 
+// Clean up expired images to save memory
+const cleanupExpiredImages = () => {
+    const imageStorage = getImageStorage();
+    const now = Date.now();
+    let removedCount = 0;
+
+    // Use Array.from to handle iteration properly
+    const entries = Array.from(imageStorage.entries());
+    for (const [id, data] of entries) {
+        if (data.expiresAt < now) {
+            imageStorage.delete(id);
+            removedCount++;
+        }
+    }
+
+    if (removedCount > 0) {
+        console.log(`🧹 Cleaned up ${removedCount} expired images. Storage size: ${imageStorage.size}`);
+    }
+
+    return removedCount;
+};
+
 export async function POST(request: NextRequest) {
     try {
-        const { imageData, filename, expiresIn = 3600 } = await request.json();
+        const { imageData, filename, expiresIn = 600 } = await request.json(); // Default to 10 minutes
 
         if (!imageData || !filename) {
             return NextResponse.json(
@@ -26,6 +48,9 @@ export async function POST(request: NextRequest) {
                 { status: 400 }
             );
         }
+
+        // Clean up expired images first to save memory
+        cleanupExpiredImages();
 
         // Generate unique ID for this image
         const imageId = crypto.randomUUID();

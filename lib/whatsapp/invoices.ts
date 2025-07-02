@@ -1,6 +1,7 @@
 'use server'
 
 import { getWhatsAppSettings, sendWhatsAppMessage, type WhatsAppSettings } from './core'
+import { getWhatsAppConfig } from './config'
 
 // NEW: Send invoice to customer via WhatsApp
 export async function sendCustomerInvoiceWhatsApp(invoiceData: {
@@ -24,6 +25,7 @@ export async function sendCustomerInvoiceWhatsApp(invoiceData: {
 }) {
     try {
         const settings = await getWhatsAppSettings();
+        const config = getWhatsAppConfig();
 
         if (!settings) {
             return {
@@ -33,7 +35,7 @@ export async function sendCustomerInvoiceWhatsApp(invoiceData: {
         }
 
         const storeName = invoiceData.storeName || 'Betty Organic';
-        
+
         // Handle empty items case
         let itemsList = '';
         if (invoiceData.items && invoiceData.items.length > 0) {
@@ -76,11 +78,11 @@ export async function sendCustomerInvoiceWhatsApp(invoiceData: {
         console.log('📱 Preparing customer invoice WhatsApp message:', {
             to: invoiceData.customerPhone,
             orderId: invoiceData.orderId,
-            provider: settings.apiProvider,
+            provider: config.provider,
             itemsCount: invoiceData.items.length,
             items: invoiceData.items
         });
-        
+
         console.log('📄 Generated invoice message:');
         console.log(message);
 
@@ -91,14 +93,14 @@ export async function sendCustomerInvoiceWhatsApp(invoiceData: {
         );
 
         if (sendResult.success) {
-            console.log('✅ Customer invoice sent successfully via', settings.apiProvider);
+            console.log('✅ Customer invoice sent successfully via', config.provider);
             return {
                 success: true,
-                message: sendResult.whatsappUrl 
+                message: sendResult.whatsappUrl
                     ? 'Invoice WhatsApp URL generated for manual sending.'
                     : 'Invoice sent successfully via WhatsApp.',
                 messageId: sendResult.messageId,
-                provider: settings.apiProvider,
+                provider: config.provider,
                 whatsappUrl: sendResult.whatsappUrl,
             };
         } else {
@@ -112,7 +114,7 @@ export async function sendCustomerInvoiceWhatsApp(invoiceData: {
                 success: true,
                 message: 'Invoice WhatsApp URL generated for manual sending.',
                 whatsappUrl,
-                provider: settings.apiProvider,
+                provider: config.provider,
                 error: sendResult.error
             };
         }
@@ -143,6 +145,7 @@ export async function sendImageInvoiceWhatsApp(invoiceData: {
 }) {
     try {
         const settings = await getWhatsAppSettings();
+        const config = getWhatsAppConfig();
 
         if (!settings) {
             return {
@@ -157,14 +160,15 @@ export async function sendImageInvoiceWhatsApp(invoiceData: {
         console.log('📱 Preparing IMAGE invoice WhatsApp message:', {
             to: invoiceData.customerPhone,
             orderId: invoiceData.orderId,
-            provider: settings.apiProvider,
-            method: 'IMAGE'
+            provider: config.provider,
+            method: 'IMAGE',
+            note: 'Generating fresh image on-demand - no pre-stored images'
         });
 
         // Generate receipt image via API route
         let imageUrl: string | undefined;
         let imageGenerated = false;
-        
+
         try {
             console.log('🔄 Generating receipt image via API route...');
             console.log('📊 Receipt data being sent:', JSON.stringify({
@@ -173,7 +177,7 @@ export async function sendImageInvoiceWhatsApp(invoiceData: {
                 itemsCount: invoiceData.items.length,
                 total: invoiceData.total
             }, null, 2));
-            
+
             // Convert to receipt format
             const receiptData = {
                 customerName: invoiceData.customerName,
@@ -190,32 +194,62 @@ export async function sendImageInvoiceWhatsApp(invoiceData: {
                 storeContact: invoiceData.storeContact
             };
 
-            // Get the base URL
-            const baseUrl = process.env.NEXT_PUBLIC_NGROK_URL ||
+            // Get the base URL - use localhost for internal API calls, ngrok for external sharing
+            const internalBaseUrl = 'http://localhost:3000';
+            const externalBaseUrl = process.env.NEXT_PUBLIC_NGROK_URL ||
                 process.env.NEXTAUTH_URL ||
                 process.env.NEXT_PUBLIC_SITE_URL ||
                 'http://localhost:3000';
 
-            console.log('🌐 Using base URL:', baseUrl);
-            console.log('📝 Full receipt data:', receiptData);
-
-            // Generate receipt image via API
+            console.log('🌐 Using internal base URL:', internalBaseUrl);
+            console.log('🌐 External base URL for sharing:', externalBaseUrl);
+            console.log('📝 Full receipt data:', receiptData);        // Generate receipt image via API (use internal URL)
             console.log('📤 Calling image generation API...');
-            const imageResponse = await fetch(`${baseUrl}/api/generate-receipt-image`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(receiptData),
-            });
+            console.log('🔄 ON-DEMAND: Creating fresh invoice image (not using cached version)');
+
+            let imageResponse;
+            let retryCount = 0;
+            const maxRetries = 2;
+
+            // Retry mechanism for image generation reliability
+            while (retryCount <= maxRetries) {
+                try {
+                    imageResponse = await fetch(`${internalBaseUrl}/api/generate-receipt-image`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(receiptData),
+                    });
+
+                    if (imageResponse.ok) {
+                        console.log(`✅ Image generation successful ${retryCount > 0 ? `(retry ${retryCount})` : ''}`);
+                        break;
+                    } else if (retryCount < maxRetries) {
+                        retryCount++;
+                        console.log(`⚠️ Image generation failed, retrying... (${retryCount}/${maxRetries})`);
+                        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+                    } else {
+                        break;
+                    }
+                } catch (error) {
+                    if (retryCount < maxRetries) {
+                        retryCount++;
+                        console.log(`⚠️ Image generation error, retrying... (${retryCount}/${maxRetries}):`, error);
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                    } else {
+                        throw error;
+                    }
+                }
+            }
 
             console.log('📥 Image generation response:', {
-                status: imageResponse.status,
-                ok: imageResponse.ok,
-                statusText: imageResponse.statusText
+                status: imageResponse?.status || 'unknown',
+                ok: imageResponse?.ok || false,
+                statusText: imageResponse?.statusText || 'unknown'
             });
 
-            if (imageResponse.ok) {
+            if (imageResponse && imageResponse.ok) {
                 const imageResult = await imageResponse.json();
                 console.log('📄 Receipt generated successfully:', {
                     success: imageResult.success,
@@ -233,7 +267,7 @@ export async function sendImageInvoiceWhatsApp(invoiceData: {
                 console.log('📤 Uploading to temp storage...');
 
                 // Upload to temporary storage using the correct IMAGE API
-                const uploadResponse = await fetch(`${baseUrl}/api/temp-image`, {
+                const uploadResponse = await fetch(`${internalBaseUrl}/api/temp-image`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -242,28 +276,60 @@ export async function sendImageInvoiceWhatsApp(invoiceData: {
                     body: JSON.stringify({
                         imageData: imageResult.imageBase64,
                         filename: imageResult.filename,
-                        expiresIn: 3600 // 1 hour
+                        expiresIn: 600 // 10 minutes only (generated on-demand)
                     }),
                 });
+
+                console.log('⚡ ON-DEMAND: Image generated and stored for 10 minutes only!');
 
                 console.log('📥 Upload response:', {
                     status: uploadResponse.status,
                     ok: uploadResponse.ok,
                     statusText: uploadResponse.statusText
-                });
-
-                if (uploadResponse.ok) {
+                }); if (uploadResponse.ok) {
                     const uploadResult = await uploadResponse.json();
                     imageUrl = uploadResult.url;
-                    imageGenerated = true;
-                    console.log('✅ Receipt uploaded to temporary URL:', imageUrl);
-                    console.log('🎯 IMAGE GENERATION SUCCESS - Will send with media!');
+
+                    // Convert localhost URLs to external URLs for WhatsApp
+                    if (imageUrl && imageUrl.includes('localhost') && externalBaseUrl !== 'http://localhost:3000') {
+                        imageUrl = imageUrl.replace('http://localhost:3000', externalBaseUrl);
+                        console.log('🔄 Converted localhost URL to external URL:', imageUrl);
+                    }
+
+                    // Test if the URL is accessible before marking as generated
+                    console.log('🔍 Testing URL accessibility...');
+                    if (imageUrl) {
+                        try {
+                            const testResponse = await fetch(imageUrl, { method: 'HEAD' });
+                            if (testResponse.ok) {
+                                imageGenerated = true;
+                                console.log('✅ Receipt uploaded and URL is accessible:', imageUrl);
+                                console.log('🎯 IMAGE GENERATION SUCCESS - Will send with media!');
+                            } else {
+                                console.warn('⚠️ URL uploaded but not accessible:', {
+                                    status: testResponse.status,
+                                    statusText: testResponse.statusText
+                                });
+                                console.warn('🔄 Will fall back to text message...');
+                                imageUrl = undefined;
+                                imageGenerated = false;
+                            }
+                        } catch (testError) {
+                            console.warn('⚠️ URL accessibility test failed:', testError);
+                            console.warn('🔄 Will fall back to text message...');
+                            imageUrl = undefined;
+                            imageGenerated = false;
+                        }
+                    }
 
                     // Verify the URL is publicly accessible
-                    if (imageUrl && imageUrl.includes('localhost') && !imageUrl.includes('ngrok')) {
-                        console.warn('⚠️ Receipt URL is localhost - Twilio cannot access it. Please use ngrok!');
-                        console.warn('Run: ngrok http 3000');
-                        console.warn('Then update NEXT_PUBLIC_NGROK_URL in .env.local');
+                    if (imageUrl && imageUrl.includes('localhost')) {
+                        console.warn('⚠️ Receipt URL is localhost - WhatsApp cannot access it!');
+                        console.warn('💡 Either start ngrok: ngrok http 3000');
+                        console.warn('💡 Or update NEXT_PUBLIC_NGROK_URL in .env.local');
+                        console.warn('🔄 Falling back to text message...');
+                        imageUrl = undefined;
+                        imageGenerated = false;
                     }
                 } else {
                     const uploadError = await uploadResponse.text();
@@ -273,9 +339,9 @@ export async function sendImageInvoiceWhatsApp(invoiceData: {
                     });
                 }
             } else {
-                const imageError = await imageResponse.text();
+                const imageError = imageResponse ? await imageResponse.text() : 'No response received';
                 console.error('❌ Failed to generate receipt image:', {
-                    status: imageResponse.status,
+                    status: imageResponse?.status || 'unknown',
                     error: imageError
                 });
             }
@@ -289,17 +355,17 @@ export async function sendImageInvoiceWhatsApp(invoiceData: {
 
         // Send via WhatsApp with image attachment if available
         let sendResult: { success: boolean; error?: string; messageId?: string };
-        
+
         console.log('📱 Preparing to send WhatsApp message:', {
             hasImageUrl: !!imageUrl,
             imageGenerated,
             imageUrl: imageUrl?.substring(0, 100) + '...',
             customerPhone: invoiceData.customerPhone,
-            provider: settings.apiProvider
+            provider: config.provider
         });
-        
+
         if (imageUrl && imageGenerated) {
-            console.log('🚀 Sending IMAGE ONLY via WhatsApp (no text - server fallback)...');
+            console.log('🚀 Sending IMAGE ONLY via WhatsApp...');
             console.log('📎 Media URL:', imageUrl);
             sendResult = await sendWhatsAppMessage(
                 invoiceData.customerPhone,
@@ -309,26 +375,38 @@ export async function sendImageInvoiceWhatsApp(invoiceData: {
             );
             console.log('📬 WhatsApp send result (image only):', sendResult);
         } else {
-            console.log('🚀 No image available, skipping WhatsApp send...');
-            console.log('❓ Why no image?', {
-                hasImageUrl: !!imageUrl,
-                imageGenerated,
-                imageUrl: imageUrl || 'undefined'
-            });
-            return {
-                success: false,
-                error: 'No image generated - cannot send empty message'
-            };
+            console.log('🚀 Image generation failed, sending text invoice instead...');
+
+            // Create a formatted text invoice
+            const textInvoice = `📄 *INVOICE - ${invoiceData.storeName || 'Betty Organic'}*\n\n` +
+                `Customer: ${invoiceData.customerName}\n` +
+                `Order ID: *${invoiceData.orderId}*\n` +
+                `Date: ${invoiceData.orderDate} ${invoiceData.orderTime}\n\n` +
+                `*Items:*\n` +
+                invoiceData.items.map(item =>
+                    `• ${item.name} (${item.quantity}) - ETB ${item.price.toFixed(2)}`
+                ).join('\n') +
+                `\n\n*Total: ETB ${invoiceData.total.toFixed(2)}*\n\n` +
+                `Thank you for choosing ${invoiceData.storeName || 'Betty Organic'}!\n` +
+                `Contact: ${invoiceData.storeContact || '+251944113998'}`;
+
+            sendResult = await sendWhatsAppMessage(
+                invoiceData.customerPhone,
+                textInvoice,
+                settings
+            );
+            console.log('📬 WhatsApp send result (text invoice):', sendResult);
         }
 
         if (sendResult.success) {
-            console.log(`✅ IMAGE invoice sent successfully via WhatsApp`);
+            const method = imageUrl && imageGenerated ? 'IMAGE' : 'TEXT';
+            console.log(`✅ ${method} invoice sent successfully via WhatsApp`);
             return {
                 success: true,
-                message: `Invoice image sent successfully via WhatsApp!`,
+                message: `Invoice sent successfully via WhatsApp ${imageUrl && imageGenerated ? '(as image)' : '(as text)'}!`,
                 messageId: sendResult.messageId,
-                provider: 'twilio',
-                method: 'IMAGE',
+                provider: 'whatsapp-web-js',
+                method: method,
                 invoiceData,
                 imageGenerated,
                 imageUrl
@@ -339,11 +417,11 @@ export async function sendImageInvoiceWhatsApp(invoiceData: {
             // Fallback: Generate WhatsApp URL for manual sending with minimal message
             const cleanPhone = invoiceData.customerPhone.replace(/[\s\-\(\)\+]/g, '');
             let finalFallbackMessage = fallbackMessage;
-            
+
             if (imageUrl && imageGenerated) {
                 finalFallbackMessage += `\n📄 View: ${imageUrl}`;
             }
-            
+
             const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(finalFallbackMessage)}`;
 
             return {
@@ -390,6 +468,7 @@ export async function sendSalesReceiptWhatsApp(receiptData: {
 }) {
     try {
         const settings = await getWhatsAppSettings();
+        const config = getWhatsAppConfig();
 
         if (!settings) {
             return {
@@ -468,7 +547,7 @@ export async function sendSalesReceiptWhatsApp(receiptData: {
         console.log('📱 Preparing sales receipt WhatsApp message:', {
             to: receiptData.customerPhone,
             orderId: receiptData.orderId,
-            provider: settings.apiProvider,
+            provider: config.provider,
             messageLength: message.length
         });
 
@@ -480,12 +559,12 @@ export async function sendSalesReceiptWhatsApp(receiptData: {
         );
 
         if (sendResult.success) {
-            console.log('✅ Sales receipt sent successfully via', settings.apiProvider);
+            console.log('✅ Sales receipt sent successfully via', config.provider);
             return {
                 success: true,
-                message: `Receipt sent successfully via ${settings.apiProvider}!`,
+                message: `Receipt sent successfully via ${config.provider}!`,
                 messageId: sendResult.messageId,
-                provider: settings.apiProvider,
+                provider: config.provider,
                 receiptData
             };
         } else {
@@ -500,7 +579,7 @@ export async function sendSalesReceiptWhatsApp(receiptData: {
                 message: 'Receipt ready to send via WhatsApp URL',
                 whatsappUrl,
                 method: 'url',
-                provider: settings.apiProvider,
+                provider: config.provider,
                 receiptData,
                 fallbackReason: sendResult.error
             };
@@ -528,6 +607,7 @@ export async function sendImageDataToWhatsApp(imageData: {
 }) {
     try {
         const settings = await getWhatsAppSettings();
+        const config = getWhatsAppConfig();
 
         if (!settings) {
             return {
@@ -542,7 +622,7 @@ export async function sendImageDataToWhatsApp(imageData: {
         console.log('📱 Preparing IMAGE invoice WhatsApp message:', {
             to: imageData.customerPhone,
             orderId: imageData.orderId,
-            provider: settings.apiProvider,
+            provider: config.provider,
             method: 'IMAGE',
             hasImageData: !!imageData.imageBase64
         });
@@ -614,15 +694,15 @@ export async function sendImageDataToWhatsApp(imageData: {
             // Check if the error is due to trial account media limitations
             if (!sendResult.success && sendResult.error) {
                 const errorMessage = sendResult.error.toLowerCase();
-                const isTrialLimitError = errorMessage.includes('trial') || 
-                                        errorMessage.includes('media') || 
-                                        errorMessage.includes('24') ||
-                                        errorMessage.includes('quota') ||
-                                        errorMessage.includes('limit');
+                const isTrialLimitError = errorMessage.includes('trial') ||
+                    errorMessage.includes('media') ||
+                    errorMessage.includes('24') ||
+                    errorMessage.includes('quota') ||
+                    errorMessage.includes('limit');
 
                 if (isTrialLimitError) {
                     console.warn('⚠️ Trial account media limit reached, sending minimal text message with receipt link...');
-                    
+
                     // Create a minimal message with link to view the image
                     const enhancedMessage = `🧾 Invoice #${imageData.orderId} - ETB ${imageData.total.toFixed(2)}\n📄 View: ${imageUrl}`;
 
@@ -650,9 +730,10 @@ export async function sendImageDataToWhatsApp(imageData: {
         } else {
             // Fallback to text message only if image upload failed
             console.warn('⚠️ Image upload failed, sending text message only');
+            const fallbackMessage = `🧾 Invoice #${imageData.orderId} - ETB ${imageData.total.toFixed(2)} - Betty Organic`;
             sendResult = await sendWhatsAppMessage(
                 imageData.customerPhone,
-                message,
+                fallbackMessage,
                 settings
             );
         }

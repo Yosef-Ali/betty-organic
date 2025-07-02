@@ -17,12 +17,38 @@ const getImageStorage = () => {
     return globalThis.imageStorage;
 };
 
+// Clean up expired images to save memory
+const cleanupExpiredImages = () => {
+    const imageStorage = getImageStorage();
+    const now = Date.now();
+    let removedCount = 0;
+
+    // Use Array.from to handle iteration properly
+    const entries = Array.from(imageStorage.entries());
+    for (const [id, data] of entries) {
+        if (data.expiresAt < now) {
+            imageStorage.delete(id);
+            removedCount++;
+        }
+    }
+
+    if (removedCount > 0) {
+        console.log(`🧹 Cleaned up ${removedCount} expired images. Storage size: ${imageStorage.size}`);
+    }
+
+    return removedCount;
+};
+
 export async function GET(
     request: NextRequest,
     { params }: { params: { imageId: string } }
 ) {
     try {
         const { imageId } = params;
+
+        // Clean up expired images first to save memory
+        cleanupExpiredImages();
+
         const imageStorage = getImageStorage();
 
         console.log('🖼️ GET request for IMAGE:', {
@@ -73,7 +99,7 @@ export async function GET(
             headers: {
                 'Content-Type': 'image/png', // Always PNG for invoice images
                 'Content-Disposition': `inline; filename="${imageInfo.filename}"`,
-                'Cache-Control': 'public, max-age=3600', // Allow caching for Twilio
+                'Cache-Control': 'public, max-age=600', // 10 minutes only (on-demand)
                 'Access-Control-Allow-Origin': '*', // For Twilio access
                 'Content-Length': imageBuffer.length.toString(),
             }

@@ -152,6 +152,54 @@ export async function handlePurchaseOrder(
       };
     }
 
+    // Send automatic WhatsApp notification to admin
+    try {
+      console.log('📱 Sending automatic admin notification for order:', order.display_id);
+
+      // Import the notification function
+      const { sendAdminWhatsAppNotification } = await import('./whatsappActions');
+
+      // Get user profile for customer info
+      const { data: userProfile } = await supabase
+        .from('profiles')
+        .select('name, phone, email')
+        .eq('id', userId)
+        .single();
+
+      const customerName = userProfile?.name || userEmail?.split('@')[0] || 'Customer';
+      const customerPhone = userProfile?.phone || 'Not provided';
+
+      // Prepare order details for notification
+      const orderNotificationData = {
+        id: order.id,
+        display_id: order.display_id || `BO-${order.id}`,
+        items: items.map(item => ({
+          name: item.name,
+          grams: item.grams,
+          price: Number(((item.pricePerKg * item.grams) / 1000).toFixed(2)),
+          unit_price: item.pricePerKg
+        })),
+        total: Number(total.toFixed(2)),
+        customer_name: customerName,
+        customer_phone: customerPhone,
+        delivery_address: 'To be provided',
+        customer_email: userEmail,
+        user_id: userId,
+        created_at: order.created_at || new Date().toISOString()
+      };
+
+      const notificationResult = await sendAdminWhatsAppNotification(orderNotificationData);
+
+      if (notificationResult.success) {
+        console.log('✅ Admin notification sent successfully:', notificationResult.method);
+      } else {
+        console.warn('⚠️ Admin notification failed:', notificationResult.error);
+      }
+    } catch (notificationError) {
+      console.error('❌ Failed to send admin notification:', notificationError);
+      // Don't fail the order creation if notification fails
+    }
+
     // Revalidate the dashboard paths to show the new order
     revalidatePath('/dashboard/orders');
     revalidatePath('/dashboard');
@@ -230,7 +278,7 @@ export async function handleGuestOrder(
           .select('id')
           .limit(1)
           .single();
-        
+
         if (existingUser?.id) {
           guestUserId = existingUser.id;
           console.log('🔄 Using existing user ID as fallback:', guestUserId);
@@ -239,7 +287,7 @@ export async function handleGuestOrder(
         }
       }
     }
-    
+
     const guestEmail = `guest-${Date.now()}@guest.bettyorganic.com`;
 
     console.log('🆔 Generated guest user ID:', guestUserId);
@@ -273,7 +321,7 @@ export async function handleGuestOrder(
     // For guest orders, use an existing admin user ID instead of creating new profiles
     // This avoids foreign key constraint issues with auth.users
     let actualProfileId: string;
-    
+
     try {
       // Get an existing admin or system user ID to use for guest orders
       const { data: systemUser } = await supabase
@@ -282,7 +330,7 @@ export async function handleGuestOrder(
         .eq('role', 'admin')
         .limit(1)
         .single();
-      
+
       if (systemUser?.id) {
         actualProfileId = systemUser.id;
         console.log('🔄 Using admin user ID for guest order:', actualProfileId);
@@ -293,7 +341,7 @@ export async function handleGuestOrder(
           .select('id')
           .limit(1)
           .single();
-          
+
         if (anyUser?.id) {
           actualProfileId = anyUser.id;
           console.log('🔄 Using fallback user ID for guest order:', actualProfileId);
@@ -383,7 +431,7 @@ export async function handleGuestOrder(
         }
       } catch (error2) {
         console.log('❌ Old schema failed:', error2);
-        
+
         // Strategy 3: Try with minimal data
         try {
           console.log('Strategy 3: Trying minimal schema...');
@@ -449,6 +497,44 @@ export async function handleGuestOrder(
         error: `Failed to create order items: ${itemsError.message}`,
         status: 500
       };
+    }
+
+    // Send automatic WhatsApp notification to admin for guest order
+    try {
+      console.log('📱 Sending automatic admin notification for guest order:', order.display_id);
+
+      // Import the notification function
+      const { sendAdminWhatsAppNotification } = await import('./whatsappActions');
+
+      // Prepare order details for notification
+      const orderNotificationData = {
+        id: order.id,
+        display_id: order.display_id || `BO-GUEST-${order.id}`,
+        items: items.map(item => ({
+          name: item.name,
+          grams: item.grams,
+          price: Number(((item.pricePerKg * item.grams) / 1000).toFixed(2)),
+          unit_price: item.pricePerKg
+        })),
+        total: Number(total.toFixed(2)),
+        customer_name: customerInfo.name || 'Guest Customer',
+        customer_phone: customerInfo.phone,
+        delivery_address: customerInfo.address,
+        customer_email: null,
+        user_id: null,
+        created_at: order.created_at || new Date().toISOString()
+      };
+
+      const notificationResult = await sendAdminWhatsAppNotification(orderNotificationData);
+
+      if (notificationResult.success) {
+        console.log('✅ Admin notification sent successfully for guest order:', notificationResult.method);
+      } else {
+        console.warn('⚠️ Admin notification failed for guest order:', notificationResult.error);
+      }
+    } catch (notificationError) {
+      console.error('❌ Failed to send admin notification for guest order:', notificationError);
+      // Don't fail the order creation if notification fails
     }
 
     // Store guest info with the order data for reference

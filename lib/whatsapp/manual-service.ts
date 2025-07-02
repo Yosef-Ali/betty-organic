@@ -29,7 +29,7 @@ export async function sendManualWhatsAppMessage({
 }> {
   try {
     const whatsappUrl = await generateWhatsAppUrl(phoneNumber, message)
-    
+
     return {
       success: true,
       messageId: 'manual_' + Date.now(),
@@ -74,10 +74,10 @@ If you can see this message, the WhatsApp integration is working correctly! ✅`
 
   try {
     const whatsappUrl = await generateWhatsAppUrl(phoneNumber, testMessage)
-    
+
     return {
       success: true,
-      message: 'Test WhatsApp URL generated successfully',
+      message: 'Manual mode test URL generated successfully. Click the URL to send the test message via WhatsApp.',
       whatsappUrl
     }
   } catch (error) {

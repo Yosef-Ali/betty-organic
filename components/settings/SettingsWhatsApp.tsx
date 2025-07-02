@@ -56,6 +56,38 @@ export function SettingsWhatsApp() {
     loadClientStatus();
   }, []);
   
+  // Polling for QR code when authenticating
+  useEffect(() => {
+    let pollInterval: NodeJS.Timeout | null = null;
+    
+    if (clientStatus.isAuthenticating && !qrCode) {
+      // Poll for QR code every 2 seconds
+      pollInterval = setInterval(async () => {
+        try {
+          const response = await fetch('/api/whatsapp/status');
+          const result = await response.json();
+          
+          if (result.success && result.status.qrCode) {
+            setQrCode(result.status.qrCode);
+            // Stop polling once we have the QR code
+            if (pollInterval) clearInterval(pollInterval);
+          } else if (result.success && result.status.isReady) {
+            // Client is ready, stop polling
+            setClientStatus(result.status);
+            setQrCode(null);
+            if (pollInterval) clearInterval(pollInterval);
+          }
+        } catch (error) {
+          console.error('Failed to poll for QR code:', error);
+        }
+      }, 2000);
+    }
+    
+    return () => {
+      if (pollInterval) clearInterval(pollInterval);
+    };
+  }, [clientStatus.isAuthenticating, qrCode]);
+  
   const loadSettings = () => {
     const savedSettings = localStorage.getItem('whatsAppSettings');
     if (savedSettings) {
@@ -110,7 +142,11 @@ export function SettingsWhatsApp() {
       });
       const result = await response.json();
       
+      console.log('Initialize response:', result);
+      
       if (result.qrCode) {
+        console.log('QR Code received, type:', typeof result.qrCode);
+        console.log('QR Code starts with:', result.qrCode.substring(0, 50));
         setQrCode(result.qrCode);
         toast.success('QR Code generated! Please scan with WhatsApp mobile app.');
       } else if (result.success) {
@@ -277,7 +313,20 @@ export function SettingsWhatsApp() {
               <div className="p-4 border rounded-lg bg-yellow-50 border-yellow-200">
                 <h4 className="text-sm font-medium text-yellow-800 mb-2">Scan QR Code with WhatsApp Mobile App</h4>
                 <div className="flex justify-center">
-                  <img src={`data:image/png;base64,${qrCode}`} alt="WhatsApp QR Code" className="max-w-xs" />
+                  {qrCode.startsWith('data:') ? (
+                    // QR code is already a base64 image
+                    <img 
+                      src={qrCode} 
+                      alt="WhatsApp QR Code" 
+                      className="max-w-xs rounded-lg shadow-sm"
+                      style={{ maxWidth: '256px', height: 'auto' }}
+                    />
+                  ) : (
+                    // QR code is raw data, need to generate image
+                    <div className="p-4 bg-white rounded-lg shadow-sm">
+                      <p className="text-sm text-gray-600">Loading QR code...</p>
+                    </div>
+                  )}
                 </div>
                 <p className="text-xs text-yellow-700 mt-2 text-center">
                   Open WhatsApp on your phone → Three dots menu → Linked devices → Link a device

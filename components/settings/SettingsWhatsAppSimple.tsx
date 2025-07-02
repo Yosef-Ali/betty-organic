@@ -103,42 +103,57 @@ export function SettingsWhatsAppSimple() {
     setQrCode(null);
 
     try {
-      const response = await fetch('/api/whatsapp/status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'initialize' })
+      // Start the connection process, but don't wait for the full initialization
+      await fetch('/api/whatsapp/connect', { method: 'POST' });
+
+      // Start polling for the QR code
+      const pollStartTime = Date.now();
+      const pollDuration = 60000; // Poll for 60 seconds
+      const pollInterval = 2000; // Poll every 2 seconds
+
+      toast.info('Initializing connection... Please wait.', {
+        description: 'This can take up to a minute.',
       });
 
-      const result = await response.json();
+      const poll = setInterval(async () => {
+        if (Date.now() - pollStartTime > pollDuration) {
+          clearInterval(poll);
+          setIsConnecting(false);
+          toast.error('Connection timed out', {
+            description: 'Could not get a QR code. Please try again.',
+          });
+          return;
+        }
 
-      if (result.qrCode) {
-        setQrCode(result.qrCode);
-        setShowQR(true);
-        toast.success('QR Code ready! Scan with your phone.');
-      } else if (result.success) {
-        toast.success('WhatsApp connected successfully!');
-        await loadClientStatus();
-      } else if (result.isManualMode || result.fallbackAvailable) {
-        // Browser automation failed, switched to manual mode
-        toast.success('Manual WhatsApp mode activated', {
-          description: result.fallbackMessage || 'Using manual WhatsApp URLs for messaging'
-        });
-        // Update client status to show manual mode
-        setClientStatus({
-          isReady: true, // Manual mode is always "ready"
-          isAuthenticating: false,
-          sessionExists: false,
-          isManualMode: true
-        });
-      } else {
-        toast.error(result.message || 'Connection failed');
-      }
+        const statusResponse = await fetch('/api/whatsapp/status');
+        const result = await statusResponse.json();
+
+        if (result.success && result.status.qrCode) {
+          clearInterval(poll);
+          setQrCode(result.status.qrCode);
+          setShowQR(true);
+          setIsConnecting(false);
+          toast.success('QR Code ready! Scan with your phone.');
+        } else if (result.success && result.status.isAuthenticating) {
+          // User has scanned QR code, show different message
+          if (qrCode) {
+            setShowQR(false);
+            setQrCode(null);
+            toast.info('QR Code scanned! Connecting...', {
+              description: 'Please wait while WhatsApp Web loads. Do not scan another QR code.',
+            });
+          }
+        } else if (result.success && result.status.isReady) {
+          clearInterval(poll);
+          setIsConnecting(false);
+          setClientStatus(result.status);
+          toast.success('WhatsApp connected successfully!');
+        }
+      }, pollInterval);
+
     } catch (error) {
       console.error('Error connecting WhatsApp:', error);
-      toast.error('Failed to connect to WhatsApp', {
-        description: 'Manual WhatsApp URLs will still work for sending messages.'
-      });
-    } finally {
+      toast.error('Failed to start WhatsApp connection');
       setIsConnecting(false);
     }
   };
@@ -159,9 +174,7 @@ export function SettingsWhatsAppSimple() {
     } catch (error) {
       toast.error('Failed to disconnect');
     }
-  };
-
-  const testConnection = async () => {
+  }; const testConnection = async () => {
     if (!settings.adminPhoneNumber) {
       toast.error('Please save your phone number first');
       return;
@@ -169,17 +182,146 @@ export function SettingsWhatsAppSimple() {
 
     setIsTesting(true);
     try {
-      const result = await testWhatsAppConnection();
+      console.log('🧪 Testing WhatsApp connection with phone:', settings.adminPhoneNumber);
+      console.log('🧪 Phone number length:', settings.adminPhoneNumber.length);
+      console.log('🧪 Phone number format check:', /^\+[1-9]\d{1,14}$/.test(settings.adminPhoneNumber));
+
+      // Use the dedicated test endpoint instead of send endpoint
+      const response = await fetch('/api/whatsapp/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phoneNumber: settings.adminPhoneNumber
+        })
+      });
+
+      console.log('🧪 Response status:', response.status);
+      console.log('🧪 Response ok:', response.ok);
+      console.log('🧪 Response content type:', response.headers.get('content-type'));
+
+      // Check if we got HTML instead of JSON (authentication redirect)
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('text/html')) {
+        console.error('❌ Received HTML instead of JSON - authentication required');
+        toast.error('Session expired. Please refresh the page and login again.');
+
+        // Optionally redirect to login or refresh
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+        return;
+      }
+
+      const result = await response.json();
+      console.log('🧪 Full response:', result);
 
       if (result.success) {
-        toast.success('Test message sent successfully!');
+        // Check if we got a WhatsApp URL (manual mode)
+        if (result.whatsappUrl) {
+          toast.success('Test URL generated successfully! Click to send message.');
+          console.log('✅ Test URL generated successfully');
+          console.log('📱 WhatsApp URL:', result.whatsappUrl);
+
+          // Open WhatsApp URL in a new tab
+          window.open(result.whatsappUrl, '_blank');
+
+          // Show additional info to user
+          toast.info('WhatsApp opened in new tab. Send the message from there!', {
+            duration: 5000,
+          });
+        } else {
+          toast.success('Test message sent successfully!');
+          console.log('✅ Test completed successfully');
+          console.log('✅ Message ID:', result.messageId);
+          console.log('📱 Check your WhatsApp app for the message');
+        }
       } else {
-        toast.error(result.error || 'Test failed');
+        const errorMsg = result.error || result.message || 'Test failed - no error details provided';
+        toast.error(errorMsg);
+        console.error('❌ Test failed. Error:', errorMsg);
+        console.error('❌ Full result object keys:', Object.keys(result || {}));
+
+        // Provide additional context for common errors
+        if (errorMsg.includes('phone number')) {
+          toast.error('Please check your phone number format. Use international format like +251944113998');
+        } else if (errorMsg.includes('Browser') || errorMsg.includes('browser')) {
+          toast.error('Browser automation issue. The system may fall back to manual mode.');
+        } else if (errorMsg.includes('authentication') || errorMsg.includes('QR')) {
+          toast.error('WhatsApp authentication needed. Please scan QR code when it appears.');
+        }
       }
     } catch (error) {
-      toast.error('Test failed');
+      console.error('💥 Test error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+      // More specific error handling
+      if (errorMessage.includes('fetch')) {
+        toast.error('Network error - please check your connection and try again');
+      } else if (errorMessage.includes('JSON')) {
+        toast.error('Server response error - please try again or check server logs');
+      } else {
+        toast.error('Test failed: ' + errorMessage);
+      }
+
+      // Log additional debug info
+      console.error('💥 Error details:', {
+        message: errorMessage,
+        type: typeof error,
+        error: error
+      });
     } finally {
       setIsTesting(false);
+    }
+  };
+
+  const restartWhatsApp = async () => {
+    setIsConnecting(true);
+    setShowQR(false);
+    setQrCode(null);
+
+    try {
+      await fetch('/api/whatsapp/restart', { method: 'POST' });
+
+      // Start polling for the new QR code
+      const pollStartTime = Date.now();
+      const pollDuration = 60000; // Poll for 60 seconds
+      const pollInterval = 2000; // Poll every 2 seconds
+
+      toast.info('Restarting connection... Please wait.', {
+        description: 'This will generate a fresh QR code.',
+      });
+
+      const poll = setInterval(async () => {
+        if (Date.now() - pollStartTime > pollDuration) {
+          clearInterval(poll);
+          setIsConnecting(false);
+          toast.error('Connection timed out', {
+            description: 'Could not get a QR code. Please try again.',
+          });
+          return;
+        }
+
+        const statusResponse = await fetch('/api/whatsapp/status');
+        const result = await statusResponse.json();
+
+        if (result.success && result.status.qrCode) {
+          clearInterval(poll);
+          setQrCode(result.status.qrCode);
+          setShowQR(true);
+          setIsConnecting(false);
+          toast.success('New QR Code ready! Scan with your phone.');
+        } else if (result.success && result.status.isReady) {
+          clearInterval(poll);
+          setIsConnecting(false);
+          setClientStatus(result.status);
+          toast.success('WhatsApp connected successfully!');
+        }
+      }, pollInterval);
+
+    } catch (error) {
+      console.error('Error restarting WhatsApp:', error);
+      toast.error('Failed to restart WhatsApp connection');
+      setIsConnecting(false);
     }
   };
 
@@ -213,12 +355,12 @@ export function SettingsWhatsAppSimple() {
         <CardContent className="space-y-6">
           {/* Connection Status - Enhanced */}
           <div className={`relative overflow-hidden rounded-xl border transition-all duration-300 ${clientStatus.isReady
-              ? 'bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-green-200 dark:border-green-800 shadow-md'
-              : clientStatus.isAuthenticating
-                ? 'bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-yellow-900/20 dark:to-amber-900/20 border-yellow-200 dark:border-yellow-800 shadow-sm'
-                : clientStatus.isManualMode
-                  ? 'bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-blue-200 dark:border-blue-800 shadow-sm'
-                  : 'bg-gradient-to-r from-gray-50 to-slate-50 dark:from-gray-800/50 dark:to-slate-800/50 border-gray-200 dark:border-gray-700'
+            ? 'bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-green-200 dark:border-green-800 shadow-md'
+            : clientStatus.isAuthenticating
+              ? 'bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-yellow-900/20 dark:to-amber-900/20 border-yellow-200 dark:border-yellow-800 shadow-sm'
+              : clientStatus.isManualMode
+                ? 'bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-blue-200 dark:border-blue-800 shadow-sm'
+                : 'bg-gradient-to-r from-gray-50 to-slate-50 dark:from-gray-800/50 dark:to-slate-800/50 border-gray-200 dark:border-gray-700'
             }`}>
             <div className="flex items-center justify-between p-5">
               <div className="flex items-center gap-4">
@@ -374,18 +516,35 @@ export function SettingsWhatsAppSimple() {
                     </div>
                   </div>
 
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setShowQR(false);
-                      setTimeout(() => connectWhatsApp(), 100);
-                    }}
-                    className="flex items-center gap-2 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-400 transition-all duration-200 shadow-sm"
-                  >
-                    <RefreshCw className="h-4 w-4" />
-                    Generate New QR Code
-                  </Button>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setShowQR(false);
+                        setTimeout(() => connectWhatsApp(), 100);
+                      }}
+                      className="flex items-center gap-2 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-400 transition-all duration-200 shadow-sm"
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                      Generate New QR Code
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={restartWhatsApp}
+                      disabled={isConnecting}
+                      className="flex items-center gap-2 text-orange-700 dark:text-orange-300 border-orange-300 dark:border-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900/20 hover:border-orange-400 transition-all duration-200 shadow-sm"
+                    >
+                      {isConnecting ? (
+                        <div className="w-4 h-4 border-2 border-orange-600 dark:border-orange-400 border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <RefreshCw className="h-4 w-4" />
+                      )}
+                      Restart Connection
+                    </Button>
+                  </div>
                 </div>
 
                 {/* Helpful tip */}
