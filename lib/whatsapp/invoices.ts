@@ -194,16 +194,17 @@ export async function sendImageInvoiceWhatsApp(invoiceData: {
                 storeContact: invoiceData.storeContact
             };
 
-            // Get the base URL - use localhost for internal API calls, ngrok for external sharing
-            const internalBaseUrl = 'http://localhost:3000';
-            const externalBaseUrl = process.env.NEXT_PUBLIC_NGROK_URL ||
+            // Get the base URL - in serverless, use external URL for both internal and external calls
+            const isServerless = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1';
+            const baseUrl = process.env.NEXT_PUBLIC_NGROK_URL ||
                 process.env.NEXTAUTH_URL ||
                 process.env.NEXT_PUBLIC_SITE_URL ||
+                process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` :
                 'http://localhost:3000';
 
-            console.log('🌐 Using internal base URL:', internalBaseUrl);
-            console.log('🌐 External base URL for sharing:', externalBaseUrl);
-            console.log('📝 Full receipt data:', receiptData);        // Generate receipt image via API (use internal URL)
+            console.log('🌐 Serverless environment:', isServerless);
+            console.log('🌐 Using base URL:', baseUrl);
+            console.log('📝 Full receipt data:', receiptData);
             console.log('📤 Calling image generation API...');
             console.log('🔄 ON-DEMAND: Creating fresh invoice image (not using cached version)');
 
@@ -214,7 +215,7 @@ export async function sendImageInvoiceWhatsApp(invoiceData: {
             // Retry mechanism for image generation reliability
             while (retryCount <= maxRetries) {
                 try {
-                    imageResponse = await fetch(`${internalBaseUrl}/api/generate-receipt-image`, {
+                    imageResponse = await fetch(`${baseUrl}/api/generate-receipt-image`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -267,7 +268,7 @@ export async function sendImageInvoiceWhatsApp(invoiceData: {
                 console.log('📤 Uploading to temp storage...');
 
                 // Upload to temporary storage using the correct IMAGE API
-                const uploadResponse = await fetch(`${internalBaseUrl}/api/temp-image`, {
+                const uploadResponse = await fetch(`${baseUrl}/api/temp-image`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -286,15 +287,14 @@ export async function sendImageInvoiceWhatsApp(invoiceData: {
                     status: uploadResponse.status,
                     ok: uploadResponse.ok,
                     statusText: uploadResponse.statusText
-                }); if (uploadResponse.ok) {
+                });
+
+                if (uploadResponse.ok) {
                     const uploadResult = await uploadResponse.json();
                     imageUrl = uploadResult.url;
 
-                    // Convert localhost URLs to external URLs for WhatsApp
-                    if (imageUrl && imageUrl.includes('localhost') && externalBaseUrl !== 'http://localhost:3000') {
-                        imageUrl = imageUrl.replace('http://localhost:3000', externalBaseUrl);
-                        console.log('🔄 Converted localhost URL to external URL:', imageUrl);
-                    }
+                    // Ensure URL is accessible for WhatsApp in all environments
+                    console.log('📄 Generated image URL:', imageUrl);
 
                     // For testing: Skip URL accessibility test and trust that the upload worked
                     // The URL test is failing due to ngrok CORS/auth issues, but images are generating fine
@@ -349,8 +349,10 @@ export async function sendImageInvoiceWhatsApp(invoiceData: {
                     // Verify the URL is publicly accessible
                     if (imageUrl && imageUrl.includes('localhost')) {
                         console.warn('⚠️ Receipt URL is localhost - WhatsApp cannot access it!');
-                        console.warn('💡 Either start ngrok: ngrok http 3000');
-                        console.warn('💡 Or update NEXT_PUBLIC_NGROK_URL in .env.local');
+                        if (!isServerless) {
+                            console.warn('💡 Either start ngrok: ngrok http 3000');
+                            console.warn('💡 Or update NEXT_PUBLIC_NGROK_URL in .env.local');
+                        }
                         console.warn('🔄 Falling back to text message...');
                         imageUrl = undefined;
                         imageGenerated = false;
