@@ -372,6 +372,15 @@ export function SettingsWhatsAppSimple() {
           <CardDescription className="dark:text-gray-400">
             Get instant notifications for new orders on your WhatsApp
           </CardDescription>
+          
+          {/* Serverless Environment Warning */}
+          <Alert className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950">
+            <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            <AlertDescription className="text-amber-800 dark:text-amber-300">
+              <strong>Production Note:</strong> WhatsApp sessions don't persist between deployments on Vercel. 
+              You may need to reconnect after each deployment or function restart.
+            </AlertDescription>
+          </Alert>
         </CardHeader>
 
         <CardContent className="space-y-6">

@@ -151,8 +151,13 @@ function saveConnectionState() {
             hasClient: !!sock,
             timestamp: Date.now()
         };
-        fs.writeFileSync(stateFile, JSON.stringify(state, null, 2));
-        console.log('💾 Connection state saved');
+        
+        try {
+            fs.writeFileSync(stateFile, JSON.stringify(state, null, 2));
+            console.log('💾 Connection state saved to file');
+        } catch (fsError) {
+            console.log('⚠️ Cannot save to file (serverless env), using memory only:', fsError);
+        }
     } catch (error) {
         console.log('⚠️ Error saving connection state:', error);
     }
@@ -167,7 +172,11 @@ function clearStuckState() {
             // If state shows connecting for more than 2 minutes, clear it
             if (state.isConnecting && Date.now() - state.timestamp > 120000) {
                 console.log('🧹 Clearing stuck connecting state');
-                fs.unlinkSync(stateFile);
+                try {
+                    fs.unlinkSync(stateFile);
+                } catch (fsError) {
+                    console.log('⚠️ Cannot delete state file (serverless env):', fsError);
+                }
                 isConnected = false;
                 isConnecting = false;
                 reconnectAttempts = 0;
@@ -175,7 +184,7 @@ function clearStuckState() {
             }
         }
     } catch (error) {
-        console.log('⚠️ Error clearing stuck state:', error);
+        console.log('⚠️ Error clearing stuck state (likely serverless env):', error);
     }
     return false;
 }
@@ -189,18 +198,22 @@ function loadConnectionState() {
         }
 
         const stateFile = path.resolve('./baileys-session/connection-state.json');
-        if (fs.existsSync(stateFile)) {
-            const state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
-            // Only load if state is recent (within 5 minutes)
-            if (Date.now() - state.timestamp < 300000) {
-                isConnected = state.isConnected;
-                isConnecting = state.isConnecting;
-                reconnectAttempts = state.reconnectAttempts;
-                console.log('📂 Connection state loaded:', state);
-                return true;
-            } else {
-                console.log('⏰ Connection state is too old, ignoring');
+        try {
+            if (fs.existsSync(stateFile)) {
+                const state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+                // Only load if state is recent (within 5 minutes)
+                if (Date.now() - state.timestamp < 300000) {
+                    isConnected = state.isConnected;
+                    isConnecting = state.isConnecting;
+                    reconnectAttempts = state.reconnectAttempts;
+                    console.log('📂 Connection state loaded:', state);
+                    return true;
+                } else {
+                    console.log('⏰ Connection state is too old, ignoring');
+                }
             }
+        } catch (fsError) {
+            console.log('⚠️ Cannot access state file (serverless env), using global state only');
         }
     } catch (error) {
         console.log('⚠️ Error loading connection state:', error);
@@ -252,14 +265,45 @@ export async function initializeBaileys(config: BaileysConfig) {
         reconnectAttempts++;
         console.log(`🚀 Initializing Baileys WhatsApp connection... (Attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`);
 
-        // Ensure session directory exists
+        // Ensure session directory exists (with serverless compatibility)
         const sessionDir = path.resolve(config.sessionPath);
-        if (!fs.existsSync(sessionDir)) {
-            fs.mkdirSync(sessionDir, { recursive: true });
+        try {
+            if (!fs.existsSync(sessionDir)) {
+                fs.mkdirSync(sessionDir, { recursive: true });
+                console.log('✅ Created session directory:', sessionDir);
+            }
+        } catch (error) {
+            console.warn('⚠️ Cannot create session directory in serverless environment:', error);
+            console.log('🔄 Using in-memory session storage for serverless deployment');
+            // In serverless environments, we'll need to use in-memory storage
+            // This means the session won't persist between function invocations
         }
 
         // Multi-file auth state (compatible with serverless)
-        const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
+        let state, saveCreds;
+        try {
+            const authResult = await useMultiFileAuthState(sessionDir);
+            state = authResult.state;
+            saveCreds = authResult.saveCreds;
+            console.log('✅ Auth state initialized successfully');
+        } catch (authError) {
+            console.warn('⚠️ Failed to initialize file-based auth state:', authError);
+            console.log('🔄 Falling back to default Baileys behavior for serverless');
+            // In serverless, we'll rely on Baileys' default behavior
+            // This will create a new session each time (requires QR scan each time)
+            const { useMultiFileAuthState } = baileys;
+            try {
+                // Try to create a temporary in-memory auth state
+                const tempDir = '/tmp/baileys-session';
+                const authResult = await useMultiFileAuthState(tempDir);
+                state = authResult.state;
+                saveCreds = authResult.saveCreds;
+                console.log('✅ Using temporary auth state');
+            } catch (tempError) {
+                console.error('❌ All auth state methods failed:', tempError);
+                throw new Error('Cannot initialize authentication state in serverless environment');
+            }
+        }
 
         // Create WhatsApp socket
         sock = makeWASocket({
@@ -594,10 +638,18 @@ export async function resetBaileysConnection() {
 
     // Also clear session files for a truly fresh start
     try {
-        const sessionDir = path.resolve('./baileys-session');
-        if (fs.existsSync(sessionDir)) {
-            fs.rmSync(sessionDir, { recursive: true, force: true });
-            console.log('🗑️ Session files deleted for a fresh QR.');
+        // Try to clear both possible session directories
+        const sessionDirs = ['./baileys-session', '/tmp/baileys-session'];
+        for (const sessionDir of sessionDirs) {
+            const resolvedDir = path.resolve(sessionDir);
+            try {
+                if (fs.existsSync(resolvedDir)) {
+                    fs.rmSync(resolvedDir, { recursive: true, force: true });
+                    console.log(`🗑️ Session files deleted: ${resolvedDir}`);
+                }
+            } catch (dirError) {
+                console.log(`⚠️ Cannot delete session dir ${resolvedDir} (likely serverless):`, dirError);
+            }
         }
     } catch (e) {
         console.log('⚠️ Error deleting session files:', e);
