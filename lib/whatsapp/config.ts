@@ -40,7 +40,7 @@ export const defaultWhatsAppConfig: WhatsAppConfig = {
   enableOrderNotifications: true,
   enableRealTimeNotifications: true,
   notificationMessage: 'New order received from Betty Organic App! Order #{display_id}',
-  provider: (process.env.WHATSAPP_API_PROVIDER as WhatsAppProvider) || 'whatsapp-web-js',
+  provider: (process.env.WHATSAPP_API_PROVIDER as WhatsAppProvider) || (process.env.VERCEL ? 'manual' : 'whatsapp-web-js'),
 
   webJs: {
     sessionPath: process.env.WHATSAPP_SESSION_PATH || './whatsapp-session',

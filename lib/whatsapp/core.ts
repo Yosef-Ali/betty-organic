@@ -71,11 +71,12 @@ export async function sendWhatsAppMessage(
     try {
         const config = getWhatsAppConfig()
 
-        // In production, prioritize manual URLs for reliability
-        const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1'
+        // In serverless environments (Vercel), use manual URLs for incompatible providers
+        const isServerless = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1'
+        const incompatibleProviders = ['baileys', 'whatsapp-web-js']
         
-        if (isProduction && (config.provider === 'baileys' || config.provider === 'whatsapp-web-js')) {
-            console.log('🌐 Production mode: Using manual WhatsApp URL for reliability (core)')
+        if (isServerless && incompatibleProviders.includes(config.provider)) {
+            console.log(`🌐 Serverless environment: ${config.provider} not compatible with Vercel, using manual URLs`)
             
             // For media messages, include the media URL in the message
             let finalMessage = message
@@ -95,7 +96,7 @@ export async function sendWhatsAppMessage(
                 success: true,
                 messageId: manualResult.messageId,
                 whatsappUrl: manualResult.whatsappUrl,
-                error: `Production mode: Generated manual URL instead of ${config.provider} for reliability`
+                error: `Serverless mode: ${config.provider} not compatible with Vercel, generated manual URL instead`
             }
         }
 
@@ -181,7 +182,21 @@ export async function sendWhatsAppMessage(
             case 'manual':
             default:
                 console.log('🔵 Using Manual WhatsApp Mode')
-                const manualResult = await sendManualWhatsAppMessage({ phoneNumber, message })
+                
+                // For media messages, include the media URL in the message
+                let finalMessage = message
+                if (mediaPath && message === "") {
+                    // Image-only message: create a message with the image link
+                    finalMessage = `📄 Invoice Image: ${mediaPath}`
+                } else if (mediaPath && message) {
+                    // Message with media: append media link
+                    finalMessage = `${message}\n\n📎 Media: ${mediaPath}`
+                }
+                
+                const manualResult = await sendManualWhatsAppMessage({ 
+                    phoneNumber, 
+                    message: finalMessage 
+                })
                 return {
                     success: true,
                     messageId: manualResult.messageId,

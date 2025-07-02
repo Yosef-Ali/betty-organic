@@ -377,8 +377,8 @@ export function SettingsWhatsAppSimple() {
           <Alert className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950">
             <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
             <AlertDescription className="text-amber-800 dark:text-amber-300">
-              <strong>Production Note:</strong> WhatsApp sessions don't persist between deployments on Vercel. 
-              You may need to reconnect after each deployment or function restart.
+              <strong>Vercel Compatibility:</strong> WhatsApp Web.js and Baileys are not compatible with Vercel's serverless environment. 
+              The system automatically uses manual WhatsApp URLs (wa.me links) in production for reliability.
             </AlertDescription>
           </Alert>
         </CardHeader>
