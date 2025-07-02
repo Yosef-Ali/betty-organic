@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import QRCode from 'qrcode'
 
 interface QRCodeDisplayProps {
-    data: string | null
+    data: string
     size?: number
     className?: string
     errorCorrectionLevel?: 'L' | 'M' | 'Q' | 'H'
@@ -26,25 +26,21 @@ export function QRCodeDisplay({
                 setLoading(true)
                 setError('')
 
-                console.log('🔍 QRCodeDisplay: Received data:', data ? 'Present' : 'Null/Empty', typeof data)
-
-                if (!data || typeof data !== 'string' || !data.trim()) {
-                    console.log('⚠️ QRCodeDisplay: No QR code data provided')
-                    setError('Waiting for QR code...')
+                if (typeof data !== 'string' || !data.trim()) {
+                    setError('No QR code data provided')
                     setQrCodeUrl('')
                     return
                 }
 
                 // Check if data is already a base64 data URL (pre-generated image)
                 if (data.startsWith('data:image/')) {
-                    console.log('✅ QRCodeDisplay: Using pre-generated QR code image')
-                    console.log('🔍 Data URL length:', data.length)
+                    console.log('🔍 Using pre-generated QR code image')
                     setQrCodeUrl(data)
                     return
                 }
 
                 // Generate QR code from raw data
-                console.log('🔍 QRCodeDisplay: Generating QR code from raw data, length:', data.length)
+                console.log('🔍 Generating QR code from raw data')
                 const url = await QRCode.toDataURL(data, {
                     width: size,
                     margin: 2,
@@ -55,10 +51,9 @@ export function QRCodeDisplay({
                     errorCorrectionLevel
                 })
 
-                console.log('✅ QRCodeDisplay: Generated QR code successfully')
                 setQrCodeUrl(url)
             } catch (err) {
-                console.error('❌ QRCodeDisplay: Failed to generate QR code:', err)
+                console.error('Failed to generate QR code:', err)
                 setError('Failed to generate QR code')
             } finally {
                 setLoading(false)
