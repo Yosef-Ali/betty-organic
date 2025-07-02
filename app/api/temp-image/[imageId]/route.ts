@@ -54,7 +54,10 @@ export async function GET(
         console.log('🖼️ GET request for IMAGE:', {
             imageId,
             storageSize: imageStorage.size,
-            availableIds: Array.from(imageStorage.keys())
+            availableIds: Array.from(imageStorage.keys()),
+            requestUrl: request.url,
+            userAgent: request.headers.get('user-agent'),
+            referer: request.headers.get('referer')
         });
 
         if (!imageId) {
@@ -110,5 +113,64 @@ export async function GET(
             { error: 'Failed to serve image' },
             { status: 500 }
         );
+    }
+}
+
+// Add HEAD request support for URL testing
+export async function HEAD(
+    request: NextRequest,
+    { params }: { params: { imageId: string } }
+) {
+    try {
+        const { imageId } = params;
+
+        // Clean up expired images first to save memory
+        cleanupExpiredImages();
+
+        const imageStorage = getImageStorage();
+
+        console.log('🔍 HEAD request for IMAGE:', {
+            imageId,
+            storageSize: imageStorage.size,
+            url: request.url
+        });
+
+        if (!imageId) {
+            return new NextResponse(null, { status: 400 });
+        }
+
+        const imageInfo = imageStorage.get(imageId);
+
+        if (!imageInfo) {
+            console.log('❌ IMAGE not found for HEAD request:', imageId);
+            return new NextResponse(null, { status: 404 });
+        }
+
+        // Check if expired
+        if (Date.now() > imageInfo.expiresAt) {
+            console.log('⏰ IMAGE expired for HEAD request:', imageId);
+            imageStorage.delete(imageId);
+            return new NextResponse(null, { status: 410 });
+        }
+
+        console.log('✅ HEAD response for IMAGE:', {
+            imageId,
+            filename: imageInfo.filename,
+            dataSize: imageInfo.data.length
+        });
+
+        // Return successful HEAD response with proper headers
+        return new NextResponse(null, {
+            status: 200,
+            headers: {
+                'Content-Type': 'image/png',
+                'Content-Length': Buffer.from(imageInfo.data, 'base64').length.toString(),
+                'Cache-Control': 'public, max-age=600',
+                'Access-Control-Allow-Origin': '*',
+            }
+        });
+    } catch (error) {
+        console.error('Error handling HEAD request for image:', error);
+        return new NextResponse(null, { status: 500 });
     }
 }
