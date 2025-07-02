@@ -369,13 +369,36 @@ export async function createOrder(
       // Import the notification function dynamically to avoid import issues
       const { sendOrderNotificationWhatsApp } = await import('@/lib/whatsapp/order-notifications');
 
+      // Fetch actual customer data for notifications
+      let customerData = { name: 'Customer', phone: '+251944113998', email: undefined };
+      
+      if (customer_profile_id) {
+        try {
+          const { data: customerProfile } = await supabase
+            .from('profiles')
+            .select('name, phone, email')
+            .eq('id', customer_profile_id)
+            .single();
+            
+          if (customerProfile) {
+            customerData = {
+              name: customerProfile.name || 'Customer',
+              phone: customerProfile.phone || '+251944113998',
+              email: customerProfile.email || undefined
+            };
+          }
+        } catch (error) {
+          console.warn('⚠️ Could not fetch customer data for notifications:', error);
+        }
+      }
+
       // Prepare notification data
       const notificationData = {
         id: insertedOrderData.id,
         display_id: insertedOrderData.display_id || `ORD-${Date.now()}`,
-        customer_name: 'Customer', // You might want to fetch actual customer name
-        customer_phone: '+251944113998', // You might want to fetch actual customer phone
-        customer_email: undefined,
+        customer_name: customerData.name,
+        customer_phone: customerData.phone,
+        customer_email: customerData.email,
         delivery_address: undefined,
         items: orderItemsToInsert.map(item => ({
           product_name: item.product_name,
@@ -668,13 +691,35 @@ export async function updateOrderStatus(
 
       const { sendOrderStatusUpdateWhatsApp } = await import('@/lib/whatsapp/order-notifications');
 
-      // We need to get the current order details to send notification
-      // For now, let's create a basic notification data structure
+      // Fetch customer data for status update notification
+      let customerData = { name: 'Customer', phone: '+251944113998', email: undefined };
+      
+      if (updatedOrder.customer_profile_id) {
+        try {
+          const { data: customerProfile } = await supabase
+            .from('profiles')
+            .select('name, phone, email')
+            .eq('id', updatedOrder.customer_profile_id)
+            .single();
+            
+          if (customerProfile) {
+            customerData = {
+              name: customerProfile.name || 'Customer',
+              phone: customerProfile.phone || '+251944113998',
+              email: customerProfile.email || undefined
+            };
+          }
+        } catch (error) {
+          console.warn('⚠️ Could not fetch customer data for status notification:', error);
+        }
+      }
+
+      // Create notification data structure with actual customer data
       const notificationData = {
         id: orderId,
         display_id: updatedOrder.display_id || `ORD-${Date.now()}`,
-        customer_name: 'Customer',
-        customer_phone: '+251944113998',
+        customer_name: customerData.name,
+        customer_phone: customerData.phone,
         items: [],
         total_amount: updatedOrder.total_amount,
         created_at: updatedOrder.created_at,
