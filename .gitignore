@@ -39,3 +39,13 @@ yarn-error.log*
 *.tsbuildinfo
 .aider*
 .qodo
+
+# WhatsApp session files (generated during runtime)
+whatsapp-session/
+baileys-session/
+
+# Test and temp files
+**/test-*.js
+baileys-manager.js
+*_FIX_SUMMARY.md
+*_SYSTEM_SUMMARY.md
