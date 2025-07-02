@@ -77,7 +77,34 @@ ${orderData.delivery_cost ? `🚚 *Delivery:* ETB ${orderData.delivery_cost.toFi
             itemCount: orderData.items.length
         })
 
-        // Send via Baileys
+        // In production, use manual URLs for reliability due to serverless limitations
+        const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1'
+        
+        if (isProduction) {
+            console.log('🌐 Production mode: Using manual WhatsApp URL for reliability')
+            const cleanPhone = adminPhoneNumber.replace(/[\s\-\(\)\+]/g, '')
+            const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`
+            
+            console.log('✅ Order notification manual URL generated:', {
+                orderId: orderData.display_id,
+                url: whatsappUrl.substring(0, 100) + '...'
+            })
+            
+            return {
+                success: true,
+                message: 'Order notification ready to send via WhatsApp URL',
+                whatsappUrl,
+                method: 'manual_url_production',
+                orderData: {
+                    orderId: orderData.display_id,
+                    customer: orderData.customer_name,
+                    total: netTotal
+                }
+            }
+        }
+        
+        // Development mode: try automated sending via Baileys
+        console.log('🔧 Development mode: Attempting automated WhatsApp sending')
         const result = await sendBaileysMessage({
             to: adminPhoneNumber,
             message: message
@@ -100,10 +127,23 @@ ${orderData.delivery_cost ? `🚚 *Delivery:* ETB ${orderData.delivery_cost.toFi
                 }
             }
         } else {
-            console.error('❌ Failed to send order notification:', result.error)
+            console.error('❌ Failed to send order notification, falling back to manual URL:', result.error)
+            
+            // Fallback to manual URL even in development
+            const cleanPhone = adminPhoneNumber.replace(/[\s\-\(\)\+]/g, '')
+            const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`
+            
             return {
-                success: false,
-                error: result.error || 'Failed to send notification'
+                success: true,
+                message: 'Order notification fallback URL generated',
+                whatsappUrl,
+                method: 'manual_url_fallback',
+                error: `Baileys failed: ${result.error}`,
+                orderData: {
+                    orderId: orderData.display_id,
+                    customer: orderData.customer_name,
+                    total: netTotal
+                }
             }
         }
     } catch (error) {
@@ -151,6 +191,23 @@ ${statusEmojis[oldStatus] || '⚪'} ${oldStatus.toUpperCase()} → ${statusEmoji
 
 💚 *Betty Organic*`
 
+        // In production, use manual URLs for reliability 
+        const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1'
+        
+        if (isProduction) {
+            console.log('🌐 Production mode: Using manual WhatsApp URL for status update')
+            const cleanPhone = adminPhoneNumber.replace(/[\s\-\(\)\+]/g, '')
+            const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`
+            
+            return {
+                success: true,
+                message: 'Status update notification ready to send via WhatsApp URL',
+                whatsappUrl,
+                method: 'manual_url_production'
+            }
+        }
+
+        // Development mode: try automated sending
         const result = await sendBaileysMessage({
             to: adminPhoneNumber,
             message: message
@@ -164,10 +221,18 @@ ${statusEmojis[oldStatus] || '⚪'} ${oldStatus.toUpperCase()} → ${statusEmoji
                 messageId: result.messageId
             }
         } else {
-            console.error('❌ Failed to send status update notification:', result.error)
+            console.error('❌ Failed to send status update notification, falling back to manual URL:', result.error)
+            
+            // Fallback to manual URL
+            const cleanPhone = adminPhoneNumber.replace(/[\s\-\(\)\+]/g, '')
+            const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`
+            
             return {
-                success: false,
-                error: result.error || 'Failed to send status update'
+                success: true,
+                message: 'Status update fallback URL generated',
+                whatsappUrl,
+                method: 'manual_url_fallback',
+                error: `Baileys failed: ${result.error}`
             }
         }
     } catch (error) {
