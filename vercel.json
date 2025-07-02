@@ -2,6 +2,11 @@
   "installCommand": "npm install",
   "buildCommand": "npm run build",
   "framework": "nextjs",
+  "functions": {
+    "app/api/whatsapp/**": {
+      "maxDuration": 60
+    }
+  },
   "headers": [
     {
       "source": "/(.*)",

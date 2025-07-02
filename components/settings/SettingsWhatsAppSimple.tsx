@@ -10,7 +10,6 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import { MessageCircle, Check, AlertCircle, Zap, XCircle, Smartphone, QrCode, RefreshCw, CheckCircle, Loader2, Settings } from 'lucide-react';
-import { testWhatsAppConnection } from '@/app/actions/whatsappActions';
 import { QRCodeDisplay } from '@/components/ui/qr-code';
 
 interface ClientStatus {
@@ -47,6 +46,11 @@ export function SettingsWhatsAppSimple() {
   useEffect(() => {
     loadSettings();
     loadClientStatus();
+    // Poll for connection status every 5 seconds
+    const poll = setInterval(() => {
+      loadClientStatus();
+    }, 5000);
+    return () => clearInterval(poll);
   }, []);
 
   const loadSettings = () => {
@@ -62,12 +66,18 @@ export function SettingsWhatsAppSimple() {
 
   const loadClientStatus = async () => {
     try {
-      const response = await fetch('/api/whatsapp/status');
+      const response = await fetch('/api/whatsapp/baileys/status');
       const result = await response.json();
       if (result.success) {
-        setClientStatus(result.status);
-        if (result.status.qrCode) {
-          setQrCode(result.status.qrCode);
+        setClientStatus({
+          isReady: result.status.connected,
+          isAuthenticating: result.status.connecting,
+          sessionExists: result.status.hasClient,
+          qrCode: result.qrCode,
+          isManualMode: false
+        });
+        if (result.qrCode) {
+          setQrCode(result.qrCode);
         }
       }
     } catch (error) {
@@ -103,10 +113,17 @@ export function SettingsWhatsAppSimple() {
     setQrCode(null);
 
     try {
-      // Start the connection process, but don't wait for the full initialization
-      await fetch('/api/whatsapp/connect', { method: 'POST' });
+      // Initialize the Baileys connection
+      const response = await fetch('/api/whatsapp/baileys/init', { method: 'POST' });
+      const result = await response.json();
 
-      // Start polling for the QR code
+      if (!result.success) {
+        toast.error(result.error || 'Failed to initialize connection');
+        setIsConnecting(false);
+        return;
+      }
+
+      // Start polling for the QR code and connection status
       const pollStartTime = Date.now();
       const pollDuration = 60000; // Poll for 60 seconds
       const pollInterval = 2000; // Poll every 2 seconds
@@ -125,29 +142,38 @@ export function SettingsWhatsAppSimple() {
           return;
         }
 
-        const statusResponse = await fetch('/api/whatsapp/status');
-        const result = await statusResponse.json();
+        const statusResponse = await fetch('/api/whatsapp/baileys/status');
+        const statusResult = await statusResponse.json();
 
-        if (result.success && result.status.qrCode) {
-          clearInterval(poll);
-          setQrCode(result.status.qrCode);
-          setShowQR(true);
-          setIsConnecting(false);
-          toast.success('QR Code ready! Scan with your phone.');
-        } else if (result.success && result.status.isAuthenticating) {
-          // User has scanned QR code, show different message
-          if (qrCode) {
+        if (statusResult.success) {
+          if (statusResult.qrCode && !statusResult.status.connected) {
+            clearInterval(poll);
+            setQrCode(statusResult.qrCode);
+            setShowQR(true);
+            setIsConnecting(false);
+            toast.success('QR Code ready! Scan with your phone.');
+          } else if (statusResult.status.connecting) {
+            // User has scanned QR code, show different message
+            if (qrCode) {
+              setShowQR(false);
+              setQrCode(null);
+              toast.info('QR Code scanned! Connecting...', {
+                description: 'Please wait while WhatsApp connects. Do not scan another QR code.',
+              });
+            }
+          } else if (statusResult.status.connected) {
+            clearInterval(poll);
+            setIsConnecting(false);
+            setClientStatus({
+              isReady: true,
+              isAuthenticating: false,
+              sessionExists: true,
+              isManualMode: false
+            });
             setShowQR(false);
             setQrCode(null);
-            toast.info('QR Code scanned! Connecting...', {
-              description: 'Please wait while WhatsApp Web loads. Do not scan another QR code.',
-            });
+            toast.success('WhatsApp connected successfully!');
           }
-        } else if (result.success && result.status.isReady) {
-          clearInterval(poll);
-          setIsConnecting(false);
-          setClientStatus(result.status);
-          toast.success('WhatsApp connected successfully!');
         }
       }, pollInterval);
 
@@ -160,13 +186,19 @@ export function SettingsWhatsAppSimple() {
 
   const disconnectWhatsApp = async () => {
     try {
-      const response = await fetch('/api/whatsapp/logout', { method: 'POST' });
+      const response = await fetch('/api/whatsapp/baileys/reset', { method: 'POST' });
       const result = await response.json();
 
       if (result.success) {
         toast.success('WhatsApp disconnected');
         setQrCode(null);
         setShowQR(false);
+        setClientStatus({
+          isReady: false,
+          isAuthenticating: false,
+          sessionExists: false,
+          isManualMode: false
+        });
         await loadClientStatus();
       } else {
         toast.error('Failed to disconnect');
@@ -183,70 +215,38 @@ export function SettingsWhatsAppSimple() {
     setIsTesting(true);
     try {
       console.log('🧪 Testing WhatsApp connection with phone:', settings.adminPhoneNumber);
-      console.log('🧪 Phone number length:', settings.adminPhoneNumber.length);
-      console.log('🧪 Phone number format check:', /^\+[1-9]\d{1,14}$/.test(settings.adminPhoneNumber));
 
-      // Use the dedicated test endpoint instead of send endpoint
-      const response = await fetch('/api/whatsapp/test', {
+      // Use the Baileys test endpoint
+      const response = await fetch('/api/whatsapp/baileys/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          phoneNumber: settings.adminPhoneNumber
+          to: settings.adminPhoneNumber,
+          message: '🧪 Test message from Betty Organic! Your WhatsApp integration is working perfectly! 🎉'
         })
       });
 
       console.log('🧪 Response status:', response.status);
-      console.log('🧪 Response ok:', response.ok);
-      console.log('🧪 Response content type:', response.headers.get('content-type'));
-
-      // Check if we got HTML instead of JSON (authentication redirect)
-      const contentType = response.headers.get('content-type');
-      if (contentType && contentType.includes('text/html')) {
-        console.error('❌ Received HTML instead of JSON - authentication required');
-        toast.error('Session expired. Please refresh the page and login again.');
-
-        // Optionally redirect to login or refresh
-        setTimeout(() => {
-          window.location.reload();
-        }, 2000);
-        return;
-      }
 
       const result = await response.json();
       console.log('🧪 Full response:', result);
 
       if (result.success) {
-        // Check if we got a WhatsApp URL (manual mode)
-        if (result.whatsappUrl) {
-          toast.success('Test URL generated successfully! Click to send message.');
-          console.log('✅ Test URL generated successfully');
-          console.log('📱 WhatsApp URL:', result.whatsappUrl);
-
-          // Open WhatsApp URL in a new tab
-          window.open(result.whatsappUrl, '_blank');
-
-          // Show additional info to user
-          toast.info('WhatsApp opened in new tab. Send the message from there!', {
-            duration: 5000,
-          });
-        } else {
-          toast.success('Test message sent successfully!');
-          console.log('✅ Test completed successfully');
-          console.log('✅ Message ID:', result.messageId);
-          console.log('📱 Check your WhatsApp app for the message');
-        }
+        toast.success('Test message sent successfully!');
+        console.log('✅ Test completed successfully');
+        console.log('✅ Message ID:', result.messageId);
+        console.log('📱 Check your WhatsApp app for the message');
       } else {
         const errorMsg = result.error || result.message || 'Test failed - no error details provided';
         toast.error(errorMsg);
         console.error('❌ Test failed. Error:', errorMsg);
-        console.error('❌ Full result object keys:', Object.keys(result || {}));
 
         // Provide additional context for common errors
         if (errorMsg.includes('phone number')) {
           toast.error('Please check your phone number format. Use international format like +251944113998');
-        } else if (errorMsg.includes('Browser') || errorMsg.includes('browser')) {
-          toast.error('Browser automation issue. The system may fall back to manual mode.');
-        } else if (errorMsg.includes('authentication') || errorMsg.includes('QR')) {
+        } else if (errorMsg.includes('not connected')) {
+          toast.error('WhatsApp not connected. Please scan the QR code first.');
+        } else if (errorMsg.includes('authentication')) {
           toast.error('WhatsApp authentication needed. Please scan QR code when it appears.');
         }
       }
@@ -280,43 +280,65 @@ export function SettingsWhatsAppSimple() {
     setQrCode(null);
 
     try {
-      await fetch('/api/whatsapp/restart', { method: 'POST' });
+      // Reset and reinitialize the connection
+      await fetch('/api/whatsapp/baileys/reset', { method: 'POST' });
 
-      // Start polling for the new QR code
-      const pollStartTime = Date.now();
-      const pollDuration = 60000; // Poll for 60 seconds
-      const pollInterval = 2000; // Poll every 2 seconds
+      // Wait a moment then initialize again
+      setTimeout(async () => {
+        const response = await fetch('/api/whatsapp/baileys/init', { method: 'POST' });
+        const result = await response.json();
 
-      toast.info('Restarting connection... Please wait.', {
-        description: 'This will generate a fresh QR code.',
-      });
-
-      const poll = setInterval(async () => {
-        if (Date.now() - pollStartTime > pollDuration) {
-          clearInterval(poll);
+        if (!result.success) {
+          toast.error(result.error || 'Failed to restart connection');
           setIsConnecting(false);
-          toast.error('Connection timed out', {
-            description: 'Could not get a QR code. Please try again.',
-          });
           return;
         }
 
-        const statusResponse = await fetch('/api/whatsapp/status');
-        const result = await statusResponse.json();
+        // Start polling for the new QR code
+        const pollStartTime = Date.now();
+        const pollDuration = 60000; // Poll for 60 seconds
+        const pollInterval = 2000; // Poll every 2 seconds
 
-        if (result.success && result.status.qrCode) {
-          clearInterval(poll);
-          setQrCode(result.status.qrCode);
-          setShowQR(true);
-          setIsConnecting(false);
-          toast.success('New QR Code ready! Scan with your phone.');
-        } else if (result.success && result.status.isReady) {
-          clearInterval(poll);
-          setIsConnecting(false);
-          setClientStatus(result.status);
-          toast.success('WhatsApp connected successfully!');
-        }
-      }, pollInterval);
+        toast.info('Restarting connection... Please wait.', {
+          description: 'This will generate a fresh QR code.',
+        });
+
+        const poll = setInterval(async () => {
+          if (Date.now() - pollStartTime > pollDuration) {
+            clearInterval(poll);
+            setIsConnecting(false);
+            toast.error('Connection timed out', {
+              description: 'Could not get a QR code. Please try again.',
+            });
+            return;
+          }
+
+          const statusResponse = await fetch('/api/whatsapp/baileys/status');
+          const statusResult = await statusResponse.json();
+
+          if (statusResult.success) {
+            if (statusResult.qrCode && !statusResult.connected) {
+              clearInterval(poll);
+              setQrCode(statusResult.qrCode);
+              setShowQR(true);
+              setIsConnecting(false);
+              toast.success('New QR Code ready! Scan with your phone.');
+            } else if (statusResult.connected) {
+              clearInterval(poll);
+              setIsConnecting(false);
+              setClientStatus({
+                isReady: true,
+                isAuthenticating: false,
+                sessionExists: true,
+                isManualMode: false
+              });
+              setShowQR(false);
+              setQrCode(null);
+              toast.success('WhatsApp connected successfully!');
+            }
+          }
+        }, pollInterval);
+      }, 1000);
 
     } catch (error) {
       console.error('Error restarting WhatsApp:', error);
@@ -613,14 +635,14 @@ export function SettingsWhatsAppSimple() {
               Save Settings
             </Button>
 
-            {!clientStatus.isReady ? (
+            {!clientStatus.isReady && !clientStatus.isAuthenticating ? (
               <Button
                 variant="outline"
                 onClick={connectWhatsApp}
-                disabled={isConnecting}
+                disabled={isConnecting || clientStatus.isAuthenticating || clientStatus.isReady}
                 className="flex items-center gap-2 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20"
               >
-                {isConnecting ? (
+                {isConnecting || clientStatus.isAuthenticating ? (
                   <div className="w-4 h-4 border-2 border-blue-600 dark:border-blue-400 border-t-transparent rounded-full animate-spin" />
                 ) : (
                   <Zap className="w-4 h-4" />

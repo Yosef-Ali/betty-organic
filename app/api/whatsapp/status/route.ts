@@ -3,6 +3,7 @@ import { getWhatsAppConfig } from '@/lib/whatsapp/config'
 import { getWhatsAppClientStatus, initializeWhatsAppClient } from '@/lib/whatsapp/webjs-service'
 import { getCloudAPIStatus, initializeCloudAPI } from '@/lib/whatsapp/cloud-api-service'
 import { getManualModeStatus, initializeManualMode } from '@/lib/whatsapp/manual-service'
+import { getBaileysStatus, initializeBaileys } from '@/lib/whatsapp/baileys-service'
 
 // Get status based on configured provider
 async function getProviderStatus() {
@@ -28,6 +29,15 @@ async function getProviderStatus() {
           webjsStatus.isAuthenticating ? 'Authenticating...' : 'Not Connected'
       }
 
+    case 'baileys':
+      const baileysStatus = await getBaileysStatus()
+      return {
+        ...baileysStatus,
+        provider: 'Baileys WhatsApp',
+        message: baileysStatus.isConnected ? 'Baileys Ready' :
+          baileysStatus.isConnecting ? 'Connecting...' : 'Not Connected'
+      }
+
     case 'manual':
     default:
       const manualStatus = await getManualModeStatus()
@@ -51,6 +61,12 @@ async function initializeProvider() {
 
     case 'whatsapp-web-js':
       return await initializeWhatsAppClient()
+
+    case 'baileys':
+      return await initializeBaileys({
+        sessionPath: './baileys-session',
+        phoneNumber: process.env.ADMIN_PHONE_NUMBER || ''
+      })
 
     case 'manual':
     default:

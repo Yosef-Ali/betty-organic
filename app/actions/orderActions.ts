@@ -362,6 +362,53 @@ export async function createOrder(
 
     console.log('[DASHBOARD DEBUG] Order creation completed successfully');
 
+    // Send WhatsApp notification for new order
+    try {
+      console.log('[NOTIFICATION] Attempting to send WhatsApp notification for new order...');
+
+      // Import the notification function dynamically to avoid import issues
+      const { sendOrderNotificationWhatsApp } = await import('@/lib/whatsapp/order-notifications');
+
+      // Prepare notification data
+      const notificationData = {
+        id: insertedOrderData.id,
+        display_id: insertedOrderData.display_id || `ORD-${Date.now()}`,
+        customer_name: 'Customer', // You might want to fetch actual customer name
+        customer_phone: '+251944113998', // You might want to fetch actual customer phone
+        customer_email: undefined,
+        delivery_address: undefined,
+        items: orderItemsToInsert.map(item => ({
+          product_name: item.product_name,
+          quantity: item.quantity,
+          price: item.price
+        })),
+        total_amount: insertedOrderData.total_amount,
+        delivery_cost: finalDeliveryCost,
+        discount_amount: discountAmount,
+        created_at: insertedOrderData.created_at,
+        status: insertedOrderData.status,
+        type: insertedOrderData.type
+      };
+
+      // Send notification in background (don't wait for it)
+      sendOrderNotificationWhatsApp(notificationData)
+        .then(result => {
+          if (result.success) {
+            console.log('✅ [NOTIFICATION] WhatsApp notification sent successfully:', result.messageId);
+          } else {
+            console.warn('⚠️ [NOTIFICATION] WhatsApp notification failed:', result.error);
+          }
+        })
+        .catch(error => {
+          console.error('❌ [NOTIFICATION] WhatsApp notification error:', error);
+        });
+
+      console.log('[NOTIFICATION] WhatsApp notification process initiated');
+    } catch (error) {
+      console.error('[NOTIFICATION] Failed to initiate WhatsApp notification:', error);
+      // Don't fail the order creation if notification fails
+    }
+
     // Construct the response object matching the frontend 'Order' type
     const responseOrder: FrontendOrder = {
       id: insertedOrderData.id,
@@ -614,6 +661,44 @@ export async function updateOrderStatus(
 
     // Real-time updates will handle UI updates, no need for revalidatePath
     console.log('[DASHBOARD DEBUG] Order status update completed, real-time will handle updates');
+
+    // Send WhatsApp notification for status update
+    try {
+      console.log('[NOTIFICATION] Attempting to send status update notification...');
+
+      const { sendOrderStatusUpdateWhatsApp } = await import('@/lib/whatsapp/order-notifications');
+
+      // We need to get the current order details to send notification
+      // For now, let's create a basic notification data structure
+      const notificationData = {
+        id: orderId,
+        display_id: updatedOrder.display_id || `ORD-${Date.now()}`,
+        customer_name: 'Customer',
+        customer_phone: '+251944113998',
+        items: [],
+        total_amount: updatedOrder.total_amount,
+        created_at: updatedOrder.created_at,
+        status: updatedOrder.status,
+        type: updatedOrder.type
+      };
+
+      // Send notification in background
+      sendOrderStatusUpdateWhatsApp(notificationData, 'previous', validStatus)
+        .then(result => {
+          if (result.success) {
+            console.log('✅ [NOTIFICATION] Status update notification sent successfully');
+          } else {
+            console.warn('⚠️ [NOTIFICATION] Status update notification failed:', result.error);
+          }
+        })
+        .catch(error => {
+          console.error('❌ [NOTIFICATION] Status update notification error:', error);
+        });
+
+    } catch (error) {
+      console.error('[NOTIFICATION] Failed to initiate status update notification:', error);
+    }
+
     return { success: true, data: updatedOrder }; // Data is OrderRow | null
   } catch (error) {
     console.error('[DASHBOARD DEBUG] Error in updateOrderStatus:', error);

@@ -4,6 +4,7 @@ import { getWhatsAppConfig, type WhatsAppConfig } from '@/lib/whatsapp/config'
 import { sendWhatsAppWebJsMessage, initializeWhatsAppClient, getWhatsAppClientStatus } from '@/lib/whatsapp/webjs-service'
 import { sendCloudAPIMessage, initializeCloudAPI, getCloudAPIStatus } from '@/lib/whatsapp/cloud-api-service'
 import { sendManualWhatsAppMessage, getManualModeStatus } from '@/lib/whatsapp/manual-service'
+import { sendBaileysMessage, initializeBaileys, getBaileysStatus, testBaileysConnection } from '@/lib/whatsapp/baileys-service'
 import { generateWhatsAppUrl } from '@/lib/whatsapp/fallback-service'
 
 export interface WhatsAppSettings {
@@ -121,6 +122,31 @@ export async function sendWhatsAppMessage(
                         messageId: manualResult.messageId,
                         whatsappUrl: manualResult.whatsappUrl,
                         error: `Web.js failed: ${webjsResult.error}. Generated manual URL instead.`
+                    }
+                }
+
+            case 'baileys':
+                console.log('🟡 Using Baileys WhatsApp')
+                const baileysResult = await sendBaileysMessage({
+                    to: phoneNumber,
+                    message,
+                    mediaPath
+                })
+
+                if (baileysResult.success) {
+                    return {
+                        success: true,
+                        messageId: baileysResult.messageId
+                    }
+                } else {
+                    // Fallback to manual if Baileys fails
+                    console.warn('⚠️ Baileys failed, falling back to manual URL:', baileysResult.error)
+                    const manualResult = await sendManualWhatsAppMessage({ phoneNumber, message })
+                    return {
+                        success: true,
+                        messageId: manualResult.messageId,
+                        whatsappUrl: manualResult.whatsappUrl,
+                        error: `Baileys failed: ${baileysResult.error}. Generated manual URL instead.`
                     }
                 }
 
@@ -259,6 +285,19 @@ export async function getWhatsAppProviderStatus(): Promise<{
                     provider: 'WhatsApp Web.js',
                     message: webjsStatus.isReady ? 'Web.js Ready' :
                         webjsStatus.isAuthenticating ? 'Authenticating...' : 'Not Connected'
+                }
+
+            case 'baileys':
+                const baileysStatus = getBaileysStatus()
+                return {
+                    isReady: baileysStatus.isConnected,
+                    isAuthenticating: baileysStatus.isConnecting,
+                    qrCode: undefined, // Baileys prints QR to terminal
+                    sessionExists: baileysStatus.hasClient,
+                    isManualMode: false,
+                    provider: 'Baileys',
+                    message: baileysStatus.isConnected ? 'Baileys Ready' :
+                        baileysStatus.isConnecting ? 'Connecting...' : 'Not Connected'
                 }
 
             case 'manual':

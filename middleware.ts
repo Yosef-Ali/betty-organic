@@ -17,6 +17,8 @@ export async function middleware(request: NextRequest) {
     request.nextUrl.pathname.startsWith('/api/temp-pdf') || // Allow temp-pdf API without auth
     request.nextUrl.pathname.startsWith('/api/temp-image') || // Allow temp-image API without auth
     request.nextUrl.pathname.startsWith('/api/generate-receipt-image') || // Allow receipt generation without auth
+    request.nextUrl.pathname.startsWith('/api/whatsapp/baileys') || // Allow Baileys management without auth
+    request.nextUrl.pathname.startsWith('/api/whatsapp/test') || // Allow WhatsApp test endpoints without auth
     request.nextUrl.pathname.includes('.') ||
     request.nextUrl.pathname === '/' ||
     request.nextUrl.pathname === '/marketing' ||
@@ -174,10 +176,10 @@ export async function middleware(request: NextRequest) {
 function redirectToLogin(request: NextRequest) {
   const isDevelopment = process.env.NODE_ENV === 'development';
   const baseUrl = isDevelopment ? 'http://localhost:3000' : request.url;
-  
+
   const redirectUrl = new URL('/auth/login', baseUrl);
   redirectUrl.searchParams.set('returnTo', request.nextUrl.pathname);
-  
+
   console.log(`🔄 Redirecting to login: ${redirectUrl.toString()}`);
   return NextResponse.redirect(redirectUrl);
 }

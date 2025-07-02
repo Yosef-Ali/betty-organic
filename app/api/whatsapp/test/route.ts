@@ -3,6 +3,7 @@ import { getWhatsAppConfig } from '@/lib/whatsapp/config';
 import { testWhatsAppWebJsConnection } from '@/lib/whatsapp/webjs-service';
 import { testManualConnection } from '@/lib/whatsapp/manual-service';
 import { testCloudAPIConnection } from '@/lib/whatsapp/cloud-api-service';
+import { testBaileysConnection } from '@/lib/whatsapp/baileys-service';
 
 export async function POST(request: NextRequest) {
     try {
@@ -37,6 +38,11 @@ export async function POST(request: NextRequest) {
             case 'whatsapp-web-js':
                 console.log('📱 [TEST API] Testing WhatsApp Web.js');
                 result = await testWhatsAppWebJsConnection(phoneNumber);
+                break;
+
+            case 'baileys':
+                console.log('📱 [TEST API] Testing Baileys WhatsApp');
+                result = await testBaileysConnection(phoneNumber);
                 break;
 
             case 'manual':
