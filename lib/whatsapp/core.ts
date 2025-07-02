@@ -71,6 +71,34 @@ export async function sendWhatsAppMessage(
     try {
         const config = getWhatsAppConfig()
 
+        // In production, prioritize manual URLs for reliability
+        const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1'
+        
+        if (isProduction && (config.provider === 'baileys' || config.provider === 'whatsapp-web-js')) {
+            console.log('🌐 Production mode: Using manual WhatsApp URL for reliability (core)')
+            
+            // For media messages, include the media URL in the message
+            let finalMessage = message
+            if (mediaPath && message === "") {
+                // Image-only message: create a message with the image link
+                finalMessage = `📄 Invoice Image: ${mediaPath}`
+            } else if (mediaPath && message) {
+                // Message with media: append media link
+                finalMessage = `${message}\n\n📎 Media: ${mediaPath}`
+            }
+            
+            const manualResult = await sendManualWhatsAppMessage({ 
+                phoneNumber, 
+                message: finalMessage 
+            })
+            return {
+                success: true,
+                messageId: manualResult.messageId,
+                whatsappUrl: manualResult.whatsappUrl,
+                error: `Production mode: Generated manual URL instead of ${config.provider} for reliability`
+            }
+        }
+
         console.log(`📱 Sending WhatsApp message via ${config.provider} provider`)
 
         // Choose provider based on configuration
