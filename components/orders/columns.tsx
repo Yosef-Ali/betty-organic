@@ -155,11 +155,21 @@ export const columns: ColumnDef<ExtendedOrder>[] = [
             customerName,
             customerEmail,
             customerPhone,
-            orderDate: new Date(order.created_at || Date.now()).toLocaleDateString(),
+            orderDate: new Date(order.created_at || Date.now()).toLocaleDateString('en-US', {
+              weekday: 'long',
+              year: 'numeric', 
+              month: 'long',
+              day: 'numeric'
+            }),
+            orderTime: new Date(order.created_at || Date.now()).toLocaleTimeString('en-US', {
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: true
+            }),
             status: order.status,
             items: items.map(item => ({
               name: item.name,
-              quantity: item.quantity,
+              quantity: `${Math.round(item.quantity * 1000)}`, // Convert back to grams for display
               price: item.totalPrice
             })),
             subtotal,
@@ -210,14 +220,20 @@ export const columns: ColumnDef<ExtendedOrder>[] = [
         try {
           const order = row.original;
 
-          // Get customer data from available fields
-          const customerPhone = order.customer?.phone || '';
-          const customerName = order.customer?.name || order.customer?.email || 'Customer';
-          const customerEmail = order.customer?.email || '';
+          // Get customer data from available fields (updated to use correct structure)
+          const customerPhone = order.is_guest_order
+            ? (order.guest_phone || '')
+            : (order.profiles?.phone || '');
+          const customerName = order.is_guest_order
+            ? (order.guest_name || 'Online Guest')
+            : (order.profiles?.name || order.profiles?.email || 'Customer');
+          const customerEmail = order.is_guest_order
+            ? (order.guest_email || '')
+            : (order.profiles?.email || '');
 
           console.log('Order data for WhatsApp:', {
             orderId: order.id,
-            customer: order.customer,
+            isGuest: order.is_guest_order,
             customerPhone,
             customerName,
             hasOrderItems: !!(order.order_items && order.order_items.length > 0)
