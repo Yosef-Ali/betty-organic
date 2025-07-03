@@ -313,10 +313,44 @@ const SalesPage: FC<SalesPageProps> = ({ user }) => {
         console.log('[SALES-PAGE] Order creation response:', response);
 
         if (response.success) {
+          // Standard success toast
+          const orderDisplay = response.order?.display_id || response.order?.id || 'unknown';
+          
           toast({
             title: 'Order created successfully',
-            description: `Order #${response.order?.display_id || response.order?.id || 'unknown'} has been created`,
+            description: `Order #${orderDisplay} has been created`,
           });
+
+          // Handle WhatsApp notification result - customer-friendly approach
+          if (response.whatsappNotification) {
+            const whatsapp = response.whatsappNotification;
+            
+            if (whatsapp.success && whatsapp.messageId && whatsapp.method === 'automated_baileys') {
+              // Automatic sending was successful - show success message
+              toast({
+                title: '✅ Order Created Successfully',
+                description: `Order #${orderDisplay} created and admin has been notified automatically!`,
+                duration: 4000,
+              });
+            } else if (!whatsapp.success && whatsapp.method === 'automatic_failed') {
+              // Automatic sending failed - continue without bothering customer
+              console.warn('[SALES-PAGE] WhatsApp auto-send failed but order created successfully:', whatsapp.error);
+              // Show normal success message - customer doesn't need to know about WhatsApp failure
+              toast({
+                title: '✅ Order Created Successfully',
+                description: `Order #${orderDisplay} has been created and is being processed.`,
+                duration: 4000,
+              });
+            }
+          } else {
+            // No WhatsApp notification result - this shouldn't happen but handle gracefully
+            console.warn('[SALES-PAGE] No WhatsApp notification result received');
+            toast({
+              title: '✅ Order Created Successfully',
+              description: `Order #${orderDisplay} has been created.`,
+              duration: 4000,
+            });
+          }
 
           // Clear the cart but don't close the sheet automatically
           // Let the CartFooter receipt modal handle the user flow

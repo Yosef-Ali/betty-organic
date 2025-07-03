@@ -37,6 +37,12 @@ export type Order = {
     phone?: string | null;
     role: string;
   };
+  // Guest order fields
+  is_guest_order?: boolean;
+  guest_name?: string;
+  guest_email?: string;
+  guest_phone?: string;
+  guest_address?: string;
 
   // For backward compatibility with old code that uses customer_id
   customer_id?: string;

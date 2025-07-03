@@ -67,7 +67,25 @@ export function OrderForm({ customers, products, initialData }: OrderFormProps) 
       await updateOrder(initialData.id, formData);
     } else {
       // Call createOrder with all required arguments
-      await createOrder(orderItems, customerId, totalAmount, status);
+      const response = await createOrder(orderItems, customerId, totalAmount, status);
+      
+      // Handle result - WhatsApp notifications are handled automatically in background
+      if (response.success) {
+        console.log('✅ Order created successfully:', response.order?.display_id);
+        
+        // Check WhatsApp notification result but don't burden user with manual actions
+        if (response.whatsappNotification) {
+          const whatsapp = response.whatsappNotification;
+          
+          if (whatsapp.success && whatsapp.messageId) {
+            console.log('📱 WhatsApp notification sent automatically');
+          } else if (!whatsapp.success) {
+            console.warn('⚠️ WhatsApp notification failed but order completed successfully');
+          }
+        }
+      } else {
+        console.error('❌ Order creation failed:', response.error);
+      }
     }
 
     router.refresh();

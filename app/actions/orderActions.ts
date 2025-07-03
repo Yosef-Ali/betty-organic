@@ -24,6 +24,13 @@ interface OrderResponse {
   success: boolean;
   order?: FrontendOrder;
   error?: string;
+  whatsappNotification?: {
+    success: boolean;
+    message?: string;
+    method?: string;
+    messageId?: string;
+    error?: string;
+  } | null;
 }
 
 // Helper to check if an object is a PostgrestError
@@ -362,9 +369,10 @@ export async function createOrder(
 
     console.log('[DASHBOARD DEBUG] Order creation completed successfully');
 
-    // Send WhatsApp notification for new order
+    // Send WhatsApp notification for new order and return the result
+    let whatsappResult = null;
     try {
-      console.log('[NOTIFICATION] Attempting to send WhatsApp notification for new order...');
+      console.log('[NOTIFICATION] 🚀 Sending automatic WhatsApp notification for order:', insertedOrderData.display_id);
 
       // Import the notification function dynamically to avoid import issues
       const { sendOrderNotificationWhatsApp } = await import('@/lib/whatsapp/order-notifications');
@@ -413,23 +421,35 @@ export async function createOrder(
         type: insertedOrderData.type
       };
 
-      // Send notification in background (don't wait for it)
-      sendOrderNotificationWhatsApp(notificationData)
-        .then(result => {
-          if (result.success) {
-            console.log('✅ [NOTIFICATION] WhatsApp notification sent successfully:', result.messageId);
-          } else {
-            console.warn('⚠️ [NOTIFICATION] WhatsApp notification failed:', result.error);
-          }
-        })
-        .catch(error => {
-          console.error('❌ [NOTIFICATION] WhatsApp notification error:', error);
-        });
+      console.log('[NOTIFICATION] 📋 Notification data prepared:', {
+        orderId: notificationData.display_id,
+        customer: notificationData.customer_name,
+        itemCount: notificationData.items.length,
+        total: notificationData.total_amount
+      });
 
-      console.log('[NOTIFICATION] WhatsApp notification process initiated');
+      // Wait for notification result so we can return WhatsApp URLs to the UI
+      whatsappResult = await sendOrderNotificationWhatsApp(notificationData);
+      
+      if (whatsappResult.success) {
+        if (whatsappResult.messageId) {
+          console.log('✅ [NOTIFICATION] Automatic WhatsApp notification sent successfully!', {
+            messageId: whatsappResult.messageId,
+            method: whatsappResult.method
+          });
+        } else {
+          console.log('📱 [NOTIFICATION] WhatsApp notification completed');
+        }
+      } else {
+        console.warn('⚠️ [NOTIFICATION] WhatsApp notification failed:', whatsappResult.error);
+      }
     } catch (error) {
-      console.error('[NOTIFICATION] Failed to initiate WhatsApp notification:', error);
+      console.error('💥 [NOTIFICATION] Failed to send WhatsApp notification:', error);
       // Don't fail the order creation if notification fails
+      whatsappResult = {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown notification error'
+      };
     }
 
     // Construct the response object matching the frontend 'Order' type
@@ -466,6 +486,7 @@ export async function createOrder(
     return {
       success: true,
       order: responseOrder,
+      whatsappNotification: whatsappResult // Include WhatsApp notification result
     };
   } catch (error) {
     console.error('[DASHBOARD DEBUG] Error creating order:', error);

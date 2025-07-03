@@ -70,56 +70,34 @@ ${orderData.delivery_cost ? `🚚 *Delivery:* ETB ${orderData.delivery_cost.toFi
 
 💚 *Betty Organic - Fresh & Healthy*`
 
-        console.log('📱 Sending WhatsApp order notification:', {
+        console.log('📱 [AUTO-WHATSAPP] Sending automatic WhatsApp order notification:', {
             orderId: orderData.display_id,
             customer: orderData.customer_name,
             total: netTotal,
-            itemCount: orderData.items.length
+            itemCount: orderData.items.length,
+            to: adminPhoneNumber
         })
 
-        // In production, use manual URLs for reliability due to serverless limitations
-        const isProduction = false // Temporarily force automated sending for testing
-        
-        if (isProduction) {
-            console.log('🌐 Production mode: Using manual WhatsApp URL for reliability')
-            const cleanPhone = adminPhoneNumber.replace(/[\s\-\(\)\+]/g, '')
-            const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`
-            
-            console.log('✅ Order notification manual URL generated:', {
-                orderId: orderData.display_id,
-                url: whatsappUrl.substring(0, 100) + '...'
-            })
-            
-            return {
-                success: true,
-                message: 'Order notification ready to send via WhatsApp URL',
-                whatsappUrl,
-                method: 'manual_url_production',
-                orderData: {
-                    orderId: orderData.display_id,
-                    customer: orderData.customer_name,
-                    total: netTotal
-                }
-            }
-        }
-        
-        // Development mode: try automated sending via Baileys
-        console.log('🔧 Development mode: Attempting automated WhatsApp sending')
+        // Always use automated sending via Baileys for immediate delivery
+        console.log('🔧 [AUTO-WHATSAPP] Attempting automated WhatsApp sending via Baileys...')
         const result = await sendBaileysMessage({
             to: adminPhoneNumber,
             message: message
         })
 
         if (result.success) {
-            console.log('✅ Order notification sent successfully via WhatsApp:', {
+            console.log('✅ [AUTO-WHATSAPP] Automatic order notification sent successfully!', {
                 orderId: orderData.display_id,
-                messageId: result.messageId
+                messageId: result.messageId,
+                method: 'automated_baileys',
+                timestamp: new Date().toISOString()
             })
 
             return {
                 success: true,
-                message: 'Order notification sent successfully!',
+                message: 'Order notification sent automatically!',
                 messageId: result.messageId,
+                method: 'automated_baileys',
                 orderData: {
                     orderId: orderData.display_id,
                     customer: orderData.customer_name,
@@ -127,17 +105,13 @@ ${orderData.delivery_cost ? `🚚 *Delivery:* ETB ${orderData.delivery_cost.toFi
                 }
             }
         } else {
-            console.error('❌ Failed to send order notification, falling back to manual URL:', result.error)
+            console.warn('⚠️ [AUTO-WHATSAPP] Automatic sending failed, continuing without notification:', result.error)
             
-            // Fallback to manual URL even in development
-            const cleanPhone = adminPhoneNumber.replace(/[\s\-\(\)\+]/g, '')
-            const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`
-            
+            // Do NOT involve customer - just log the failure and continue
             return {
-                success: true,
-                message: 'Order notification fallback URL generated',
-                whatsappUrl,
-                method: 'manual_url_fallback',
+                success: false,
+                message: 'WhatsApp notification failed - continuing without notification',
+                method: 'automatic_failed',
                 error: `Baileys failed: ${result.error}`,
                 orderData: {
                     orderId: orderData.display_id,
@@ -191,47 +165,29 @@ ${statusEmojis[oldStatus] || '⚪'} ${oldStatus.toUpperCase()} → ${statusEmoji
 
 💚 *Betty Organic*`
 
-        // In production, use manual URLs for reliability 
-        const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1'
-        
-        if (isProduction) {
-            console.log('🌐 Production mode: Using manual WhatsApp URL for status update')
-            const cleanPhone = adminPhoneNumber.replace(/[\s\-\(\)\+]/g, '')
-            const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`
-            
-            return {
-                success: true,
-                message: 'Status update notification ready to send via WhatsApp URL',
-                whatsappUrl,
-                method: 'manual_url_production'
-            }
-        }
-
-        // Development mode: try automated sending
+        // Always use automated sending for status updates
+        console.log('🔧 [AUTO-WHATSAPP] Attempting automated status update via Baileys...')
         const result = await sendBaileysMessage({
             to: adminPhoneNumber,
             message: message
         })
 
         if (result.success) {
-            console.log('✅ Status update notification sent successfully')
+            console.log('✅ [AUTO-WHATSAPP] Status update notification sent successfully!')
             return {
                 success: true,
-                message: 'Status update notification sent!',
-                messageId: result.messageId
+                message: 'Status update notification sent automatically!',
+                messageId: result.messageId,
+                method: 'automated_baileys'
             }
         } else {
-            console.error('❌ Failed to send status update notification, falling back to manual URL:', result.error)
+            console.warn('⚠️ [AUTO-WHATSAPP] Status update failed, continuing without notification:', result.error)
             
-            // Fallback to manual URL
-            const cleanPhone = adminPhoneNumber.replace(/[\s\-\(\)\+]/g, '')
-            const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`
-            
+            // Do NOT involve customer - just log the failure and continue
             return {
-                success: true,
-                message: 'Status update fallback URL generated',
-                whatsappUrl,
-                method: 'manual_url_fallback',
+                success: false,
+                message: 'Status update notification failed - continuing without notification',
+                method: 'automatic_failed',
                 error: `Baileys failed: ${result.error}`
             }
         }
