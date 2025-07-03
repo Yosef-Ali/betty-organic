@@ -9,7 +9,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, MessageCircle } from "lucide-react";
+import { MoreHorizontal, MessageCircle, Download } from "lucide-react";
 import { ExtendedOrder } from "@/types/order";
 import { formatOrderId, formatOrderCurrency } from "@/lib/utils";
 import { updateOrderStatus } from "@/app/actions/orderActions";
@@ -129,7 +129,83 @@ export const columns: ColumnDef<ExtendedOrder>[] = [
         } catch (error) {
           toast.error("Error updating order status");
         }
-      }; const handleWhatsAppInvoice = async (e: React.MouseEvent) => {
+      };
+
+      const handleDownloadInvoice = async (e: React.MouseEvent) => {
+        e.stopPropagation(); // Prevent row click
+        try {
+          const order = row.original;
+
+          // Get customer data from available fields  
+          const customerName = order.is_guest_order 
+            ? (order.guest_name || 'Online Guest')
+            : (order.profiles?.name || order.profiles?.email || 'Customer');
+          const customerEmail = order.is_guest_order 
+            ? (order.guest_email || '') 
+            : (order.profiles?.email || '');
+          const customerPhone = order.is_guest_order 
+            ? (order.guest_phone || '') 
+            : (order.profiles?.phone || '');
+
+          // Format order items for invoice using universal calculation
+          const { subtotal, deliveryCost, discountAmount, totalAmount, items } = calculateOrderTotals(order);
+
+          const invoiceData = {
+            orderId: order.display_id || order.id,
+            customerName,
+            customerEmail,
+            customerPhone,
+            orderDate: new Date(order.created_at || Date.now()).toLocaleDateString(),
+            status: order.status,
+            items: items.map(item => ({
+              name: item.name,
+              quantity: item.quantity,
+              price: item.totalPrice
+            })),
+            subtotal,
+            shippingFee: deliveryCost,
+            discount: discountAmount,
+            totalAmount
+          };
+
+          console.log('Generating PDF invoice for order:', invoiceData.orderId);
+
+          // Call the PDF generation API
+          const response = await fetch('/api/generate-invoice-pdf', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(invoiceData),
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to generate PDF invoice');
+          }
+
+          const result = await response.json();
+
+          if (result.success && result.pdfBase64) {
+            // Create download link
+            const link = document.createElement('a');
+            link.href = `data:${result.contentType};base64,${result.pdfBase64}`;
+            link.download = result.filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            toast.success("Invoice downloaded successfully!");
+          } else {
+            throw new Error(result.error || 'Failed to generate PDF');
+          }
+
+        } catch (error) {
+          console.error('Error downloading invoice:', error);
+          toast.error("Failed to download invoice");
+        }
+      };
+
+      const handleWhatsAppInvoice = async (e: React.MouseEvent) => {
         e.stopPropagation(); // Prevent row click
         try {
           const order = row.original;
@@ -256,6 +332,10 @@ ${invoiceData.items.map(item =>
               <DropdownMenuItem onClick={handleWhatsAppInvoice}>
                 <MessageCircle className="h-4 w-4 mr-2" />
                 Send Invoice via WhatsApp
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleDownloadInvoice}>
+                <Download className="h-4 w-4 mr-2" />
+                Download PDF Invoice
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuLabel>Update Status</DropdownMenuLabel>
