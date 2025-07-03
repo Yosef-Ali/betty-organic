@@ -78,7 +78,7 @@ ${orderData.delivery_cost ? `🚚 *Delivery:* ETB ${orderData.delivery_cost.toFi
         })
 
         // In production, use manual URLs for reliability due to serverless limitations
-        const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1'
+        const isProduction = false // Temporarily force automated sending for testing
         
         if (isProduction) {
             console.log('🌐 Production mode: Using manual WhatsApp URL for reliability')
