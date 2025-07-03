@@ -157,7 +157,7 @@ export const columns: ColumnDef<ExtendedOrder>[] = [
             customerPhone,
             orderDate: new Date(order.created_at || Date.now()).toLocaleDateString('en-US', {
               weekday: 'long',
-              year: 'numeric', 
+              year: 'numeric',
               month: 'long',
               day: 'numeric'
             }),
@@ -186,11 +186,17 @@ export const columns: ColumnDef<ExtendedOrder>[] = [
             headers: {
               'Content-Type': 'application/json',
             },
+            credentials: 'include', // Include cookies for authentication
             body: JSON.stringify(invoiceData),
           });
 
+          console.log('PDF API Response status:', response.status);
+          console.log('PDF API Response headers:', Object.fromEntries(response.headers.entries()));
+
           if (!response.ok) {
-            throw new Error('Failed to generate PDF invoice');
+            const errorText = await response.text();
+            console.error('PDF API Error Response:', errorText);
+            throw new Error(`Failed to generate PDF invoice: ${response.status} ${errorText}`);
           }
 
           const result = await response.json();
@@ -211,7 +217,7 @@ export const columns: ColumnDef<ExtendedOrder>[] = [
 
         } catch (error) {
           console.error('Error downloading invoice:', error);
-          toast.error("Failed to download invoice");
+          toast.error(`Failed to download invoice: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
       };
 

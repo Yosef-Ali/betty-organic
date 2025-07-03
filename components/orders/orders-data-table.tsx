@@ -227,13 +227,16 @@ export function OrdersDataTable({
                                 itemsCount: orderItems.length
                             });
 
-                            // Prepare invoice data for image function
+                            // Prepare invoice data for WhatsApp message  
                             const invoiceData = {
                                 customerPhone: customerPhone,
                                 customerName: customerName,
                                 orderId: order.display_id || order.id,
                                 items: orderItems,
-                                total: order.total_amount || 0,
+                                subtotal: order.total_amount || 0,
+                                shippingFee: 0,
+                                discount: 0,
+                                totalAmount: order.total_amount || 0,
                                 orderDate: new Date(order.created_at || Date.now()).toLocaleDateString(),
                                 orderTime: new Date(order.created_at || Date.now()).toLocaleTimeString(),
                                 storeName: 'Betty Organic',
@@ -259,13 +262,13 @@ ${invoiceData.items.map(item =>
 
 💰 *Payment Summary:*
 • Subtotal: ETB ${invoiceData.subtotal.toFixed(2)}
-• Delivery: ETB ${invoiceData.deliveryCost || 0}
-• Discount: ETB ${invoiceData.discount || 0}
-• *Total: ETB ${invoiceData.total.toFixed(2)}*
+• Delivery: ETB ${invoiceData.shippingFee.toFixed(2)}
+• Discount: ETB ${invoiceData.discount.toFixed(2)}
+• *Total: ETB ${invoiceData.totalAmount.toFixed(2)}*
 
-💳 *Payment Method:* ${invoiceData.paymentMethod}
+💳 *Payment Method:* Cash on Delivery
 📍 *Store:* Genet Tower, Office #505
-📞 *Contact:* ${invoiceData.storeContact}
+📞 *Contact:* +251944113998
 
 ✨ Thank you for choosing Betty Organic! ✨
                             `.trim();
@@ -317,51 +320,55 @@ ${invoiceData.items.map(item =>
                                 itemsCount: orderItems.length
                             });
 
-                            // Generate invoice image
-                            const receiptData = {
+                            // Generate PDF invoice
+                            const invoiceData = {
+                                orderId: order.display_id || order.id,
                                 customerName: customerName,
                                 customerEmail: order.customer?.email || order.guest_email || 'customer@email.com',
-                                orderId: order.display_id || order.id,
-                                items: orderItems,
-                                total: order.total_amount || 0,
-                                orderDate: new Date(order.created_at || Date.now()).toLocaleDateString(),
-                                orderTime: new Date(order.created_at || Date.now()).toLocaleTimeString(),
-                                storeName: "Betty Organic",
-                                storeContact: "+251944113998"
+                                customerPhone: order.customer?.phone || order.guest_phone || '',
+                                orderDate: new Date(order.created_at || Date.now()).toLocaleDateString('en-US', {
+                                    weekday: 'long',
+                                    year: 'numeric',
+                                    month: 'long',
+                                    day: 'numeric'
+                                }),
+                                orderTime: new Date(order.created_at || Date.now()).toLocaleTimeString('en-US', {
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                    hour12: true
+                                }),
+                                items: orderItems.map(item => ({
+                                    name: item.name,
+                                    quantity: `${Math.round(item.quantity * 1000)}`, // Convert to grams for display
+                                    price: item.price
+                                })),
+                                subtotal: order.total_amount || 0,
+                                shippingFee: 0,
+                                discount: 0,
+                                totalAmount: order.total_amount || 0
                             };
 
-                            // Call API to generate image
-                            const response = await fetch('/api/generate-receipt-image', {
+                            // Call the PDF generation API
+                            const response = await fetch('/api/generate-invoice-pdf', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(receiptData)
+                                body: JSON.stringify(invoiceData)
                             });
 
                             if (response.ok) {
                                 const result = await response.json();
-                                if (result.success && result.imageBase64) {
-                                    // Convert base64 to blob and download
-                                    const byteCharacters = atob(result.imageBase64);
-                                    const byteNumbers = new Array(byteCharacters.length);
-                                    for (let i = 0; i < byteCharacters.length; i++) {
-                                        byteNumbers[i] = byteCharacters.charCodeAt(i);
-                                    }
-                                    const byteArray = new Uint8Array(byteNumbers);
-                                    const blob = new Blob([byteArray], { type: 'image/png' });
-
-                                    // Create download link
-                                    const url = URL.createObjectURL(blob);
+                                if (result.success && result.pdfBase64) {
+                                    // Create download link for PDF
                                     const link = document.createElement('a');
-                                    link.href = url;
-                                    link.download = `Invoice-${order.display_id || order.id}.png`;
+                                    link.href = `data:${result.contentType};base64,${result.pdfBase64}`;
+                                    link.download = result.filename;
                                     document.body.appendChild(link);
                                     link.click();
                                     document.body.removeChild(link);
-                                    URL.revokeObjectURL(url);
 
-                                    toast.success(`Invoice downloaded! You can now send it to customer manually.`);
+                                    toast.success("Invoice downloaded successfully!");
                                 } else {
-                                    toast.error("Failed to generate invoice image");
+                                    toast.error("Failed to generate PDF invoice");
                                 }
                             } else {
                                 toast.error("Failed to generate invoice");
@@ -644,50 +651,54 @@ ${invoiceData.items.map(item =>
                                                         })) || [];
 
                                                         // Generate invoice image
-                                                        const receiptData = {
+                                                        const invoiceData = {
+                                                            orderId: order.display_id || order.id,
                                                             customerName: customerName,
                                                             customerEmail: order.customer?.email || order.guest_email || 'customer@email.com',
-                                                            orderId: order.display_id || order.id,
-                                                            items: orderItems,
-                                                            total: order.total_amount || 0,
-                                                            orderDate: new Date(order.created_at || Date.now()).toLocaleDateString(),
-                                                            orderTime: new Date(order.created_at || Date.now()).toLocaleTimeString(),
-                                                            storeName: "Betty Organic",
-                                                            storeContact: "+251944113998"
+                                                            customerPhone: order.customer?.phone || order.guest_phone || '',
+                                                            orderDate: new Date(order.created_at || Date.now()).toLocaleDateString('en-US', {
+                                                                weekday: 'long',
+                                                                year: 'numeric',
+                                                                month: 'long',
+                                                                day: 'numeric'
+                                                            }),
+                                                            orderTime: new Date(order.created_at || Date.now()).toLocaleTimeString('en-US', {
+                                                                hour: '2-digit',
+                                                                minute: '2-digit',
+                                                                hour12: true
+                                                            }),
+                                                            items: orderItems.map(item => ({
+                                                                name: item.name,
+                                                                quantity: `${Math.round(item.quantity * 1000)}`, // Convert to grams for display
+                                                                price: item.price
+                                                            })),
+                                                            subtotal: order.total_amount || 0,
+                                                            shippingFee: 0,
+                                                            discount: 0,
+                                                            totalAmount: order.total_amount || 0
                                                         };
 
                                                         try {
-                                                            const response = await fetch('/api/generate-receipt-image', {
+                                                            const response = await fetch('/api/generate-invoice-pdf', {
                                                                 method: 'POST',
                                                                 headers: { 'Content-Type': 'application/json' },
-                                                                body: JSON.stringify(receiptData)
+                                                                body: JSON.stringify(invoiceData)
                                                             });
 
                                                             if (response.ok) {
                                                                 const result = await response.json();
-                                                                if (result.success && result.imageBase64) {
-                                                                    // Convert base64 to blob and download
-                                                                    const byteCharacters = atob(result.imageBase64);
-                                                                    const byteNumbers = new Array(byteCharacters.length);
-                                                                    for (let i = 0; i < byteCharacters.length; i++) {
-                                                                        byteNumbers[i] = byteCharacters.charCodeAt(i);
-                                                                    }
-                                                                    const byteArray = new Uint8Array(byteNumbers);
-                                                                    const blob = new Blob([byteArray], { type: 'image/png' });
-
-                                                                    // Create download link
-                                                                    const url = URL.createObjectURL(blob);
+                                                                if (result.success && result.pdfBase64) {
+                                                                    // Create download link for PDF
                                                                     const link = document.createElement('a');
-                                                                    link.href = url;
-                                                                    link.download = `Invoice-${order.display_id || order.id}.png`;
+                                                                    link.href = `data:${result.contentType};base64,${result.pdfBase64}`;
+                                                                    link.download = result.filename;
                                                                     document.body.appendChild(link);
                                                                     link.click();
                                                                     document.body.removeChild(link);
-                                                                    URL.revokeObjectURL(url);
 
-                                                                    toast.success(`Invoice downloaded! You can now send it to customer manually.`);
+                                                                    toast.success("Invoice downloaded successfully!");
                                                                 } else {
-                                                                    toast.error("Failed to generate invoice image");
+                                                                    toast.error("Failed to generate PDF invoice");
                                                                 }
                                                             } else {
                                                                 toast.error("Failed to generate invoice");
