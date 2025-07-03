@@ -240,33 +240,48 @@ export function OrdersDataTable({
                                 storeContact: '+251944113998'
                             };
 
-                            console.log('Sending invoice data:', invoiceData);
+                            console.log('Preparing invoice for manual WhatsApp sharing:', invoiceData);
 
-                            // Import the WhatsApp function
-                            const { sendImageInvoiceWhatsApp } = await import('@/app/actions/whatsappActions');
+                            // Create manual WhatsApp message
+                            const whatsappText = `
+🌿 *Betty's Organic Store* 🌿
+📋 *Order Invoice*
 
-                            console.log('About to call sendImageInvoiceWhatsApp...');
+📅 *Date:* ${invoiceData.orderDate}
+⏰ *Time:* ${invoiceData.orderTime}
+🔢 *Order ID:* ${invoiceData.orderId}
+👤 *Customer:* ${invoiceData.customerName}
+
+📝 *Items Ordered:*
+${invoiceData.items.map(item =>
+                                `• ${item.name} (${item.quantity}g) - ETB ${item.price.toFixed(2)}`
+                            ).join('\n')}
+
+💰 *Payment Summary:*
+• Subtotal: ETB ${invoiceData.subtotal.toFixed(2)}
+• Delivery: ETB ${invoiceData.deliveryCost || 0}
+• Discount: ETB ${invoiceData.discount || 0}
+• *Total: ETB ${invoiceData.total.toFixed(2)}*
+
+💳 *Payment Method:* ${invoiceData.paymentMethod}
+📍 *Store:* Genet Tower, Office #505
+📞 *Contact:* ${invoiceData.storeContact}
+
+✨ Thank you for choosing Betty Organic! ✨
+                            `.trim();
 
                             try {
-                                const result = await sendImageInvoiceWhatsApp(invoiceData);
-                                console.log('Invoice send result:', result);
+                                // Open WhatsApp with pre-filled message (manual approach)
+                                const customerPhone = invoiceData.customerPhone?.replace('+', '') || '251944113998';
+                                const whatsappUrl = `https://wa.me/${customerPhone}?text=${encodeURIComponent(whatsappText)}`;
+                                window.open(whatsappUrl, '_blank');
 
-                                if (result.success) {
-                                    // If it's a URL result, open it automatically
-                                    if (result.whatsappUrl) {
-                                        window.open(result.whatsappUrl, '_blank');
-                                        toast.success('WhatsApp opened with invoice - click send to deliver!');
-                                    } else {
-                                        toast.success(result.message || 'Invoice sent successfully!');
-                                    }
-                                } else {
-                                    toast.error('Failed to send invoice', {
-                                        description: result.error || 'Unknown error occurred'
-                                    });
-                                }
+                                toast.success('Invoice prepared for WhatsApp sharing', {
+                                    description: 'WhatsApp opened with invoice message'
+                                });
                             } catch (error) {
-                                console.error('Error calling sendImageInvoiceWhatsApp:', error);
-                                toast.error('Error sending invoice', {
+                                console.error('Error preparing WhatsApp invoice:', error);
+                                toast.error('Error preparing invoice', {
                                     description: error instanceof Error ? error.message : 'Unknown error'
                                 });
                             }

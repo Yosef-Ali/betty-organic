@@ -152,12 +152,9 @@ export async function handlePurchaseOrder(
       };
     }
 
-    // Send automatic WhatsApp notification to admin
+    // Log order details for manual admin processing
     try {
-      console.log('📱 Sending automatic admin notification for order:', order.display_id);
-
-      // Import the notification function
-      const { sendAdminWhatsAppNotification } = await import('./whatsappActions');
+      console.log('� New order created - manual admin processing required:', order.display_id);
 
       // Get user profile for customer info
       const { data: userProfile } = await supabase
@@ -169,35 +166,24 @@ export async function handlePurchaseOrder(
       const customerName = userProfile?.name || userEmail?.split('@')[0] || 'Customer';
       const customerPhone = userProfile?.phone || 'Not provided';
 
-      // Prepare order details for notification
-      const orderNotificationData = {
-        id: order.id,
-        display_id: order.display_id || `BO-${order.id}`,
+      console.log('📋 Order details for manual processing:', {
+        orderId: order.display_id || `BO-${order.id}`,
+        customerName,
+        customerPhone,
+        customerEmail: userEmail,
         items: items.map(item => ({
           name: item.name,
           grams: item.grams,
           price: Number(((item.pricePerKg * item.grams) / 1000).toFixed(2)),
           unit_price: item.pricePerKg
         })),
-        total: Number(total.toFixed(2)),
-        customer_name: customerName,
-        customer_phone: customerPhone,
-        delivery_address: 'To be provided',
-        customer_email: userEmail,
-        user_id: userId,
-        created_at: order.created_at || new Date().toISOString()
-      };
+        total: Number(total.toFixed(2))
+      });
 
-      const notificationResult = await sendAdminWhatsAppNotification(orderNotificationData);
-
-      if (notificationResult.success) {
-        console.log('✅ Admin notification sent successfully:', notificationResult.method);
-      } else {
-        console.warn('⚠️ Admin notification failed:', notificationResult.error);
-      }
-    } catch (notificationError) {
-      console.error('❌ Failed to send admin notification:', notificationError);
-      // Don't fail the order creation if notification fails
+      console.log('✅ Order logged for manual admin processing');
+    } catch (logError) {
+      console.error('❌ Failed to log order details:', logError);
+      // Don't fail the order creation if logging fails
     }
 
     // Revalidate the dashboard paths to show the new order
@@ -462,9 +448,6 @@ export async function handleGuestOrder(
 
     if (!order) {
       console.error('Failed to create order with any strategy:', finalError);
-      if (profileCreated) {
-        await supabase.from('profiles').delete().eq('id', guestUserId);
-      }
       return {
         error: `Failed to create order: ${finalError?.message || 'Unknown error'}`,
         status: 500
@@ -488,53 +471,36 @@ export async function handleGuestOrder(
 
     if (itemsError) {
       console.error('Failed to create guest order items:', itemsError);
-      // Cleanup the order and profile if they were created
+      // Cleanup the order if it was created
       await supabase.from('orders').delete().eq('id', order.id);
-      if (profileCreated) {
-        await supabase.from('profiles').delete().eq('id', guestUserId);
-      }
       return {
         error: `Failed to create order items: ${itemsError.message}`,
         status: 500
       };
     }
 
-    // Send automatic WhatsApp notification to admin for guest order
+    // Log guest order details for manual admin processing
     try {
-      console.log('📱 Sending automatic admin notification for guest order:', order.display_id);
+      console.log('� New guest order created - manual admin processing required:', order.display_id);
 
-      // Import the notification function
-      const { sendAdminWhatsAppNotification } = await import('./whatsappActions');
-
-      // Prepare order details for notification
-      const orderNotificationData = {
-        id: order.id,
-        display_id: order.display_id || `BO-GUEST-${order.id}`,
+      console.log('📋 Guest order details for manual processing:', {
+        orderId: order.display_id || `BO-GUEST-${order.id}`,
+        customerName: customerInfo.name || 'Guest Customer',
+        customerPhone: customerInfo.phone,
+        deliveryAddress: customerInfo.address,
         items: items.map(item => ({
           name: item.name,
           grams: item.grams,
           price: Number(((item.pricePerKg * item.grams) / 1000).toFixed(2)),
           unit_price: item.pricePerKg
         })),
-        total: Number(total.toFixed(2)),
-        customer_name: customerInfo.name || 'Guest Customer',
-        customer_phone: customerInfo.phone,
-        delivery_address: customerInfo.address,
-        customer_email: null,
-        user_id: null,
-        created_at: order.created_at || new Date().toISOString()
-      };
+        total: Number(total.toFixed(2))
+      });
 
-      const notificationResult = await sendAdminWhatsAppNotification(orderNotificationData);
-
-      if (notificationResult.success) {
-        console.log('✅ Admin notification sent successfully for guest order:', notificationResult.method);
-      } else {
-        console.warn('⚠️ Admin notification failed for guest order:', notificationResult.error);
-      }
-    } catch (notificationError) {
-      console.error('❌ Failed to send admin notification for guest order:', notificationError);
-      // Don't fail the order creation if notification fails
+      console.log('✅ Guest order logged for manual admin processing');
+    } catch (logError) {
+      console.error('❌ Failed to log guest order details:', logError);
+      // Don't fail the order creation if logging fails
     }
 
     // Store guest info with the order data for reference

@@ -28,7 +28,6 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { getCustomerList } from "@/app/actions/customerActions";
-import { sendSalesReceiptWhatsApp } from "@/app/actions/whatsappActions";
 import { toast } from "sonner";
 import { CustomerPhoneInput } from "./CustomerPhoneInput";
 
@@ -426,7 +425,7 @@ ${storeInfo}`;
     ]
   );
 
-  // Send receipt to customer
+  // Send receipt to customer - Manual process without WhatsApp automation
   const handleSendReceipt = useCallback(async () => {
     if (!orderNumber || !selectedCustomer) {
       toast.error("Order must be saved and customer selected first");
@@ -452,60 +451,52 @@ ${storeInfo}`;
     setIsSendingReceipt(true);
     try {
       const now = new Date();
-      const receiptData = {
-        customerPhone: selectedCustomer.phone,
-        customerName: selectedCustomer.name,
-        orderId: orderNumber,
-        items: items.map(item => ({
-          name: item.name,
-          grams: item.grams,
-          pricePerKg: item.pricePerKg,
-          totalPrice: (item.pricePerKg * item.grams) / 1000
-        })),
-        subtotal: totalAmount - deliveryCost,
-        deliveryCost: deliveryCost,
-        discount: 0,
-        total: totalAmount,
-        orderDate: now.toLocaleDateString('en-US', {
-          weekday: 'long',
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric'
-        }),
-        orderTime: now.toLocaleTimeString('en-US', {
-          hour: '2-digit',
-          minute: '2-digit'
-        }),
-        paymentMethod: 'Cash',
-        storeName: 'Betty Organic',
-        storeContact: '+251944113998'
-      };
 
-      console.log('Sending receipt with data:', receiptData);
+      // Create receipt text for manual sharing
+      const receiptText = `
+🌿 *Betty's Organic Store* 🌿
+📋 *Order Receipt*
 
-      const result = await sendSalesReceiptWhatsApp(receiptData);
+📅 *Date:* ${now.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      })}
+⏰ *Time:* ${now.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit'
+      })}
+🔢 *Order ID:* ${orderNumber}
+👤 *Customer:* ${selectedCustomer.name}
 
-      if (result.success) {
-        if (result.whatsappUrl) {
-          // Manual URL case
-          window.open(result.whatsappUrl, '_blank');
-          toast.success("Receipt ready to send via WhatsApp", {
-            description: "WhatsApp opened with receipt message"
-          });
-        } else {
-          // Automatic sending case
-          toast.success(result.message || "Receipt sent successfully!", {
-            description: `Sent via ${result.provider || 'WhatsApp'}`
-          });
-        }
-      } else {
-        toast.error("Failed to send receipt", {
-          description: result.error
-        });
-      }
+📝 *Items Ordered:*
+${items.map(item =>
+        `• ${item.name} (${item.grams}g) - Br ${((item.pricePerKg * item.grams) / 1000).toFixed(2)}`
+      ).join('\n')}
+
+💰 *Payment Summary:*
+• Subtotal: Br ${(totalAmount - deliveryCost).toFixed(2)}
+• Delivery: Br ${deliveryCost.toFixed(2)}
+• *Total: Br ${totalAmount.toFixed(2)}*
+
+💳 *Payment:* Cash on Delivery
+📍 *Store:* Genet Tower, Office #505
+📞 *Contact:* +251947385509
+
+✨ Thank you for choosing Betty Organic! ✨
+      `.trim();
+
+      // Open WhatsApp with pre-filled message
+      const whatsappUrl = `https://wa.me/${selectedCustomer.phone.replace('+', '')}?text=${encodeURIComponent(receiptText)}`;
+      window.open(whatsappUrl, '_blank');
+
+      toast.success("Receipt ready to send via WhatsApp", {
+        description: "WhatsApp opened with receipt message"
+      });
     } catch (error) {
-      console.error('Receipt sending error:', error);
-      toast.error("Error sending receipt", {
+      console.error('Receipt preparation error:', error);
+      toast.error("Error preparing receipt", {
         description: "Please try again"
       });
     } finally {

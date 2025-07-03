@@ -1,7 +1,6 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { sendAdminWhatsAppNotification } from '@/app/actions/whatsappActions'
 
 interface OrderDetails {
   id: string | number
@@ -23,47 +22,62 @@ interface OrderDetails {
 
 export async function sendWhatsAppOrderNotification(orderDetails: OrderDetails, adminPhoneNumber?: string) {
   try {
-    console.log('📱 Sending order notification via Twilio WhatsApp...', { orderId: orderDetails.display_id })
+    console.log('📱 Preparing order notification for manual WhatsApp sending...', { orderId: orderDetails.display_id })
 
-    // Use the enhanced WhatsApp action that supports Twilio
-    const result = await sendAdminWhatsAppNotification(orderDetails)
+    // Create manual WhatsApp message for admin
+    const whatsappText = `
+🔔 *NEW ORDER ALERT* 🔔
+🌿 *Betty's Organic Store* 🌿
 
-    if (result.success) {
-      console.log('✅ Order notification sent successfully:', result)
+📋 *Order Details:*
+🔢 Order ID: ${orderDetails.display_id}
+📅 Date: ${new Date(orderDetails.created_at).toLocaleDateString()}
+⏰ Time: ${new Date(orderDetails.created_at).toLocaleTimeString()}
 
-      // Log the successful notification
-      await logOrderNotification(orderDetails.display_id, 'whatsapp', 'sent')
+👤 *Customer Information:*
+• Name: ${orderDetails.customer_name}
+• Phone: ${orderDetails.customer_phone}
+• Email: ${orderDetails.customer_email || 'Not provided'}
+• Address: ${orderDetails.delivery_address}
 
-      return {
-        success: true,
-        message: result.automatic
-          ? `Admin notified automatically via ${result.automatic.provider}`
-          : 'Admin notification URL generated',
-        automatic: result.automatic,
-        whatsappUrl: result.whatsappUrl,
-        provider: result.provider,
-        data: result.data
-      }
-    } else {
-      console.error('❌ Failed to send order notification:', result.error)
+📝 *Items Ordered:*
+${orderDetails.items.map(item =>
+      `• ${item.name} (${item.grams}g) - ETB ${item.price.toFixed(2)}`
+    ).join('\n')}
 
-      // Log the failed notification  
-      await logOrderNotification(orderDetails.display_id, 'whatsapp', 'failed')
+💰 *Order Total: ETB ${orderDetails.total.toFixed(2)}*
 
-      return {
-        success: false,
-        error: result.error || 'Failed to send notification'
-      }
+🚚 *Action Required:*
+1. Review order details
+2. Contact customer to confirm
+3. Prepare items for delivery
+4. Update order status in dashboard
+
+📞 *Contact Customer:* ${orderDetails.customer_phone}
+🌐 *Dashboard:* Check admin panel for full details
+
+⚡ *Priority:* NEW ORDER - Please process promptly!
+    `.trim();
+
+    // Log the successful manual notification preparation
+    await logOrderNotification(orderDetails.display_id, 'whatsapp', 'sent')
+
+    return {
+      success: true,
+      message: 'Order notification prepared for manual WhatsApp sending',
+      whatsappUrl: `https://wa.me/251944113998?text=${encodeURIComponent(whatsappText)}`,
+      provider: 'manual',
+      data: { text: whatsappText }
     }
   } catch (error) {
-    console.error('❌ Order notification error:', error)
+    console.error('❌ Order notification preparation error:', error)
 
     // Log the failed notification
     await logOrderNotification(orderDetails.display_id, 'whatsapp', 'failed')
 
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to send notification'
+      error: error instanceof Error ? error.message : 'Failed to prepare notification'
     }
   }
 }

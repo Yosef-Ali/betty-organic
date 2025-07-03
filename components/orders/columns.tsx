@@ -13,7 +13,6 @@ import { MoreHorizontal, MessageCircle } from "lucide-react";
 import { ExtendedOrder } from "@/types/order";
 import { formatOrderId, formatOrderCurrency } from "@/lib/utils";
 import { updateOrderStatus } from "@/app/actions/orderActions";
-import { sendCustomerInvoiceWhatsApp } from "@/app/actions/whatsappActions";
 import { calculateOrderTotals } from "@/utils/orders/orderCalculations";
 import { toast } from "sonner";
 
@@ -176,22 +175,43 @@ export const columns: ColumnDef<ExtendedOrder>[] = [
             storeContact: '+251944113998'
           };
 
-          console.log('Sending invoice data:', invoiceData);
+          console.log('Preparing invoice for manual WhatsApp sharing:', invoiceData);
 
-          toast.promise(
-            sendCustomerInvoiceWhatsApp(invoiceData),
-            {
-              loading: 'Sending invoice via WhatsApp...',
-              success: (result) => {
-                if (result.success) {
-                  return result.message || 'Invoice sent successfully!';
-                } else {
-                  throw new Error(result.error || 'Failed to send invoice');
-                }
-              },
-              error: (error) => `Failed to send invoice: ${error.message}`
-            }
-          );
+          // Create manual WhatsApp message
+          const whatsappText = `
+🌿 *Betty's Organic Store* 🌿
+📋 *Invoice*
+
+📅 *Date:* ${invoiceData.transactionDate}
+🔢 *Order ID:* ${invoiceData.orderId}
+👤 *Customer:* ${invoiceData.customerName}
+
+📝 *Items:*
+${invoiceData.items.map(item =>
+            `• ${item.name} (${item.quantity}g) - ETB ${item.price.toFixed(2)}`
+          ).join('\n')}
+
+💰 *Summary:*
+• Subtotal: ETB ${invoiceData.subtotal.toFixed(2)}
+• Delivery: ETB ${invoiceData.shippingFee.toFixed(2)}
+• Discount: ETB ${invoiceData.discount.toFixed(2)}
+• *Total: ETB ${invoiceData.totalAmount.toFixed(2)}*
+
+💳 *Payment:* ${invoiceData.paymentMethod}
+📍 *Store:* Genet Tower, Office #505
+📞 *Contact:* ${invoiceData.storeContact}
+
+✨ Thank you for choosing Betty Organic! ✨
+          `.trim();
+
+          // Open WhatsApp with pre-filled message
+          const targetPhone = invoiceData.customerPhone?.replace('+', '') || '251944113998';
+          const whatsappUrl = `https://wa.me/${targetPhone}?text=${encodeURIComponent(whatsappText)}`;
+          window.open(whatsappUrl, '_blank');
+
+          toast.success("Invoice prepared for WhatsApp sharing", {
+            description: "WhatsApp opened with invoice message"
+          });
         } catch (error) {
           toast.error("Error sending WhatsApp invoice");
           console.error("WhatsApp invoice error:", error);

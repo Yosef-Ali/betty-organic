@@ -3,7 +3,6 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { Testimonial } from '@/lib/types';
-import { sendAdminWhatsAppNotification } from './whatsappActions';
 
 export async function getTestimonials(): Promise<Testimonial[]> {
   const supabase = await createClient();
@@ -37,7 +36,7 @@ export async function getFeaturedTestimonials(): Promise<Testimonial[]> {
   return data;
 }
 
-// New function to process marketing page orders with automatic WhatsApp notifications
+// New function to process marketing page orders - Manual processing without WhatsApp automation
 export async function processMarketingOrder(orderData: {
   items: Array<{
     name: string
@@ -53,41 +52,25 @@ export async function processMarketingOrder(orderData: {
   total: number
   display_id: string
 }) {
-  console.log('🛍️ Processing marketing order with auto-notification:', orderData.display_id);
-  
+  console.log('🛍️ Processing marketing order for manual handling:', orderData.display_id);
+
   try {
-    // Send automatic WhatsApp notification to admin
-    const notificationResult = await sendAdminWhatsAppNotification({
-      id: orderData.display_id,
-      display_id: orderData.display_id,
-      items: orderData.items.map(item => ({
-        name: item.name,
-        grams: item.grams,
-        price: item.price,
-        unit_price: item.price / (item.grams / 1000) // Calculate unit price per kg
-      })),
-      total: orderData.total,
-      customer_name: orderData.customer.name,
-      customer_phone: orderData.customer.phone,
-      delivery_address: orderData.customer.address,
-      customer_email: orderData.customer.email,
-      user_id: null,
-      created_at: new Date().toISOString()
+    // Log order details for manual processing
+    console.log('📋 New order details:', {
+      orderId: orderData.display_id,
+      customerName: orderData.customer.name,
+      customerPhone: orderData.customer.phone,
+      customerAddress: orderData.customer.address,
+      items: orderData.items,
+      total: orderData.total
     });
 
-    console.log('📱 Auto-notification result:', {
-      success: notificationResult.success,
-      method: notificationResult.method,
-      provider: notificationResult.provider,
-      orderId: orderData.display_id
-    });
-
+    // Return success - order will be handled manually through dashboard
     return {
       success: true,
-      message: 'Order processed and notification sent automatically',
-      notificationSent: notificationResult.success,
-      notificationMethod: notificationResult.method,
-      whatsappUrl: notificationResult.whatsappUrl
+      message: 'Order received successfully. Admin will process manually.',
+      notificationSent: false,
+      notificationMethod: 'manual'
     };
   } catch (error) {
     console.error('❌ Error processing marketing order:', error);

@@ -8,7 +8,6 @@ import {
 import { Button } from "@/components/ui/button";
 import Barcode from "react-barcode";
 import { Printer, MessageCircle, Download } from "lucide-react";
-import { sendImageInvoiceWhatsApp } from "@/app/actions/whatsappActions";
 import { generateReceiptPDF, generateReceiptFromHTML, downloadPDF, type ReceiptData } from "@/lib/utils/pdfGenerator";
 
 interface OrderReceiptModalProps {
@@ -112,126 +111,58 @@ export const OrderReceiptModal: React.FC<OrderReceiptModalProps> = ({
         return;
       }
 
-      // Validate Ethiopian phone number format with better error handling
-      try {
-        const cleanPhone = phoneToUse.replace(/[\s\-\(\)]/g, '');
-        const phoneRegex = /^\+?251\d{9}$/;
+      // Validate Ethiopian phone number format
+      const cleanPhone = phoneToUse.replace(/[\s\-\(\)]/g, '');
+      const phoneRegex = /^\+?251\d{9}$/;
 
-        if (!phoneRegex.test(cleanPhone)) {
-          console.error(`❌ Invalid phone number format: ${phoneToUse} - Expected Ethiopian format (+251XXXXXXXXX)`);
-          setIsSending(false);
-          return;
-        }
-
-        phoneToUse = cleanPhone.startsWith('+') ? cleanPhone : `+${cleanPhone}`;
-      } catch (phoneError) {
-        console.error('❌ Phone number validation error:', phoneError);
+      if (!phoneRegex.test(cleanPhone)) {
+        console.error(`❌ Invalid phone number format: ${phoneToUse} - Expected Ethiopian format (+251XXXXXXXXX)`);
         setIsSending(false);
         return;
       }
 
-      // Prepare receipt data for image-based WhatsApp sending
+      phoneToUse = cleanPhone.startsWith('+') ? cleanPhone : `+${cleanPhone}`;
+
+      // Create receipt text for manual sharing via WhatsApp
       const currentDate = new Date();
-      const invoiceData = {
-        customerPhone: phoneToUse,
-        customerName: customerName || 'Valued Customer',
-        orderId: orderId || `BO-SALES-${Date.now().toString().slice(-6)}`,
-        items: items.map(item => ({
-          name: item.name,
-          quantity: item.quantity,
-          price: item.price
-        })),
-        total: total,
-        orderDate: currentDate.toLocaleDateString('en-US', {
-          weekday: 'long',
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric'
-        }),
-        orderTime: currentDate.toLocaleTimeString('en-US', {
-          hour: '2-digit',
-          minute: '2-digit'
-        }),
-        storeName: 'Betty Organic',
-        storeContact: '+251944113998'
-      };
+      const receiptText = `
+🌿 *Betty's Organic Store* 🌿
+📋 *Order Receipt*
 
-      console.log('Sending receipt image via WhatsApp:', invoiceData);
+📅 *Date:* ${currentDate.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      })}
+⏰ *Time:* ${currentDate.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit'
+      })}
+🔢 *Order ID:* ${orderId || `BO-SALES-${Date.now().toString().slice(-6)}`}
+👤 *Customer:* ${customerName || 'Valued Customer'}
 
-      // Use CLIENT-SIDE image generation (like the working test page)
-      try {
-        console.log('🖼️ Generating receipt image CLIENT-SIDE in modal...');
-        
-        // Import the client-side image generator
-        const { generateReceiptImage } = await import('@/lib/utils/pdfGenerator');
-        
-        // Generate image blob client-side
-        const imageBlob = await generateReceiptImage(invoiceData);
-        
-        // Convert to base64
-        const imageBase64 = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            const base64String = (reader.result as string).split(',')[1];
-            resolve(base64String);
-          };
-          reader.onerror = reject;
-          reader.readAsDataURL(imageBlob);
-        });
+📝 *Items Ordered:*
+${items.map(item =>
+        `• ${item.name} (${(item.quantity * 1000).toFixed(0)}g) - ETB ${item.price.toFixed(2)}`
+      ).join('\n')}
 
-        console.log('✅ Client-side image generated in modal:', {
-          size: imageBlob.size,
-          base64Length: imageBase64.length
-        });
+💰 *Total: ETB ${total.toFixed(2)}*
 
-        // Send the pre-generated image data to server
-        const { sendImageDataToWhatsApp } = await import('@/lib/whatsapp/invoices');
-        
-        const result = await sendImageDataToWhatsApp({
-          customerPhone: phoneToUse,
-          customerName: invoiceData.customerName,
-          orderId: invoiceData.orderId,
-          total: invoiceData.total,
-          orderDate: invoiceData.orderDate,
-          orderTime: invoiceData.orderTime,
-          storeName: 'Betty Organic',
-          storeContact: '+251944113998',
-          imageBase64
-        });
+💳 *Payment:* Cash on Delivery
+📍 *Store:* Genet Tower, Office #505
+📞 *Contact:* +251947385509
 
-        if (result.success) {
-          console.log(`✅ Receipt image sent successfully to ${phoneToUse} via WhatsApp!`);
+✨ Thank you for choosing Betty Organic! ✨
+      `.trim();
 
-          // If there's a WhatsApp URL fallback, open it
-          if (result.whatsappUrl) {
-            window.open(result.whatsappUrl, "_blank");
-          }
-        } else {
-          console.error(`❌ Failed to send receipt: ${result.error || 'Unknown error'}`);
-        }
-      } catch (error) {
-        console.error('Client-side image generation failed in modal:', error);
-        
-        // Fallback to server-side generation
-        try {
-          const result = await sendImageInvoiceWhatsApp(invoiceData);
+      // Open WhatsApp with pre-filled message (manual approach)
+      const whatsappUrl = `https://wa.me/${phoneToUse.replace('+', '')}?text=${encodeURIComponent(receiptText)}`;
+      window.open(whatsappUrl, '_blank');
 
-          if (result.success) {
-            console.log(`✅ Receipt sent successfully to ${phoneToUse} via WhatsApp (fallback)!`);
-
-            // If there's a WhatsApp URL fallback, open it
-            if (result.whatsappUrl) {
-              window.open(result.whatsappUrl, "_blank");
-            }
-          } else {
-            console.error(`❌ Failed to send receipt (fallback): ${result.error || 'Unknown error'}`);
-          }
-        } catch (fallbackError) {
-          console.error('Both client-side and server-side image generation failed:', fallbackError);
-        }
-      }
-    } catch (outerError) {
-      console.error('Error in WhatsApp sending process:', outerError);
+      console.log(`✅ Receipt prepared for manual sending to ${phoneToUse} via WhatsApp!`);
+    } catch (error) {
+      console.error('Error preparing receipt for WhatsApp:', error);
     } finally {
       setIsSending(false);
     }
