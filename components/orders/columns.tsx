@@ -137,14 +137,14 @@ export const columns: ColumnDef<ExtendedOrder>[] = [
           const order = row.original;
 
           // Get customer data from available fields  
-          const customerName = order.is_guest_order 
+          const customerName = order.is_guest_order
             ? (order.guest_name || 'Online Guest')
             : (order.profiles?.name || order.profiles?.email || 'Customer');
-          const customerEmail = order.is_guest_order 
-            ? (order.guest_email || '') 
+          const customerEmail = order.is_guest_order
+            ? (order.guest_email || '')
             : (order.profiles?.email || '');
-          const customerPhone = order.is_guest_order 
-            ? (order.guest_phone || '') 
+          const customerPhone = order.is_guest_order
+            ? (order.guest_phone || '')
             : (order.profiles?.phone || '');
 
           // Format order items for invoice using universal calculation
