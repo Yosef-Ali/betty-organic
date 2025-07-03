@@ -25,8 +25,18 @@ export interface OrderNotificationData {
 
 export async function sendOrderNotificationWhatsApp(orderData: OrderNotificationData) {
     try {
+        // Enhanced debugging logs
+        console.log('🔍 [AUTO-NOTIFICATION] Starting automatic order notification...', {
+            orderId: orderData.display_id,
+            timestamp: new Date().toISOString(),
+            customer: orderData.customer_name,
+            itemCount: orderData.items.length
+        });
+
         // Get admin phone number from localStorage settings or environment variable
         const adminPhoneNumber = process.env.ADMIN_WHATSAPP_NUMBER || '+251944113998'
+
+        console.log('📞 [AUTO-NOTIFICATION] Target admin phone:', adminPhoneNumber);
 
         // Format order items for display
         const itemsList = orderData.items
@@ -35,6 +45,13 @@ export async function sendOrderNotificationWhatsApp(orderData: OrderNotification
 
         // Calculate net total
         const netTotal = orderData.total_amount + (orderData.delivery_cost || 0) - (orderData.discount_amount || 0)
+
+        console.log('💰 [AUTO-NOTIFICATION] Financial summary:', {
+            subtotal: orderData.total_amount,
+            delivery: orderData.delivery_cost || 0,
+            discount: orderData.discount_amount || 0,
+            total: netTotal
+        });
 
         // Create comprehensive order notification message
         const message = `🍎 *NEW ORDER - Betty Organic*
@@ -75,11 +92,53 @@ ${orderData.delivery_cost ? `🚚 *Delivery:* ETB ${orderData.delivery_cost.toFi
             customer: orderData.customer_name,
             total: netTotal,
             itemCount: orderData.items.length,
-            to: adminPhoneNumber
+            to: adminPhoneNumber,
+            messageLength: message.length
         })
 
-        // Always use automated sending via Baileys for immediate delivery
+        // Enhanced Baileys connection check
         console.log('🔧 [AUTO-WHATSAPP] Attempting automated WhatsApp sending via Baileys...')
+        console.log('🔍 [AUTO-WHATSAPP] Checking Baileys service availability...')
+
+        // Import and check Baileys status first
+        const { getBaileysStatus } = await import('./baileys-service')
+        const status = getBaileysStatus()
+
+        console.log('� [AUTO-WHATSAPP] Baileys status check:', {
+            isConnected: status.isConnected,
+            isConnecting: status.isConnecting,
+            hasClient: status.hasClient,
+            canRetry: status.canRetry,
+            attempts: status.attempts
+        })
+
+        if (!status.isConnected && !status.isConnecting) {
+            console.warn('⚠️ [AUTO-WHATSAPP] Baileys not connected - attempting auto-connection...')
+
+            const { initializeBaileys } = await import('./baileys-service')
+            const initResult = await initializeBaileys({
+                sessionPath: './baileys-session',
+                phoneNumber: adminPhoneNumber
+            })
+
+            console.log('🔄 [AUTO-WHATSAPP] Auto-connection result:', initResult)
+
+            if (!initResult.success) {
+                console.error('❌ [AUTO-WHATSAPP] Auto-connection failed:', initResult.error)
+                return {
+                    success: false,
+                    message: 'WhatsApp not connected - please connect via admin panel',
+                    method: 'connection_failed',
+                    error: `Baileys connection failed: ${initResult.error}`,
+                    orderData: {
+                        orderId: orderData.display_id,
+                        customer: orderData.customer_name,
+                        total: netTotal
+                    }
+                }
+            }
+        }
+
         const result = await sendBaileysMessage({
             to: adminPhoneNumber,
             message: message
@@ -106,7 +165,7 @@ ${orderData.delivery_cost ? `🚚 *Delivery:* ETB ${orderData.delivery_cost.toFi
             }
         } else {
             console.warn('⚠️ [AUTO-WHATSAPP] Automatic sending failed, continuing without notification:', result.error)
-            
+
             // Do NOT involve customer - just log the failure and continue
             return {
                 success: false,
@@ -182,7 +241,7 @@ ${statusEmojis[oldStatus] || '⚪'} ${oldStatus.toUpperCase()} → ${statusEmoji
             }
         } else {
             console.warn('⚠️ [AUTO-WHATSAPP] Status update failed, continuing without notification:', result.error)
-            
+
             // Do NOT involve customer - just log the failure and continue
             return {
                 success: false,

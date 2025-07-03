@@ -73,7 +73,7 @@ const SalesPage: FC<SalesPageProps> = ({ user }) => {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("products"); // Add state for active tab
-  
+
   // Debug tab changes
   const handleTabChange = useCallback((value: string) => {
     console.log('🔄 [SalesPage] Tab changed to:', value);
@@ -315,7 +315,7 @@ const SalesPage: FC<SalesPageProps> = ({ user }) => {
         if (response.success) {
           // Standard success toast
           const orderDisplay = response.order?.display_id || response.order?.id || 'unknown';
-          
+
           toast({
             title: 'Order created successfully',
             description: `Order #${orderDisplay} has been created`,
@@ -324,7 +324,7 @@ const SalesPage: FC<SalesPageProps> = ({ user }) => {
           // Handle WhatsApp notification result - customer-friendly approach
           if (response.whatsappNotification) {
             const whatsapp = response.whatsappNotification;
-            
+
             if (whatsapp.success && whatsapp.messageId && whatsapp.method === 'automated_baileys') {
               // Automatic sending was successful - show success message
               toast({
@@ -403,7 +403,7 @@ const SalesPage: FC<SalesPageProps> = ({ user }) => {
               <TabsTrigger value="orders">Recent Orders</TabsTrigger>
             </TabsList>
           </div>
-          
+
           {/* Category tabs - moved to new line on mobile */}
           {activeTab === "products" && (
             <div className="w-full">
@@ -426,7 +426,7 @@ const SalesPage: FC<SalesPageProps> = ({ user }) => {
             </div>
           )}
         </div>
-        
+
         <TabsContent value="products" className="m-0">
           {isLoading ? (
             <SalesPageSkeleton />

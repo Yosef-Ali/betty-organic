@@ -379,7 +379,7 @@ export async function createOrder(
 
       // Fetch actual customer data for notifications
       let customerData = { name: 'Customer', phone: '+251944113998', email: undefined };
-      
+
       if (customer_profile_id) {
         try {
           const { data: customerProfile } = await supabase
@@ -387,7 +387,7 @@ export async function createOrder(
             .select('name, phone, email')
             .eq('id', customer_profile_id)
             .single();
-            
+
           if (customerProfile) {
             customerData = {
               name: customerProfile.name || 'Customer',
@@ -430,7 +430,7 @@ export async function createOrder(
 
       // Wait for notification result so we can return WhatsApp URLs to the UI
       whatsappResult = await sendOrderNotificationWhatsApp(notificationData);
-      
+
       if (whatsappResult.success) {
         if (whatsappResult.messageId) {
           console.log('✅ [NOTIFICATION] Automatic WhatsApp notification sent successfully!', {
@@ -714,7 +714,7 @@ export async function updateOrderStatus(
 
       // Fetch customer data for status update notification
       let customerData = { name: 'Customer', phone: '+251944113998', email: undefined };
-      
+
       if (updatedOrder.customer_profile_id) {
         try {
           const { data: customerProfile } = await supabase
@@ -722,7 +722,7 @@ export async function updateOrderStatus(
             .select('name, phone, email')
             .eq('id', updatedOrder.customer_profile_id)
             .single();
-            
+
           if (customerProfile) {
             customerData = {
               name: customerProfile.name || 'Customer',

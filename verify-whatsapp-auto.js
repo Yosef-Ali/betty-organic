@@ -32,7 +32,7 @@ async function runOrderTest() {
     try {
         // 1. Test the notification system directly
         console.log('1️⃣ Testing direct WhatsApp notification...');
-        
+
         const response = await fetch('http://localhost:3000/api/whatsapp/test-order-notification', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -51,7 +51,7 @@ async function runOrderTest() {
         if (response.ok) {
             const result = await response.json();
             console.log('📊 Result:', result);
-            
+
             if (result.success && result.data?.messageId) {
                 console.log('✅ SUCCESS: Automatic WhatsApp message sent!');
                 console.log(`   Message ID: ${result.data.messageId}`);
@@ -73,10 +73,10 @@ async function runOrderTest() {
         console.log(`   Admin Phone: +251944113998`);
         console.log(`   WhatsApp Provider: baileys`);
         console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
-        
+
     } catch (error) {
         console.error('💥 Test failed:', error.message);
-        
+
         if (error.message.includes('fetch')) {
             console.log('\n💡 Make sure the development server is running:');
             console.log('   npm run dev');
