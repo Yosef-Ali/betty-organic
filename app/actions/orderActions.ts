@@ -24,13 +24,6 @@ interface OrderResponse {
   success: boolean;
   order?: FrontendOrder;
   error?: string;
-  whatsappNotification?: {
-    success: boolean;
-    message?: string;
-    method?: string;
-    messageId?: string;
-    error?: string;
-  } | null;
 }
 
 // Helper to check if an object is a PostgrestError
@@ -369,88 +362,7 @@ export async function createOrder(
 
     console.log('[DASHBOARD DEBUG] Order creation completed successfully');
 
-    // Send WhatsApp notification for new order and return the result
-    let whatsappResult = null;
-    try {
-      console.log('[NOTIFICATION] 🚀 Sending automatic WhatsApp notification for order:', insertedOrderData.display_id);
-
-      // Import the notification function dynamically to avoid import issues
-      const { sendOrderNotificationWhatsApp } = await import('@/lib/whatsapp/order-notifications');
-
-      // Fetch actual customer data for notifications
-      let customerData = { name: 'Customer', phone: '+251944113998', email: undefined };
-
-      if (customer_profile_id) {
-        try {
-          const { data: customerProfile } = await supabase
-            .from('profiles')
-            .select('name, phone, email')
-            .eq('id', customer_profile_id)
-            .single();
-
-          if (customerProfile) {
-            customerData = {
-              name: customerProfile.name || 'Customer',
-              phone: customerProfile.phone || '+251944113998',
-              email: customerProfile.email || undefined
-            };
-          }
-        } catch (error) {
-          console.warn('⚠️ Could not fetch customer data for notifications:', error);
-        }
-      }
-
-      // Prepare notification data
-      const notificationData = {
-        id: insertedOrderData.id,
-        display_id: insertedOrderData.display_id || `ORD-${Date.now()}`,
-        customer_name: customerData.name,
-        customer_phone: customerData.phone,
-        customer_email: customerData.email,
-        delivery_address: undefined,
-        items: orderItemsToInsert.map(item => ({
-          product_name: item.product_name,
-          quantity: item.quantity,
-          price: item.price
-        })),
-        total_amount: insertedOrderData.total_amount,
-        delivery_cost: finalDeliveryCost,
-        discount_amount: discountAmount,
-        created_at: insertedOrderData.created_at,
-        status: insertedOrderData.status,
-        type: insertedOrderData.type
-      };
-
-      console.log('[NOTIFICATION] 📋 Notification data prepared:', {
-        orderId: notificationData.display_id,
-        customer: notificationData.customer_name,
-        itemCount: notificationData.items.length,
-        total: notificationData.total_amount
-      });
-
-      // Wait for notification result so we can return WhatsApp URLs to the UI
-      whatsappResult = await sendOrderNotificationWhatsApp(notificationData);
-
-      if (whatsappResult.success) {
-        if (whatsappResult.messageId) {
-          console.log('✅ [NOTIFICATION] Automatic WhatsApp notification sent successfully!', {
-            messageId: whatsappResult.messageId,
-            method: whatsappResult.method
-          });
-        } else {
-          console.log('📱 [NOTIFICATION] WhatsApp notification completed');
-        }
-      } else {
-        console.warn('⚠️ [NOTIFICATION] WhatsApp notification failed:', whatsappResult.error);
-      }
-    } catch (error) {
-      console.error('💥 [NOTIFICATION] Failed to send WhatsApp notification:', error);
-      // Don't fail the order creation if notification fails
-      whatsappResult = {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown notification error'
-      };
-    }
+    console.log('[NOTIFICATION] Order created successfully - manual invoice processing required');
 
     // Construct the response object matching the frontend 'Order' type
     const responseOrder: FrontendOrder = {
@@ -485,8 +397,7 @@ export async function createOrder(
 
     return {
       success: true,
-      order: responseOrder,
-      whatsappNotification: whatsappResult // Include WhatsApp notification result
+      order: responseOrder
     };
   } catch (error) {
     console.error('[DASHBOARD DEBUG] Error creating order:', error);
@@ -706,64 +617,7 @@ export async function updateOrderStatus(
     // Real-time updates will handle UI updates, no need for revalidatePath
     console.log('[DASHBOARD DEBUG] Order status update completed, real-time will handle updates');
 
-    // Send WhatsApp notification for status update
-    try {
-      console.log('[NOTIFICATION] Attempting to send status update notification...');
-
-      const { sendOrderStatusUpdateWhatsApp } = await import('@/lib/whatsapp/order-notifications');
-
-      // Fetch customer data for status update notification
-      let customerData = { name: 'Customer', phone: '+251944113998', email: undefined };
-
-      if (updatedOrder.customer_profile_id) {
-        try {
-          const { data: customerProfile } = await supabase
-            .from('profiles')
-            .select('name, phone, email')
-            .eq('id', updatedOrder.customer_profile_id)
-            .single();
-
-          if (customerProfile) {
-            customerData = {
-              name: customerProfile.name || 'Customer',
-              phone: customerProfile.phone || '+251944113998',
-              email: customerProfile.email || undefined
-            };
-          }
-        } catch (error) {
-          console.warn('⚠️ Could not fetch customer data for status notification:', error);
-        }
-      }
-
-      // Create notification data structure with actual customer data
-      const notificationData = {
-        id: orderId,
-        display_id: updatedOrder.display_id || `ORD-${Date.now()}`,
-        customer_name: customerData.name,
-        customer_phone: customerData.phone,
-        items: [],
-        total_amount: updatedOrder.total_amount,
-        created_at: updatedOrder.created_at,
-        status: updatedOrder.status,
-        type: updatedOrder.type
-      };
-
-      // Send notification in background
-      sendOrderStatusUpdateWhatsApp(notificationData, 'previous', validStatus)
-        .then(result => {
-          if (result.success) {
-            console.log('✅ [NOTIFICATION] Status update notification sent successfully');
-          } else {
-            console.warn('⚠️ [NOTIFICATION] Status update notification failed:', result.error);
-          }
-        })
-        .catch(error => {
-          console.error('❌ [NOTIFICATION] Status update notification error:', error);
-        });
-
-    } catch (error) {
-      console.error('[NOTIFICATION] Failed to initiate status update notification:', error);
-    }
+    console.log('[NOTIFICATION] Order status updated - manual invoice processing may be required');
 
     return { success: true, data: updatedOrder }; // Data is OrderRow | null
   } catch (error) {

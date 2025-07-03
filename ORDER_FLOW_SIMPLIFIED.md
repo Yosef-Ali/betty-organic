@@ -11,7 +11,7 @@ The order flow has been simplified to provide a clear, consistent experience for
 - Can place orders without creating an account
 - Must provide: Name (optional), Phone (required), Address (required)
 - Orders are submitted directly to the system
-- Admin is automatically notified via WhatsApp
+- Admin can manually check dashboard for new orders
 - Option to create account after order is placed
 
 ### 2. Signed-In Users
@@ -46,7 +46,7 @@ The order flow has been simplified to provide a clear, consistent experience for
 ### Step 5: Order Confirmation
 - Success message shown
 - Order ID displayed
-- Admin automatically notified via WhatsApp
+- Admin can manually check dashboard for new orders
 - Options:
   - Continue Shopping
   - Print Receipt
@@ -55,7 +55,7 @@ The order flow has been simplified to provide a clear, consistent experience for
 
 ## Key Features
 
-1. **Automatic WhatsApp Notification**
+1. **Manual Order Processing**
    - Admin is automatically notified when order is placed
    - Fallback to manual if auto-notification fails
 
