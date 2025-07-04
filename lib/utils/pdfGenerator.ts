@@ -17,6 +17,159 @@ export interface ReceiptData {
   storeContact?: string;
 }
 
+export async function generateOrderInvoicePDF(receiptData: ReceiptData): Promise<Blob> {
+  const pdf = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4'
+  });
+
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const margin = 20;
+  let y = 20;
+
+  // Header - Order Receipt
+  pdf.setFontSize(24);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setTextColor(0, 0, 0);
+  pdf.text('Order Receipt', pageWidth / 2, y, { align: 'center' });
+  y += 15;
+
+  // Company Name - Betty Organic
+  pdf.setFontSize(20);
+  pdf.setFont('helvetica', 'bold');
+  pdf.text('Betty Organic', pageWidth / 2, y, { align: 'center' });
+  y += 8;
+
+  // Company Description
+  pdf.setFontSize(12);
+  pdf.setFont('helvetica', 'normal');
+  pdf.setTextColor(100, 100, 100);
+  pdf.text('Fresh Organic Fruits & Vegetables', pageWidth / 2, y, { align: 'center' });
+  y += 6;
+  pdf.text('Thank you for your order!', pageWidth / 2, y, { align: 'center' });
+  y += 20;
+
+  // Customer Information Section
+  pdf.setTextColor(0, 0, 0);
+  pdf.setFontSize(14);
+  pdf.setFont('helvetica', 'bold');
+  pdf.text(`Customer: ${receiptData.customerName}`, pageWidth / 2, y, { align: 'center' });
+  y += 6;
+
+  if (receiptData.customerEmail) {
+    pdf.setFontSize(12);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(100, 100, 100);
+    pdf.text(`(${receiptData.customerEmail})`, pageWidth / 2, y, { align: 'center' });
+    y += 6;
+  }
+
+  pdf.setTextColor(100, 100, 100);
+  pdf.text(`Order ID: ${receiptData.orderId}`, pageWidth / 2, y, { align: 'center' });
+  y += 20;
+
+  // Order Items Header
+  pdf.setTextColor(0, 0, 0);
+  pdf.setFontSize(16);
+  pdf.setFont('helvetica', 'bold');
+  pdf.text('Order Items:', margin, y);
+  y += 15;
+
+  // Items List
+  pdf.setFontSize(12);
+  pdf.setFont('helvetica', 'normal');
+
+  receiptData.items.forEach((item, index) => {
+    // Item name and quantity
+    const itemText = `${item.name} (${(item.quantity * 1000).toFixed(0)}g)`;
+    pdf.text(itemText, margin, y);
+
+    // Price aligned to the right
+    const priceText = `ETB ${item.price.toFixed(2)}`;
+    const priceWidth = pdf.getTextWidth(priceText);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text(priceText, pageWidth - margin - priceWidth, y);
+    pdf.setFont('helvetica', 'normal');
+
+    y += 8;
+
+    // Add a light line under each item except the last
+    if (index < receiptData.items.length - 1) {
+      pdf.setDrawColor(230, 230, 230);
+      pdf.setLineWidth(0.1);
+      pdf.line(margin, y - 2, pageWidth - margin, y - 2);
+    }
+  });
+
+  y += 15;
+
+  // Total Amount Section with border
+  pdf.setDrawColor(0, 0, 0);
+  pdf.setLineWidth(0.5);
+  pdf.line(margin, y - 5, pageWidth - margin, y - 5);
+
+  pdf.setFontSize(18);
+  pdf.setFont('helvetica', 'bold');
+  pdf.text('Total Amount:', margin, y);
+
+  const totalText = `ETB ${receiptData.total.toFixed(2)}`;
+  const totalWidth = pdf.getTextWidth(totalText);
+  pdf.text(totalText, pageWidth - margin - totalWidth, y);
+
+  y += 20;
+
+  // Barcode Section
+  pdf.setFontSize(10);
+  pdf.setFont('helvetica', 'normal');
+  pdf.setTextColor(100, 100, 100);
+
+  // Simple barcode representation
+  const barcodeY = y;
+  const barcodeWidth = 60;
+  const barcodeHeight = 15;
+  const barcodeX = (pageWidth - barcodeWidth) / 2;
+
+  // Draw barcode bars
+  pdf.setFillColor(0, 0, 0);
+  for (let i = 0; i < 50; i++) {
+    const barX = barcodeX + (i * barcodeWidth / 50);
+    const barWidth = Math.random() > 0.5 ? 1 : 0.5;
+    if (Math.random() > 0.3) { // Some bars are missing for realism
+      pdf.rect(barX, barcodeY, barWidth, barcodeHeight, 'F');
+    }
+  }
+
+  y += barcodeHeight + 8;
+
+  // Barcode text
+  pdf.setTextColor(0, 0, 0);
+  pdf.setFont('helvetica', 'bold');
+  pdf.text(receiptData.orderId, pageWidth / 2, y, { align: 'center' });
+  y += 20;
+
+  // Order Details Section
+  pdf.setTextColor(100, 100, 100);
+  pdf.setFontSize(12);
+  pdf.setFont('helvetica', 'bold');
+  pdf.text('Order Details', pageWidth / 2, y, { align: 'center' });
+  y += 8;
+
+  pdf.setFont('helvetica', 'normal');
+  pdf.text(`Date: ${receiptData.orderDate}`, pageWidth / 2, y, { align: 'center' });
+  y += 6;
+  pdf.text(`Time: ${receiptData.orderTime}`, pageWidth / 2, y, { align: 'center' });
+  y += 15;
+
+  // Footer
+  pdf.setTextColor(76, 175, 80); // Green color
+  pdf.setFontSize(12);
+  pdf.setFont('helvetica', 'bold');
+  pdf.text('Fresh • Organic • Healthy', pageWidth / 2, y, { align: 'center' });
+
+  return pdf.output('blob');
+}
+
 export async function generateReceiptPDF(receiptData: ReceiptData): Promise<Blob> {
   const pdf = new jsPDF({
     orientation: 'portrait',
@@ -213,7 +366,7 @@ export async function generateReceiptFromHTML(elementId: string): Promise<Blob> 
   if (typeof document === 'undefined') {
     throw new Error('generateReceiptFromHTML can only be called in browser environment');
   }
-  
+
   const element = document.getElementById(elementId);
   if (!element) {
     throw new Error('Receipt element not found');
@@ -260,23 +413,23 @@ export async function generateReceiptImage(receiptData: ReceiptData): Promise<Bl
   if (typeof document === 'undefined') {
     throw new Error('generateReceiptImage can only be called in browser environment');
   }
-  
+
   // Additional environment checks
   if (typeof html2canvas === 'undefined') {
     throw new Error('html2canvas is not available');
   }
-  
+
   // Validate receipt data
   if (!receiptData || typeof receiptData !== 'object') {
     throw new Error('Invalid receipt data provided');
   }
-  
+
   if (!receiptData.customerName || !receiptData.orderId || !receiptData.items || !Array.isArray(receiptData.items)) {
     throw new Error('Missing required receipt data fields');
   }
-  
+
   console.log('Receipt data validation passed:', receiptData);
-  
+
   // Create a temporary HTML element for the elegant shadcn/ui style receipt
   const receiptElement = document.createElement('div');
   receiptElement.style.width = '600px';
@@ -468,7 +621,7 @@ export async function generateReceiptImage(receiptData: ReceiptData): Promise<Bl
 
   try {
     console.log('Starting html2canvas conversion...');
-    
+
     // Convert to canvas with high quality
     const canvas = await html2canvas(receiptElement, {
       scale: 3, // High resolution for crisp text and barcode
@@ -518,7 +671,7 @@ export function downloadPDF(blob: Blob, filename: string) {
   if (typeof document === 'undefined') {
     throw new Error('downloadPDF can only be called in browser environment');
   }
-  
+
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;

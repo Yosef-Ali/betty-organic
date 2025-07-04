@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp Manual Test - Betty Organic</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn {
+            background-color: #25D366;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 0;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+        }
+
+        .btn:hover {
+            background-color: #20b954;
+        }
+
+        .invoice-preview {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            white-space: pre-line;
+            font-family: monospace;
+            border-left: 4px solid #25D366;
+        }
+
+        .test-info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #2196f3;
+        }
+
+        .phone-info {
+            background: #fff3e0;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #ff9800;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🌿 Betty Organic - WhatsApp Manual Test</h1>
+
+        <div class="test-info">
+            <h3>📋 Test Information</h3>
+            <p><strong>Purpose:</strong> Test manual WhatsApp invoice sharing functionality</p>
+            <p><strong>Method:</strong> Opens WhatsApp Web with pre-filled invoice message</p>
+            <p><strong>Target:</strong> Admin phone number for order processing</p>
+        </div>
+
+        <div class="phone-info">
+            <h3>📞 Phone Configuration</h3>
+            <p><strong>Admin Phone:</strong> +251944113998</p>
+            <p><strong>Customer Phone:</strong> +251912345678 (example)</p>
+            <p><strong>WhatsApp Opens With:</strong> Admin phone (for manual delivery coordination)</p>
+        </div>
+
+        <h3>📝 Invoice Message Preview:</h3>
+        <div class="invoice-preview" id="messagePreview"></div>
+
+        <h3>🚀 Test Actions:</h3>
+        <button class="btn" onclick="testWhatsAppWithAdmin()">
+            📱 Send to Admin WhatsApp (Manual)
+        </button>
+
+        <button class="btn" onclick="testWhatsAppWithCustomer()" style="background-color: #6c757d;">
+            👤 Send to Customer WhatsApp (Old Method)
+        </button>
+
+        <div id="result" style="margin-top: 20px; padding: 15px; border-radius: 8px; display: none;"></div>
+    </div>
+
+    <script>
+        // Sample order data for testing
+        const sampleOrder = {
+            orderId: "BO-2025-001",
+            customerName: "Test Customer",
+            customerPhone: "+251912345678",
+            customerEmail: "customer@example.com",
+            orderDate: "Wednesday, July 3, 2025",
+            orderTime: "2:30 PM",
+            items: [
+                { name: "Organic Tomatoes", quantity: "500g", price: 45.00 },
+                { name: "Fresh Carrots", quantity: "300g", price: 25.00 },
+                { name: "Green Lettuce", quantity: "200g", price: 20.00 }
+            ],
+            subtotal: 90.00,
+            shippingFee: 15.00,
+            discount: 5.00,
+            totalAmount: 100.00
+        };
+
+        // Generate WhatsApp message for admin (new method)
+        function generateAdminMessage(order) {
+            return `🌿 *Betty's Organic Store* 🌿
+📋 *Order Invoice for Delivery*
+
+📅 *Date:* ${order.orderDate}
+⏰ *Time:* ${order.orderTime}
+🔢 *Order ID:* ${order.orderId}
+👤 *Customer:* ${order.customerName}
+📞 *Customer Phone:* ${order.customerPhone}
+✉️ *Customer Email:* ${order.customerEmail}
+
+📝 *Items Ordered:*
+${order.items.map(item => `• ${item.name} (${item.quantity}) - ETB ${item.price.toFixed(2)}`).join('\n')}
+
+💰 *Payment Summary:*
+• Subtotal: ETB ${order.subtotal.toFixed(2)}
+• Delivery: ETB ${order.shippingFee.toFixed(2)}
+• Discount: ETB ${order.discount.toFixed(2)}
+• *Total: ETB ${order.totalAmount.toFixed(2)}*
+
+💳 *Payment Method:* Cash on Delivery
+📍 *Store:* Genet Tower, Office #505
+📞 *Store Contact:* +251944113998
+
+✨ Ready for delivery! Please contact customer to arrange delivery. ✨
+
+_This message was sent to admin for order processing._`;
+        }
+
+        // Generate WhatsApp message for customer (old method)
+        function generateCustomerMessage(order) {
+            return `🌿 *Betty's Organic Store* 🌿
+📋 *Invoice*
+
+📅 *Date:* ${order.orderDate}
+🔢 *Order ID:* ${order.orderId}
+👤 *Customer:* ${order.customerName}
+
+📝 *Items:*
+${order.items.map(item => `• ${item.name} (${item.quantity}) - ETB ${item.price.toFixed(2)}`).join('\n')}
+
+💰 *Summary:*
+• Subtotal: ETB ${order.subtotal.toFixed(2)}
+• Delivery: ETB ${order.shippingFee.toFixed(2)}
+• Discount: ETB ${order.discount.toFixed(2)}
+• *Total: ETB ${order.totalAmount.toFixed(2)}*
+
+💳 *Payment:* Cash on Delivery
+📍 *Store:* Genet Tower, Office #505
+📞 *Contact:* +251944113998
+
+✨ Thank you for choosing Betty Organic! ✨`;
+        }
+
+        // Test WhatsApp with admin phone (new method)
+        function testWhatsAppWithAdmin() {
+            const adminPhone = '251944113998'; // Admin phone without +
+            const message = generateAdminMessage(sampleOrder);
+
+            console.log('Opening WhatsApp with admin phone:', adminPhone);
+            console.log('Message:', message);
+
+            const whatsappUrl = `https://wa.me/${adminPhone}?text=${encodeURIComponent(message)}`;
+
+            // Update preview
+            document.getElementById('messagePreview').textContent = message;
+
+            // Show result
+            showResult(`✅ WhatsApp opened with ADMIN phone: +${adminPhone}`, 'success');
+
+            // Open WhatsApp
+            window.open(whatsappUrl, '_blank');
+        }
+
+        // Test WhatsApp with customer phone (old method)
+        function testWhatsAppWithCustomer() {
+            const customerPhone = '251912345678'; // Customer phone without +
+            const message = generateCustomerMessage(sampleOrder);
+
+            console.log('Opening WhatsApp with customer phone:', customerPhone);
+            console.log('Message:', message);
+
+            const whatsappUrl = `https://wa.me/${customerPhone}?text=${encodeURIComponent(message)}`;
+
+            // Update preview
+            document.getElementById('messagePreview').textContent = message;
+
+            // Show result
+            showResult(`📱 WhatsApp opened with CUSTOMER phone: +${customerPhone}`, 'info');
+
+            // Open WhatsApp
+            window.open(whatsappUrl, '_blank');
+        }
+
+        function showResult(message, type) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'block';
+            resultDiv.textContent = message;
+
+            if (type === 'success') {
+                resultDiv.style.backgroundColor = '#d4edda';
+                resultDiv.style.color = '#155724';
+                resultDiv.style.border = '1px solid #c3e6cb';
+            } else {
+                resultDiv.style.backgroundColor = '#cce7ff';
+                resultDiv.style.color = '#004085';
+                resultDiv.style.border = '1px solid #b3d7ff';
+            }
+        }
+
+        // Show preview on page load
+        window.onload = function () {
+            document.getElementById('messagePreview').textContent = generateAdminMessage(sampleOrder);
+        };
+    </script>
+</body>
+
+</html>

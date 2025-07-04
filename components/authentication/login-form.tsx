@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input';
 import { signIn, signInWithGoogle } from '@/app/actions/auth';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { ChevronLeft } from 'lucide-react';
 
 const formSchema = z.object({
   email: z.string().email({
@@ -98,6 +99,16 @@ export function LoginForm() {
 
   return (
     <div className="p-6 space-y-4 bg-card rounded-lg border shadow-sm">
+      <div className="flex items-center mb-6">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => router.back()}
+          className="mr-2 h-8 w-8 p-0"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+      </div>
       <div className="space-y-2 text-center">
         <h1 className="text-2xl font-semibold tracking-tight">Welcome back</h1>
         <p className="text-sm text-muted-foreground">

@@ -275,14 +275,72 @@ export const columns: ColumnDef<ExtendedOrder>[] = [
 
           console.log('Preparing invoice for manual WhatsApp sharing:', invoiceData);
 
-          // Create manual WhatsApp message
+          // Generate and auto-download PDF first
+          let pdfFilename = `Betty_Organic_Invoice_${invoiceData.orderId}.pdf`;
+          try {
+            const pdfData = {
+              orderId: invoiceData.orderId,
+              customerName: invoiceData.customerName,
+              customerEmail: customerEmail || 'customer@example.com',
+              customerPhone: customerPhone || '',
+              orderDate: new Date(order.created_at || Date.now()).toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              }),
+              orderTime: new Date(order.created_at || Date.now()).toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+              }),
+              items: items.map(item => ({
+                name: item.name,
+                quantity: `${Math.round(item.quantity * 1000)}`,
+                price: item.totalPrice
+              })),
+              subtotal: invoiceData.subtotal,
+              shippingFee: invoiceData.shippingFee,
+              discount: invoiceData.discount,
+              totalAmount: invoiceData.totalAmount
+            };
+
+            const response = await fetch('/api/generate-invoice-pdf', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(pdfData)
+            });
+
+            if (response.ok) {
+              const result = await response.json();
+              if (result.success && result.pdfBase64) {
+                // Auto-download the PDF
+                const link = document.createElement('a');
+                link.href = `data:${result.contentType};base64,${result.pdfBase64}`;
+                link.download = result.filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                pdfFilename = result.filename;
+                console.log('PDF downloaded for WhatsApp sharing:', pdfFilename);
+              }
+            }
+          } catch (pdfError) {
+            console.warn('PDF generation failed, continuing with text message:', pdfError);
+          }
+
+          // Create manual WhatsApp message with PDF info
           const whatsappText = `
 🌿 *Betty's Organic Store* 🌿
-📋 *Invoice*
+📋 *Invoice with PDF*
 
 📅 *Date:* ${invoiceData.transactionDate}
 🔢 *Order ID:* ${invoiceData.orderId}
 👤 *Customer:* ${invoiceData.customerName}
+
+📄 *PDF Invoice:* ${pdfFilename}
+💡 *Note:* PDF invoice downloaded. Please attach it to this chat.
 
 📝 *Items:*
 ${invoiceData.items.map(item =>
@@ -307,8 +365,8 @@ ${invoiceData.items.map(item =>
           const whatsappUrl = `https://wa.me/${targetPhone}?text=${encodeURIComponent(whatsappText)}`;
           window.open(whatsappUrl, '_blank');
 
-          toast.success("Invoice prepared for WhatsApp sharing", {
-            description: "WhatsApp opened with invoice message"
+          toast.success("PDF downloaded & WhatsApp opened!", {
+            description: "PDF saved to downloads. Attach it in WhatsApp chat."
           });
         } catch (error) {
           toast.error("Error sending WhatsApp invoice");
