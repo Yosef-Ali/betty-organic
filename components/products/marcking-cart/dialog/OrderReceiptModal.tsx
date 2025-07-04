@@ -257,6 +257,74 @@ export const OrderReceiptModal: React.FC<OrderReceiptModalProps> = ({
     }
   };
 
+  const handleDownloadImage = async () => {
+    setIsSending(true);
+    try {
+      // Generate the image
+      const html2canvas = (await import('html2canvas')).default;
+      const element = document.querySelector('#receipt-content') as HTMLElement;
+      
+      if (!element) {
+        throw new Error('Content not found');
+      }
+
+      // Temporarily force white background and dark text for capture
+      const originalStyles = {
+        backgroundColor: element.style.backgroundColor,
+        color: element.style.color,
+      };
+      
+      element.style.backgroundColor = '#ffffff';
+      element.style.color = '#000000';
+      
+      // Also force all child elements to have dark text on white background
+      const allElements = element.querySelectorAll('*');
+      const originalChildStyles: { element: HTMLElement; color: string; backgroundColor: string }[] = [];
+      
+      allElements.forEach((child) => {
+        const htmlChild = child as HTMLElement;
+        originalChildStyles.push({
+          element: htmlChild,
+          color: htmlChild.style.color,
+          backgroundColor: htmlChild.style.backgroundColor,
+        });
+        htmlChild.style.color = '#000000';
+        if (htmlChild.style.backgroundColor) {
+          htmlChild.style.backgroundColor = '#ffffff';
+        }
+      });
+
+      const canvas = await html2canvas(element, {
+        backgroundColor: '#ffffff',
+        scale: 3,
+        useCORS: true,
+        allowTaint: false
+      });
+
+      // Restore original styles
+      element.style.backgroundColor = originalStyles.backgroundColor;
+      element.style.color = originalStyles.color;
+      
+      originalChildStyles.forEach(({ element, color, backgroundColor }) => {
+        element.style.color = color;
+        element.style.backgroundColor = backgroundColor;
+      });
+
+      // Download the image
+      const link = document.createElement('a');
+      link.download = `betty-organic-receipt-${orderId || Date.now()}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      
+      console.log('✅ Receipt image downloaded successfully!');
+    } catch (error) {
+      console.error('Error downloading receipt image:', error);
+      alert('Error downloading image. Please try again.');
+    } finally {
+      setIsSending(false);
+    }
+  };
+
   return (
     <>
       {/* Print-only styles */}
@@ -308,10 +376,10 @@ export const OrderReceiptModal: React.FC<OrderReceiptModalProps> = ({
             )}
 
             <div className="mb-4">
-              <h3 className="font-semibold mb-2 text-foreground">Order Items:</h3>
-              <ul className="space-y-1">
+              <h3 className="font-semibold mb-3 text-foreground">Order Items:</h3>
+              <ul className="space-y-2">
                 {items.map((item, index) => (
-                  <li key={index} className="flex justify-between text-sm border-b border-border pb-1 text-foreground">
+                  <li key={index} className={`flex justify-between text-sm pb-2 text-foreground ${index < items.length - 1 ? 'border-b border-gray-400' : ''}`}>
                     <span>
                       {item.name} ({(item.quantity * 1000).toFixed(0)}g)
                     </span>
@@ -321,7 +389,7 @@ export const OrderReceiptModal: React.FC<OrderReceiptModalProps> = ({
               </ul>
             </div>
 
-            <div className="flex justify-between font-bold text-lg mb-4 border-t border-border pt-2 text-foreground">
+            <div className="flex justify-between font-bold text-lg mb-4 border-t-2 border-gray-600 pt-3 text-foreground">
               <span>Total Amount:</span>
               <span>ETB {total.toFixed(2)}</span>
             </div>
@@ -330,7 +398,7 @@ export const OrderReceiptModal: React.FC<OrderReceiptModalProps> = ({
               <Barcode value={orderId || `ORDER-${Date.now()}`} width={1.5} height={50} />
             </div>
 
-            <div className="text-center text-xs text-muted-foreground border-t border-border pt-2">
+            <div className="text-center text-xs text-muted-foreground border-t border-gray-400 pt-3">
               <p className="font-medium">Order Details</p>
               <p>Date: {new Date().toLocaleDateString()}</p>
               <p>Time: {new Date().toLocaleTimeString()}</p>
@@ -355,6 +423,16 @@ export const OrderReceiptModal: React.FC<OrderReceiptModalProps> = ({
             >
               <MessageCircle className="h-4 w-4" />
               {isSending ? 'Sending...' : 'Send'}
+            </Button>
+            <Button 
+              onClick={handleDownloadImage}
+              disabled={isSending}
+              variant="outline"
+              size="sm"
+              className="h-10 w-10 p-0"
+              title="Download as Image"
+            >
+              <Download className="h-4 w-4" />
             </Button>
             <Button 
               onClick={onClose} 
