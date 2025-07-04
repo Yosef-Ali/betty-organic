@@ -9,10 +9,9 @@ import {
     DialogDescription,
     DialogFooter,
 } from "@/components/ui/dialog";
-import { LogIn, ShoppingBag, MessageCircle, Printer, Receipt, CheckCircle } from "lucide-react";
+import { LogIn, ShoppingBag, MessageCircle, CheckCircle } from "lucide-react";
 import { OrderDetails, CustomerInfo } from "./types";
 import { useMarketingCartStore } from "@/store/cartStore";
-import { OrderReceiptModal } from "./OrderReceiptModal";
 import { processMarketingOrder } from "@/app/actions/marketing-actions";
 
 interface OrderPlacedProps {
@@ -39,7 +38,6 @@ export default function OrderPlaced({
     clearOrderData
 }: OrderPlacedProps): React.ReactElement {
     const [orderProcessed, setOrderProcessed] = useState(false);
-    const [showPrintPreview, setShowPrintPreview] = useState(false);
     const [autoNotificationSent, setAutoNotificationSent] = useState(false);
     const [notificationStatus, setNotificationStatus] = useState<'pending' | 'sent' | 'failed' | 'manual'>('pending');
     const { setContinuingShopping } = useMarketingCartStore();
@@ -167,60 +165,121 @@ export default function OrderPlaced({
         }
     }, [orderProcessed]);
 
-    // Format order data for the print preview
-    const formatOrderForPrint = () => {
-        return {
-            items: orderDetails.items.map(item => ({
-                name: item.name,
-                quantity: item.grams / 1000, // Convert grams to kg
-                price: item.price
-            })),
-            total: orderDetails.total,
-            customerInfo: isAuthenticated
-                ? `${orderDetails.customer_name} (${orderDetails.customer_phone})`
-                : `${orderDetails.customer_name} (${orderDetails.customer_phone})`,
-            customerId: orderDetails.display_id
-        };
-    };
 
     if (!isAuthenticated) {
         // Guest order complete view
-        const handleShareWhatsApp = () => {
-            const message = `🍎 *New Order - Betty Organic*
-
-*Order ID:* ${orderDetails.display_id}
-*Customer:* ${orderDetails.customer_name}
-*Phone:* ${orderDetails.customer_phone}
-*Delivery Address:* ${orderDetails.delivery_address}
-
-*Items:*
-${orderDetails.items.map(item => `• ${item.name} (${item.grams}g) - ETB ${item.price.toFixed(2)}`).join('\n')}
-
-*Total Amount:* ETB ${orderDetails.total.toFixed(2)}
-
-*Order Time:* ${new Date(orderDetails.created_at).toLocaleString()}
-
-Please prepare and deliver this order. Thank you! 🚚`;
-
-            // Get admin WhatsApp number from localStorage settings
-            const savedSettings = localStorage.getItem('whatsAppSettings');
-            let adminNumber = '';
-
-            if (savedSettings) {
-                try {
-                    const settings = JSON.parse(savedSettings);
-                    adminNumber = settings.adminPhoneNumber || '';
-                } catch (error) {
-                    console.error('Failed to parse WhatsApp settings:', error);
+        const handleShareWhatsApp = async () => {
+            try {
+                // Generate the image first - get order receipt content if modal is not open
+                let receiptElement = document.querySelector('#receipt-content') as HTMLElement;
+                
+                // If receipt modal is not open, we need to create a temporary receipt
+                if (!receiptElement) {
+                    // Create a temporary receipt element
+                    const tempDiv = document.createElement('div');
+                    tempDiv.id = 'temp-receipt-content';
+                    tempDiv.style.position = 'absolute';
+                    tempDiv.style.left = '-9999px';
+                    tempDiv.style.backgroundColor = '#ffffff';
+                    tempDiv.style.color = '#000000';
+                    tempDiv.style.padding = '24px';
+                    tempDiv.style.width = '400px';
+                    tempDiv.style.border = '1px solid #e5e7eb';
+                    tempDiv.style.borderRadius = '8px';
+                    tempDiv.innerHTML = `
+                        <div style="text-center; margin-bottom: 24px;">
+                            <h2 style="font-size: 24px; font-weight: bold; color: #000000; margin-bottom: 8px;">Betty Organic</h2>
+                            <p style="font-size: 14px; color: #666666; margin-bottom: 4px;">Fresh Organic Fruits & Vegetables</p>
+                            <p style="font-size: 12px; color: #666666;">Thank you for your order!</p>
+                        </div>
+                        <div style="margin-bottom: 24px; text-align: center; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px;">
+                            <p style="font-size: 14px; font-weight: 500; color: #000000; margin-bottom: 4px;">Customer: ${orderDetails.customer_name}</p>
+                            <p style="font-size: 12px; color: #666666;">Order ID: ${orderDetails.display_id}</p>
+                        </div>
+                        <div style="margin-bottom: 24px;">
+                            <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 12px; color: #000000;">Order Items:</h3>
+                            <div style="space-y: 8px;">
+                                ${orderDetails.items.map(item => `
+                                    <div style="display: flex; justify-content: space-between; font-size: 14px; border-bottom: 1px solid #f3f4f6; padding-bottom: 8px; margin-bottom: 8px;">
+                                        <span style="color: #000000;">${item.name} (${item.grams}g)</span>
+                                        <span style="font-weight: 500; color: #000000;">ETB ${item.price.toFixed(2)}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 18px; margin-bottom: 24px; border-top: 2px solid #000000; padding-top: 12px;">
+                            <span style="color: #000000;">Total Amount:</span>
+                            <span style="color: #000000;">ETB ${orderDetails.total.toFixed(2)}</span>
+                        </div>
+                        <div style="text-align: center; font-size: 12px; color: #666666; border-top: 1px solid #f3f4f6; padding-top: 16px;">
+                            <p style="font-weight: 500; margin-bottom: 4px;">Order Details</p>
+                            <p>Date: ${new Date().toLocaleDateString()}</p>
+                            <p>Time: ${new Date().toLocaleTimeString()}</p>
+                            <p style="margin-top: 12px; color: #16a34a; font-weight: 500;">🌿 Fresh • Organic • Healthy 🌿</p>
+                        </div>
+                    `;
+                    document.body.appendChild(tempDiv);
+                    receiptElement = tempDiv;
                 }
+
+                const html2canvas = (await import('html2canvas')).default;
+                
+                const canvas = await html2canvas(receiptElement, {
+                    backgroundColor: '#ffffff',
+                    scale: 3,
+                    useCORS: true,
+                    allowTaint: false
+                });
+
+                // Clean up temporary element
+                const tempElement = document.querySelector('#temp-receipt-content');
+                if (tempElement) {
+                    document.body.removeChild(tempElement);
+                }
+
+                // Convert to blob
+                const blob = await new Promise<Blob>((resolve) => {
+                    canvas.toBlob((blob) => resolve(blob!), 'image/png', 1.0);
+                });
+
+                const file = new File([blob], `betty-organic-order-${orderDetails.display_id}.png`, {
+                    type: 'image/png'
+                });
+
+                // Simple share text for receipt
+                const shareText = `🛍️ Betty Organics Order #${orderDetails.display_id}\n\n💰 Total: ${orderDetails.total.toFixed(2)} ETB\n📧 Thank you for your order!`;
+
+                // Always try native device sharing first - works with ALL apps user has
+                if (navigator.share) {
+                    // Try with image first
+                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                        await navigator.share({
+                            title: 'Betty Organic Order Receipt',
+                            text: shareText,
+                            files: [file]
+                        });
+                    } else {
+                        // Fallback to text-only native sharing
+                        await navigator.share({
+                            title: 'Betty Organic Order Receipt',
+                            text: shareText
+                        });
+                    }
+                } else {
+                    // If no native sharing, just download the image
+                    const link = document.createElement('a');
+                    link.download = `betty-organic-order-${orderDetails.display_id}.png`;
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                    
+                    alert('Order receipt image downloaded! You can now share it using any app you prefer.');
+                }
+
+                console.log(`✅ Order receipt image shared successfully!`);
+            } catch (error) {
+                console.error('Error sharing order receipt image:', error);
+                alert('Sharing not available. Please try again or use the print option.');
             }
-
-            // Create WhatsApp URL - if admin number exists, send directly to admin, otherwise general share
-            const whatsappUrl = adminNumber
-                ? `https://wa.me/${adminNumber.replace('+', '')}?text=${encodeURIComponent(message)}`
-                : `https://wa.me/?text=${encodeURIComponent(message)}`;
-
-            window.open(whatsappUrl, '_blank');
         };
 
         return (
@@ -333,21 +392,12 @@ Please prepare and deliver this order. Thank you! 🚚`;
                             Continue Shopping
                         </Button>
 
-                        {/* Print Receipt button - icon only */}
-                        <Button
-                            variant="outline"
-                            className="w-12 h-12 p-0 border-blue-600 text-blue-600 hover:bg-blue-50"
-                            onClick={() => setShowPrintPreview(true)}
-                            title="Print Receipt"
-                        >
-                            <Receipt className="w-5 h-5" />
-                        </Button>
 
                         {/* Manual WhatsApp notification - only show if auto-notification failed or manual mode */}
                         {(notificationStatus === 'manual' || notificationStatus === 'failed') && (
                             <Button
                                 variant="outline"
-                                className="w-12 h-12 p-0 border-green-600 text-green-600 hover:bg-green-50"
+                                className="w-12 h-12 p-0 border-green-600 text-green-600 hover:bg-green-50 dark:text-green-400 dark:border-green-400 dark:hover:bg-green-950"
                                 onClick={handleShareWhatsApp}
                                 title={notificationStatus === 'failed' ? "Retry WhatsApp Notification" : "Send Manual WhatsApp Notification"}
                             >
@@ -359,7 +409,7 @@ Please prepare and deliver this order. Thank you! 🚚`;
                         {notificationStatus === 'sent' && (
                             <Button
                                 variant="outline"
-                                className="w-12 h-12 p-0 border-green-600 text-green-600 cursor-default"
+                                className="w-12 h-12 p-0 border-green-600 text-green-600 cursor-default dark:text-green-400 dark:border-green-400"
                                 disabled
                                 title="Admin Automatically Notified"
                             >
@@ -369,9 +419,6 @@ Please prepare and deliver this order. Thank you! 🚚`;
                     </div>
 
                     <div className="text-center text-xs text-muted-foreground border-t pt-3">
-                        <div className="mb-2">
-                            Need help? Contact us at +251 94 738 5509
-                        </div>
                         <div className="flex justify-center gap-3">
                             <Button
                                 variant="link"
@@ -389,42 +436,118 @@ Please prepare and deliver this order. Thank you! 🚚`;
     }
 
     // Signed-in user order complete view
-    const handleSignedUserShareWhatsApp = () => {
-        const message = `🍎 *New Order - Betty Organic*
-
-*Order ID:* ${orderDetails.display_id}
-*Customer:* ${orderDetails.customer_name}
-*Phone:* ${orderDetails.customer_phone}
-*Delivery Address:* ${customerInfo.address}
-
-*Items:*
-${orderDetails.items.map(item => `• ${item.name} (${item.grams}g) - ETB ${item.price.toFixed(2)}`).join('\n')}
-
-*Total Amount:* ETB ${orderDetails.total.toFixed(2)}
-
-*Order Time:* ${new Date(orderDetails.created_at).toLocaleString()}
-
-Please prepare and deliver this order. Thank you! 🚚`;
-
-        // Get admin WhatsApp number from localStorage settings
-        const savedSettings = localStorage.getItem('whatsAppSettings');
-        let adminNumber = '';
-
-        if (savedSettings) {
-            try {
-                const settings = JSON.parse(savedSettings);
-                adminNumber = settings.adminPhoneNumber || '';
-            } catch (error) {
-                console.error('Failed to parse WhatsApp settings:', error);
+    const handleSignedUserShareWhatsApp = async () => {
+        try {
+            // Generate the image first - get order receipt content if modal is not open
+            let receiptElement = document.querySelector('#receipt-content') as HTMLElement;
+            
+            // If receipt modal is not open, we need to create a temporary receipt
+            if (!receiptElement) {
+                // Create a temporary receipt element
+                const tempDiv = document.createElement('div');
+                tempDiv.id = 'temp-receipt-content';
+                tempDiv.style.position = 'absolute';
+                tempDiv.style.left = '-9999px';
+                tempDiv.style.backgroundColor = '#ffffff';
+                tempDiv.style.color = '#000000';
+                tempDiv.style.padding = '24px';
+                tempDiv.style.width = '400px';
+                tempDiv.style.border = '1px solid #e5e7eb';
+                tempDiv.style.borderRadius = '8px';
+                tempDiv.innerHTML = `
+                    <div style="text-center; margin-bottom: 24px;">
+                        <h2 style="font-size: 24px; font-weight: bold; color: #000000; margin-bottom: 8px;">Betty Organic</h2>
+                        <p style="font-size: 14px; color: #666666; margin-bottom: 4px;">Fresh Organic Fruits & Vegetables</p>
+                        <p style="font-size: 12px; color: #666666;">Thank you for your order!</p>
+                    </div>
+                    <div style="margin-bottom: 24px; text-align: center; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px;">
+                        <p style="font-size: 14px; font-weight: 500; color: #000000; margin-bottom: 4px;">Customer: ${orderDetails.customer_name}</p>
+                        <p style="font-size: 12px; color: #666666;">Order ID: ${orderDetails.display_id}</p>
+                    </div>
+                    <div style="margin-bottom: 24px;">
+                        <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 12px; color: #000000;">Order Items:</h3>
+                        <div style="space-y: 8px;">
+                            ${orderDetails.items.map(item => `
+                                <div style="display: flex; justify-content: space-between; font-size: 14px; border-bottom: 1px solid #f3f4f6; padding-bottom: 8px; margin-bottom: 8px;">
+                                    <span style="color: #000000;">${item.name} (${item.grams}g)</span>
+                                    <span style="font-weight: 500; color: #000000;">ETB ${item.price.toFixed(2)}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 18px; margin-bottom: 24px; border-top: 2px solid #000000; padding-top: 12px;">
+                        <span style="color: #000000;">Total Amount:</span>
+                        <span style="color: #000000;">ETB ${orderDetails.total.toFixed(2)}</span>
+                    </div>
+                    <div style="text-align: center; font-size: 12px; color: #666666; border-top: 1px solid #f3f4f6; padding-top: 16px;">
+                        <p style="font-weight: 500; margin-bottom: 4px;">Order Details</p>
+                        <p>Date: ${new Date().toLocaleDateString()}</p>
+                        <p>Time: ${new Date().toLocaleTimeString()}</p>
+                        <p style="margin-top: 12px; color: #16a34a; font-weight: 500;">🌿 Fresh • Organic • Healthy 🌿</p>
+                    </div>
+                `;
+                document.body.appendChild(tempDiv);
+                receiptElement = tempDiv;
             }
+
+            const html2canvas = (await import('html2canvas')).default;
+            
+            const canvas = await html2canvas(receiptElement, {
+                backgroundColor: '#ffffff',
+                scale: 3,
+                useCORS: true,
+                allowTaint: false
+            });
+
+            // Clean up temporary element
+            const tempElement = document.querySelector('#temp-receipt-content');
+            if (tempElement) {
+                document.body.removeChild(tempElement);
+            }
+
+            // Convert to blob
+            const blob = await new Promise<Blob>((resolve) => {
+                canvas.toBlob((blob) => resolve(blob!), 'image/png', 1.0);
+            });
+
+            const file = new File([blob], `betty-organic-order-${orderDetails.display_id}.png`, {
+                type: 'image/png'
+            });
+
+            // Simple share text for receipt
+            const shareText = `🛍️ Betty Organics Order #${orderDetails.display_id}\n\n💰 Total: ${orderDetails.total.toFixed(2)} ETB\n📧 Thank you for your order!`;
+
+            // Always try native device sharing first - works with ALL apps user has
+            if (navigator.share) {
+                // Try with image first
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    await navigator.share({
+                        title: 'Betty Organic Order Receipt',
+                        text: shareText,
+                        files: [file]
+                    });
+                } else {
+                    // Fallback to text-only native sharing
+                    await navigator.share({
+                        title: 'Betty Organic Order Receipt',
+                        text: shareText
+                    });
+                }
+            } else {
+                // If no native sharing, just download the image
+                const link = document.createElement('a');
+                link.download = `betty-organic-order-${orderDetails.display_id}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+                
+                alert('Order receipt image downloaded! You can now share it using any app you prefer.');
+            }
+
+            console.log(`✅ Order receipt image shared successfully!`);
+        } catch (error) {
+            console.error('Error sharing order receipt image:', error);
+            alert('Sharing not available. Please try again or use the print option.');
         }
-
-        // Create WhatsApp URL - if admin number exists, send directly to admin, otherwise general share
-        const whatsappUrl = adminNumber
-            ? `https://wa.me/${adminNumber.replace('+', '')}?text=${encodeURIComponent(message)}`
-            : `https://wa.me/?text=${encodeURIComponent(message)}`;
-
-        window.open(whatsappUrl, '_blank');
     };
 
     // Add a better post-order experience for signed-in users as well
@@ -495,20 +618,11 @@ Please prepare and deliver this order. Thank you! 🚚`;
                         <ShoppingBag className="w-4 h-4" />
                         Continue Shopping
                     </Button>
-                    {/* Print Receipt button - icon only */}
-                    <Button
-                        variant="outline"
-                        className="w-12 h-12 p-0 border-blue-600 text-blue-600 hover:bg-blue-50"
-                        onClick={() => setShowPrintPreview(true)}
-                        title="Print Receipt"
-                    >
-                        <Receipt className="w-5 h-5" />
-                    </Button>
                     {/* Manual WhatsApp notification - only show if auto-notification failed or manual mode */}
                     {(notificationStatus === 'manual' || notificationStatus === 'failed') && (
                         <Button
                             variant="outline"
-                            className="w-12 h-12 p-0 border-green-600 text-green-600 hover:bg-green-50"
+                            className="w-12 h-12 p-0 border-green-600 text-green-600 hover:bg-green-50 dark:text-green-400 dark:border-green-400 dark:hover:bg-green-950"
                             onClick={handleSignedUserShareWhatsApp}
                             title={notificationStatus === 'failed' ? "Retry WhatsApp Notification" : "Send Manual WhatsApp Notification"}
                         >
@@ -517,23 +631,6 @@ Please prepare and deliver this order. Thank you! 🚚`;
                     )}
                 </div>
 
-                {/* Help and View Orders - separated for clarity */}
-                <div className="text-center text-xs text-muted-foreground border-t pt-3">
-                    <div className="mb-1">
-                        Need help? Contact us at<br />
-                        <span className="font-medium">+251 94 738 5509</span>
-                    </div>
-                    <div className="mt-2">
-                        <Button
-                            variant="link"
-                            size="sm"
-                            className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 p-0 h-auto"
-                            onClick={() => window.open('/dashboard/orders', '_blank')}
-                        >
-                            View All Orders
-                        </Button>
-                    </div>
-                </div>
             </DialogFooter>
         </>
     );
@@ -636,21 +733,12 @@ Please prepare and deliver this order. Thank you! 🚚`;
                         Continue Shopping
                     </Button>
 
-                    {/* Print Receipt button - icon only */}
-                    <Button
-                        variant="outline"
-                        className="w-12 h-12 p-0 border-blue-600 text-blue-600 hover:bg-blue-50"
-                        onClick={() => setShowPrintPreview(true)}
-                        title="Print Receipt"
-                    >
-                        <Receipt className="w-5 h-5" />
-                    </Button>
 
                     {/* Manual WhatsApp notification - only show if auto-notification failed or manual mode */}
                     {(notificationStatus === 'manual' || notificationStatus === 'failed') && (
                         <Button
                             variant="outline"
-                            className="w-12 h-12 p-0 border-green-600 text-green-600 hover:bg-green-50"
+                            className="w-12 h-12 p-0 border-green-600 text-green-600 hover:bg-green-50 dark:text-green-400 dark:border-green-400 dark:hover:bg-green-950"
                             onClick={handleSignedUserShareWhatsApp}
                             title={notificationStatus === 'failed' ? "Retry WhatsApp Notification" : "Send Manual WhatsApp Notification"}
                         >
@@ -662,7 +750,7 @@ Please prepare and deliver this order. Thank you! 🚚`;
                     {notificationStatus === 'sent' && (
                         <Button
                             variant="outline"
-                            className="w-12 h-12 p-0 border-green-600 text-green-600 cursor-default"
+                            className="w-12 h-12 p-0 border-green-600 text-green-600 cursor-default dark:text-green-400 dark:border-green-400"
                             disabled
                             title="Admin Automatically Notified"
                         >
@@ -672,19 +760,6 @@ Please prepare and deliver this order. Thank you! 🚚`;
                 </div>
             </DialogFooter>
 
-            {/* Order Receipt Modal */}
-            {showPrintPreview && (
-                <OrderReceiptModal
-                    isOpen={showPrintPreview}
-                    onClose={() => setShowPrintPreview(false)}
-                    items={formatOrderForPrint().items}
-                    total={formatOrderForPrint().total}
-                    customerInfo={formatOrderForPrint().customerInfo}
-                    orderId={formatOrderForPrint().customerId}
-                    customerPhone={orderDetails.customer_phone}
-                    customerName={orderDetails.customer_name}
-                />
-            )}
         </>
     );
 }

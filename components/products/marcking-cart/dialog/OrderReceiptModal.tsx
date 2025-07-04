@@ -102,67 +102,101 @@ export const OrderReceiptModal: React.FC<OrderReceiptModalProps> = ({
     setIsSending(true);
 
     try {
-      let phoneToUse = customerPhone;
-
-      // If no customer phone, show a more user-friendly message and don't send
-      if (!phoneToUse || phoneToUse.trim() === '') {
-        console.warn('❌ No customer phone number found - cannot send receipt automatically');
-        setIsSending(false);
-        return;
+      // Generate the image first
+      const html2canvas = (await import('html2canvas')).default;
+      const element = document.querySelector('#receipt-content') as HTMLElement;
+      
+      if (!element) {
+        throw new Error('Content not found');
       }
 
-      // Validate Ethiopian phone number format
-      const cleanPhone = phoneToUse.replace(/[\s\-\(\)]/g, '');
-      const phoneRegex = /^\+?251\d{9}$/;
+      // Temporarily force white background and dark text for capture
+      const originalStyles = {
+        backgroundColor: element.style.backgroundColor,
+        color: element.style.color,
+      };
+      
+      element.style.backgroundColor = '#ffffff';
+      element.style.color = '#000000';
+      
+      // Also force all child elements to have dark text on white background
+      const allElements = element.querySelectorAll('*');
+      const originalChildStyles: { element: HTMLElement; color: string; backgroundColor: string }[] = [];
+      
+      allElements.forEach((child) => {
+        const htmlChild = child as HTMLElement;
+        originalChildStyles.push({
+          element: htmlChild,
+          color: htmlChild.style.color,
+          backgroundColor: htmlChild.style.backgroundColor,
+        });
+        htmlChild.style.color = '#000000';
+        if (htmlChild.style.backgroundColor) {
+          htmlChild.style.backgroundColor = '#ffffff';
+        }
+      });
 
-      if (!phoneRegex.test(cleanPhone)) {
-        console.error(`❌ Invalid phone number format: ${phoneToUse} - Expected Ethiopian format (+251XXXXXXXXX)`);
-        setIsSending(false);
-        return;
+      const canvas = await html2canvas(element, {
+        backgroundColor: '#ffffff',
+        scale: 3,
+        useCORS: true,
+        allowTaint: false
+      });
+
+      // Restore original styles
+      element.style.backgroundColor = originalStyles.backgroundColor;
+      element.style.color = originalStyles.color;
+      
+      originalChildStyles.forEach(({ element, color, backgroundColor }) => {
+        element.style.color = color;
+        element.style.backgroundColor = backgroundColor;
+      });
+
+      // Convert to blob
+      const blob = await new Promise<Blob>((resolve) => {
+        canvas.toBlob((blob) => resolve(blob!), 'image/png', 1.0);
+      });
+
+      const file = new File([blob], `betty-organic-receipt-${orderId || Date.now()}.png`, {
+        type: 'image/png'
+      });
+
+      // Simple share text for receipt
+      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      const shareText = isLocalhost 
+        ? `🛍️ My Betty Organics receipt for Order #${orderId || Date.now()}\n\n💰 Total: ${total.toFixed(2)} ETB\n📧 Visit Betty Organics for more!`
+        : `🛍️ My Betty Organics receipt for Order #${orderId || Date.now()}\n\n📥 View receipt: ${window.location.origin}/public/receipt/${orderId || Date.now()}`;
+
+      // Always try native device sharing first - works with ALL apps user has
+      if (navigator.share) {
+        // Try with image first
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            title: 'Betty Organic Receipt',
+            text: shareText,
+            files: [file]
+          });
+        } else {
+          // Fallback to text-only native sharing
+          await navigator.share({
+            title: 'Betty Organic Receipt',
+            text: shareText
+          });
+        }
+      } else {
+        // If no native sharing, just download the image
+        const link = document.createElement('a');
+        link.download = `betty-organic-receipt-${orderId || Date.now()}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        
+        alert('Receipt image downloaded! You can now share it using any app you prefer.');
       }
 
-      phoneToUse = cleanPhone.startsWith('+') ? cleanPhone : `+${cleanPhone}`;
-
-      // Create receipt text for manual sharing via WhatsApp
-      const currentDate = new Date();
-      const receiptText = `
-🌿 *Betty's Organic Store* 🌿
-📋 *Order Receipt*
-
-📅 *Date:* ${currentDate.toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      })}
-⏰ *Time:* ${currentDate.toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit'
-      })}
-🔢 *Order ID:* ${orderId || `BO-SALES-${Date.now().toString().slice(-6)}`}
-👤 *Customer:* ${customerName || 'Valued Customer'}
-
-📝 *Items Ordered:*
-${items.map(item =>
-        `• ${item.name} (${(item.quantity * 1000).toFixed(0)}g) - ETB ${item.price.toFixed(2)}`
-      ).join('\n')}
-
-💰 *Total: ETB ${total.toFixed(2)}*
-
-💳 *Payment:* Cash on Delivery
-📍 *Store:* Genet Tower, Office #505
-📞 *Contact:* +251947385509
-
-✨ Thank you for choosing Betty Organic! ✨
-      `.trim();
-
-      // Open WhatsApp with pre-filled message (manual approach)
-      const whatsappUrl = `https://wa.me/${phoneToUse.replace('+', '')}?text=${encodeURIComponent(receiptText)}`;
-      window.open(whatsappUrl, '_blank');
-
-      console.log(`✅ Receipt prepared for manual sending to ${phoneToUse} via WhatsApp!`);
+      console.log(`✅ Receipt image shared successfully!`);
     } catch (error) {
-      console.error('Error preparing receipt for WhatsApp:', error);
+      console.error('Error sharing receipt image:', error);
+      alert('Sharing not available. Please use the Download button instead.');
     } finally {
       setIsSending(false);
     }
@@ -314,28 +348,22 @@ ${items.map(item =>
               </Button>
               <Button
                 onClick={handleSendToCustomer}
-                disabled={isSending || !customerPhone}
+                disabled={isSending}
                 className="gap-2 bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700 flex-1 disabled:opacity-50"
               >
                 <MessageCircle className="h-4 w-4" />
-                {isSending ? 'Sending Image Invoice...' : 'Send Image Invoice'}
+                {isSending ? 'Generating Invoice...' : 'Send Image Invoice'}
               </Button>
             </div>
 
-            {customerPhone ? (
-              <p className="text-xs text-center text-green-600">
-                ✅ Receipt image will be sent to: {customerPhone} via WhatsApp
+            <div className="text-xs text-center space-y-1">
+              <p className="text-green-600">
+                ✅ Receipt image can be shared to any app or downloaded
               </p>
-            ) : (
-              <div className="text-xs text-center space-y-1">
-                <p className="text-amber-600">
-                  ⚠️ No customer phone number found
-                </p>
-                <p className="text-muted-foreground">
-                  To send receipts automatically, select a customer with a phone number in the sales cart
-                </p>
-              </div>
-            )}
+              <p className="text-muted-foreground">
+                Click "Send Image Invoice" to share via WhatsApp, SMS, email, or any other app
+              </p>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
