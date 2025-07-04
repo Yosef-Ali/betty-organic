@@ -17,6 +17,7 @@ import type { Database } from '@/types/supabase';
 type ProductCategory = Database['public']['Enums']['product_category'];
 import { RecentSalesOrders } from './sales/RecentSalesOrders';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { useMobileDetection } from '@/hooks/useMobileDetection';
 
 export interface Product {
   id: string;
@@ -81,6 +82,7 @@ const SalesPage: FC<SalesPageProps> = ({ user }) => {
   }, []);
   const { items, addItem } = useSalesCartStore();
   const { toast } = useToast();
+  const isMobile = useMobileDetection();
 
   const handleCartOpenChange = useCallback((open: boolean) => {
     if (!user) {
@@ -154,8 +156,20 @@ const SalesPage: FC<SalesPageProps> = ({ user }) => {
       return [...prev, product];
     });
 
-    setIsCartOpen(true);
-  }, [addItem]);
+    // Mobile-friendly behavior: only auto-open cart on desktop
+    if (isMobile) {
+      // Show prominent success toast notification on mobile instead of opening cart
+      toast({
+        title: '✅ Added to Cart',
+        description: `${product.name} has been added to your cart. Tap the cart icon to view and checkout.`,
+        variant: 'success',
+        duration: 4000, // Show for 4 seconds on mobile
+      });
+    } else {
+      // Auto-open cart on desktop
+      setIsCartOpen(true);
+    }
+  }, [addItem, isMobile, toast]);
 
   const filteredProducts = useMemo(() => {
     return products.filter(product => {
