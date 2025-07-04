@@ -49,12 +49,11 @@ import {
     XCircle,
     Trash,
     ChevronRight,
-    MessageCircle,
 } from "lucide-react";
 import { ExtendedOrder } from "@/types/order";
 import { formatOrderCurrency } from "@/lib/utils";
 import { updateOrderStatus } from "@/app/actions/orderActions";
-// Removed WhatsApp imports - now using downloadable invoices
+import { DownloadInvoiceModal } from "./DownloadInvoiceModal";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
@@ -79,6 +78,8 @@ export function OrdersDataTable({
 }: OrdersDataTableProps) {
     const [sorting, setSorting] = useState<SortingState>([]);
     const [globalFilter, setGlobalFilter] = useState("");
+    const [selectedOrderForInvoice, setSelectedOrderForInvoice] = useState<ExtendedOrder | null>(null);
+    const [isDownloadInvoiceModalOpen, setIsDownloadInvoiceModalOpen] = useState(false);
 
     // Transform data for table display
     const data = useMemo<ExtendedOrderRow[]>(() => {
@@ -178,6 +179,7 @@ export function OrdersDataTable({
             {
                 id: "actions",
                 cell: ({ row }: { row: any }) => {
+
                     // Function to handle status updates
                     const handleStatusUpdate = async (status: string) => {
                         try {
@@ -192,191 +194,9 @@ export function OrdersDataTable({
                         }
                     };
 
-                    // Function to handle sending invoice via WhatsApp
-                    const handleSendInvoiceWhatsApp = async () => {
-                        try {
-                            const order = row.original;
-
-                            // Get customer phone number
-                            const customerPhone = order.customer?.phone || order.guest_phone;
-
-                            if (!customerPhone) {
-                                toast.error("Customer phone number not available", {
-                                    description: "Cannot send invoice without customer phone number"
-                                });
-                                return;
-                            }
-
-                            // Better customer name handling
-                            const customerName = order.customerName ||
-                                order.customer?.name ||
-                                order.guest_name ||
-                                'Valued Customer';
-
-                            // Better items mapping with total price calculation
-                            const orderItems = order.order_items?.map((item: any) => ({
-                                name: item.product_name || item.name || "Unknown Product",
-                                quantity: item.quantity || 0,
-                                price: (item.price || 0) * (item.quantity || 1), // Total price for this item
-                            })) || [];
-
-                            console.log('Sending invoice via WhatsApp:', {
-                                orderId: order.display_id || order.id,
-                                customerName,
-                                customerPhone,
-                                itemsCount: orderItems.length
-                            });
-
-                            // Prepare invoice data for WhatsApp message  
-                            const invoiceData = {
-                                customerPhone: customerPhone,
-                                customerName: customerName,
-                                orderId: order.display_id || order.id,
-                                items: orderItems,
-                                subtotal: order.total_amount || 0,
-                                shippingFee: 0,
-                                discount: 0,
-                                totalAmount: order.total_amount || 0,
-                                orderDate: new Date(order.created_at || Date.now()).toLocaleDateString(),
-                                orderTime: new Date(order.created_at || Date.now()).toLocaleTimeString(),
-                                storeName: 'Betty Organic',
-                                storeContact: '+251944113998'
-                            };
-
-                            console.log('Preparing invoice for manual WhatsApp sharing:', invoiceData);
-
-                            // Create manual WhatsApp message
-                            const whatsappText = `
-🌿 *Betty's Organic Store* 🌿
-📋 *Order Invoice*
-
-📅 *Date:* ${invoiceData.orderDate}
-⏰ *Time:* ${invoiceData.orderTime}
-🔢 *Order ID:* ${invoiceData.orderId}
-👤 *Customer:* ${invoiceData.customerName}
-
-📝 *Items Ordered:*
-${invoiceData.items.map(item =>
-                                `• ${item.name} (${item.quantity}g) - ETB ${item.price.toFixed(2)}`
-                            ).join('\n')}
-
-💰 *Payment Summary:*
-• Subtotal: ETB ${invoiceData.subtotal.toFixed(2)}
-• Delivery: ETB ${invoiceData.shippingFee.toFixed(2)}
-• Discount: ETB ${invoiceData.discount.toFixed(2)}
-• *Total: ETB ${invoiceData.totalAmount.toFixed(2)}*
-
-💳 *Payment Method:* Cash on Delivery
-📍 *Store:* Genet Tower, Office #505
-📞 *Contact:* +251944113998
-
-✨ Thank you for choosing Betty Organic! ✨
-                            `.trim();
-
-                            try {
-                                // Open WhatsApp with pre-filled message (manual approach)
-                                const customerPhone = invoiceData.customerPhone?.replace('+', '') || '251944113998';
-                                const whatsappUrl = `https://wa.me/${customerPhone}?text=${encodeURIComponent(whatsappText)}`;
-                                window.open(whatsappUrl, '_blank');
-
-                                toast.success('Invoice prepared for WhatsApp sharing', {
-                                    description: 'WhatsApp opened with invoice message'
-                                });
-                            } catch (error) {
-                                console.error('Error preparing WhatsApp invoice:', error);
-                                toast.error('Error preparing invoice', {
-                                    description: error instanceof Error ? error.message : 'Unknown error'
-                                });
-                            }
-                        } catch (error) {
-                            console.error('Error preparing invoice:', error);
-                            toast.error("Error preparing invoice", {
-                                description: "Please try again or download instead"
-                            });
-                        }
-                    };
-
-                    // Function to handle invoice download
-                    const handleDownloadInvoice = async () => {
-                        try {
-                            const order = row.original;
-
-                            // Better customer name handling
-                            const customerName = order.customerName ||
-                                order.customer?.name ||
-                                order.guest_name ||
-                                'Valued Customer';
-
-                            // Better items mapping with total price calculation
-                            const orderItems = order.order_items?.map((item: any) => ({
-                                name: item.product_name || item.name || "Unknown Product",
-                                quantity: item.quantity || 0,
-                                price: (item.price || 0) * (item.quantity || 1), // Total price for this item
-                            })) || [];
-
-                            console.log('Generating invoice for download:', {
-                                orderId: order.display_id || order.id,
-                                customerName,
-                                itemsCount: orderItems.length
-                            });
-
-                            // Generate PDF invoice
-                            const invoiceData = {
-                                orderId: order.display_id || order.id,
-                                customerName: customerName,
-                                customerEmail: order.customer?.email || order.guest_email || 'customer@email.com',
-                                customerPhone: order.customer?.phone || order.guest_phone || '',
-                                orderDate: new Date(order.created_at || Date.now()).toLocaleDateString('en-US', {
-                                    weekday: 'long',
-                                    year: 'numeric',
-                                    month: 'long',
-                                    day: 'numeric'
-                                }),
-                                orderTime: new Date(order.created_at || Date.now()).toLocaleTimeString('en-US', {
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                    hour12: true
-                                }),
-                                items: orderItems.map(item => ({
-                                    name: item.name,
-                                    quantity: `${Math.round(item.quantity * 1000)}`, // Convert to grams for display
-                                    price: item.price
-                                })),
-                                subtotal: order.total_amount || 0,
-                                shippingFee: 0,
-                                discount: 0,
-                                totalAmount: order.total_amount || 0
-                            };
-
-                            // Call the PDF generation API
-                            const response = await fetch('/api/generate-invoice-pdf', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(invoiceData)
-                            });
-
-                            if (response.ok) {
-                                const result = await response.json();
-                                if (result.success && result.pdfBase64) {
-                                    // Create download link for PDF
-                                    const link = document.createElement('a');
-                                    link.href = `data:${result.contentType};base64,${result.pdfBase64}`;
-                                    link.download = result.filename;
-                                    document.body.appendChild(link);
-                                    link.click();
-                                    document.body.removeChild(link);
-
-                                    toast.success("Invoice downloaded successfully!");
-                                } else {
-                                    toast.error("Failed to generate PDF invoice");
-                                }
-                            } else {
-                                toast.error("Failed to generate invoice");
-                            }
-                        } catch (error) {
-                            console.error('Error generating invoice:', error);
-                            toast.error("Error generating invoice");
-                        }
+                    const handleDownloadInvoice = () => {
+                        setSelectedOrderForInvoice(row.original);
+                        setIsDownloadInvoiceModalOpen(true);
                     };
 
                     const currentStatus = row.original.status;
@@ -400,10 +220,6 @@ ${invoiceData.items.map(item =>
                                 <DropdownMenuItem onClick={handleDownloadInvoice}>
                                     <Download className="mr-2 h-4 w-4" />
                                     Download Invoice
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={handleSendInvoiceWhatsApp}>
-                                    <MessageCircle className="mr-2 h-4 w-4" />
-                                    Send via WhatsApp
                                 </DropdownMenuItem>
 
                                 <DropdownMenuSeparator />
@@ -632,81 +448,10 @@ ${invoiceData.items.map(item =>
                                             <DropdownMenuContent align="end" className="w-48">
                                                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                                 <DropdownMenuItem
-                                                    onClick={async (e) => {
+                                                    onClick={(e) => {
                                                         e.stopPropagation();
-                                                        // Handle invoice download
-                                                        // order is already defined above
-
-                                                        // Better customer name handling
-                                                        const customerName = order.customerName ||
-                                                            order.customer?.name ||
-                                                            order.guest_name ||
-                                                            'Valued Customer';
-
-                                                        // Better items mapping with total price calculation
-                                                        const orderItems = order.order_items?.map((item: any) => ({
-                                                            name: item.product_name || item.name || "Unknown Product",
-                                                            quantity: item.quantity || 0,
-                                                            price: (item.price || 0) * (item.quantity || 1),
-                                                        })) || [];
-
-                                                        // Generate invoice image
-                                                        const invoiceData = {
-                                                            orderId: order.display_id || order.id,
-                                                            customerName: customerName,
-                                                            customerEmail: order.customer?.email || order.guest_email || 'customer@email.com',
-                                                            customerPhone: order.customer?.phone || order.guest_phone || '',
-                                                            orderDate: new Date(order.created_at || Date.now()).toLocaleDateString('en-US', {
-                                                                weekday: 'long',
-                                                                year: 'numeric',
-                                                                month: 'long',
-                                                                day: 'numeric'
-                                                            }),
-                                                            orderTime: new Date(order.created_at || Date.now()).toLocaleTimeString('en-US', {
-                                                                hour: '2-digit',
-                                                                minute: '2-digit',
-                                                                hour12: true
-                                                            }),
-                                                            items: orderItems.map(item => ({
-                                                                name: item.name,
-                                                                quantity: `${Math.round(item.quantity * 1000)}`, // Convert to grams for display
-                                                                price: item.price
-                                                            })),
-                                                            subtotal: order.total_amount || 0,
-                                                            shippingFee: 0,
-                                                            discount: 0,
-                                                            totalAmount: order.total_amount || 0
-                                                        };
-
-                                                        try {
-                                                            const response = await fetch('/api/generate-invoice-pdf', {
-                                                                method: 'POST',
-                                                                headers: { 'Content-Type': 'application/json' },
-                                                                body: JSON.stringify(invoiceData)
-                                                            });
-
-                                                            if (response.ok) {
-                                                                const result = await response.json();
-                                                                if (result.success && result.pdfBase64) {
-                                                                    // Create download link for PDF
-                                                                    const link = document.createElement('a');
-                                                                    link.href = `data:${result.contentType};base64,${result.pdfBase64}`;
-                                                                    link.download = result.filename;
-                                                                    document.body.appendChild(link);
-                                                                    link.click();
-                                                                    document.body.removeChild(link);
-
-                                                                    toast.success("Invoice downloaded successfully!");
-                                                                } else {
-                                                                    toast.error("Failed to generate PDF invoice");
-                                                                }
-                                                            } else {
-                                                                toast.error("Failed to generate invoice");
-                                                            }
-                                                        } catch (error) {
-                                                            console.error('Error generating invoice:', error);
-                                                            toast.error("Error generating invoice");
-                                                        }
+                                                        setSelectedOrderForInvoice(order);
+                                                        setIsDownloadInvoiceModalOpen(true);
                                                     }}
                                                 >
                                                     <Download className="mr-2 h-4 w-4" />
@@ -782,6 +527,15 @@ ${invoiceData.items.map(item =>
                     </PaginationContent>
                 </Pagination>
             </div>
+
+            <DownloadInvoiceModal
+                isOpen={isDownloadInvoiceModalOpen}
+                onClose={() => {
+                    setIsDownloadInvoiceModalOpen(false);
+                    setSelectedOrderForInvoice(null);
+                }}
+                order={selectedOrderForInvoice}
+            />
         </div>
     );
 }
