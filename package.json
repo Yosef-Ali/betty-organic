@@ -4,6 +4,9 @@
   "license": "MIT",
   "version": "0.0.0",
   "private": true,
+  "overrides": {
+    "sharp": "0.33.5"
+  },
   "scripts": {
     "seed": "tsx supabase/seed.ts",
     "db:create-reviews": "tsx scripts/create-google-reviews-table.ts",
