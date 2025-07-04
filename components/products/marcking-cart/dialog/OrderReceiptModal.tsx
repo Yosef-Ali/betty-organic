@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import Barcode from "react-barcode";
-import { Printer, MessageCircle, Download } from "lucide-react";
+import { Printer, MessageCircle, Download, X } from "lucide-react";
 import { generateReceiptPDF, generateReceiptFromHTML, downloadPDF, type ReceiptData } from "@/lib/utils/pdfGenerator";
 
 interface OrderReceiptModalProps {
@@ -339,31 +339,29 @@ export const OrderReceiptModal: React.FC<OrderReceiptModalProps> = ({
           </div>
 
           {/* Non-printable controls */}
-          <div className="flex flex-col gap-3 mt-4 no-print">
-            {/* Simplified action buttons */}
-            <div className="flex justify-center gap-2">
-              <Button onClick={handlePrint} variant="outline" className="gap-2 flex-1">
-                <Printer className="h-4 w-4" />
-                Print
-              </Button>
-              <Button
-                onClick={handleSendToCustomer}
-                disabled={isSending}
-                className="gap-2 bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700 flex-1 disabled:opacity-50"
-              >
-                <MessageCircle className="h-4 w-4" />
-                {isSending ? 'Generating Invoice...' : 'Send Image Invoice'}
-              </Button>
-            </div>
-
-            <div className="text-xs text-center space-y-1">
-              <p className="text-green-600">
-                ✅ Receipt image can be shared to any app or downloaded
-              </p>
-              <p className="text-muted-foreground">
-                Click "Send Image Invoice" to share via WhatsApp, SMS, email, or any other app
-              </p>
-            </div>
+          <div className="flex justify-center gap-2 mt-4 no-print">
+            <Button 
+              onClick={handlePrint} 
+              variant="outline" 
+              className="gap-2"
+            >
+              <Printer className="h-4 w-4" />
+              Print
+            </Button>
+            <Button
+              onClick={handleSendToCustomer}
+              disabled={isSending}
+              className="gap-2 bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700 disabled:opacity-50"
+            >
+              <MessageCircle className="h-4 w-4" />
+              {isSending ? 'Sending...' : 'Send'}
+            </Button>
+            <Button 
+              onClick={onClose} 
+              variant="outline"
+            >
+              Cancel
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

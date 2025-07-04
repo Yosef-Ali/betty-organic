@@ -316,10 +316,6 @@ const SalesPage: FC<SalesPageProps> = ({ user }) => {
           // Standard success toast
           const orderDisplay = response.order?.display_id || response.order?.id || 'unknown';
 
-          toast({
-            title: 'Order created successfully',
-            description: `Order #${orderDisplay} has been created`,
-          });
 
           // Handle WhatsApp notification result - customer-friendly approach
           if (response.whatsappNotification) {

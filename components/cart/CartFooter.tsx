@@ -432,30 +432,6 @@ export const CartFooter: FC<CartFooterProps> = ({
             </div>
           </motion.div>
         )}
-        {isOrderConfirmed && (
-          <motion.div
-            key="post-confirm"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
-            className="space-y-4"
-          >
-            <div className="grid grid-cols-3 gap-2">
-              <Button variant="outline" onClick={onCancel}>
-                Cancel
-              </Button>
-              <Button variant="outline" onClick={onPrintPreview}>
-                <Printer className="mr-2 h-4 w-4" />
-                Print
-              </Button>
-              <Button variant="outline" onClick={onShare}>
-                <Share2 className="mr-2 h-4 w-4" />
-                Share
-              </Button>
-            </div>
-          </motion.div>
-        )}
       </AnimatePresence>
 
       {/* Order Receipt Modal */}

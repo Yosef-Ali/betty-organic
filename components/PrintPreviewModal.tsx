@@ -7,13 +7,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import Barcode from "react-barcode";
-import { Printer, Share2 } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 interface PrintPreviewModalProps {
   isOpen: boolean;
@@ -32,71 +25,18 @@ export const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
   customerInfo,
   customerId,
 }) => {
-  const handlePrint = () => {
-    window.print();
-  };
-
-  const generateShareText = () => {
-    const storeName = "Betty Organics";
-    const orderNumber = Date.now().toString().slice(-6);
-
-    let text = `🛍️ Just shopped at ${storeName}!\n`;
-    text += `🧾 Order #${orderNumber}\n\n`;
-    text += "🛒 My haul:\n";
-    items.forEach((item, index) => {
-      text += `${index + 1}. ${item.name} (${item.quantity.toFixed(3)}kg) - $${item.price.toFixed(2)}\n`;
-    });
-    text += `\n💰 Total spent: $${total.toFixed(2)}\n\n\n#HealthyChoices\n\n`;
-    if (customerInfo) {
-      text += `📞 Contact: ${customerInfo}\n\n`;
-    }
-    text += `🕒 ${new Date().toLocaleString()}\n`;
-    text += `🔗 Check them out: ${window.location.origin}`;
-    return encodeURIComponent(text);
-  };
-
-  const handleShare = (platform: "telegram" | "whatsapp") => {
-    const text = generateShareText();
-    const url =
-      platform === "telegram"
-        ? `https://t.me/share/url?url=${window.location.href}&text=${text}`
-        : `https://api.whatsapp.com/send?text=${text}`;
-    window.open(url, "_blank");
-  };
 
   return (
     <>
-      {/* Print-only styles */}
-      <style>
-        {`
-          @media print {
-            body * {
-              visibility: hidden;
-            }
-            .print-content, .print-content * {
-              visibility: visible;
-            }
-            .print-content {
-              position: absolute;
-              left: 0;
-              top: 0;
-              width: 100%;
-            }
-            .no-print {
-              display: none !important;
-            }
-          }
-        `}
-      </style>
 
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader className="no-print">
-            <DialogTitle>Thermal Print Preview</DialogTitle>
+          <DialogHeader>
+            <DialogTitle>Order Preview</DialogTitle>
           </DialogHeader>
 
-          {/* Printable content */}
-          <div className="print-content border p-4 rounded">
+          {/* Receipt content */}
+          <div className="border p-4 rounded">
             <div className="text-center mb-4">
               <h2 className="text-xl font-bold">Receipt</h2>
               <p className="text-sm text-gray-500">
@@ -135,28 +75,11 @@ export const PrintPreviewModal: React.FC<PrintPreviewModalProps> = ({
             </div>
           </div>
 
-          {/* Non-printable controls */}
-          <div className="flex justify-end mt-4 space-x-2 no-print">
-            <Button onClick={handlePrint}>
-              <Printer className="mr-2 h-4 w-4" />
-              Print
+          {/* Controls */}
+          <div className="flex justify-end mt-4">
+            <Button onClick={onClose}>
+              OK
             </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline">
-                  <Share2 className="mr-2 h-4 w-4" />
-                  Share
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem onClick={() => handleShare("telegram")}>
-                  Share on Telegram
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleShare("whatsapp")}>
-                  Share on WhatsApp
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
         </DialogContent>
       </Dialog>

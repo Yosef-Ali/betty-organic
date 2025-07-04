@@ -435,10 +435,6 @@ export function useSalesCartSheet({
           clearCart();
           onOpenChange(false);
 
-          toast({
-            title: 'Success',
-            description: `Order ${forceComplete ? 'completed' : 'saved'} successfully for customer ${customerData.name}!`,
-          });
 
           return true;
         } else {
