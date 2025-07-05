@@ -22,36 +22,32 @@ export default function Footer() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
-  const [status, setStatus] = useState('');
   const [prelimEmail, setPrelimEmail] = useState('');
+
+  const handleContactClick = () => {
+    setEmail(prelimEmail);
+    setOpen(true);
+  };
 
   const sendEmail = (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!name || !email || !message) {
-      setStatus('Please fill in all fields.');
+      alert('Please fill in all fields.');
       return;
     }
 
-    const mailtoLink = `mailto:info@bettysorganic.com?subject=Message from ${name}&body=Name: ${name}%0D%0AEmail: ${email}%0D%0A%0D%0AMessage:%0D%0A${encodeURIComponent(
-      message,
-    )}`;
-    window.location.href = mailtoLink;
+    const subject = `Contact Form Message from ${name}`;
+    const body = `Name: ${name}\nEmail: ${email}\n\nMessage:\n${message}`;
+    
+    const mailtoLink = `mailto:Bettysorganicveggies@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.open(mailtoLink);
 
-    // Clear form
-    setStatus('Opening email client...');
+    // Clear form and close dialog
     setName('');
     setEmail('');
     setMessage('');
-    setTimeout(() => {
-      setOpen(false);
-      setStatus('');
-    }, 2000);
-  };
-
-  const handleContactClick = () => {
-    setEmail(prelimEmail);
-    setOpen(true);
+    setOpen(false);
   };
 
   return (
@@ -84,12 +80,7 @@ export default function Footer() {
                     You can also reach us by phone or visit our location.
                   </DialogDescription>
                 </DialogHeader>
-                <form
-                  onSubmit={sendEmail}
-                  className="space-y-4"
-                  method="post"
-                  encType="text/plain"
-                >
+                <form onSubmit={sendEmail} className="space-y-4">
                   <div>
                     <Label htmlFor="name">Name</Label>
                     <Input
@@ -97,7 +88,7 @@ export default function Footer() {
                       id="name"
                       name="name"
                       value={name}
-                      onChange={e => setName(e.target.value)}
+                      onChange={(e) => setName(e.target.value)}
                       required
                     />
                   </div>
@@ -108,7 +99,7 @@ export default function Footer() {
                       id="email"
                       name="email"
                       value={email}
-                      onChange={e => setEmail(e.target.value)}
+                      onChange={(e) => setEmail(e.target.value)}
                       required
                     />
                   </div>
@@ -118,11 +109,10 @@ export default function Footer() {
                       id="message"
                       name="message"
                       value={message}
-                      onChange={e => setMessage(e.target.value)}
+                      onChange={(e) => setMessage(e.target.value)}
                       required
                     />
                   </div>
-                  {status && <p className="text-sm text-gray-500">{status}</p>}
                   <DialogFooter>
                     <Button type="submit">Send Message</Button>
                   </DialogFooter>
@@ -130,7 +120,7 @@ export default function Footer() {
                 <div className="mt-6 grid grid-cols-2 gap-4">
                   <div className="flex items-center space-x-2">
                     <Mail className="h-5 w-5" />
-                    <span>info@bettysorganic.com</span>
+                    <span>Bettysorganicveggies@gmail.com</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Phone className="h-5 w-5" />
@@ -168,7 +158,7 @@ export default function Footer() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Mail className="w-5 h-5" />
-                  <span>bettysorganic@gmail.com</span>
+                  <span>Bettysorganicveggies@gmail.com</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <MapPin className="w-5 h-5" />
