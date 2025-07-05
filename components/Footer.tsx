@@ -39,7 +39,7 @@ export default function Footer() {
     const subject = `Contact Form Message from ${name}`;
     const body = `Name: ${name}\nEmail: ${email}\n\nMessage:\n${message}`;
     
-    const mailtoLink = `mailto:dev.yosefali@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    const mailtoLink = `mailto:Bettysorganicveggies@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     window.open(mailtoLink);
 
     // Clear form and close dialog
