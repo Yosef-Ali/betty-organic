@@ -116,18 +116,18 @@ export default function Footer() {
                     <Button type="submit">Send Message</Button>
                   </DialogFooter>
                 </form>
-                <div className="mt-6 grid grid-cols-2 gap-4">
+                <div className="mt-6 space-y-3">
                   <div className="flex items-center space-x-2">
-                    <Mail className="h-5 w-5" />
-                    <span>Bettysorganicveggies@gmail.com</span>
+                    <Mail className="h-5 w-5 shrink-0" />
+                    <span className="text-sm break-all">Bettysorganicveggies@gmail.com</span>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <Phone className="h-5 w-5" />
-                    <span>+251 91 234 5678</span>
+                    <Phone className="h-5 w-5 shrink-0" />
+                    <span className="text-sm">+251 91 234 5678</span>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <MapPin className="h-5 w-5" />
-                    <span>Addis Ababa, Ethiopia</span>
+                    <MapPin className="h-5 w-5 shrink-0" />
+                    <span className="text-sm">Addis Ababa, Ethiopia</span>
                   </div>
                 </div>
               </DialogContent>
