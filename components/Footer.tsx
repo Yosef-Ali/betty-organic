@@ -23,31 +23,57 @@ export default function Footer() {
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
   const [prelimEmail, setPrelimEmail] = useState('');
+  const [status, setStatus] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleContactClick = () => {
     setEmail(prelimEmail);
     setOpen(true);
   };
 
-  const sendEmail = (e: React.FormEvent) => {
+  const sendEmail = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!name || !email || !message) {
-      alert('Please fill in all fields.');
+      setStatus('Please fill in all fields.');
       return;
     }
 
-    const subject = `Contact Form Message from ${name}`;
-    const body = `Name: ${name}\nEmail: ${email}\n\nMessage:\n${message}`;
-    
-    const mailtoLink = `mailto:Bettysorganicveggies@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.open(mailtoLink);
+    setIsSubmitting(true);
+    setStatus('Sending message...');
 
-    // Clear form and close dialog
-    setName('');
-    setEmail('');
-    setMessage('');
-    setOpen(false);
+    try {
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name,
+          email,
+          message,
+        }),
+      });
+
+      if (response.ok) {
+        setStatus('Message sent successfully!');
+        setName('');
+        setEmail('');
+        setMessage('');
+        setTimeout(() => {
+          setOpen(false);
+          setStatus('');
+        }, 2000);
+      } else {
+        const errorData = await response.json();
+        setStatus(errorData.error || 'Failed to send message.');
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      setStatus('Failed to send message. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -113,8 +139,15 @@ export default function Footer() {
                       required
                     />
                   </div>
+                  {status && (
+                    <p className={`text-sm ${status.includes('successfully') ? 'text-green-600' : 'text-red-600'}`}>
+                      {status}
+                    </p>
+                  )}
                   <DialogFooter>
-                    <Button type="submit">Send Message</Button>
+                    <Button type="submit" disabled={isSubmitting}>
+                      {isSubmitting ? 'Sending...' : 'Send Message'}
+                    </Button>
                   </DialogFooter>
                 </form>
                 <div className="mt-6 grid grid-cols-2 gap-4">
