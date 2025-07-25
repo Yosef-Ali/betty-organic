@@ -38,7 +38,7 @@ export default function Footer() {
 
     const subject = `Contact Form Message from ${name}`;
     const body = `Name: ${name}\nEmail: ${email}\n\nMessage:\n${message}`;
-    
+
     const mailtoLink = `mailto:Bettysorganicveggies@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     window.open(mailtoLink);
 
@@ -123,7 +123,7 @@ export default function Footer() {
                   </div>
                   <div className="flex items-center space-x-2">
                     <Phone className="h-5 w-5 shrink-0" />
-                    <span className="text-sm">+251 91 234 5678</span>
+                    <span className="text-sm">+251 94 738 5590</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <MapPin className="h-5 w-5 shrink-0" />
